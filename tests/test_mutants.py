@@ -5003,12 +5003,18 @@ class TestStoreIntegrity(unittest.TestCase):
         n1 = next(e for e in st.scenes["a"] if e["id"] == "n1")
         # the grown box is the refitted label's band plus the fitter's
         # 16px, DERIVED because the band follows the spacing the client
-        # paints at: 136 while `text_dims` defaulted to Excalidraw's
-        # generic 1.25, 145 since it became Nunito's own 1.35
-        # (TASK-ENTITY-LINEHEIGHT, 2026-08-18). The wrap is width-driven
-        # and unchanged, so the LINE COUNT is what is written here.
-        self.assertEqual(n1["height"],
-                         canvas.text_dims("\n".join(["x"] * 6), 16)[1] + 16)
+        # paints at — and the spacing is the one the LOAD PATH STAMPED,
+        # which for this fixture is what the client infers from the 20px
+        # box its label arrives in rather than this file's font default.
+        # The wrap is width-driven and unchanged, so the LINE COUNT is
+        # what is written here.
+        self.assertEqual(
+            n1["height"],
+            canvas.text_dims(
+                "\n".join(["x"] * 6), 16,
+                canvas.detected_line_height(
+                    {"height": 20, "fontSize": 16,
+                     "text": _OVERSIZED_LABEL_TEXT}) or 1.25)[1] + 16)
 
     # -- Two CLASS pins from the v0.9 Task-18 cycle (2026-08-14), written
     # from third hands. The instances are fixed and covered by the tests
@@ -24510,15 +24516,17 @@ class TestEachFamilyIsMeasuredAtItsOwnSpacing(unittest.TestCase):
             "silence, so this pin has stopped recording why one more "
             "blind pixel would have cost the control")
 
-    def test_the_field_is_stamped_by_us_and_never_by_a_load(self) -> None:
-        """Where the exposure is, and where it is not.
+    def test_the_field_is_stamped_by_us_and_by_the_load_path(self) -> None:
+        """Every text carries the field: ours by minting, theirs on load.
 
-        Both halves matter and they point opposite ways, which is why
-        this is one test: everything we MINT carries the field (so no
-        drawing this tool produces depends on the fallback), and nothing
-        on the LOAD path stamps it (so an imported text keeps whatever
-        the file had — usually nothing — and is read by its family
-        forever after).
+        This said the LOAD path never stamps, and was the record that
+        not stamping was deliberate rather than forgotten. The user
+        ruled on 2026-08-19 that it should — "if they don't specify how
+        far apart lines should sit, then we should fill it in with a
+        safe default; even if that means modifying the file" — so the
+        pin now holds the other half of the same claim, and
+        `TestTheLoadPathStampsWhatTheClientWouldResolve` holds what
+        "safe" had to mean for that to be true.
         """
         errors: list[str] = []
         minted = canvas.apply_ops([], [
@@ -24542,14 +24550,278 @@ class TestEachFamilyIsMeasuredAtItsOwnSpacing(unittest.TestCase):
                    text="imported", originalText="imported", fontSize=16,
                    fontFamily=1)]}, "a")
         imported = loaded["elements"][0]
-        self.assertIsNone(
-            imported.get("lineHeight"),
-            "the load path has started stamping `lineHeight`. That would "
-            "be a bigger change than it looks — it decides what the "
-            "client draws — so it needs its own ruling, and this pin is "
-            "the record that it did not happen by accident")
-        self.assertEqual(canvas.line_height_of(imported),
-                         canvas.FONT_METRICS[1][3])
+        self.assertEqual(
+            imported.get("lineHeight"), 20 / 1 / 16,
+            "an imported text left the load path without the spacing "
+            "written down, so the next reader is back to inferring it")
+
+
+class TestTheLoadPathStampsWhatTheClientWouldResolve(unittest.TestCase):
+    """Opening a file writes the spacing down — and changes no picture.
+
+    The user's ruling, 2026-08-19: "if they don't specify how far apart
+    lines should sit, then we should fill it in with a safe default;
+    even if that means modifying the file." The cost — that opening a
+    project rewrites it — was put to them and accepted. What was left to
+    settle is what SAFE means, and it is not what it first looks like.
+
+    THE OBVIOUS READING IS WRONG, and this class exists because it was
+    nearly implemented. "Stamp the family's metric, since that is what
+    `lineHeight || getLineHeight(fontFamily)` resolves to" describes the
+    client's NEW-ELEMENT path, not its restore path. The bundle's
+    restore spells three arms:
+
+        e.lineHeight || (e.height ? detectLineHeight(e)
+                                  : getLineHeight(e.fontFamily))
+
+    and `detectLineHeight` is `height / lineCount / fontSize`. So a text
+    that arrives with a BOX keeps that box, and the client infers the
+    spacing to fit it. Stamping the family metric would have re-spaced
+    every imported text whose box was not already
+    `lines * fontSize * metric` — the file would open looking different,
+    which is exactly what "safe" forbids. The magnitude is pinned below:
+    a 40px two-line Nunito box reads 1.25 by the client's rule and 1.35
+    by the family's, an 8% re-space of content the user never touched.
+    """
+
+    @staticmethod
+    def _imported(family: int, height: float,
+                  text: str = "one\ntwo") -> dict:
+        """A text as an import supplies one: no `lineHeight` at all.
+
+        Args:
+            family: The `fontFamily` number.
+            height: The stored box height.
+            text: The text content, newlines included.
+
+        Returns:
+            A one-element scene document ready for `validate_scene`.
+        """
+        return {"type": "excalidraw", "version": 2, "elements": [
+            el(id="t1", type="text", x=0, y=0, width=200, height=height,
+               text=text, originalText=text, fontSize=16,
+               fontFamily=family)]}
+
+    def _stamped(self, doc: dict) -> dict:
+        """Load one document and hand back its first element.
+
+        Args:
+            doc: The scene document.
+
+        Returns:
+            The element after `validate_scene`.
+        """
+        return canvas.validate_scene(doc, "a")[0]["elements"][0]
+
+    def test_a_boxed_text_keeps_its_box_and_gets_the_inferred_spacing(self
+                                                                     ) -> None:
+        """The arm the family-metric reading would have broken.
+
+        Every family in the table, one two-line 40px box: the client
+        infers 1.25 from the box, and for six of the eight families that
+        is NOT the family's own metric. Stamping the metric would have
+        moved the drawn block; stamping the inference cannot.
+        """
+        moved = []
+        for family in sorted(canvas.FONT_METRICS):
+            got = self._stamped(self._imported(family, 40))
+            self.assertEqual(
+                (got["lineHeight"], got["height"]), (40 / 2 / 16, 40),
+                "family %d: the stamp no longer preserves the box the "
+                "file arrived with" % family)
+            if canvas.font_line_height(family) != got["lineHeight"]:
+                moved.append(family)
+        self.assertGreaterEqual(
+            len(moved), 5,
+            "the families whose own metric differs from this box's "
+            "inferred spacing have thinned out to %r, so this scene has "
+            "stopped demonstrating why the metric is the wrong stamp"
+            % (moved,))
+
+    def test_a_boxless_text_gets_its_familys_metric(self) -> None:
+        """The other arm, and the only one the metric was ever right for.
+
+        With no height there is nothing to infer from, and the client
+        falls through to `getLineHeight(fontFamily)` — so here, and only
+        here, the family's number is the safe one.
+        """
+        for family in sorted(canvas.FONT_METRICS):
+            got = self._stamped(self._imported(family, 0, text="one"))
+            self.assertEqual(
+                got["lineHeight"], canvas.font_line_height(family),
+                "family %d: a text with no box was stamped with something "
+                "other than its family's own metric" % family)
+
+    def test_an_unknown_family_is_stamped_with_the_clients_own_fallback(
+            self) -> None:
+        """The sharp edge: a face neither we nor the client knows.
+
+        DERIVED, not chosen. The bundle's `getLineHeight` ends
+        `|| wm[dn.Excalifont].metrics`, and its font registry is keyed by
+        the same `dn` enum the metrics table is — so a family number
+        outside that enum is unregistered for the client too, and
+        Excalifont's row is what it will use. That is what we stamp.
+
+        (Its baseline helper falls back to Virgil's row instead. The two
+        faces carry identical metrics, so the discrepancy is invisible;
+        it is noted so the next reader who finds both does not think one
+        of them is a bug.)
+        """
+        web = (Path(__file__).resolve().parents[1] / "skills" /
+               "wysiwyg-grilling" / "scripts" / "web")
+        src = re.findall(r'src="/assets/(index-[\w-]+\.js)"',
+                         (web / "index.html").read_text(encoding="utf-8"))[0]
+        bundle = (web / "assets" / src).read_text(encoding="utf-8",
+                                                  errors="replace")
+        self.assertIn(
+            "||wm[dn.Excalifont].metrics", bundle,
+            "the client's line-height fallback for an unregistered "
+            "family has moved; re-derive it from %s before trusting the "
+            "stamp below" % src)
+        got = self._stamped(self._imported(404, 0, text="one"))
+        self.assertEqual(
+            got["lineHeight"], canvas.FONT_METRICS[canvas.FONT_HAND][3],
+            "a text in a family nothing knows was stamped with something "
+            "other than the client's own fallback")
+
+    def test_the_stamp_is_what_the_clients_own_rule_resolves(self) -> None:
+        """The safety claim, in the only place it can be made: the client.
+
+        "Safe" means the browser draws the same picture after the stamp
+        as before it, and the browser's picture is decided by ITS
+        resolution of the field. So the assertion is a differential
+        against a SECOND implementation of that rule, transcribed here
+        from the bundle's own spelling rather than by calling the
+        production one — a stamp compared against itself would agree by
+        construction and prove nothing.
+        """
+        def as_the_client_resolves(e: dict) -> float:
+            """`lineHeight || (height ? height/lines/fontSize : metric)`.
+
+            Args:
+                e: The text element, as the file supplies it.
+
+            Returns:
+                The multiplier the client would lay it out at.
+            """
+            if e.get("lineHeight"):
+                return e["lineHeight"]
+            if e.get("height"):
+                return (e["height"] / len(e["text"].split("\n"))
+                        / e["fontSize"])
+            fam = e.get("fontFamily")
+            return canvas.FONT_METRICS.get(
+                fam if fam is not None else canvas.FONT_LEGIBLE,
+                canvas.FONT_METRICS[canvas.FONT_HAND])[3]
+
+        for family in [*sorted(canvas.FONT_METRICS), 404]:
+            for height, text in ((40, "one\ntwo"), (0, "one"),
+                                 (43, "one\ntwo"), (26, "one")):
+                doc = self._imported(family, height, text)
+                want = as_the_client_resolves(doc["elements"][0])
+                self.assertEqual(
+                    self._stamped(doc)["lineHeight"], want,
+                    "family %s at height %s: the stamp wrote something "
+                    "the client would not have resolved, so opening the "
+                    "file would change the drawing the user sees"
+                    % (family, height))
+
+    def test_the_stamp_moves_OUR_drawing_onto_the_browsers(self) -> None:
+        """What the stamp does change: our own export, and toward them.
+
+        The claim "stamped and unstamped render identically" is FALSE for
+        this repo's renderer, and finding that out is what made the
+        stamp worth having. `render_svg` reads `line_height_of`, which is
+        the client's RUNTIME rule — stored-or-family — because that is
+        the right rule for the elements this file mints. On an imported
+        text that arrives with a box and no spacing, the client's
+        RESTORE rule says something else, and before the stamp our
+        export drew such a text at the family's metric while the browser
+        drew it at the box's inferred one.
+
+        So: where the two rules agree, the stamp is invisible on both
+        sides; where they disagree, the stamp is what makes our picture
+        the browser's. Both halves are asserted, because the second
+        without the first would be satisfied by a stamp that moved
+        everything.
+        """
+        agreed = moved = 0
+        for family in sorted(canvas.FONT_METRICS):
+            doc = self._imported(family, 40)
+            before = canvas.render_svg([dict(e)
+                                        for e in doc["elements"]])[0]
+            stamped = self._stamped(doc)
+            after = canvas.render_svg([stamped])[0]
+            client = canvas.render_svg([dict(stamped,
+                                             lineHeight=40 / 2 / 16)])[0]
+            self.assertEqual(
+                after, client,
+                "family %s: after the stamp our export still differs from "
+                "the drawing the client resolves for this file" % family)
+            if canvas.font_line_height(family) == stamped["lineHeight"]:
+                self.assertEqual(before, after,
+                                 "family %s: the stamp moved a drawing "
+                                 "the two rules already agreed on"
+                                 % family)
+                agreed += 1
+            else:
+                self.assertNotEqual(before, after,
+                                    "family %s: the two rules disagree "
+                                    "here, so the stamp had work to do "
+                                    "and did none" % family)
+                moved += 1
+        self.assertGreater(agreed, 0, "no family exercises the no-op arm")
+        self.assertGreater(moved, 0, "no family exercises the moved arm")
+
+    def test_a_second_load_writes_nothing(self) -> None:
+        """Idempotent, or every open would be a new revision.
+
+        `validate_scene` runs on every `Store` construction, so a stamp
+        that drifted would mint a revision per open and spend
+        referential standing on bookkeeping — the r5-13 hazard class,
+        which this repo has paid for once already.
+        """
+        doc = self._imported(6, 43)
+        once = self._stamped(doc)
+        twice = self._stamped({"type": "excalidraw", "version": 2,
+                               "elements": [dict(once)]})
+        self.assertEqual(
+            once, twice,
+            "a second load moved the element, so opening a project twice "
+            "is not the same as opening it once")
+
+    def test_the_clients_rule_is_still_the_one_we_ported(self) -> None:
+        """The port's own referee: the bundle still spells three arms.
+
+        `line_height_of` is a transcription of a client expression, and a
+        transcription with nothing watching it is how the family gap
+        stayed open in the first place. This reads the shipped bundle for
+        the restore spelling and for `detectLineHeight`'s body, so a
+        client update that re-orders those arms — or divides by
+        something else — fails here rather than in somebody's drawing.
+        """
+        web = (Path(__file__).resolve().parents[1] / "skills" /
+               "wysiwyg-grilling" / "scripts" / "web")
+        src = re.findall(r'src="/assets/(index-[\w-]+\.js)"',
+                         (web / "index.html").read_text(encoding="utf-8"))[0]
+        bundle = (web / "assets" / src).read_text(encoding="utf-8",
+                                                  errors="replace")
+        restore = re.search(
+            r'lineHeight\|\|\(\w+\.height\?(\w+\$?)\(\w+\):Hc\(\w+\.fontFamily\)\)',
+            bundle)
+        self.assertIsNotNone(
+            restore, "the client's restore path no longer resolves "
+                     "`lineHeight || (height ? detect : family)`; "
+                     "re-derive `line_height_of` from %s" % src)
+        detect = re.search(
+            r'%s=\w+=>\{let \w+=\w+\(\w+\.text\)\.length;'
+            r'return \w+\.height/\w+/\w+\.fontSize\}'
+            % re.escape(restore.group(1) if restore else ""), bundle)
+        self.assertIsNotNone(
+            detect, "the client's `detectLineHeight` is no longer "
+                    "`height / lineCount / fontSize`; `detected_line_"
+                    "height` is a transcription of it and must move with "
+                    "it (%s)" % src)
 
 
 def _dragged_name_scene(drop: int) -> list[dict]:

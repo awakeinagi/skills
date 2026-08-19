@@ -3755,11 +3755,18 @@ class TestLoadRepairRerouteAndConfess(Base):
     # The refitted label's height, DERIVED and not written down: the
     # fitter wraps `LONG` into six lines inside a 120px box and reserves
     # `6 * fontSize * lineHeight` for them, so this number moves with the
-    # spacing the client paints at. It read 120 while the default was
-    # Excalidraw's generic 1.25 and reads 129 now that it is Nunito's own
-    # 1.35 (TASK-ENTITY-LINEHEIGHT, 2026-08-18); the wrap is width-driven
-    # and unchanged, which is why the LINE COUNT is what is written here.
-    FITTED_H = canvas.text_dims("\n".join(["x"] * 6), 16)[1]
+    # spacing the client paints at. The wrap is width-driven and
+    # unchanged, which is why the LINE COUNT is what is written here.
+    #
+    # The spacing is the one the LOADER STAMPS, which for this fixture is
+    # the one the client would infer from the box it arrives in — 20px
+    # for one 16px line, so 1.25 — and not this file's font default.
+    # That is the whole point of the stamp: from the load path down,
+    # every reader is measuring the block the browser will draw.
+    FITTED_H = canvas.text_dims(
+        "\n".join(["x"] * 6), 16,
+        canvas.detected_line_height({"height": 20, "fontSize": 16,
+                                     "text": LONG}) or 1.25)[1]
 
     def oversized(self, arrows):
         """A 120x60 box with a 400px label, plus the given arrows.
@@ -3934,6 +3941,52 @@ class TestLoadRepairRerouteAndConfess(Base):
             if "inside the shape" in w]
         self.assertEqual(warned, [])
 
+    def test_the_line_height_stamp_never_mints_a_revision(self):
+        """The stamp is bookkeeping, so history must not notice it.
+
+        THE PIN THAT WAS MISSING, and the one that caught the defect.
+        `validate_scene` writing a spacing onto every unstamped text is
+        idempotent in isolation — a pin over that function alone passed
+        happily — but the loader is not `validate_scene`, it is a Store,
+        and `content_fingerprint` compared a field
+        `DEFAULT_SIGNIFICANT_ATTRS` does not carry. Disk said "changed",
+        the differ said "nothing changed", and the pair minted an empty
+        `0 changes differ from history` record on load 2, 3, 4 and 5 of
+        any project that also had a load repair: r5-13 exactly, with a
+        new cause. Five loads, because two would have passed.
+        """
+        long_text = "Escalate to the compliance review board immediately"
+        els = self.oversized([
+            {"id": "a1", "type": "arrow", "x": 60, "y": 300, "width": 0,
+             "height": 240, "points": [[0, 0], [0, -240]],
+             "startBinding": {"elementId": "far2", "focus": 0, "gap": 1},
+             "endBinding": {"elementId": "n1", "focus": 0, "gap": 1}}])
+        self.assertNotIn("lineHeight", els["elements"][1],
+                         "the fixture's label now carries a spacing, so "
+                         "the stamp this test is about never runs")
+        self.store.commit(author="user", new_scenes={"f": els["elements"]},
+                          base_revn=0)
+        first = canvas.Store(self.project)
+        self.assertIsNotNone(first.catch_up(),
+                             "the load repairs stopped reconciling, so "
+                             "the loads below start from the wrong state")
+        for load in range(2, 6):
+            store = canvas.Store(self.project)
+            self.assertEqual(store.scene_repairs, [],
+                             "load %d repaired again" % load)
+            self.assertIsNone(
+                store.catch_up(),
+                "load %d minted a reconciliation. The spacing stamp is "
+                "bookkeeping — the value the client was already using, "
+                "written down — so it must be invisible to drift "
+                "detection, or every resume spends a revision on it"
+                % load)
+        settled = next(e for e in canvas.Store(self.project).scenes["f"]
+                       if e["id"] == "t1")
+        self.assertEqual(settled["lineHeight"], 20 / 1 / 16,
+                         "the settled scene lost the stamp")
+        self.assertEqual(settled["text"], long_text)
+
     def test_a_client_shaped_note_loads_untouched_twice(self):
         # The r5-13 constant, pinned by construction rather than by
         # fixture: this is exactly what `addStickyNote` posts — a 180x90
@@ -3941,12 +3994,22 @@ class TestLoadRepairRerouteAndConfess(Base):
         # nothing to say about it, on this load or any later one. If
         # anybody re-tightens the rule to w-24, the message names the
         # arithmetic instead of leaving a fixture count to be re-baselined.
+        #
+        # `lineHeight` IS PART OF "client-shaped" as of 2026-08-19: the
+        # browser writes the field on every text it serializes, and the
+        # load path now fills it in when it is missing (the user's
+        # safe-default ruling). A fixture without it was standing in for
+        # a note the client had posted while carrying a shape the client
+        # never posts — so the pin was passing on the strength of a
+        # scene that could not occur, and adding the field is what keeps
+        # it about the refit rule rather than about the stamp.
         note = [{"id": "note", "type": "rectangle", "x": 0, "y": 0,
                  "width": 180, "height": 90, "customData": {"role": "note"},
                  "boundElements": [{"id": "note-label", "type": "text"}]},
                 {"id": "note-label", "type": "text", "x": 8, "y": 8,
                  "width": 164, "height": 74, "text": "keep this as drawn",
                  "originalText": "keep this as drawn", "fontSize": 14,
+                 "lineHeight": 1.25,
                  "containerId": "note", "autoResize": False}]
         self.store.commit(author="user", new_scenes={"f": note},
                           base_revn=0)

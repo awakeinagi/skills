@@ -712,6 +712,33 @@ def validate_scene(doc, artifact_id):
         if el.get("boundElements"):
             el["boundElements"] = [b for b in el["boundElements"]
                                    if isinstance(b, dict) and b.get("id") in seen]
+    # A text with no `lineHeight` gets the one the CLIENT would resolve,
+    # written down. The user's ruling, 2026-08-19: "if they don't specify
+    # how far apart lines should sit, then we should fill it in with a
+    # safe default; even if that means modifying the file."
+    #
+    # SAFE means invisible, and the only value that is invisible is the
+    # client's own answer — which is NOT simply the font's metric. The
+    # restore path resolves `lineHeight || (height ? detectLineHeight(el)
+    # : getLineHeight(fontFamily))`, so a text that arrives with a box
+    # keeps that box and has its spacing inferred to fit it. Stamping the
+    # family's metric instead would re-space every imported text whose
+    # box was not already `lines * fontSize * metric` — the file would
+    # open looking different, which is the one thing the ruling's "safe"
+    # forbids. `line_height_of` is that whole expression, so this writes
+    # down what the reader was already computing.
+    #
+    # BOOKKEEPING, not geometry: nothing here moves, resizes or re-styles
+    # anything, and `TestTheLoadPathStampsWhatTheClientWouldResolve`
+    # proves the drawing is identical before and after for every family
+    # in the table. No ART code and no `Issue`: an issue is a repair the
+    # user should know about, and this changes nothing they can see. The
+    # file's mtime moving is the cost the ruling accepted.
+    for el in kept:
+        if el.get("type") != "text" or el.get("lineHeight"):
+            continue
+        el["lineHeight"] = (detected_line_height(el)
+                            or font_line_height(el.get("fontFamily")))
     # text-in-text repair: a bound label whose container is ITSELF a text
     # element is illegal Excalidraw structure — the client re-wraps the
     # label to the container's ~10px width and renders a giant
@@ -890,7 +917,20 @@ def content_fingerprint(els):
         # about it on every re-routed arrow, permanently. The system
         # already declares it non-significant for diffs; drift detection
         # must agree, or every such project phantoms a reconciliation.
-        skip = set(VOLATILE_ATTRS) | {"boundElements", "roundness"}
+        # `lineHeight` joins them on 2026-08-19 for the identical reason,
+        # one field later: the loader now stamps the spacing the client
+        # would resolve onto any text that arrived without it, and that
+        # field is NOT in `DEFAULT_SIGNIFICANT_ATTRS` — so the differ
+        # reports nothing while this hash reported a difference, and the
+        # pair minted an empty "0 changes differ from history" record on
+        # EVERY load of any project carrying a load repair. Measured: a
+        # re-routed arrow's project reconciled on loads 2, 3, 4 and 5,
+        # which is the r5-13 hazard exactly. Drift detection has to agree
+        # with the differ about what counts, and the differ's answer here
+        # is "nothing" — the stamp writes the value the client was
+        # already using.
+        skip = set(VOLATILE_ATTRS) | {"boundElements", "roundness",
+                                      "lineHeight"}
         live = []
         for e in els:
             if not isinstance(e, dict) or e.get("isDeleted"):
@@ -1668,18 +1708,58 @@ def font_line_height(family: int | None) -> float:
                             FONT_METRICS[FONT_HAND])[3]
 
 
+def detected_line_height(el: dict) -> float | None:
+    """The multiplier the client INFERS from a text's own stored height.
+
+    The client's `detectLineHeight`, ported exactly:
+    `height / lineCount / fontSize`, where the line count is the stored
+    text split on newlines. It is reached on the RESTORE path — the one
+    that runs when a file is opened — and only there.
+
+    This is the half of the client's rule that a reading of
+    `lineHeight || getLineHeight(fontFamily)` misses, and missing it is
+    expensive in exactly the direction that matters: for an imported
+    text that carries a height, the browser preserves the BOX it was
+    given and derives the spacing to fit, so assuming the family's
+    metric describes a drawing the client will not produce.
+
+    Args:
+        el: A text element.
+
+    Returns:
+        The inferred multiplier, or None when the client would not
+        infer one — no height to divide, or no text to count lines in.
+    """
+    height = el.get("height") or 0
+    fs = el.get("fontSize") or 0
+    lines = len((el.get("text") or "").split("\n"))
+    if height <= 0 or fs <= 0 or not lines:
+        return None
+    return height / lines / fs
+
+
 def line_height_of(el: dict) -> float:
     """The multiplier the client lays THIS element's text out at.
 
     ONE FUNCTION, because it was fourteen copies of
     `el.get("lineHeight") or <a number>` and the number was wrong in all
-    of them for any font but ours. This is the client's own rule ported:
-    `element.lineHeight || getLineHeight(element.fontFamily)`, which the
-    shipped bundle spells at five sites.
+    of them for any font but ours. This is the client's RUNTIME rule,
+    which it spells at five sites:
+    `element.lineHeight || getLineHeight(element.fontFamily)`.
 
     A stored value always wins. It is the one text field no op can reach
     — absent from `MOD_ATTRS` — so its only other author is the browser,
     and the browser's value is by definition what the browser will draw.
+
+    `detected_line_height` IS NOT CONSULTED HERE, and the boundary is
+    the client's own: it infers a multiplier from a stored height on the
+    RESTORE path and nowhere else. That difference is not pedantry. A
+    height is a fact about a drawing only when it came off disk; on the
+    minting path it is a placeholder this file is in the middle of
+    replacing, and reading it there would make the fitter's spacing
+    depend on whatever height a caller happened to pre-set. Loaded
+    scenes never reach that question, because `validate_scene` stamps
+    the inferred value and every reader after it sees a stored one.
 
     Args:
         el: Any element. A non-text element has no line height and gets
