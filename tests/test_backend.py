@@ -120,6 +120,32 @@ def run_reroute_cli(project, tmp, resp=None, **kw):
                 if "=" in ln and not ln.startswith("REROUTE="))
 
 
+def _fossilise(store, *arrow_ids):
+    """Drag named arrows off their bindings and re-stamp them as routed.
+
+    THE ONLY WAY TO GIVE A RE-ROUTER REAL WORK on a freshly seeded
+    flow: every arrow the seed mints is already where the router would
+    put it, so a pass over it moves nothing and any test that asserts
+    "the pinned one did not move" is satisfied by a pass that moved
+    nothing at all. That is exactly how `test_reroute_leaves_pinned_
+    arrows_alone` survived its guard being deleted. Split out of
+    `seed_fossil_flow` (curator batch 37, 2026-08-18) so a class that
+    already seeded in `setUp` can fossilise without re-seeding.
+
+    Args:
+        store: The Store, already holding the checkout flow.
+        *arrow_ids: The arrows to fossilise.
+    """
+    els = [dict(e) for e in store.scenes["checkout-flow"]]
+    for e in els:
+        if e["id"] in arrow_ids:
+            e["x"], e["y"] = e.get("x", 0) + 30, e.get("y", 0) + 40
+            e["points"] = [[0, 0], [150, -70]]
+            canvas._stamp_route(e)
+    store.commit(author="agent", new_scenes={"checkout-flow": els},
+                 base_revn=store.head_revn())
+
+
 def seed_fossil_flow(store):
     """Seed the checkout flow and fossilise two of its arrows.
 
@@ -133,14 +159,7 @@ def seed_fossil_flow(store):
         store: The Store to seed. Left at the fossilised head.
     """
     store.apply_batch(seed_flow_batch())
-    els = [dict(e) for e in store.scenes["checkout-flow"]]
-    for e in els:
-        if e["id"] in ("t1", "t3"):
-            e["x"], e["y"] = e.get("x", 0) + 30, e.get("y", 0) + 40
-            e["points"] = [[0, 0], [150, -70]]
-            canvas._stamp_route(e)
-    store.commit(author="agent", new_scenes={"checkout-flow": els},
-                 base_revn=store.head_revn())
+    _fossilise(store, "t1", "t3")
 
 
 def seed_flow_batch(base_revn=0):
@@ -18174,6 +18193,43 @@ class TestMermaidSeeding(Base):
                  for e in canvas.Store(self.project).scenes["askew"]}
         self.assertEqual(before, after)     # and nothing was written
 
+    def test_relayout_drops_the_ops_dagre_aimed_at_a_pin(self):
+        """`--relayout` honours pins here as well as at the gate.
+
+        PER-SITE OBSERVATION for `_cmd_mermaid_relayout`'s guard (curator
+        batch 37, 2026-08-18). Deleting it left the whole suite green:
+        the gate downstream would hold the ops anyway, so nothing broke
+        — but a relayout that emits four ops and has one refused later
+        reads as a broken batch, and the number never reaches the user
+        while they are still deciding. That is the behaviour with no
+        observer, and this is it.
+
+        Lives here rather than with its siblings because `_relayout` is
+        the browser stub these tests need, and a second hand-rolled copy
+        beside the other pin tests would be a second fixture free to
+        drift from this one.
+        """
+        self.store.apply_batch(seed_flow_batch())
+        _pin(self.store, "checkout-flow", "checkout")
+        out = self._relayout("checkout-flow",
+                             self._dagre_row("cart", "checkout", "payment",
+                                             "confirm"))
+        note = next((ln for ln in out.splitlines()
+                     if canvas.pinned_clause(1) in ln), "")
+        # NAMES THE PIN AND ONLY THE PIN. Asserted as "which element did
+        # it say" rather than as a slice of the template, so the sentence
+        # may be rewritten without falsifying this: what the user has to
+        # be told is WHICH of their pins dagre wanted to move, and a note
+        # naming all four would be the same silence in a louder costume.
+        self.assertIn("checkout", note)
+        for other in ("cart", "payment", "confirm"):
+            self.assertNotIn(other, note)
+        # AND THE REST OF THE RE-LAYOUT STILL LANDS. Three of the four
+        # move without a pin; dropping to two is the pin's cost, and a
+        # guard that dropped the batch would read the same as one that
+        # dropped one op if only the NOTE were asserted.
+        self.assertIn("MOVES=2", out)
+
     def test_cmd_refusals(self):
         """Unmapped types, existing artifacts and subgraphs refuse with
         named reasons; the ER path needs no server at all."""
@@ -20554,9 +20610,21 @@ class TestPinnedSurvivesEveryNonUserMover(Base):
     BOTH DIRECTIONS ON EVERY PASS, deliberately. A guard that skipped
     everything would pass a one-sided "the pinned thing did not move"
     test while silently disabling the repair the pass exists for — and
-    the frozen corpus has ZERO locked elements, so no corpus
-    differential can catch that. The second assertion in each test is
-    the one doing the work.
+    the frozen corpus holds 2 locked elements out of 976, which is not
+    a population any corpus differential can read. The second assertion
+    in each test is the one doing the work.
+
+    THE CLAIM ABOVE WAS FALSE OF THIS CLASS WHEN IT LANDED, and the
+    correction is worth more than the sentence. Per-SITE mutation —
+    delete ONE guard, run the suite — found eight of the twelve
+    `pinned_to_canvas` guard sites deletable with everything green,
+    including three this class names. A one-sided test is not the only
+    way to be vacuous: `test_the_fan_skips_pinned_arrows_and_still_fans
+    _the_others` had both poles and still observed no guard, because
+    its scene reached none of the passes its name claimed. Both
+    directions is necessary and is not sufficient — the scene has to
+    put the guard on the path. See `TestEveryPinGuardIsObservedAtIts
+    OwnSite` for the sites this class does not reach.
     """
 
     def setUp(self):
@@ -20605,22 +20673,38 @@ class TestPinnedSurvivesEveryNonUserMover(Base):
         rec = self.store.tidy("checkout-flow")
         self.assertNotIn("pinned", rec.get("user_note") or "")
 
-    def test_the_fan_skips_pinned_arrows_and_still_fans_the_others(self):
-        self.store.apply_batch(
-            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
-             "ops": [{"op": "add", "element": {"type": "arrow", "id": "t9"},
-                      "from": "cart", "to": "payment"}]})
+    def test_the_batch_router_skips_a_pinned_arrow_and_routes_the_rest(self):
+        """`apply_ops`' endpoint-moved re-route pass, both poles.
+
+        RENAMED AND REAIMED (curator batch 37, 2026-08-18). This was
+        `test_the_fan_skips_pinned_arrows_and_still_fans_the_others`: it
+        pinned `t1` and modded `payment`, a node `t1` binds at neither
+        end, so the batch never reached the fan OR the router with `t1`
+        in hand and the only guard it exercised was `pin_held_ops`.
+        Deleting `fan_attach_points`' guard left it green. The name
+        claimed the fan; the body proved the gate.
+
+        `mod checkout` is what puts the guard on the path: `t1` binds
+        `checkout`, so it lands in the moved-endpoint set — and the
+        binding edge in `_pin_kin` runs from a pinned NODE out to its
+        arrows and never from a pinned ARROW back to its nodes, so the
+        gate does NOT hold this op. Nothing but the routing pass's own
+        `pinned_to_canvas` stands between `t1` and a rewrite. `t2` binds
+        `checkout` too and is the live half. The fan proper is observed
+        by a direct call in `TestEveryPinGuardIsObservedAtItsOwnSite`,
+        where a failure can name the fan.
+        """
         _pin(self.store, "checkout-flow", "t1")
         was_pinned = _path(self.store, "checkout-flow", "t1")
-        was_free = _path(self.store, "checkout-flow", "t9")
+        was_free = _path(self.store, "checkout-flow", "t2")
         self.store.apply_batch(
             {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
-             "ops": [{"op": "mod", "id": "payment",
-                      "attrs": {"x": 520, "y": 200}}]})
+             "ops": [{"op": "mod", "id": "checkout",
+                      "attrs": {"x": 300, "y": 260}}]})
         self.assertEqual(_path(self.store, "checkout-flow", "t1"), was_pinned,
-                         "the fan/router moved a pinned arrow")
-        self.assertNotEqual(_path(self.store, "checkout-flow", "t9"), was_free,
-                            "the fan/router stopped touching arrows entirely")
+                         "the post-batch router re-routed a pinned arrow")
+        self.assertNotEqual(_path(self.store, "checkout-flow", "t2"), was_free,
+                            "the post-batch router stopped re-routing")
 
     def test_z_rebanding_holds_a_pinned_elements_slot(self):
         els = list(self.store.scenes["checkout-flow"])
@@ -20672,6 +20756,19 @@ class TestPinnedSurvivesEveryNonUserMover(Base):
                       "\n".join(cm.exception.errors))
 
     def test_reroute_leaves_pinned_arrows_alone(self):
+        """`reroute_scene` declines the pin and still repairs the rest.
+
+        THE SILENT HALF, ADDED (curator batch 37, 2026-08-18). This
+        asserted only that the pinned path was unchanged, over the plain
+        seed — a scene `reroute_scene` has no work to do on at all, so
+        an empty `changes` list satisfied both assertions and deleting
+        the guard left the suite green. `_fossilise` is what gives the
+        pass real work: it drags `t1` and `t3` off their bindings and
+        re-stamps them, so a live re-router must move BOTH and the pin
+        is the only reason `t1` survives. `t3` in `changes` is the
+        assertion doing the work.
+        """
+        _fossilise(self.store, "t1", "t3")
         _pin(self.store, "checkout-flow", "t1")
         was = _path(self.store, "checkout-flow", "t1")
         els, changes = canvas.reroute_scene(self.store.scenes["checkout-flow"])
@@ -20679,6 +20776,8 @@ class TestPinnedSurvivesEveryNonUserMover(Base):
         self.assertEqual((now.get("x"), now.get("y"),
                           json.dumps(now.get("points") or [])), was)
         self.assertNotIn("t1", {c["id"] for c in changes})
+        self.assertIn("t3", {c["id"] for c in changes},
+                      "reroute_scene stopped re-routing unpinned arrows")
 
 
 class TestPinnedRefusesAgentOps(Base):
@@ -21005,6 +21104,896 @@ class TestPinnedAddSpec(Base):
              "height": 40, "locked": True}, set(), errors, 0)
         self.assertEqual(errors, [])
         self.assertTrue(canvas.pinned_to_canvas(out[0]))
+
+
+# ---------------------------------------------------------------------------
+# Curator batch 37 (2026-08-18) — acceptance for the pin-backend review of
+# `10dc4bf..0713512`. Everything below was written against the defects
+# rather than against the fix, by a curator who does not write the fix:
+# the feature shipped with "both directions on every guard" as its whole
+# defence, and per-SITE mutation found EIGHT of the twelve guard sites
+# deletable with 1527 tests green. A fix's author cannot be the one who
+# decides what proves it.
+#
+# THE REDS ARE `expectedFailure` BY INTENT. Each marker comes off in the
+# same commit as the fix that earns it — unittest counts an unexpected
+# success as a hard failure, so the runner forces the flip and nobody has
+# to remember. Never weaken one of these to get green.
+# ---------------------------------------------------------------------------
+
+_PIN_SEED = {
+    "base_revn": 0, "artifact": "f",
+    "create": {"id": "f", "name": "F", "type": "flow", "concept": "c",
+               "concept_name": "C"},
+    "ops": [
+        {"op": "add", "element": {
+            "type": "rectangle", "id": "cart", "x": 40, "y": 120,
+            "width": 140, "height": 60, "role": "node"}, "label": "Cart"},
+        {"op": "add", "element": {
+            "type": "rectangle", "id": "rule", "x": 45, "y": 125,
+            "width": 130, "height": 2, "role": "decoration",
+            "groupIds": ["gD"]}},
+        {"op": "add", "element": {
+            "type": "rectangle", "id": "rule2", "x": 45, "y": 145,
+            "width": 130, "height": 2, "role": "decoration",
+            "groupIds": ["gD"]}},
+    ],
+}
+# TWO DECORATIONS IN ONE GROUP, and the second is not padding: `rule` is
+# pinned and `rule2` is not, so one scene carries both poles of the group
+# cascade. A scene holding only the pinned one cannot tell "the guard
+# held" from "the cascade never ran".
+
+
+def _part_id(store, aid, key, owner):
+    """The id of the composed part linked to `owner` by one backlink.
+
+    ANCHORED ON THE BACKLINK, NOT ON THE MINTED ID. `<owner>-thumb` is a
+    name the composer derives; `thumb_of` is the relation the model
+    carries, it is in `COMPOSED_PART_KEYS`, and `reconcile_composed`
+    finds parts by exactly this — so a test written this way asserts the
+    thing under test rather than a spelling that happens to hold today.
+    It is also the relation C-3 is about: `_pin_kin` does not know these
+    keys, which is why the reconciler can reach a part the gate cannot
+    see. A test that named the id would keep passing through a rename
+    and stop meaning anything.
+
+    Args:
+        store: The Store.
+        aid: Artifact id.
+        key: One of `canvas.COMPOSED_PART_KEYS`.
+        owner: The composed host's id.
+
+    Returns:
+        The part's element id.
+
+    Raises:
+        AssertionError: If no part carries that backlink — which means
+            the scene never composed, and every assertion downstream
+            would have been vacuous.
+    """
+    found = [e["id"] for e in store.scenes[aid]
+             if (e.get("customData") or {}).get(key) == owner]
+    if len(found) != 1:
+        # RAISED, not asserted: `python3 -O` strips `assert`, and this
+        # premise failing silently would leave every caller comparing a
+        # position that no element has.
+        raise AssertionError(
+            "expected exactly one %s=%s part, found %r" % (key, owner, found))
+    return found[0]
+
+
+def _grouped_decorations(store):
+    """Seed a pinned decoration and an unpinned twin sharing one group.
+
+    Args:
+        store: An empty Store. Left with `rule` pinned at the head.
+
+    Returns:
+        `(pinned_xy, free_xy)` as they stand before any agent batch.
+    """
+    store.apply_batch(_PIN_SEED)
+    els = [dict(e) for e in store.scenes["f"]]
+    for e in els:
+        if e["id"] == "rule":
+            e["locked"] = True
+    store.commit(author="user", new_scenes={"f": els},
+                 base_revn=store.head_revn())
+    return _xy(store, "f", "rule"), _xy(store, "f", "rule2")
+
+
+def _joins_the_group(eid="badge"):
+    """The op that mints a new element straight into the pinned group.
+
+    `pin_held_ops` computes its guarded set against the PRE-BATCH scene
+    and exempts `add` by design ("an `add` mints a new id and cannot be
+    pinned"), so kinship created here is invisible to the gate. This op
+    is what makes the batch's second op reach a pinned element without
+    ever naming one.
+
+    Args:
+        eid: The id to mint.
+
+    Returns:
+        The `add` op.
+    """
+    return {"op": "add", "element": {
+        "type": "rectangle", "id": eid, "x": 600, "y": 500, "width": 40,
+        "height": 20, "role": "node", "groupIds": ["gD"]}}
+
+
+class TestAPinHoldsAgainstKinshipMintedInsideTheBatch(Base):
+    """A batch that never names a pinned element still moves and deletes it.
+
+    C-1, re-derived at `0713512` (curator batch 37, 2026-08-18). What the
+    drawing gets wrong: the user's pinned rule sits at (45, 125) with the
+    tack showing, and after a two-op batch naming neither it nor anything
+    it was grouped with at batch time, it is 600px away — or gone. What
+    the checks reported: `pin_held` None, `housekeeping` None, batch OK.
+    What should have been reported: the pinned element where the user put
+    it, because `SKILL.md` ships the sentence "no tool-side pass will move
+    a pinned element" as doctrine the agent is told to rely on.
+
+    THE CONTRAST IS THE FINDING, not the movement on its own. `del rule`
+    through the front door is refused, loudly and correctly — so the
+    guarded and the unguarded path give opposite answers to the same
+    question, and an agent that learned the rule from the refusal has
+    learned something false about the tool.
+
+    The fix that flips these is a `pinned_to_canvas` check on the two
+    group-cascade sites in `apply_ops` (the mod arm's decoration carry and
+    the `del` arm's composite cleanup). Named by behaviour, not by line:
+    the implementer is moving this code as these are written.
+    """
+
+    @unittest.expectedFailure
+    def test_a_group_joined_by_an_add_does_not_carry_the_pin(self):
+        """Route 1: `add` into the group, then move what was added."""
+        pinned, _ = _grouped_decorations(self.store)
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "f",
+             "ops": [_joins_the_group(),
+                     {"op": "mod", "id": "badge",
+                      "attrs": {"x": 645, "y": 525}}]})
+        self.assertEqual(_xy(self.store, "f", "rule"), pinned,
+                         "a batch that never named the pin moved it")
+
+    @unittest.expectedFailure
+    def test_a_group_joined_by_an_add_does_not_delete_the_pin(self):
+        """Route 2: the same door, through the `del` arm's cleanup."""
+        _grouped_decorations(self.store)
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "f",
+             "ops": [_joins_the_group(), {"op": "del", "id": "badge"}]})
+        self.assertIn("rule", {e["id"] for e in self.store.scenes["f"]},
+                      "a batch that never named the pin deleted it")
+
+    @unittest.expectedFailure
+    def test_a_group_joined_by_a_mod_does_not_carry_the_pin(self):
+        """Route 3: no `add` at all — `groupIds` is in `MOD_ATTRS`.
+
+        This one matters most for the fix's shape: a guard written as
+        "exempt ids this batch minted" closes routes 1 and 2 and leaves
+        this open, because `cart` existed before the batch and was
+        perfectly legal to mod. The guard belongs at the cascade.
+        """
+        pinned, _ = _grouped_decorations(self.store)
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "f",
+             "ops": [{"op": "mod", "id": "cart",
+                      "attrs": {"groupIds": ["gD"]}},
+                     {"op": "mod", "id": "cart",
+                      "attrs": {"x": 640, "y": 520}}]})
+        self.assertEqual(_xy(self.store, "f", "rule"), pinned,
+                         "a mod-minted group carried the pin along")
+
+    def test_the_cascade_still_carries_an_unpinned_decoration(self):
+        """The live half: the composite integrity this cascade exists for.
+
+        UNGATED AND ASSERTED EVERY COMMIT, because the cheap way to pass
+        the three reds above is to stop cascading at all — and grouped
+        decorations travelling with their element is what keeps an X-box
+        stroke on its placeholder and an attribute row under its entity.
+        A fix that breaks this has replaced one silent defect with a
+        louder one.
+        """
+        _, free = _grouped_decorations(self.store)
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "f",
+             "ops": [_joins_the_group(),
+                     {"op": "mod", "id": "badge",
+                      "attrs": {"x": 645, "y": 525}}]})
+        self.assertNotEqual(_xy(self.store, "f", "rule2"), free,
+                            "the group cascade stopped carrying decorations")
+
+    def test_the_cascade_still_deletes_an_unpinned_decoration(self):
+        """The live half of the `del` arm's composite cleanup."""
+        _grouped_decorations(self.store)
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "f",
+             "ops": [_joins_the_group(), {"op": "del", "id": "badge"}]})
+        self.assertNotIn("rule2", {e["id"] for e in self.store.scenes["f"]},
+                         "the composite cleanup stopped collecting parts")
+
+    def test_the_front_door_refuses_a_del_on_the_pinned_element(self):
+        """The control that makes the three reds mean something.
+
+        Same question — may the tool delete `rule`? — asked through the
+        gate instead of around it, and answered NO. Two answers to one
+        question is the defect; this half is the one that is right.
+        """
+        _grouped_decorations(self.store)
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "f",
+                 "ops": [{"op": "del", "id": "rule"}]})
+        self.assertIn("rule", "\n".join(cm.exception.errors))
+        self.assertIn("rule", {e["id"] for e in self.store.scenes["f"]})
+
+
+def _wide_label_doc(locked, with_arrow=False):
+    """A container whose bound label is too wide, so the loader refits it.
+
+    THE TRIGGER IS THE REFIT, not the label: `validate_scene` re-centres
+    a label only after `fit_label_in` changed something, and it widens
+    the CONTAINER to do it — which is what drags a bound arrow along
+    through `reroute_and_confess`. A label that already fits reaches
+    neither mover, so a narrower one would build a scene where "nothing
+    moved" proves nothing.
+
+    Args:
+        locked: Whether the label (and the arrow, when present) is
+            pinned.
+        with_arrow: Also bind a server-routed arrow to the container, to
+            reach `reroute_and_confess`.
+
+    Returns:
+        The `.excalidraw` document, ready to write to disk.
+    """
+    cont = dict(canvas.BASE_DEFAULTS)
+    cont.update({
+        "id": "box", "type": "rectangle", "x": 100, "y": 100,
+        "width": 160, "height": 80,
+        "boundElements": [{"id": "box-label", "type": "text"}],
+        "customData": {"role": "node"}})
+    text = "a label far wider than the box it is bound to"
+    label = dict(canvas.BASE_DEFAULTS)
+    label.update({
+        "id": "box-label", "type": "text", "x": 110, "y": 130,
+        "width": 300, "height": 25, "locked": bool(locked), "text": text,
+        "originalText": text, "fontSize": 20, "fontFamily": 1,
+        "textAlign": "center", "verticalAlign": "middle",
+        "containerId": "box", "lineHeight": 1.25, "autoResize": True,
+        "customData": {"role": "label"}})
+    els = [cont, label]
+    if with_arrow:
+        far = dict(canvas.BASE_DEFAULTS)
+        far.update({"id": "far", "type": "rectangle", "x": 500, "y": 100,
+                    "width": 160, "height": 80,
+                    "customData": {"role": "node"}})
+        arrow = dict(canvas.BASE_DEFAULTS)
+        arrow.update({
+            "id": "a1", "type": "arrow", "x": 260, "y": 140,
+            "width": 240, "height": 0, "points": [[0, 0], [240, 0]],
+            "locked": bool(locked),
+            "startBinding": {"elementId": "box", "focus": 0, "gap": 1},
+            "endBinding": {"elementId": "far", "focus": 0, "gap": 1},
+            "customData": {"role": "edge"}})
+        canvas._stamp_route(arrow)
+        els += [far, arrow]
+    return {"type": "excalidraw", "version": 2, "source": "curator-37",
+            "elements": els, "appState": {}, "files": {}}
+
+
+class TestTheLoadPathHonoursPins(Base):
+    """`validate_scene` moves pinned elements on every `Store` construction.
+
+    C-2, re-derived at `0713512` (curator batch 37, 2026-08-18). What the
+    drawing gets wrong: the user pins a label at (110, 130) and a bound
+    arrow's path, saves, and re-opens the project — the label is at
+    (112, 108) and the arrow's path has been rewritten, with no user
+    gesture anywhere between. What the checks reported: `ART-011` /
+    `ART-012`, ordinary repair notes, `repaired: True`. What should have
+    been reported: the pinned geometry untouched, and the loader saying
+    it left it alone.
+
+    ONE RULE TYPED AT TWO SITES, which is the wave's own headline defect
+    class reproduced inside the fix that exists to end it: this re-centre
+    is `recenter_label`'s formula spelled a second time, and
+    `recenter_label` is the copy that got the guard. Its docstring is the
+    indictment — "guarding the twenty callers would have been twenty
+    chances to miss one; guarding the single writer is why the promise
+    holds" — and this is a twenty-first caller bypassing the writer.
+
+    THE NARRATION IS PINNED AS WELL AS THE GEOMETRY, deliberately. A fix
+    that keeps moving the element and merely apologises better satisfies
+    a coordinates-only red while breaking the user's stated ruling, so
+    the declined-repair note is asserted through `pinned_clause` — the
+    file's ONE formatter for this sentence, whose own docstring requires
+    every pass that declines pinned work to speak through it.
+    """
+
+    def _load(self, doc, name="pinned"):
+        """Write a document to the project and load it the real way.
+
+        Args:
+            doc: The `.excalidraw` document.
+            name: The artifact file stem.
+
+        Returns:
+            `(elements, issues)` from a fresh `Store` over the project.
+        """
+        (self.project.artifacts_dir / ("%s.excalidraw" % name)).write_text(
+            json.dumps(doc), encoding="utf-8")
+        store = canvas.Store(self.project)
+        return store.scenes[name], list(store.issues)
+
+    @unittest.expectedFailure
+    def test_a_pinned_bound_label_is_not_recentred_on_load(self):
+        """The label's stored position survives its container's refit."""
+        els, _ = self._load(_wide_label_doc(locked=True))
+        label = next(e for e in els if e["id"] == "box-label")
+        self.assertEqual((label["x"], label["y"]), (110, 130),
+                         "the loader re-centred a pinned label")
+
+    @unittest.expectedFailure
+    def test_the_loader_says_it_left_the_pinned_label_alone(self):
+        """A declined repair is reported as declined, in the one wording."""
+        _, issues = self._load(_wide_label_doc(locked=True))
+        self.assertIn(canvas.pinned_clause(1),
+                      "\n".join(i["msg"] for i in issues))
+
+    @unittest.expectedFailure
+    def test_a_pinned_arrow_is_not_rerouted_on_load(self):
+        """`reroute_and_confess` is gated on ownership, never on the pin."""
+        els, _ = self._load(_wide_label_doc(locked=True, with_arrow=True),
+                            name="pinned-arrow")
+        arrow = next(e for e in els if e["id"] == "a1")
+        self.assertEqual(
+            (arrow["x"], arrow["y"], json.dumps(arrow["points"])),
+            (260, 140, json.dumps([[0, 0], [240, 0]])),
+            "the loader re-routed a pinned arrow")
+
+    def test_an_unpinned_label_is_still_recentred_on_load(self):
+        """The live half: the load repair this class must not disable.
+
+        UNGATED. A label wider than its box is a real defect the loader
+        exists to repair, and a fix that made the loader stop repairing
+        would pass every red above.
+        """
+        els, issues = self._load(_wide_label_doc(locked=False),
+                                 name="free-label")
+        label = next(e for e in els if e["id"] == "box-label")
+        self.assertNotEqual((label["x"], label["y"]), (110, 130),
+                            "the loader stopped re-centring labels")
+        self.assertIn("ART-011", {i["code"] for i in issues})
+
+    def test_an_unpinned_arrow_is_still_rerouted_on_load(self):
+        """The live half of `reroute_and_confess`."""
+        els, issues = self._load(
+            _wide_label_doc(locked=False, with_arrow=True),
+            name="free-arrow")
+        arrow = next(e for e in els if e["id"] == "a1")
+        self.assertNotEqual(
+            (arrow["x"], arrow["y"], json.dumps(arrow["points"])),
+            (260, 140, json.dumps([[0, 0], [240, 0]])),
+            "the loader stopped re-routing arrows off a refitted container")
+        self.assertIn("ART-012", {i["code"] for i in issues})
+
+
+def _checkbox_widget(store, checked=False):
+    """Mint a composed checkbox, whose `cb-box` part carries `box_of`.
+
+    THE BACKLINK IS THE POINT. `_pin_kin` knows bindings, `groupIds`,
+    `containerId` and `frameId` — and not the `*_of` backlinks, while
+    `reconcile_composed` finds and repositions parts BY those backlinks.
+    The report names the split that opens the hole: `*_of` carries
+    MEANING, `groupIds` carries STRUCTURE, kept apart on purpose. The
+    gate reads only structure; the reconciler walks only meaning.
+
+    Args:
+        store: An empty Store.
+        checked: The checkbox's state.
+    """
+    store.apply_batch({
+        "base_revn": 0, "artifact": "w",
+        "create": {"id": "w", "name": "W", "type": "wireframe",
+                   "concept": "w", "concept_name": "W"},
+        "ops": [{"op": "add", "element": {
+            "type": "rectangle", "id": "cb", "x": 100, "y": 100,
+            "width": 200, "height": 28,
+            "customData": {"kind": "checkbox", "checked": checked}},
+            "label": "Remember me"}]})
+
+
+class TestAPinnedComposedPartIsKinToItsOwner(Base):
+    """A pinned part outside its owner's group is moved by the reconciler.
+
+    C-3, re-derived at `0713512` (curator batch 37, 2026-08-18). What the
+    drawing gets wrong: the user pins the checkbox's box at (108, 106),
+    ungroups the widget — the gesture this design explicitly blesses and
+    narrates — and a later `mod cb height` slides the pinned box to
+    (108, 122). What the checks reported: batch applied, `pin_held` None,
+    `housekeeping` None. What should have been reported: the op held,
+    naming `cb-box`, exactly as it is when the widget is still grouped.
+
+    TWO ROUTES AND THE SECOND NEEDS NO USER ACTION. The auto-grouping of
+    composed widgets happens at MINT time with no migration, so every
+    widget in an already-saved project keeps the pre-`0713512` shape —
+    parts in their own group, the owner in none — and behaves like the
+    ungrouped case without anybody having ungrouped anything.
+
+    The fix that flips these is a fifth relation in `_pin_kin` over the
+    `*_of` backlinks (`COMPOSED_PART_KEYS`), so the gate's kinship covers
+    the same edges the reconciler walks.
+    """
+
+    def _mod_the_owner(self):
+        """Resize the composed host, which re-derives every part.
+
+        Returns:
+            `"applied"`, or the joined refusal text.
+        """
+        try:
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "w",
+                 "ops": [{"op": "mod", "id": "cb",
+                          "attrs": {"height": 60}}]})
+        except canvas.BatchError as exc:
+            return "\n".join(exc.errors)
+        return "applied"
+
+    def _ungrouped_with_pinned_box(self):
+        """Mint the widget, ungroup it, and pin its box part.
+
+        Returns:
+            `(part_id, (x, y))` before any agent batch.
+        """
+        _checkbox_widget(self.store)
+        box = _part_id(self.store, "w", "box_of", "cb")
+        els = [dict(e, groupIds=[]) for e in self.store.scenes["w"]]
+        for e in els:
+            if e["id"] == box:
+                e["locked"] = True
+        self.store.commit(author="user", new_scenes={"w": els},
+                          base_revn=self.store.head_revn())
+        return box, _xy(self.store, "w", box)
+
+    @unittest.expectedFailure
+    def test_an_ungrouped_pinned_part_is_not_repositioned(self):
+        """Route 1: the user ungroups the widget, then the agent resizes."""
+        box, before = self._ungrouped_with_pinned_box()
+        self._mod_the_owner()
+        self.assertEqual(_xy(self.store, "w", box), before,
+                         "the reconciler moved a pinned part")
+
+    @unittest.expectedFailure
+    def test_an_ungrouped_pinned_part_holds_the_op_that_would_move_it(self):
+        """And the refusal is LOUD — the ruling is not merely "don't move"."""
+        box, _ = self._ungrouped_with_pinned_box()
+        self.assertIn(box, self._mod_the_owner(),
+                      "the op that reaches a pinned part was not held")
+
+    @unittest.expectedFailure
+    def test_a_legacy_widget_shape_holds_its_pinned_part_too(self):
+        """Route 2: the pre-`0713512` shape, which needs no user gesture.
+
+        Built on disk rather than through `add`, because the shape under
+        test is precisely the one the current minter no longer produces:
+        parts in their own group, the owner in none. Every composed
+        widget in an already-saved project is still this.
+        """
+        host = dict(canvas.BASE_DEFAULTS)
+        host.update({"id": "cb", "type": "rectangle", "x": 100, "y": 100,
+                     "width": 200, "height": 28, "groupIds": [],
+                     "customData": {"kind": "checkbox", "checked": False,
+                                    "role": "node"}})
+        box = dict(canvas.BASE_DEFAULTS)
+        box.update({"id": "cb-box", "type": "rectangle", "x": 108,
+                    "y": 106, "width": 16, "height": 16,
+                    "groupIds": ["cb-grp"], "locked": True,
+                    "customData": {"box_of": "cb", "role": "decoration"}})
+        (self.project.artifacts_dir / "legacy.excalidraw").write_text(
+            json.dumps({"type": "excalidraw", "version": 2,
+                        "source": "curator-37", "elements": [host, box],
+                        "appState": {}, "files": {}}), encoding="utf-8")
+        store = canvas.Store(self.project)
+        before = _xy(store, "legacy", "cb-box")
+        # SUPPRESSED, because either answer is legal for THIS assertion:
+        # holding the op is the fix, and applying it is today's
+        # behaviour. What may not happen either way is the pinned part
+        # moving, and that is what the line below asks.
+        with contextlib.suppress(canvas.BatchError):
+            store.apply_batch(
+                {"base_revn": store.head_revn(), "artifact": "legacy",
+                 "ops": [{"op": "mod", "id": "cb",
+                          "attrs": {"height": 60}}]})
+        self.assertEqual(_xy(store, "legacy", "cb-box"), before,
+                         "a legacy widget's pinned part was repositioned")
+
+    def test_the_still_grouped_widget_refuses_the_op(self):
+        """The control: same question, asked where the gate can see it.
+
+        UNGATED. `groupIds` reaches the gate and the op is held by name,
+        which is what makes the reds above a contradiction rather than a
+        missing feature — the tool already knows the answer, on one
+        spelling of the same widget.
+        """
+        _checkbox_widget(self.store)
+        box = _part_id(self.store, "w", "box_of", "cb")
+        els = [dict(e) for e in self.store.scenes["w"]]
+        for e in els:
+            if e["id"] == box:
+                e["locked"] = True
+        self.store.commit(author="user", new_scenes={"w": els},
+                          base_revn=self.store.head_revn())
+        before = _xy(self.store, "w", box)
+        self.assertIn(box, self._mod_the_owner())
+        self.assertEqual(_xy(self.store, "w", box), before)
+
+    def test_an_unpinned_ungrouped_part_is_still_repositioned(self):
+        """The live half: `reconcile_composed` is the invariant, not a bug.
+
+        UNGATED. Parts are DERIVED from their host's geometry, and the
+        cheap way to pass the reds above — stop reconciling ungrouped
+        parts — reopens r4-8/r4-10, where a resized placeholder kept its
+        old diagonals.
+        """
+        _checkbox_widget(self.store)
+        box = _part_id(self.store, "w", "box_of", "cb")
+        els = [dict(e, groupIds=[]) for e in self.store.scenes["w"]]
+        self.store.commit(author="user", new_scenes={"w": els},
+                          base_revn=self.store.head_revn())
+        before = _xy(self.store, "w", box)
+        self.assertEqual(self._mod_the_owner(), "applied")
+        self.assertNotEqual(_xy(self.store, "w", box), before,
+                            "the reconciler stopped re-deriving parts")
+
+
+class TestResolvePinHonoursACanvasPin(Base):
+    """`resolve_pin` deletes a pinned ❓ glyph that `del` may not touch.
+
+    Re-derived at `0713512` (curator batch 37, 2026-08-18), from the
+    review's Minor 2. What the drawing gets wrong: the user pins the
+    question glyph to the canvas — the tack shows — and the next
+    `resolve_pin` takes it anyway. What the checks reported: applied,
+    `pin_held` None. What should have been reported: the op held, in the
+    same words `del` on that element already produces.
+
+    THE SAME GUARDED-VERSUS-UNGUARDED CONTRAST AS C-1, one op kind
+    along: `pin_held_ops` judges `("mod", "del", "reorder")` and
+    `resolve_pin` is not in the tuple, so the arm that removes the glyph
+    never asks. The two nouns collide in the wording and not in the
+    model — a canvas pin (`locked`) and a ❓ pin are different things —
+    which is exactly why this one is easy to read past.
+    """
+
+    def _seed(self):
+        """Mint a node and a ❓ pin on it, then pin the glyph to canvas."""
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "cart", "x": 40, "y": 120,
+                "width": 140, "height": 60, "role": "node"},
+                "label": "Cart"},
+                {"op": "pin", "id": "q1", "question": "which cart?",
+                 "target": "cart"},
+                {"op": "pin", "id": "q2", "question": "which total?",
+                 "target": "cart"}]})
+        els = [dict(e) for e in self.store.scenes["f"]]
+        for e in els:
+            if e["id"] == "q1":
+                e["locked"] = True
+        self.store.commit(author="user", new_scenes={"f": els},
+                          base_revn=self.store.head_revn())
+
+    def _resolve(self, pid):
+        """Resolve one ❓ pin.
+
+        Args:
+            pid: The pin element's id.
+
+        Returns:
+            `"applied"`, or the joined refusal text.
+        """
+        try:
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "f",
+                 "ops": [{"op": "resolve_pin", "id": pid,
+                          "answer": "the one in the header"}]})
+        except canvas.BatchError as exc:
+            return "\n".join(exc.errors)
+        return "applied"
+
+    @unittest.expectedFailure
+    def test_resolve_pin_does_not_delete_a_canvas_pinned_glyph(self):
+        """The glyph the user pinned survives its own resolution."""
+        self._seed()
+        self._resolve("q1")
+        self.assertIn("q1", {e["id"] for e in self.store.scenes["f"]},
+                      "resolve_pin deleted a pinned element")
+
+    def test_resolve_pin_still_removes_an_unpinned_glyph(self):
+        """The live half: settled things leave the canvas.
+
+        UNGATED. Resolution DELETES the ❓ (live_test_2 B3), and a fix
+        that held every `resolve_pin` would strand the state this op
+        exists to close.
+        """
+        self._seed()
+        self.assertEqual(self._resolve("q2"), "applied")
+        self.assertNotIn("q2", {e["id"] for e in self.store.scenes["f"]},
+                         "resolve_pin stopped removing the glyph")
+
+    def test_del_on_the_same_pinned_glyph_is_refused(self):
+        """The control: the tool already knows the answer, through `del`."""
+        self._seed()
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "f",
+                 "ops": [{"op": "del", "id": "q1"}]})
+        self.assertIn("q1", "\n".join(cm.exception.errors))
+
+
+def _converging_arrows(n=3, target_side=300):
+    """`n` routed arrows arriving on one node's left side, ready to fan.
+
+    THREE, NOT TWO. The fan needs two members on a side before it
+    respaces anything, so a scene of one pinned plus one free arrow goes
+    quiet the moment the guard drops the pinned one — and a pass that
+    did nothing would satisfy "the pinned arrow did not move". At three
+    the two unpinned members still make a fan and the scene can tell the
+    guard holding apart from the fan not firing.
+
+    Args:
+        n: How many arrows converge.
+        target_side: The target node's width and height.
+
+    Returns:
+        The scene, sources first, ready for `fan_attach_points`.
+    """
+    els = [{"id": "N", "type": "rectangle", "x": 200, "y": 100,
+            "width": target_side, "height": target_side,
+            "customData": {"role": "node"}}]
+    for i in range(n):
+        els.append({"id": "S%d" % i, "type": "rectangle", "x": 0,
+                    "y": 100 + i * 100, "width": 60, "height": 40,
+                    "customData": {"role": "node"}})
+        els.append({"id": "a%d" % i, "type": "arrow", "x": 60,
+                    "y": 120 + i * 100, "width": 140, "height": 0,
+                    "points": [[0, 0], [140, 0]],
+                    "startBinding": {"elementId": "S%d" % i, "focus": 0,
+                                     "gap": 1},
+                    "endBinding": {"elementId": "N", "focus": 0, "gap": 1},
+                    "customData": {"role": "edge", "routed": True}})
+    return els
+
+
+def _crowded_arrows(n=4, w=160, h=40):
+    """`n` ELBOWED routed arrows crowding one node's left side.
+
+    A CONTENDED SIDE, which `_converging_arrows` is not: the feet search
+    only runs on a side too short for its members or already tighter
+    than `LANE_TOL`, and 160x40 with four arrivals is both. The elbows
+    matter as much as the crowding — each arrow's final run is
+    horizontal, so its foot has a side to be spilled OFF.
+
+    Args:
+        n: How many arrows converge.
+        w: The target node's width.
+        h: The target node's height — the side under contention.
+
+    Returns:
+        The scene, ready for `contention_feet`.
+    """
+    els = [{"id": "N", "type": "rectangle", "x": 400, "y": 100, "width": w,
+            "height": h, "customData": {"role": "node"}}]
+    for i in range(n):
+        sx0, sy = i * 48, 60 + i * 160
+        els.append({"id": "S%d" % i, "type": "rectangle", "x": sx0,
+                    "y": 40 + i * 160, "width": 60, "height": 40,
+                    "customData": {"role": "node"}})
+        arr = {"id": "a%d" % i, "type": "arrow", "x": sx0 + 60, "y": sy,
+               "points": [[0, 0], [0, 100 + h / 2 - sy],
+                          [340 - sx0, 100 + h / 2 - sy]],
+               "startBinding": {"elementId": "S%d" % i, "focus": 0,
+                                "gap": 1},
+               "endBinding": {"elementId": "N", "focus": 0, "gap": 1},
+               "customData": {"role": "edge"}}
+        arr["width"] = max(abs(p[0]) for p in arr["points"])
+        arr["height"] = max(abs(p[1]) for p in arr["points"])
+        arr["customData"]["routed"] = canvas._route_sig(arr)
+        els.append(arr)
+    return els
+
+
+def _geom(els, eid):
+    """One element's drawn geometry, comparably.
+
+    Args:
+        els: A scene.
+        eid: Element id.
+
+    Returns:
+        `(x, y, points-as-json)`.
+    """
+    e = next(e for e in els if e["id"] == eid)
+    return (e.get("x"), e.get("y"), json.dumps(e.get("points") or []))
+
+
+def _node_op(eid, x, y):
+    """An `add` op for one 80x40 flow node.
+
+    Args:
+        eid: The element id to mint.
+        x: Left edge.
+        y: Top edge.
+
+    Returns:
+        The op dict.
+    """
+    return {"op": "add", "element": {
+        "type": "rectangle", "id": eid, "x": x, "y": y, "width": 80,
+        "height": 40, "role": "node"}}
+
+
+class TestEveryPinGuardIsObservedAtItsOwnSite(Base):
+    """One test per guard, red when THAT guard alone is deleted.
+
+    C-4's answer (curator batch 37, 2026-08-18). The feature's whole
+    defence was "35 constructed tests, both directions on every guard",
+    and per-SITE mutation — delete one `pinned_to_canvas` check, run the
+    whole suite — found EIGHT of the twelve guard sites deletable with
+    1527 tests green. Inverting the predicate globally proves only that a
+    pin is load-bearing SOMEWHERE; it cannot tell a watched guard from an
+    unwatched one, and the coarse experiment is what let C-1 ship.
+
+    THE ROSTER RE-DERIVED, and it came out one site longer than the
+    review's: `_tidy_pass`' group-cascade guard — the one whose comment
+    states the rule C-1 breaks, "a pin is a pin whichever end of the
+    group it sits on" — is in neither half of the review's eleven, and
+    it is deletable too. Twelve sites, eight unobserved.
+
+    Four sites are genuinely two-sided already and are NOT re-proved
+    here: tidy's snap, `normalize_z_order`, `recenter_label` and
+    `pin_held_ops` each turn the suite red on their own. Two more of the
+    eight live in `TestPinnedSurvivesEveryNonUserMover`, where the
+    repaired `test_reroute_leaves_pinned_arrows_alone` and
+    `test_the_batch_router_skips_a_pinned_arrow_and_routes_the_rest` now
+    reach the sites their names claim. The relayout guard is observed in
+    `TestMermaidSeeding`, next to the browser stub it needs.
+
+    EVERY TEST HERE CARRIES BOTH POLES IN ONE SCENE, because a guard
+    that skipped everything and a pass that ran on nothing produce the
+    same "the pinned one did not move".
+    """
+
+    def test_the_fan_declines_a_pinned_arrow_and_fans_the_others(self):
+        """`fan_attach_points`, called directly so a failure names it."""
+        els = _converging_arrows()
+        for e in els:
+            if e["id"] == "a1":
+                e["locked"] = True
+        before = {i: _geom(els, "a%d" % i) for i in range(3)}
+        skipped = canvas.fan_attach_points(els)
+        self.assertEqual(_geom(els, "a1"), before[1],
+                         "the fan respaced a pinned arrow's foot")
+        self.assertEqual(skipped, 1,
+                         "the fan did not report the pin it declined")
+        self.assertNotEqual(_geom(els, "a0"), before[0],
+                            "the fan stopped fanning")
+        self.assertNotEqual(_geom(els, "a2"), before[2],
+                            "the fan stopped fanning")
+
+    def test_the_feet_search_declines_a_pinned_arrow_and_spills_others(self):
+        """`contention_feet` on a side too short for its four arrivals.
+
+        `a0` is the pinned one on purpose: on this scene the search
+        spills `a0` and `a3` and leaves the middle pair alone, so pinning
+        a foot the search would not have touched anyway would have
+        produced a green test observing nothing.
+        """
+        els = _crowded_arrows()
+        for e in els:
+            if e["id"] == "a0":
+                e["locked"] = True
+        before = {i: _geom(els, "a%d" % i) for i in range(4)}
+        skipped = canvas.contention_feet(els)
+        self.assertEqual(_geom(els, "a0"), before[0],
+                         "the feet search moved a pinned arrow's foot")
+        self.assertEqual(skipped, 1,
+                         "the feet search did not report the pin")
+        self.assertNotEqual(_geom(els, "a3"), before[3],
+                            "the feet search stopped spilling feet")
+
+    def test_the_final_routing_pass_declines_a_pinned_arrow(self):
+        """`apply_ops`' complete-obstacle-set pass, reached by `add` alone.
+
+        THE SIBLING PASS IS UNREACHABLE FROM HERE, which is what makes
+        this per-site: the endpoint-moved pass runs only when a `mod`
+        carried x/y/width/height, and this batch is two `add`s. So the
+        only guard between `e1` and a rewrite is this pass's own. `e2` is
+        the same geometry one screen down with its own blocker, and it
+        re-routes, which is the live half.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [_node_op("a", 0, 100), _node_op("z", 400, 200),
+                    _node_op("a2", 0, 600), _node_op("z2", 400, 700),
+                    {"op": "add", "element": {"type": "arrow", "id": "e1"},
+                     "from": "a", "to": "z"},
+                    {"op": "add", "element": {"type": "arrow", "id": "e2"},
+                     "from": "a2", "to": "z2"}]})
+        _pin(self.store, "f", "e1")
+        was_pinned = _path(self.store, "f", "e1")
+        was_free = _path(self.store, "f", "e2")
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "f",
+             "ops": [_node_op("blk", 300, 100), _node_op("blk2", 300, 600)]})
+        self.assertEqual(_path(self.store, "f", "e1"), was_pinned,
+                         "the final routing pass re-routed a pinned arrow")
+        self.assertNotEqual(_path(self.store, "f", "e2"), was_free,
+                            "the final routing pass stopped re-routing")
+
+    def test_tidys_router_declines_a_pinned_arrow_and_routes_the_rest(self):
+        """`_tidy_pass`' routing loop, through the button the user presses.
+
+        The note is NOT the assertion. `_tidy_pass` folds every pinned
+        server-routed arrow into its `pinned` set separately from this
+        loop, so "left 1 pinned element where it is" prints identically
+        with the loop's guard deleted — the geometry is the only thing
+        that can tell.
+        """
+        self.store.apply_batch(seed_flow_batch())
+        _fossilise(self.store, "t1", "t3")
+        _pin(self.store, "checkout-flow", "t1")
+        was_pinned = _path(self.store, "checkout-flow", "t1")
+        was_free = _path(self.store, "checkout-flow", "t3")
+        self.store.tidy("checkout-flow")
+        self.assertEqual(_path(self.store, "checkout-flow", "t1"), was_pinned,
+                         "tidy re-routed a pinned arrow")
+        self.assertNotEqual(_path(self.store, "checkout-flow", "t3"), was_free,
+                            "tidy stopped re-routing arrows")
+
+    def test_a_pinned_part_does_not_ride_its_owners_snap(self):
+        """`_tidy_pass`' group cascade — the site the review's roster missed.
+
+        Its own comment states the rule: "a part that is itself pinned
+        still does not move — a pin is a pin whichever end of the group
+        it sits on." Nothing was checking. A slider carries TWO parts, so
+        one scene holds both poles: the track rides the owner's +1 snap
+        and the pinned thumb does not.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "w",
+            "create": {"id": "w", "name": "W", "type": "wireframe",
+                       "concept": "w", "concept_name": "W"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "sl", "x": 100, "y": 100,
+                "width": 200, "height": 28,
+                "customData": {"kind": "slider", "value": 40}},
+                "label": "Volume"}]})
+        thumb = _part_id(self.store, "w", "thumb_of", "sl")
+        track = _part_id(self.store, "w", "track_of", "sl")
+        els = [dict(e) for e in self.store.scenes["w"]]
+        for e in els:
+            if e["id"] == "sl":
+                e["x"] = e["x"] + 3          # off the 4px grid
+            if e["id"] == thumb:
+                e["locked"] = True
+        self.store.commit(author="user", new_scenes={"w": els},
+                          base_revn=self.store.head_revn())
+        was_pinned = _xy(self.store, "w", thumb)
+        was_free = _xy(self.store, "w", track)
+        self.store.tidy("w")
+        self.assertEqual(_xy(self.store, "w", thumb), was_pinned,
+                         "the owner's snap carried a pinned part with it")
+        self.assertNotEqual(_xy(self.store, "w", track), was_free,
+                            "the widget stopped travelling as one thing")
 
 
 if __name__ == "__main__":
