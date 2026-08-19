@@ -1517,7 +1517,25 @@ def text_dims(text: str | None, font_size: float,
     # ceil + 2px: int() truncation is what wrapped '62' (28 < 28.8);
     # the pad absorbs sub-pixel rendering at autoResize:false widths
     width_px = int(width + 0.999) + 2
-    return (max(width_px, 10), max(int(height), int(font_size * line_height)))
+    # CEIL THE LINE BOX TOO. This was `int()`, the only place the
+    # function rounded DOWN, and it disagreed with the ceil directly
+    # above it for no stated reason: at fontSize 14 a line box is 17.5px
+    # and this reserved 17, while the client measures 17.5 — 13 corpus
+    # texts and every fontSize whose line box is fractional (14, 10).
+    # Under-reserving height is the direction that loses content off the
+    # bottom rather than margin, which is the very failure the
+    # `line_height` parameter above exists to prevent.
+    #
+    # THIS DOES NOT MAKE THE ROUND TRIP A FIXED POINT, and saying so is
+    # the point: `normalize_element` rounds every stored width/height to
+    # a whole pixel, so a client answer of 17.5 has no representation on
+    # disk at all — 17 before this change, 18 after. The residue is
+    # <=0.5px, silent (`_text_metric_derived` suppresses it), and closes
+    # only if the store learns fractional text extents. What changes here
+    # is the SIGN: the server now reserves slightly more than the ink
+    # instead of slightly less.
+    line_box = math.ceil(font_size * line_height)
+    return (max(width_px, 10), max(math.ceil(height), line_box))
 
 
 def wrap_label_text(text, inner, fs):

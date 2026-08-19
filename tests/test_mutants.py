@@ -23848,20 +23848,29 @@ class TestOneLineHeightHasTwoReaders(unittest.TestCase):
 
         Same scene, same box, same label, one field apart: at 1.25 the
         ink stops exactly on the container's bottom edge, and at 1.35 it
-        runs 4px past it. That 4px is the whole of what the check below
+        runs past it. That overhang is the whole of what the check below
         cannot see, and it is read off `ink_extent` — the extent the
         export writes its viewBox from — so it is the drawing's number
         and not a re-derivation of `text_dims`.
+
+        THE 1.35 POLE MOVED 68 -> 69 with v0.9's F3, and toward the
+        truth: three lines at `16 * 1.35` is a 64.8px block, which
+        `text_dims` used to floor to 64 and now ceils to 65. The old 68
+        was 0.8px of the last line rounded out of sight. The two poles
+        are 5px apart rather than 4, and the reds below are unaffected —
+        one asserts only that the check speaks, and the other derives
+        its magnitude from `text_dims` precisely so that a change to the
+        estimator moves both sides together.
         """
         default = ink_box(_line_height_box(height=64, line_height=1.25),
                           pad=0)
         client = ink_box(_line_height_box(height=64, line_height=1.35),
                          pad=0)
         self.assertEqual(
-            (default[3], client[3]), (64, 68),
+            (default[3], client[3]), (64, 69),
             "the export's own ink no longer straddles the 64px container "
             "at these two line heights, so the poles below have stopped "
-            "being 4px apart")
+            "describing a block that leaves it")
 
     def test_the_fit_check_still_speaks_when_the_box_is_plainly_short(self
                                                                      ) -> None:
