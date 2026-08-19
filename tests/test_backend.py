@@ -14641,7 +14641,7 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
              "y": 0, "width": 120, "height": 60, "role": "node",
              "label": "B"},
             {"op": "add", "id": "c1", "type": etype, "from": "n1",
-             "to": "n2"}] + list(extra), errs)
+             "to": "n2"}, *extra], errs)
         return els, errs
 
     def _mod_errors(self, etype, attrs):
