@@ -393,8 +393,8 @@ the 4 that remain being curator batch 34's pairs, whose owner is
 elsewhere; the 5 was
 re-derived 2026-08-18 at the same task's first fold, which flipped the
 FIRST of that pair (`TestALineDecorationRemeasureIsNotAUserEdit`) by
-teaching `_geometry_derived` the `decoration` role, so a composed check
-stroke's browser-re-measured height stops narrating as `resized`
+teaching `_geometry_derived` to recognise a COMPOSED PART, so a composed
+check stroke's browser-re-measured height stops narrating as `resized`
 against a box nobody clicked — taking the tree 6 -> 5, the count having
 reached 6 by way of curator batches 34 and 35 landing two pairs on the
 same day. The two folds are two changes and not one on purpose: the

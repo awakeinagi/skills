@@ -23703,9 +23703,18 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
     2 -> 1 -> 0 and never 2 -> 0, and each fix was proven to own exactly
     its own red by stubbing it and watching that red alone come back.
     The tick's re-measure was first, because it is the handover's defect
-    and a one-token change to one predicate. Each method's docstring
-    carries its own `THE FIX THAT FLIPPED THIS` paragraph; the three
-    poles below were re-verified green in all four stub configurations.
+    and the smaller change. Each method's docstring carries its own
+    `THE FIX THAT FLIPPED THIS` paragraph.
+
+    A FOURTH POLE joined the curator's three on 2026-08-19, from the
+    review of the first repair: a user-dragged standalone BACKDROP must
+    still narrate `moved`. The first attempt at the re-measure fix
+    silenced the whole `role: "decoration"` axis — a role the public ops
+    schema lets an agent author — and none of the original three poles
+    could see it, because the `resized` pole's `rule` carries no role at
+    all and so exercises the fall-through rather than the new branch.
+    The full suite, both floors and the render tier, passed with that
+    regression in. A pole has to sit on the branch under test.
 
     WHO FLIPPED THESE: the work package that owns the re-measure guard,
     i.e. whoever owns `_geometry_derived` / `_text_metric_derived` and
@@ -23746,6 +23755,65 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             {"resized": 1},
             "a plain line the user dragged taller stopped narrating, so "
             "the red below would pass against a differ that says nothing")
+
+    def test_a_dragged_backdrop_still_narrates_its_move(self) -> None:
+        """The fourth pole: an agent-authored BACKDROP is the user's to move.
+
+        Added 2026-08-19 by the review of the first repair, which had
+        keyed `_geometry_derived` on `role: "decoration"` alone. That
+        role is not an internal marker — it is a first-class value of
+        the PUBLIC ops schema (`references/ops-reference.md` lists it
+        among the four an agent may set on an `add`) and
+        `references/layout.md` instructs the agent to author one: "one
+        thick low-opacity `role: decoration` backdrop line" behind N
+        parallel edges. A backdrop has no host, carries no
+        `COMPOSED_PART_KEYS` tag, and `reconcile_composed` never touches
+        it, so its geometry is the author's and a user's drag of it is
+        a gesture like any other.
+
+        MEASURED at the broken commit, through this same `Store.commit`:
+        `{"saved_no_changes": 1}` for both a `line` and a `rectangle`
+        backdrop, on a drag AND on a resize — the tool telling the user
+        they did nothing, which is the exact sentence this class exists
+        to stop and a fresh instance of the ownership family the wave's
+        carry-forward names as the next assessment's predicted headline.
+
+        WHY THE OTHER THREE POLES DID NOT CATCH IT, which is the whole
+        reason this one exists: the `resized` pole's `rule` carries NO
+        role at all, so it exercises the predicate's fall-through and
+        never reaches the branch the repair added. A pole has to sit on
+        the branch under test, not merely on the same verb.
+        """
+        store = _composed_screen(with_body=False)
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "screen",
+            "ops": [{"op": "add", "element": {
+                "id": "backdrop", "type": "line", "x": 80, "y": 400,
+                "width": 400, "height": 0, "points": [[0, 0], [400, 0]],
+                "role": "decoration"}}]})
+        seeded = next(e for e in store.scenes["screen"]
+                      if e["id"] == "backdrop")
+        cd = seeded.get("customData") or {}
+        self.assertEqual(
+            (cd.get("role"), [k for k in canvas.COMPOSED_PART_KEYS
+                              if cd.get(k)]),
+            ("decoration", []),
+            "the fixture stopped being a STANDALONE backdrop — it must "
+            "carry the role and no part tag, or it is testing the "
+            "composed-part branch instead of the one that regressed")
+
+        def drag(els: list[dict]) -> None:
+            """Move the backdrop the way a user drags it."""
+            for e in els:
+                if e["id"] == "backdrop":
+                    e["x"], e["y"] = e["x"] + 60, e["y"] + 40
+
+        self.assertEqual(
+            _resave(store, drag).get("verb_counts"), {"moved": 1},
+            "a user dragged an agent-authored backdrop and the tool "
+            "stopped saying so — `role: decoration` is authorable "
+            "through the ops schema and is one axis too coarse to "
+            "silence; the derived half is `_composed_part`")
 
     def test_a_real_restack_still_narrates_reordered(self) -> None:
         """The firing pole for `reordered`, ungated, on the same verb.
@@ -23819,18 +23887,26 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
         red that had named the flag would have to be rewritten to accept
         the second.
 
-        THE FIX THAT FLIPPED THIS, the same day (v0.9 commit-narration):
-        `decoration` joined `label` and `pin` in `_geometry_derived`'s
-        role tuple — the obvious shape this docstring named, taken
-        because the role is the honest axis and not a proxy for one:
-        every element carrying it is minted by `_deco` with an
-        `<owner>_of` key, and `reconcile_composed` rewrites its geometry
-        from the host on every write path there is. One predicate and
+        THE FIX THAT FLIPPED THIS (v0.9 commit-narration):
+        `_geometry_derived` now answers True for a `role: "decoration"`
+        that ALSO carries one of `COMPOSED_PART_KEYS`. One predicate and
         not two readers, deliberately — `_text_metric_derived` answers a
         different question (font metrics on text), and teaching it about
         lines would have been this wave's headline defect, one rule
-        typed at two sites, for the sixth time. Origin: curator batch
-        35, 2026-08-18; flipped 2026-08-18.
+        typed at two sites, for the sixth time.
+
+        THE FIRST ATTEMPT KEYED ON THE ROLE ALONE and shipped a live
+        regression for one commit, which is why the fourth pole above
+        exists. `role: "decoration"` is a first-class value of the
+        PUBLIC ops schema an agent may set on any `add`, and layout.md
+        instructs it to author a standalone backdrop; silencing the
+        whole role made a user's own drag of one narrate
+        `saved_no_changes`. The honest axis is being a composite's PART
+        — `COMPOSED_PART_KEYS` is the name this repo already gave it,
+        and `normalize_z_order` had been drawing the same line one
+        function away the whole time. Both now read one `_composed_part`
+        helper so they cannot drift. Origin: curator batch 35,
+        2026-08-18; flipped 2026-08-18; corrected 2026-08-19.
         """
         self.assertEqual(
             _resave(_composed_screen(with_body=False),
