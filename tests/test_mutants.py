@@ -15288,6 +15288,175 @@ class TestARerouteFactImpliesAChangedPath(unittest.TestCase):
             "narration it also dropped from its history")
 
 
+class TestTidyMayNotRedrawAPathItDoesNotOwn(unittest.TestCase):
+    """Whose element is this, and who may move it — read at the Tidy door.
+
+    THE OWNERSHIP CLAUSE WORKS AND NOTHING WATCHED IT. The predicate the
+    router's population is drawn from carries an ownership half, and the
+    v0.9 c3-completion review (IM-1) reported that deleting it left the
+    whole suite green while a hand-authored bend was flattened. Measured
+    again on this base, where the clause is a term in the shared
+    predicate rather than inline: deleting it there reds exactly one
+    test, in the `reroute_scene` door. Give the TIDY door its own
+    ownership-free population instead — the shape any consolidation of
+    that predicate can reintroduce — and 1621 of 1621 tests stay green
+    while this scene's four-point path is redrawn as two.
+
+    So the gap is narrower than the review's and worse-placed: the
+    predicate is pinned, the READER a user reaches by pressing a button
+    is not. That is the ownership family's headline shape — the user
+    draws a bend by hand, presses Tidy, and the tool straightens it
+    because the code that moves geometry cannot say whose it is.
+
+    NO ASSERTION HERE NAMES THE PREDICATE, deliberately. That function
+    has already been renamed once mid-wave and is being consolidated
+    again; a pin anchored to it would be testing a spelling. Everything
+    below is read off `Store.tidy`'s own output — the stored points and
+    the sentence the user is shown — which is the layer the promise is
+    made at and the only one the user can check.
+
+    Origin: curator batch 38, 2026-08-19, from the c3-completion review's
+    IM-1, whose implementer was forbidden to write its acceptance test.
+    """
+
+    BEND: ClassVar[list[list[float]]] = [[0, 0], [60, 200], [240, 200],
+                                         [300, 0]]
+
+    def _scene(self, mark: str) -> list[dict]:
+        """Two boxes and one both-ends-bound bent arrow carrying `mark`.
+
+        ONE ATTRIBUTE SEPARATES THE POLES. Both scenes hold the identical
+        four-point path between the identical boxes; only
+        `customData.routed` differs, so any difference in what Tidy does
+        to them is a difference of ownership and of nothing else. A pair
+        that also differed in shape could be explained by point count —
+        and "the router only redraws two-point arrows" is a wrong rule
+        that would pass a sloppier pairing.
+
+        Args:
+            mark: `customData.routed`. `"authored"` is the hand-drawn
+                pole; `"SIGN"` stamps the real route signature, making
+                the same geometry the server's own.
+
+        Returns:
+            `[a, b, c1]` — source, destination, and the bent arrow.
+        """
+        arrow = el(id="c1", type="arrow", x=60, y=80, width=300,
+                   height=200, points=[list(p) for p in self.BEND],
+                   startBinding={"elementId": "a", "focus": 0, "gap": 6},
+                   endBinding={"elementId": "b", "focus": 0, "gap": 6})
+        arrow["customData"] = {
+            "routed": (canvas._route_sig(arrow) if mark == "SIGN"
+                       else mark)}
+        return [
+            el(id="a", type="rectangle", x=0, y=0, width=120, height=80,
+               customData={"role": "node"}),
+            el(id="b", type="rectangle", x=300, y=0, width=120, height=80,
+               customData={"role": "node"}),
+            arrow,
+        ]
+
+    def _tidy(self, mark: str) -> tuple[list[list[float]], str]:
+        """Load `_scene(mark)` from disk, press Tidy, report what happened.
+
+        Through a real `Store` on a real project rather than by calling
+        the pass directly, because the claim is about the button: the
+        user opens a saved drawing and presses Tidy, and every door
+        between the file and the router is part of what is promised.
+
+        Args:
+            mark: Passed to `_scene` — which pole to build.
+
+        Returns:
+            `(points, note)` — `c1`'s stored points after the tidy, and
+            the user-facing sentence the save was headlined with.
+        """
+        els = self._scene(mark)
+        body = json.dumps({"type": "excalidraw", "version": 2,
+                           "elements": els,
+                           "wysiwyg": {"artifact_type": "flow",
+                                       "name": "f"}})
+        save = json.dumps(
+            {"revn": 1, "base_revn": 0, "author": "agent",
+             "branch": "main",
+             "artifacts": {"f": {"changes": [{"op": "add", "element": e}
+                                             for e in els]}}})
+        root = _scratch_project(self, {"f": body}, {"0001-f": save})
+        store = canvas.Store(canvas.Project(root))
+        before = {e["id"]: e for e in store.scenes["f"]}["c1"]
+        self.assertEqual([list(p) for p in before["points"]],
+                         [list(p) for p in self.BEND],
+                         "the load path already reshaped this path, so "
+                         "the assertions below would be about a scene "
+                         "this test never built")
+        rec = store.tidy("f")
+        after = {e["id"]: e for e in store.scenes["f"]}["c1"]
+        self.assertIsNone(
+            rec.get("noop"),
+            "tidy declined to commit, so it never reached the router and "
+            "this scene proves nothing either way")
+        return [list(p) for p in after["points"]], rec["user_note"]
+
+    @staticmethod
+    def _denominator(note: str) -> tuple[int, int]:
+        """The two counts out of tidy's re-routed sentence.
+
+        Parsed rather than matched whole: the prose around these numbers
+        is still being edited by other streams, and a pin on the full
+        wording would fail for reasons that have nothing to do with
+        ownership. The two integers are the claim.
+
+        Args:
+            note: Tidy's headline.
+
+        Returns:
+            `(redrawn, examined)` — the `N of M` the user is shown.
+
+        Raises:
+            AssertionError: If the sentence carries no such pair.
+        """
+        hit = re.search(r"re-routed (\d+) of (\d+)", note)
+        if hit is None:
+            raise AssertionError("no 're-routed N of M' in %r" % note)
+        return int(hit.group(1)), int(hit.group(2))
+
+    def test_a_hand_authored_bend_survives_tidy(self) -> None:
+        """The four points the user drew are the four points left behind."""
+        points, _ = self._tidy("authored")
+        self.assertEqual(points, [list(p) for p in self.BEND],
+                         "Tidy redrew a path marked `authored`; a bend "
+                         "the user drew by hand came back straight")
+
+    def test_an_authored_arrow_is_not_even_counted_as_examined(self) -> None:
+        """Tidy's denominator says 0 of 0, not 0 of 1.
+
+        The count is the second half of the same promise and it fails
+        differently: an implementation that examined the arrow and
+        happened to leave it alone would say `0 of 1`, and would be one
+        router improvement away from redrawing it. `0 of 0` is the claim
+        that it was never a candidate.
+        """
+        _, note = self._tidy("authored")
+        self.assertEqual((0, 0), self._denominator(note), note)
+
+    def test_the_same_bend_signed_by_the_router_is_redrawn(self) -> None:
+        """The live pole: server geometry IS Tidy's to move.
+
+        Without this, a predicate that had gone dead — one answering
+        "nothing is routable" for every scene — would satisfy both arms
+        above perfectly. This is the arm that says the guard reads
+        ownership rather than simply never firing, and it does it on the
+        identical four-point path, so the only thing that changed hands
+        is the mark.
+        """
+        points, note = self._tidy("SIGN")
+        self.assertEqual(2, len(points),
+                         "a server-routed arrow was left as drawn, so "
+                         "the arms above cannot tell an ownership guard "
+                         "from a router that never runs: %r" % (points,))
+        self.assertEqual((1, 1), self._denominator(note), note)
+
+
 # ---------------------------------------------------------------------------
 # Scene builders. Every coordinate here was measured against live canvas.py
 # and instruments.py output, so the numbers are frozen: move a point and you
@@ -20297,6 +20466,94 @@ _register(Mutant(
     neighbour=Neighbour(_pin_on_a_screen_stage, Silence("pin_drift"))))
 
 
+def _border_run_past_a_bystander(bx: float) -> list[dict]:
+    """A straight drop from `a` to `d` grazing bystander `b`'s left edge.
+
+    THE BYSTANDER IS BOUND TO NOTHING, which is the whole point: this is
+    the population v0.9 I-7 added, and before it the on-border run was
+    measured only against shapes the arrow BINDS. The drop is vertical
+    at x=220 and `b`'s left border is `bx`, so the two are the same
+    pixels for exactly `b`'s height when `bx` is 220 and are cleanly
+    apart when it is not. The arrow's own ends are bound to `a` and `d`,
+    so nothing here is a mis-attachment — `b` is simply in the way.
+
+    Round numbers throughout, and the scene carries nothing else: three
+    boxes and one 2-point arrow is the fewest elements that can hold a
+    bound pair AND an unbound third party, and a third party is the only
+    thing this pole is about.
+
+    Args:
+        bx: `b`'s left edge. 220 puts it under the drop; 232 clears it.
+
+    Returns:
+        `[a, d, b, e1]` — source, destination, bystander, arrow.
+    """
+    return [
+        el(id="a", type="rectangle", x=160, y=0, width=120, height=60,
+           customData={"role": "node"}),
+        el(id="d", type="rectangle", x=160, y=400, width=120, height=60,
+           customData={"role": "node"}),
+        el(id="b", type="rectangle", x=bx, y=160, width=120, height=80,
+           customData={"role": "node"}),
+        el(id="e1", type="arrow", x=220, y=60, width=0, height=340,
+           points=[[0, 0], [0, 340]],
+           startBinding={"elementId": "a", "focus": 0, "gap": 0},
+           endBinding={"elementId": "d", "focus": 0, "gap": 0},
+           customData={"role": "edge"}),
+    ]
+
+
+# GREEN ON ARRIVAL, and what it pins is a POPULATION rather than a defect.
+# v0.9 IMPORTANTS I-7 (`bc0aaba`) widened the on-border run check from
+# "shapes this arrow binds" to "shapes": the run now rides the walk that
+# already visits every foreign node, so an arrow drawn down an unrelated
+# box's edge is reported where it used to be silent. Nothing at this tier
+# said so. Origin: curator batch 38, 2026-08-19, handed over by the
+# importants stream, which was forbidden to write its own acceptance test.
+#
+# WHY THIS IS NOT PADDING, measured rather than argued. A revert of the
+# arm itself IS caught today — it reds two arms of
+# `test_backend.TestTheBorderRunIsMeasuredAgainstEveryNode`. What is NOT
+# caught is the DETECTOR going blind on the half I-7 added: that class's
+# own filter selects lint lines on the substring `own border`, the same
+# substring `_RUNS_INSIDE_RE` needs, so the two are coupled by coincidence
+# and not by assertion. Rewording the unbound sentence's verb (`runs` ->
+# `lies`) keeps `own border` and keeps every string those arms assert, and
+# was measured on this base at 1621 of 1621 tests green while
+# `collect_findings` returned nothing at all for this scene. The check
+# kept speaking and the instrument stopped listening, which is precisely
+# the silence this file exists to refuse.
+#
+# WHAT THE DRAWING GETS WRONG: `e1` says `a -> d` and the reader's eye
+# follows it straight into `b`'s left outline, where arrow and box edge
+# are drawn on the same pixels for 80px. The two read as one line through
+# the box, so `b` looks like a station on the route and is not one.
+#
+# MAGNITUDE 80px — the height of `b`, which is the span of the shared
+# pixels — and the band excludes every other reading the scene affords:
+# 340 (the whole drop, what a check crediting the arrow's length would
+# say), 120 (`b`'s width, the other edge a shape-blind measure could
+# reach for), 60 (either bound node's height) and 0 (the INTERIOR run,
+# which is genuinely zero here and is what makes the border sentence the
+# right one rather than the "enters and runs inside" one).
+#
+# THE NEIGHBOUR MOVES ONE NUMBER, `bx` 220 -> 232, so the pair differs by
+# 12px of separation and by nothing else. That is what makes this a
+# statement about whether the check LOOKS at an unbound shape rather than
+# a statement about this particular drawing: a check that had kept I-7's
+# old population would be silent on both poles and identical to a check
+# that had gone blind, and the mutant half is the only thing that can
+# tell those apart.
+_register(Mutant(
+    "border_run_reads_an_unbound_neighbour",
+    build=lambda: _border_run_past_a_bystander(220),
+    op="unchanged", args={},
+    expect=FindingSpec("crosses_through_bound", element="e1",
+                       magnitude=(80, 0.10), direction=None),
+    neighbour=Neighbour(lambda: _border_run_past_a_bystander(232),
+                        Silence("crosses_through_bound"))))
+
+
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
 
@@ -21551,6 +21808,16 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_pin_drifts_onto_a_rival_node(self) -> None:
         """A screen is not a rival for the button drawn inside it."""
         self._run_neighbour("pin_drifts_onto_a_rival_node")
+
+    def test_mutant_border_run_reads_an_unbound_neighbour(self) -> None:
+        """80px of drop lies on a box the arrow binds neither end to."""
+        # Green: the detector reads I-7's widened population correctly.
+        # What was unpinned is that it reads it AT ALL — see the entry.
+        self._run("border_run_reads_an_unbound_neighbour")
+
+    def test_neighbour_border_run_reads_an_unbound_neighbour(self) -> None:
+        """The same drop with the box 12px clear says nothing."""
+        self._run_neighbour("border_run_reads_an_unbound_neighbour")
 
     def test_red_mutants_are_red_by_mismatch_not_by_error(self) -> None:
         """Every expectedFailure above is red for the reason it claims.
