@@ -139,7 +139,8 @@ The router now avoids foreign boxes itself: it scores straight lines,
 both L-elbow orientations, and bounded Z-detours, and picks the cleanest
 (fewest crossings, then fewest bends). When it still can't find a clean
 path, the lint flags it — repair by hand with `mod points` (waypoints
-relative to the arrow's x,y; axis-aligned paths render as sharp elbows,
+relative to the connector's own x,y; axis-aligned paths render as sharp
+elbows,
 the route is re-stamped as server-owned, and the change narrates as a
 `rerouted` fact whenever the drawn path actually moved — a re-route that
 only re-aims a binding is recorded but not narrated, because the word is

@@ -187,16 +187,16 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
   "label": "Order Placed",   // set/replace bound label ("" or null removes it)
                              // — on a FRAME this renames the frame (its name)
   "name": "Checkout screen", // frames only: rename explicitly
-  "from": "other-node",      // arrows only: rewire start (re-routes + rebinds)
-  "to": "other-node",        // arrows only: rewire end — fires REWIRED
+  "from": "other-node",      // arrows and lines: rewire start (re-routes + rebinds)
+  "to": "other-node",        // arrows and lines: rewire end — fires REWIRED
       // A rewire IS a new path request, so it re-routes — including over
       // a path the USER drew by hand. That is deliberate, and since v0.7
       // it narrates: `user_route_replaced`. If their shape mattered,
       // re-issue `mod points`. Dropping an endpoint back on the node it
       // already bound is not a rewire and fires nothing.
   "points": [[0,0],[80,0],[80,-160],[320,-160]],
-      // arrows/lines: hand-authored waypoints, RELATIVE to the arrow's
-      // x,y. v0.3: the path is marked routed:"authored" — YOURS. No
+      // arrows/lines: hand-authored waypoints, RELATIVE to the
+      // connector's own x,y. v0.3: the path is marked routed:"authored" — YOURS. No
       // later pass re-routes, re-fans, or flattens it (that's what makes
       // `mod points` a real repair tool for shared attach points). A
       // rewire (mod from/to) is a new path request and re-routes.

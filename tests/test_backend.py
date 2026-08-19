@@ -14566,6 +14566,76 @@ class TestLintCallsALineALine(unittest.TestCase):
                           and "arrows" in m], [],
                          "13 LINES were counted against the arrow budget")
 
+    def test_the_grazing_arrival_names_the_element_it_is_about(self):
+        """The half of the graze arm THIS task contributed, pinned.
+
+        The squareness warning was rebuilt from two sides: `8fccae1`
+        made its two body sentences ask `arrowhead_of` instead of
+        asserting a head, and this pass made its OPENER ask
+        `connector_noun` instead of saying "arrow". The rebase collided
+        there and was resolved by taking both — and then only the
+        inherited half was pinned, so reverting the opener to the
+        literal passed all 1597 tests (whole-branch review, MAJOR-1).
+
+        Shipping an unpinned second instance of a rule that lives at two
+        sites is this wave's own headline defect, on the very statement
+        where the wave had just met it. Both halves are asserted here,
+        the inherited one included, because what makes the pair
+        dangerous is that either can be reverted alone.
+        """
+        def scene(etype):
+            return [self._node("n1", 0, 300), self._node("n2", 400),
+                    self._conn(etype, "c1", 60, 300,
+                               [[0, 0], [0, -240], [340, -240],
+                                [345, -239]], "n1", "n2")]
+        arrow = self._one(scene("arrow"), "degrees off square")
+        self.assertTrue(arrow.startswith("arrow c1 arrives at "), arrow)
+        self.assertIn("the arrowhead reads as a corner", arrow)
+        line = self._one(scene("line"), "degrees off square")
+        self.assertTrue(line.startswith("line c1 arrives at "),
+                        "the opener still calls a line an arrow — the "
+                        "half of this statement this task contributed")
+        self.assertIn("the stroke reads as part of that outline", line,
+                      "the inherited `arrowhead_of` half went with it")
+
+    def test_the_lane_reading_stops_asserting_a_direction_nothing_draws(
+            self):
+        """The ruling's other half, and it was unpinned too.
+
+        Narrowing the bidirectional lint took its borrowed clause out of
+        the lane check's `swapped` arm with it: "reads as one
+        bidirectional edge" is a claim about marks a reader can see, and
+        `_pair_kind` answers "swapped" off the BINDINGS, which stay
+        swapped whether or not anything is painted. Reverting that arm
+        to the unconditional sentence passed all 1597 tests
+        (whole-branch review, MAJOR-1).
+
+        THE POPULATION IS NOT THE POINT AND MUST NOT MOVE: the lane
+        finding itself is about ink, so it fires on all three poles.
+        Only the reading clause follows the head — which is why this is
+        an ordinary wording pin and not the bidi check's acceptance
+        test, and why it is safe for me to write.
+        """
+        def scene(etype, heads):
+            a = self._conn(etype, "c1", 126, 24, [[0, 0], [268, 0]],
+                           "n1", "n2")
+            b = self._conn(etype, "c2", 394, 30, [[0, 0], [-268, 0]],
+                           "n2", "n1")
+            for e in (a, b):
+                e["endArrowhead"] = "arrow" if heads else None
+            return [self._node("n1", 0), self._node("n2", 400), a, b]
+        headed = self._one(scene("arrow", True), "run together for")
+        self.assertIn("so the pair reads as one bidirectional edge",
+                      headed)
+        for etype, heads in (("arrow", False), ("line", False)):
+            bare = self._one(scene(etype, heads), "run together for")
+            with self.subTest(etype=etype):
+                self.assertIn("neither carries a head", bare,
+                              "a headless pair was told it reads as one "
+                              "bidirectional edge — the direction is the "
+                              "arrowhead, and there is none")
+                self.assertNotIn("reads as one bidirectional edge", bare)
+
     def test_the_corpus_carries_no_line_in_the_lint_population(self):
         """The denominator behind this class's constructed poles.
 
@@ -14600,11 +14670,14 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
     """The same family, outside `lint_layout`.
 
     Surveyed rather than noticed: an AST sweep of every non-docstring
-    string constant in `canvas.py` that mentions arrow-ness found 17
-    prose strings outside the lint, in 12 functions, once identifiers
-    (`"startArrowhead"`, `"arrow_orphaned"`) are excluded. Ten of them
-    could be handed a `line`. The rest are arrow-only because a filter
-    upstream says so, and those keep the word.
+    string constant in `canvas.py` that mentions arrow-ness, once
+    identifiers (`"startArrowhead"`, `"arrow_orphaned"`) are excluded,
+    found 28 prose strings outside the lint, in 16 functions. TEN of
+    those 28 could be handed a `line` and are fixed here; the 17 that
+    remain (in 12 functions) are arrow-only because a filter upstream
+    says so, and they keep the word. The two counts measure different
+    things — 28/16 is the population before, 17/12 the residue after —
+    and an earlier draft of this docstring ran them together.
 
     THE ONE THAT MATTERS MOST is `referential_findings`, which states
     the dangling-binding finding VERBATIM as `lint_layout` does. Two
