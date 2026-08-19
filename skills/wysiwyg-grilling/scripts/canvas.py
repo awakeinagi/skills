@@ -1344,32 +1344,138 @@ def mint_id(label, kind, existing):
     return cand
 
 
-# Per-character advance widths (ems) for the canvas font, measured from
-# the vendored Nunito Latin subset with the CLIENT'S OWN engine (headless
-# Chromium canvas.measureText at 100px, 2dp). The flat 0.6-em estimate
-# this replaces truncated '62' at 24px to a 28px box the live editor
-# wraps (needs ceil(28.8)) — the agent's snapshot then showed one line
-# while the user's browser showed two, and both said VALID=true (r4-12,
-# the R3-4 recurrence). Digits are exactly 0.6; W is 1.10; lowercase
-# averages 0.51, so the flat factor was wrong in both directions.
+# THE VENDORED FACE'S OWN ADVANCE TABLE, per character, in ems.
+#
+# NOT a calibration and not an estimate: Nunito's `unitsPerEm` is 1000
+# (the client's own metrics row says so) and every entry below is an
+# exact count of those units, so a string made of characters in this
+# table is measured, not guessed. What it cannot carry is KERNING —
+# Nunito adjusts pairs in BOTH directions (`t)` +0.080 em, `Th` +0.032,
+# `ff` -0.018), and that is the whole of the residue `text_dims` pads
+# for; see its docstring.
+#
+# HOW IT WAS RECOVERED, AND WHY NOT BY PARSING THE FONT. Every face this
+# skill ships is `.woff2` (238 files; no `.ttf`, `.otf` or `.woff`
+# anywhere in the bundle), and WOFF2 holds every table's data in one
+# Brotli stream — which `zlib`, `gzip`, `bz2` and `lzma` all refuse and
+# the stdlib has no decoder for. `hmtx` is therefore unreachable from a
+# stdlib-only server, permanently. So the advances were read out of the
+# face the way the CLIENT reads them: `canvas.measureText(ch).width` at
+# 1000px, per glyph, against the five vendored `Nunito-Regular-*.woff2`
+# subsets declared under separate family names — five rules sharing one
+# family do NOT compose, the last wins the whole range, and a single
+# "Nunito" probe silently reports four subsets' glyphs as absent.
+#
+# A GLYPH IS IN THIS TABLE ONLY IF THE VENDORED FACE SUPPLIES IT. That
+# is a differential, not an assumption: each character is measured twice,
+# once against the subset and once against a family that does not exist
+# with the same fallback tail, and it is kept only when the two differ.
+# Repertoire: U+0020-007E, U+00A0-017F, U+2000-206F, U+20A0-20BF — 463
+# codepoints, of which the face supplies these 360. It has no arrows, no
+# geometric shapes, no dingbats and almost no maths (measured: 0 of 112
+# arrows, 0 of 96 shapes, 2 of 256 operators), so those fall through to
+# `_ADVANCE_FALLBACK` and are the one place this file still guesses.
+#
+# WHAT THIS REPLACES. The 95-entry table it grew from was measured the
+# same way and was RIGHT — no entry was off the face by more than 0.005
+# em — but it was rounded to 2dp (48 of the 95 by >= 0.002 em) and it
+# stopped at ASCII. Everything outside it took a flat 0.62: '\u00b7' is
+# 0.233 and read 0.62 (+6.2px per character at fontSize 16), '\u2014' is
+# 1.0 and read 0.62 (-6.1px). One 12px caption of middots was estimated
+# 34.75px wide; it is now exact.
 NUNITO_ADVANCE = {
-    " ": 0.26, "!": 0.23, '"': 0.4, "#": 0.6, "$": 0.6, "%": 0.93,
-    "&": 0.7, "'": 0.23, "(": 0.33, ")": 0.33, "*": 0.45, "+": 0.6,
-    ",": 0.23, "-": 0.43, ".": 0.23, "/": 0.29, "0": 0.6, "1": 0.6,
-    "2": 0.6, "3": 0.6, "4": 0.6, "5": 0.6, "6": 0.6, "7": 0.6,
-    "8": 0.6, "9": 0.6, ":": 0.23, ";": 0.23, "<": 0.6, "=": 0.6,
-    ">": 0.6, "?": 0.45, "@": 0.95, "A": 0.73, "B": 0.68, "C": 0.67,
-    "D": 0.75, "E": 0.59, "F": 0.55, "G": 0.73, "H": 0.76, "I": 0.26,
-    "J": 0.33, "K": 0.63, "L": 0.55, "M": 0.86, "N": 0.74, "O": 0.77,
-    "P": 0.64, "Q": 0.77, "R": 0.67, "S": 0.62, "T": 0.61, "U": 0.73,
-    "V": 0.69, "W": 1.1, "X": 0.65, "Y": 0.6, "Z": 0.59, "[": 0.32,
-    "\\": 0.29, "]": 0.32, "^": 0.6, "_": 0.5, "`": 0.36, "a": 0.53,
-    "b": 0.59, "c": 0.46, "d": 0.59, "e": 0.53, "f": 0.34, "g": 0.59,
-    "h": 0.57, "i": 0.24, "j": 0.24, "k": 0.51, "l": 0.3, "m": 0.86,
-    "n": 0.57, "o": 0.56, "p": 0.59, "q": 0.59, "r": 0.36, "s": 0.48,
-    "t": 0.36, "u": 0.56, "v": 0.52, "w": 0.84, "x": 0.53, "y": 0.52,
-    "z": 0.47, "{": 0.36, "|": 0.27, "}": 0.36, "~": 0.6,
+    " ": 0.261, "!": 0.233, '"': 0.405, "#": 0.6, "$": 0.6, "%": 0.933,
+    "&": 0.701, "'": 0.226, "(": 0.326, ")": 0.326, "*": 0.451, "+": 0.6,
+    ",": 0.233, "-": 0.427, ".": 0.233, "/": 0.29, "0": 0.6, "1": 0.6,
+    "2": 0.6, "3": 0.6, "4": 0.6, "5": 0.6, "6": 0.6, "7": 0.6, "8": 0.6,
+    "9": 0.6, ":": 0.233, ";": 0.233, "<": 0.6, "=": 0.6, ">": 0.6,
+    "?": 0.447, "@": 0.947, "A": 0.733, "B": 0.679, "C": 0.675, "D": 0.747,
+    "E": 0.586, "F": 0.551, "G": 0.729, "H": 0.764, "I": 0.262, "J": 0.331,
+    "K": 0.634, "L": 0.548, "M": 0.858, "N": 0.741, "O": 0.771, "P": 0.637,
+    "Q": 0.771, "R": 0.673, "S": 0.618, "T": 0.607, "U": 0.731, "V": 0.694,
+    "W": 1.104, "X": 0.655, "Y": 0.601, "Z": 0.593, "[": 0.324, "\\": 0.29,
+    "]": 0.324, "^": 0.6, "_": 0.5, "`": 0.361, "a": 0.533, "b": 0.587,
+    "c": 0.465, "d": 0.587, "e": 0.534, "f": 0.34, "g": 0.59, "h": 0.572,
+    "i": 0.237, "j": 0.241, "k": 0.508, "l": 0.301, "m": 0.861, "n": 0.572,
+    "o": 0.56, "p": 0.587, "q": 0.587, "r": 0.365, "s": 0.483, "t": 0.358,
+    "u": 0.565, "v": 0.518, "w": 0.844, "x": 0.53, "y": 0.517, "z": 0.466,
+    "{": 0.361, "|": 0.27, "}": 0.361, "~": 0.6, "\u00a0": 0.261,
+    "\u00a1": 0.233, "\u00a2": 0.6, "\u00a3": 0.6, "\u00a4": 0.6,
+    "\u00a5": 0.6, "\u00a6": 0.27, "\u00a7": 0.551, "\u00a8": 0.478,
+    "\u00a9": 0.815, "\u00aa": 0.33, "\u00ab": 0.453, "\u00ac": 0.6,
+    "\u00ae": 0.815, "\u00af": 0.507, "\u00b0": 0.373, "\u00b1": 0.6,
+    "\u00b2": 0.38, "\u00b3": 0.38, "\u00b4": 0.361, "\u00b5": 0.6,
+    "\u00b6": 0.596, "\u00b7": 0.233, "\u00b8": 0.407, "\u00b9": 0.38,
+    "\u00ba": 0.342, "\u00bb": 0.453, "\u00bc": 0.898, "\u00bd": 0.942,
+    "\u00be": 0.898, "\u00bf": 0.447, "\u00c0": 0.733, "\u00c1": 0.733,
+    "\u00c2": 0.733, "\u00c3": 0.733, "\u00c4": 0.733, "\u00c5": 0.733,
+    "\u00c6": 0.984, "\u00c7": 0.675, "\u00c8": 0.586, "\u00c9": 0.586,
+    "\u00ca": 0.586, "\u00cb": 0.586, "\u00cc": 0.262, "\u00cd": 0.262,
+    "\u00ce": 0.262, "\u00cf": 0.262, "\u00d0": 0.747, "\u00d1": 0.741,
+    "\u00d2": 0.771, "\u00d3": 0.771, "\u00d4": 0.771, "\u00d5": 0.771,
+    "\u00d6": 0.771, "\u00d7": 0.6, "\u00d8": 0.771, "\u00d9": 0.731,
+    "\u00da": 0.731, "\u00db": 0.731, "\u00dc": 0.731, "\u00dd": 0.601,
+    "\u00de": 0.639, "\u00df": 0.624, "\u00e0": 0.533, "\u00e1": 0.533,
+    "\u00e2": 0.533, "\u00e3": 0.533, "\u00e4": 0.533, "\u00e5": 0.533,
+    "\u00e6": 0.862, "\u00e7": 0.465, "\u00e8": 0.534, "\u00e9": 0.534,
+    "\u00ea": 0.534, "\u00eb": 0.534, "\u00ec": 0.237, "\u00ed": 0.237,
+    "\u00ee": 0.237, "\u00ef": 0.237, "\u00f0": 0.565, "\u00f1": 0.572,
+    "\u00f2": 0.56, "\u00f3": 0.56, "\u00f4": 0.56, "\u00f5": 0.56,
+    "\u00f6": 0.56, "\u00f7": 0.6, "\u00f8": 0.56, "\u00f9": 0.565,
+    "\u00fa": 0.565, "\u00fb": 0.565, "\u00fc": 0.565, "\u00fd": 0.517,
+    "\u00fe": 0.587, "\u00ff": 0.517, "\u0100": 0.733, "\u0101": 0.533,
+    "\u0102": 0.733, "\u0103": 0.533, "\u0104": 0.733, "\u0105": 0.533,
+    "\u0106": 0.675, "\u0107": 0.465, "\u0108": 0.675, "\u0109": 0.465,
+    "\u010a": 0.675, "\u010b": 0.465, "\u010c": 0.675, "\u010d": 0.465,
+    "\u010e": 0.747, "\u010f": 0.587, "\u0110": 0.747, "\u0111": 0.587,
+    "\u0112": 0.586, "\u0113": 0.534, "\u0114": 0.586, "\u0115": 0.534,
+    "\u0116": 0.586, "\u0117": 0.534, "\u0118": 0.586, "\u0119": 0.534,
+    "\u011a": 0.586, "\u011b": 0.534, "\u011c": 0.729, "\u011d": 0.59,
+    "\u011e": 0.729, "\u011f": 0.59, "\u0120": 0.729, "\u0121": 0.59,
+    "\u0122": 0.729, "\u0123": 0.59, "\u0124": 0.764, "\u0125": 0.572,
+    "\u0126": 0.802, "\u0127": 0.572, "\u0128": 0.262, "\u0129": 0.237,
+    "\u012a": 0.262, "\u012b": 0.237, "\u012c": 0.262, "\u012d": 0.237,
+    "\u012e": 0.262, "\u012f": 0.237, "\u0130": 0.262, "\u0131": 0.237,
+    "\u0132": 0.593, "\u0134": 0.331, "\u0135": 0.241, "\u0136": 0.634,
+    "\u0137": 0.508, "\u0138": 0.508, "\u0139": 0.548, "\u013a": 0.301,
+    "\u013b": 0.548, "\u013c": 0.301, "\u013d": 0.548, "\u013e": 0.301,
+    "\u013f": 0.548, "\u0140": 0.341, "\u0141": 0.548, "\u0142": 0.301,
+    "\u0143": 0.741, "\u0144": 0.572, "\u0145": 0.741, "\u0146": 0.572,
+    "\u0147": 0.741, "\u0148": 0.572, "\u0149": 0.572, "\u014a": 0.741,
+    "\u014b": 0.572, "\u014c": 0.771, "\u014d": 0.56, "\u014e": 0.771,
+    "\u014f": 0.56, "\u0150": 0.771, "\u0151": 0.56, "\u0152": 1.049,
+    "\u0153": 0.911, "\u0154": 0.673, "\u0155": 0.365, "\u0156": 0.673,
+    "\u0157": 0.365, "\u0158": 0.673, "\u0159": 0.365, "\u015a": 0.618,
+    "\u015b": 0.483, "\u015c": 0.618, "\u015d": 0.483, "\u015e": 0.618,
+    "\u015f": 0.483, "\u0160": 0.618, "\u0161": 0.483, "\u0162": 0.607,
+    "\u0163": 0.358, "\u0164": 0.607, "\u0165": 0.358, "\u0166": 0.607,
+    "\u0167": 0.358, "\u0168": 0.731, "\u0169": 0.565, "\u016a": 0.731,
+    "\u016b": 0.565, "\u016c": 0.731, "\u016d": 0.565, "\u016e": 0.731,
+    "\u016f": 0.565, "\u0170": 0.731, "\u0171": 0.565, "\u0172": 0.731,
+    "\u0173": 0.565, "\u0174": 1.104, "\u0175": 0.844, "\u0176": 0.601,
+    "\u0177": 0.517, "\u0178": 0.601, "\u0179": 0.593, "\u017a": 0.466,
+    "\u017b": 0.593, "\u017c": 0.466, "\u017d": 0.593, "\u017e": 0.466,
+    "\u2004": 0.333, "\u2006": 0.167, "\u2007": 0.6, "\u2008": 0.233,
+    "\u2009": 0.2, "\u200a": 0.062, "\u2013": 0.5, "\u2014": 1,
+    "\u2018": 0.233, "\u2019": 0.233, "\u201a": 0.233, "\u201c": 0.405,
+    "\u201d": 0.405, "\u201e": 0.405, "\u2020": 0.329, "\u2022": 0.524,
+    "\u2026": 0.7, "\u2028": 0.261, "\u2029": 0.261, "\u202f": 0.13,
+    "\u2032": 0.226, "\u2033": 0.405, "\u2039": 0.266, "\u203a": 0.266,
+    "\u2044": 0.176, "\u20a1": 0.6, "\u20a3": 0.6, "\u20a4": 0.6,
+    "\u20a6": 0.6, "\u20a7": 0.6, "\u20a9": 0.6, "\u20ab": 0.6,
+    "\u20ac": 0.6, "\u20ad": 0.6, "\u20ae": 0.6, "\u20b1": 0.6,
+    "\u20b2": 0.6, "\u20b4": 0.6, "\u20b5": 0.6, "\u20b8": 0.6,
+    "\u20b9": 0.6, "\u20ba": 0.6, "\u20bc": 0.6, "\u20bd": 0.6,
 }
+# The face has no such glyph, so the CLIENT will draw it in a font this
+# repo does not ship and cannot measure — the browser falls through
+# `Nunito, "Segoe UI Emoji"` to whatever the machine has. This number is
+# therefore the one genuine estimate left in `_display_width`, and it is
+# left where it was rather than re-tuned: the characters that reach it
+# are symbols, and the machine that draws them is not this one. Measured
+# HERE they run 0.5 to 1.0 em, so 0.62 is neither an upper nor a lower
+# bound and no single scalar could be. Six of the corpus's 413 non-pin
+# texts reach it, worst case 5px.
 _ADVANCE_FALLBACK = 0.62
 
 
@@ -1399,9 +1505,24 @@ def _nunito_face_css(web_root):
 def _display_width(line):
     """Advance width of a line in EMs against the vendored canvas font.
 
-    CJK and fullwidth forms count 1.2em (their old two-cell treatment at
-    the 0.6 factor — unchanged so wide scripts keep their headroom);
-    unknown characters fall back to 0.62em.
+    THE MEASURED ADVANCE WINS. `NUNITO_ADVANCE` is consulted first and
+    the width-class arms only run for characters it has no entry for,
+    because a number read off the face this drawing is painted in beats
+    a guess made from the character's Unicode width class — always, and
+    for every character, not just the awkward ones. The old order asked
+    `east_asian_width` first, so a codepoint that is nominally wide took
+    1.2em even when the vendored face's own answer was sitting in the
+    table; there is only one such character in the whole corpus and it
+    is the one the estimate is most wrong about (U+2753, 41 instances,
+    the pin glyph — see TASK-DRIFT-TRIO, which owns its value). This
+    change does not move it: U+2753 is not in the table, because the
+    vendored face has no such glyph.
+
+    CJK and fullwidth forms the table does not carry still count 1.2em
+    — their old two-cell treatment at the 0.6 factor, unchanged so wide
+    scripts keep their headroom. Everything else falls to
+    `_ADVANCE_FALLBACK`, which is where this function stops measuring
+    and starts estimating; that constant's comment says what it means.
 
     Args:
         line: One line of text (no newlines).
@@ -1411,21 +1532,52 @@ def _display_width(line):
     """
     w = 0.0
     for ch in line:
-        if unicodedata.east_asian_width(ch) in ("W", "F"):
+        adv = NUNITO_ADVANCE.get(ch)
+        if adv is not None:
+            w += adv
+        elif unicodedata.east_asian_width(ch) in ("W", "F"):
             w += 1.2
         else:
-            w += NUNITO_ADVANCE.get(ch, _ADVANCE_FALLBACK)
+            w += _ADVANCE_FALLBACK
     return w
 
 
 def text_dims(text: str | None, font_size: float,
               line_height: float = 1.25) -> tuple[int, int]:
-    """Estimate the extents a string occupies when it is painted.
+    """Compute the extents a string occupies when it is painted.
 
-    The server has no font metrics, so every extent it reserves is this
-    estimate; the client re-measures on load and the two only ever have
-    to agree closely enough that nothing lands outside a frame drawn
-    around it.
+    THE SERVER HAS THE FACE'S METRICS NOW, and this docstring used to say
+    the opposite — "the server has no font metrics, so every extent it
+    reserves is this estimate". `NUNITO_ADVANCE` is the vendored face's
+    own advance table, recovered through the client's own measuring
+    engine, so for a string inside its repertoire the width below is
+    arithmetic on measured numbers rather than a guess. Measured over
+    all 413 non-pin corpus texts, the sum of advances lands within
+    **0.19px median** of what the browser makes of the same string.
+
+    TWO THINGS KEEP IT FROM BEING THE BROWSER'S ANSWER, and both are
+    named rather than absorbed into a fudge:
+
+    * **Kerning**, which the face applies and this file cannot read.
+      Nunito moves pairs BOTH ways (`t)` +0.080 em, `Th` +0.032, `ff`
+      -0.018), so the sum is neither an upper nor a lower bound; over
+      the corpus it runs -1.17px to +2.56px. `GPOS` lives in the same
+      Brotli stream `hmtx` does, so the only way to model it would be a
+      second, far larger and far more fragile pair table measured the
+      same way — rejected for that reason, not overlooked.
+    * **Glyphs the face does not carry** — arrows, ticks, crosses, the
+      pin's `?` — which the client draws in a font this repo does not
+      ship. `_ADVANCE_FALLBACK` says what that costs.
+
+    The +2px below is what covers the first of those. It is a
+    reservation and not a measurement, so a caller comparing this width
+    against a drawn box is reading 2px more ink than the browser paints;
+    that is deliberate (spilling text is worse than a tight fit) and it
+    is the reason the width is honest about being a reservation.
+
+    The client re-measures on load either way, and the two only ever
+    have to agree closely enough that nothing lands outside a frame
+    drawn around it.
 
     `line_height` is a PARAMETER and not the 1.25 that used to be written
     in, because `paint` lays text out at `fontSize * (lineHeight or
@@ -1456,8 +1608,16 @@ def text_dims(text: str | None, font_size: float,
     width = max((_display_width(l) for l in lines), default=0.4) \
         * font_size
     height = max(len(lines), 1) * font_size * line_height
-    # ceil + 2px: int() truncation is what wrapped '62' (28 < 28.8);
-    # the pad absorbs sub-pixel rendering at autoResize:false widths
+    # ceil + 2px. The ceil is what stops int() truncation wrapping '62'
+    # (28 < 28.8). The pad was written down as absorbing "sub-pixel
+    # rendering", and that reading is WRONG and was worth measuring:
+    # chromium's shaper accumulates 0.00008px per character, so a
+    # 200-character line drifts 0.02px and no pad is needed for it at
+    # all. What the pad really covers is Nunito's own KERNING, which
+    # this file cannot read — measured over the 413 non-pin corpus
+    # texts, the face's kerning puts the browser up to 1.17px ABOVE the
+    # sum of advances, and the 2px holds that with margin on every one
+    # of them.
     width_px = int(width + 0.999) + 2
     return (max(width_px, 10), max(int(height), int(font_size * line_height)))
 
