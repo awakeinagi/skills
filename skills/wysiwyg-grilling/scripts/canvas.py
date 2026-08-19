@@ -687,7 +687,8 @@ def validate_scene(doc, artifact_id):
                 "%s — merged into it" % (artifact_id, el["id"], cont["id"]),
                 "Text elements cannot contain bound labels (the client "
                 "renders them one character wide). Use `text` on text "
-                "elements; `label` is for shapes, arrows, and frames.",
+                "elements; `label` is for shapes, arrows, lines, and "
+                "frames.",
                 True))
     if t_in_t:
         kept = [e for e in kept if e["id"] not in t_in_t]
@@ -912,11 +913,18 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
                     tgt = (b or {}).get("elementId")
                     if tgt and tgt not in ids:
                         side = "start" if battr == "startBinding" else "end"
+                        # ONE SENTENCE, TWO SITES — `lint_layout` states
+                        # this same finding verbatim, and until
+                        # 2026-08-18 both of them called a `line` an
+                        # arrow. Fixing one and not the other is the
+                        # defect this wave keeps meeting; they now read
+                        # the same authority.
                         add(aid, "errors",
-                            "arrow %s binds %s at its %s point and that "
+                            "%s %s binds %s at its %s point and that "
                             "element no longer exists — re-target the "
-                            "binding, or delete the arrow with it"
-                            % (e.get("id"), tgt, side))
+                            "binding, or delete the %s with it"
+                            % (connector_noun(e), e.get("id"), tgt, side,
+                               connector_noun(e)))
             cd = e.get("customData") or {}
             anchor = cd.get("annotates")
             if anchor and anchor not in ids:
@@ -6912,12 +6920,12 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
         except Exception as e:  # noqa: BLE001 — totality backstop
             where = "op %d" % opi if opi is not None else "post-pass"
             errors.append(
-                "%s: internal routing error on arrow %r (%s -> %s) — "
+                "%s: internal routing error on %s %r (%s -> %s) — "
                 "%s: %s. The batch was rejected whole; file this, and "
                 "work around it by placing the endpoints apart before "
                 "connecting them."
-                % (where, arrow.get("id"), src.get("id"), dst.get("id"),
-                   type(e).__name__, e))
+                % (where, connector_noun(arrow), arrow.get("id"),
+                   src.get("id"), dst.get("id"), type(e).__name__, e))
 
     for i, op in enumerate(ops):
         kind = op.get("op")
@@ -6938,8 +6946,13 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                 src_id, dst_id = op.get("from") or spec.get("from"), \
                     op.get("to") or spec.get("to")
                 if src_id or dst_id:
-                    src = resolve(src_id, i, "arrow from") if src_id else None
-                    dst = resolve(dst_id, i, "arrow to") if dst_id else None
+                    # the verb names the element the op is about, and
+                    # this arm accepts lines as well as arrows
+                    verb = connector_noun(arrow)
+                    src = resolve(src_id, i, verb + " from") \
+                        if src_id else None
+                    dst = resolve(dst_id, i, verb + " to") \
+                        if dst_id else None
                     if src is not None and dst is not None:
                         route_ctx(arrow, src, dst, opi=i)
                         recenter_label(els, arrow)
@@ -7115,8 +7128,8 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                                   for p in value)):
                         errors.append(
                             "op %d (mod %s): `points` must be ≥2 [x,y] "
-                            "pairs, relative to the arrow's x,y"
-                            % (i, op.get("id")))
+                            "pairs, relative to the %s's x,y"
+                            % (i, op.get("id"), connector_noun(el)))
                     else:
                         el["points"] = [[p[0], p[1]] for p in value]
                         # axis-aligned hand paths render as SHARP elbows
@@ -7162,14 +7175,14 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                     # the router re-deriving it.
                     errors.append(
                         "op %d (mod %s): `roundness` on a server-routed "
-                        "arrow is derived from the route, not authored — "
+                        "%s is derived from the route, not authored — "
                         "the router re-derives it on this save and again "
                         "at load, so setting it here would change "
                         "nothing. Author the path with `points` to make "
                         "the geometry yours, or drop the attribute "
                         "(references/ops-reference.md documents "
                         "`roundness` for rounded rectangles)"
-                        % (i, op.get("id")))
+                        % (i, op.get("id"), connector_noun(el)))
                 elif attr not in MOD_ATTRS:
                     errors.append(
                         "op %d (mod %s): unknown attribute %r — allowed: "
@@ -7213,8 +7226,16 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
             rewire = {k: attrs[k] for k in ("from", "to") if k in attrs}
             if rewire:
                 if el.get("type") not in ("arrow", "line"):
-                    errors.append("op %d: 'from'/'to' only apply to arrows"
-                                  % i)
+                    # NO CONNECTOR IN HAND HERE — `el` is the element
+                    # that is NOT one — so this names the accepted set
+                    # as a literal rather than asking `connector_noun`
+                    # about the wrong element. The set it states was
+                    # narrower than the set the branch above accepts: a
+                    # line binds through `from`/`to` exactly as an arrow
+                    # does, so an agent told "only arrows" was being
+                    # taught a rule this code does not enforce.
+                    errors.append("op %d: 'from'/'to' only apply to "
+                                  "arrows and lines" % i)
                 else:
                     src = index.get((el.get("startBinding") or {})
                                     .get("elementId"))
@@ -7243,14 +7264,15 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                         missing = "start (`from`)" if src is None \
                             else "end (`to`)"
                         errors.append(
-                            "op %d (mod %s %s): cannot rewire — the arrow's "
+                            "op %d (mod %s %s): cannot rewire — the %s's "
                             "%s endpoint is unbound; set both `from` and "
                             "`to` in one mod, or delete and re-add the "
-                            "arrow with from/to"
+                            "%s with from/to"
                             % (i, op.get("id"),
                                ", ".join("%s=%s" % kv
                                          for kv in sorted(rewire.items())),
-                               missing))
+                               connector_noun(el), missing,
+                               connector_noun(el)))
         elif kind == "del":
             el = resolve(op.get("id"), i, "del")
             if el is None:
@@ -8837,8 +8859,11 @@ def headline_for(fact):
         return "renamed %r → %r" % (fact.get("from"), fact.get("to"))
     # WP2 reference-impact facts: a deletion names what it broke
     if n == "arrow_orphaned":
-        return "arrow %s lost its %s target %s — it points at nothing" \
-            % (fact["element"], fact.get("side"), fact.get("target"))
+        # the writer recorded the noun (see the emitter in `commit`);
+        # "arrow" is the default for records written before it did
+        return "%s %s lost its %s target %s — it points at nothing" \
+            % (fact.get("noun") or "arrow", fact["element"],
+               fact.get("side"), fact.get("target"))
     if n == "mapping_dangling":
         return "mapping %r lost member %s" \
             % (fact.get("concept"), fact.get("ref"))
@@ -8985,6 +9010,12 @@ def consequence_lines(record):
     covered = set()   # arrows already narrated via their rewired fact
     for aid, part in (record.get("artifacts") or {}).items():
         for f in part.get("facts") or []:
+            # "the arrow" is correct here and correct BY A FILTER, not
+            # by luck: the producer of `rewired` skips anything whose
+            # type is not `arrow`, so no line ever reaches this
+            # sentence. (That the producer is silent about a rewired
+            # LINE is a separate question about what it observes, not
+            # about what this says — filed, not fixed here.)
             if f.get("fact") == "rewired" and f.get("consequence_of"):
                 covered.add(f.get("arrow"))
                 out.append(
@@ -8998,9 +9029,10 @@ def consequence_lines(record):
             if kind == "arrow_orphaned" and \
                     f.get("element") not in covered:
                 out.append(
-                    "arrow %s lost its %s binding — %s is gone; "
+                    "%s %s lost its %s binding — %s is gone; "
                     "re-target it or delete it"
-                    % (f.get("element"), f.get("side"), f.get("target")))
+                    % (f.get("noun") or "arrow", f.get("element"),
+                       f.get("side"), f.get("target")))
             if kind == "note_orphaned":
                 out.append(
                     "note %s annotates %s, which is gone — an orphaned "
@@ -11578,19 +11610,29 @@ def intent_echo(ops, els):
         if el.get("type") in ("arrow", "line"):
             s = (el.get("startBinding") or {}).get("elementId")
             d = (el.get("endBinding") or {}).get("elementId")
+            # THE BRANCH IS ABOUT BINDING, THE NOUN IS ABOUT TYPE, and
+            # this conflated them in both directions. The furniture arm
+            # printed "line" for an unbound DECORATION ARROW, and the
+            # binding arm printed "arrow" for a `line` — which binds
+            # through `from`/`to` exactly as an arrow does, so the echo
+            # an agent reads every turn named the wrong element on the
+            # one surface that exists to confirm what it just drew.
+            # `connector_noun` decides the word on both arms; the
+            # branch keeps deciding only the SENTENCE.
             if not s and not d and (
                     el.get("type") == "line" or
                     (el.get("customData") or {}).get("role") ==
                     "decoration"):
-                return "line %s at (%d,%d), %d points" % (
-                    eid, el.get("x", 0), el.get("y", 0),
-                    len(el.get("points") or []))
+                return "%s %s at (%d,%d), %d points" % (
+                    connector_noun(el), eid, el.get("x", 0),
+                    el.get("y", 0), len(el.get("points") or []))
             # the port clause is APPENDED — "binds A → B" stays the head
             # of the sentence, and is silent about any end whose approach
             # forbids naming a face (`port_phrase`)
-            return "arrow %s binds %s → %s%s" % (eid, s or "∅ (unbound)",
-                                                 d or "∅ (unbound)",
-                                                 port_phrase(el, ix))
+            return "%s %s binds %s → %s%s" % (connector_noun(el), eid,
+                                              s or "∅ (unbound)",
+                                              d or "∅ (unbound)",
+                                              port_phrase(el, ix))
         lbl = labels.get(eid)
         return "%s%s at (%d,%d) %dx%d" % (
             eid, " (%r)" % lbl if lbl else "",
@@ -15073,8 +15115,29 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                        "merged stroke reads as one relation and that "
                        "node stops being a step" % name(shared))
             elif rel == "swapped":
+                # THE BORROWED PREMISE, taken with the check it came
+                # from. "Reads as one bidirectional edge" is the
+                # bidirectional lint's claim, and that claim is carried
+                # by the arrowheads — the merged stroke stands for both
+                # directions only if a reader can see a direction at
+                # each end. `_pair_kind` answers "swapped" off the
+                # BINDINGS, which stay swapped whether or not anything
+                # is painted, so the first half is true of any pair and
+                # only the reading clause needed the head.
+                #
+                # THE FINDING IS UNMOVED and so is this block's
+                # population: two strokes inside `LANE_TOL` of each
+                # other are one thick line either way. That is the
+                # whole reason this arm gets a second sentence instead
+                # of the gate its sibling took.
                 why = ("each is the other's reverse, so the pair reads "
-                       "as one bidirectional edge")
+                       "as one bidirectional edge"
+                       if all(arrowhead_of(e, True) is not None
+                              or arrowhead_of(e, False) is not None
+                              for e in (la, lb))
+                       else "each is the other's reverse, and neither "
+                            "carries a head, so the merged stroke says "
+                            "nothing about which way either one runs")
             else:
                 why = "they share no node, so nothing explains the run"
             # THE ADVICE HAS TO BE FOLLOWABLE IN BOTH REGIMES, and the
@@ -15171,6 +15234,42 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             rel = _pair_kind(la, lb)
             if rel in ("fan", "converge"):
                 continue        # the alignment is the layout doing its job
+            # THE PREMISE IS THE ARROWHEAD, so that is what is measured.
+            # This check's own claim is "the visual signature of two
+            # ONE-WAY ARROWS a reader merges into one bidirectional
+            # relation", and its repair is "draw it as one arrow with
+            # two heads" — both rest on marks the reader can see. It
+            # never asked whether they exist. Two `line`s (which
+            # `arrows` holds, and which the bundle never paints a head
+            # for) were told to become one arrow with two heads: a
+            # repair the element cannot take, on a reading no reader
+            # could have had, since without a head there is no
+            # one-wayness on screen to merge.
+            #
+            # TYPE WAS NEVER THE GATE, only a proxy that correlated: an
+            # ARROW with both heads explicitly `null` sits in exactly
+            # the same position and fired identically (measured, v0.9
+            # TASK-LINENAMING). `arrowhead_of` is the axis the finding
+            # actually turns on, and it answers None for every line by
+            # type and for a bare arrow by value.
+            #
+            # EITHER END, not the terminating one. What the premise
+            # needs is that each stroke is READABLE AS ONE-WAY, and a
+            # head at the start says that as plainly as a head at the
+            # end. Requiring it at the end would additionally silence
+            # start-headed arrows — a bigger move, about which this
+            # pass has no evidence.
+            #
+            # WHAT THIS DOES NOT TOUCH: the lane check above still
+            # reports this pair. Two strokes drawn on top of each other
+            # are one thick line whether or not they carry heads —
+            # that finding is about ink, not direction, and it is the
+            # one that survives here. So the scene is not silenced, it
+            # is reported by the check whose claim is true of it.
+            if not all(arrowhead_of(e, True) is not None
+                       or arrowhead_of(e, False) is not None
+                       for e in (la, lb)):
+                continue
             sa, sb = finals[i], finals[j]
             for idx in (0, 1):
                 if not (_reads_as_line(sa, idx)
@@ -15490,11 +15589,12 @@ def lint_glossary(els, avoid_map=None, has_context_map=True):
             if s in frame_ids and t in frame_ids and s != t \
                     and not (labels.get(a["id"]) or "").strip():
                 notes.append(
-                    "arrow %s connects context frames %s and %s with no "
-                    "relationship label — the arrow between two contexts "
+                    "%s %s connects context frames %s and %s with no "
+                    "relationship label — the %s between two contexts "
                     "is itself a model (customer/supplier, conformist, "
                     "anticorruption layer, shared kernel…)"
-                    % (a["id"], s, t))
+                    % (connector_noun(a), a["id"], s, t,
+                       connector_noun(a)))
     return {"errors": errors, "warnings": warnings, "notes": notes}
 
 
@@ -16583,9 +16683,21 @@ class Store:
                             now = ((e.get(battr) or {}).get("elementId"))
                             if was in deleted and \
                                     (now is None or now in deleted):
+                                # THE NOUN IS RECORDED WHERE THE ELEMENT
+                                # IS, and this gate accepts lines. The
+                                # two surfaces that read this fact
+                                # (`headline_for`, `consequence_lines`)
+                                # get a bare dict and no scene, so they
+                                # could only have guessed — and both
+                                # guessed "arrow". A fact carries what
+                                # its writer knew; the readers default
+                                # to "arrow" so records already on disk,
+                                # written before this key existed, still
+                                # narrate exactly as they did.
                                 part["facts"].append(
                                     {"fact": "arrow_orphaned",
                                      "element": e["id"], "target": was,
+                                     "noun": connector_noun(e),
                                      "side": "start" if battr ==
                                              "startBinding" else "end"})
                     anchor = (e.get("customData") or {}).get("annotates")
