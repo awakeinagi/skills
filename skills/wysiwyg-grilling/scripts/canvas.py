@@ -2290,10 +2290,45 @@ def _interpret_user_composites(new_els, old_els):
     ``reconcile_composed`` re-derives the parts. Undo round-trips: the
     stroke restored flips ``checked`` back, with a fact.
 
+    THE POSTED SEQUENCE IS THE USER'S AND IS GIVEN BACK UNCHANGED.
+    `reconcile_composed` re-derives a host's parts by REMOVING and
+    RE-APPENDING them — `_compose_body_lines` rebuilds every wavy line,
+    `_reset_attribute_rows` every entity row — so a part that sat in
+    the middle of the posted list came back at its end. On a scene with
+    two composites that is a real permutation: reposting
+    `Store.scenes[aid]` byte for byte re-seated a checkbox's bound
+    label from the end of the array to just behind its check stroke,
+    the differ saw the body's lines one slot later than the baseline
+    held them, and the save minted the user a `reordered` fact per
+    displaced element — 2 at minimum scale, 5 on `testMini`, on the
+    FIRST save of any two-composite artifact, where it took the
+    headline's "(+N more)" from whatever the user had actually done
+    (curator batch 35).
+
+    `align_baseline_order` states the invariant for the OTHER side of
+    the same diff: a `reordered` fact is a claim about a person's
+    action, so the only sequence it may be measured against is the one
+    that person was shown. Task 52 made that true of the BASELINE, by
+    taking its order from the cache the client reads. This makes it
+    true of the POSTED list, by giving normalization no vote on
+    sequence at all — a stable sort back into the seats the caller
+    handed us, with genuinely NEW parts (a check stroke that just
+    appeared) keeping their append-at-the-end placement because they
+    have no posted seat to return to. A deliberate restack survives
+    untouched: the order restored IS the order posted.
+
+    Fixed here rather than in each branch of `reconcile_composed`
+    because two branches already churn and any third would have to
+    remember; and not in `reconcile_composed` itself because the seed
+    and agent paths call it too, and their order is not a user's claim
+    about anything.
+
     Args:
         new_els: The incoming normalized user scene, mutated in place.
         old_els: The base-state elements (replayed history).
     """
+    seats = {e.get("id"): i for i, e in enumerate(new_els)
+             if isinstance(e, dict)}
     old_ix = {e["id"]: e for e in old_els}
     new_ix = {e["id"]: e for e in new_els
               if isinstance(e, dict) and not e.get("isDeleted")}
@@ -2343,6 +2378,13 @@ def _interpret_user_composites(new_els, old_els):
                 v = round(max(0.0, min(100.0, v)), 1)
                 el["customData"] = dict(cd, value=v)
         reconcile_composed(new_els, None, None, el)
+    # Back into the posted seats. `sort` is stable and every part minted
+    # during the pass misses `seats`, so they all score `len(seats)` and
+    # keep the relative order the recomposition appended them in — the
+    # placement they have today — while everything the client posted
+    # returns to exactly where the client had it.
+    new_els.sort(key=lambda e: seats.get(
+        e.get("id") if isinstance(e, dict) else None, len(seats)))
 
 
 def reconcile_composed(els, index, existing, el):
@@ -7669,6 +7711,35 @@ COMPOSED_PART_KEYS = ("value_of", "attr_of", "box_of", "chk_of",
                       "thumb_of", "track_of", "body_of", "x_of")
 
 
+def _composed_part(cd):
+    """Is this element a composite's part, or a standalone backdrop?
+
+    The distinction the comment above turns on, in one place because it
+    now has TWO readers that must never drift apart: `normalize_z_order`
+    bands a part above its owner and a backdrop beneath everything, and
+    `_geometry_derived` calls a part's geometry derived and a backdrop's
+    the author's own. Both questions are the same question — is there a
+    host that owns this element's position — and a tree where one said
+    yes and the other no would paint a backdrop over the drawing or bill
+    a user for a drag they made.
+
+    `role: "decoration"` alone cannot answer it. That role is a
+    first-class value of the PUBLIC ops schema (ops-reference.md lists
+    it among the four an agent may set) and layout.md instructs the
+    agent to author one — the thick low-opacity backdrop line behind
+    parallel edges, the `reorder index 0` panel. Those carry no part
+    tag, have no host, and `reconcile_composed` never touches them.
+
+    Args:
+        cd: An element's `customData`, or any mapping. Never None —
+            callers pass `el.get("customData") or {}`.
+
+    Returns:
+        True when the element carries a part tag naming its owner.
+    """
+    return any(cd.get(k) for k in COMPOSED_PART_KEYS)
+
+
 def normalize_z_order(els):
     """Paint order (layout.md): frames → backdrops → arrows/lines →
     nodes → composed parts → bound labels & pins. Excalidraw renders
@@ -7689,7 +7760,7 @@ def normalize_z_order(els):
         if e.get("type") == "frame":
             return 0
         if role == "decoration":
-            return 4 if any(cd.get(k) for k in COMPOSED_PART_KEYS) else 1
+            return 4 if _composed_part(cd) else 1
         if e.get("type") in ("arrow", "line"):
             return 2
         if role == "pin":
@@ -7930,10 +8001,53 @@ def _router_owns(el):
 
 def _geometry_derived(el):
     """Elements whose geometry is derived from an anchor, not user intent:
-    bound labels (browser re-measures text), pins, and bound arrows (routing
-    follows the endpoints). Their coordinate churn never narrates."""
-    role = (el.get("customData") or {}).get("role")
+    bound labels (browser re-measures text), pins, composed decorations
+    (`reconcile_composed` re-derives them from their host), and bound
+    arrows (routing follows the endpoints). Their coordinate churn never
+    narrates.
+
+    COMPOSED PARTS joined in v0.9 for the same reason `label` was there
+    already, one element type over. Excalidraw's `restore` recomputes a
+    linear element's `width`/`height` from its `points` on load, so a
+    checkbox's check stroke stored 10x8 posts back 10x10 having been
+    touched by nobody, and the save narrated `resized cb-chk` against a
+    box the user never clicked (curator batch 35, witnessed in a browser
+    on `testMini`). `_text_metric_derived` answers only for
+    `type == "text"`, and a `line` carrying no bindings reached neither
+    reader — the same rule, the sibling element type, straight past a
+    guard that was five-for-five green on text.
+
+    THE AXIS IS `_composed_part`, NOT THE `decoration` ROLE, and the
+    difference is a defect this predicate shipped for one commit. The
+    role is a first-class value of the PUBLIC ops schema that an agent
+    may set on any `add`, and layout.md instructs it to author one — the
+    thick low-opacity backdrop behind parallel edges. Keying on the role
+    alone made a user's own drag of that backdrop narrate
+    `saved_no_changes`, which is the very sentence this repair exists to
+    stop. What is definitionally derived is being a composite's PART:
+    those carry an `<owner>_of` tag naming a host, and
+    `reconcile_composed` rewrites their geometry from it on every write
+    path there is. A standalone backdrop has no host and stays the
+    author's own, exactly as `normalize_z_order` has always banded it.
+
+    Four sites mint the role and all four stamp a part key with it —
+    `make_element` twice (`x_of`, `attr_of`), `_deco`, and
+    `_reset_attribute_rows` — so the tag is the reliable half of the
+    pair and the role is not. A `line` the user draws and drags carries
+    neither and stays narratable.
+
+    Args:
+        el: The element being judged.
+
+    Returns:
+        True when this element's geometry is derived from something
+        else, so a change to it is measurement rather than intent.
+    """
+    cd = el.get("customData") or {}
+    role = cd.get("role")
     if role in ("label", "pin"):
+        return True
+    if role == "decoration" and _composed_part(cd):
         return True
     if el.get("type") == "text" and el.get("containerId"):
         return True

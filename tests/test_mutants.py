@@ -22505,23 +22505,29 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # rule above was written to prevent. Re-read both `WHO FLIPS THIS:`
 # paragraphs the day that triage names its tasks.
 #
-# ONE JOINED on 2026-08-18 (curator batch 35), and it is the SECOND entry
-# here filed off another agent's witnessed miss rather than off a sweep or a
-# spike — the Pin-to-Canvas client-surface agent handed over a browser
-# measurement instead of closing with it in prose, which is the motion batch
-# 32's entry established and the one worth keeping.
-# `TestALineDecorationRemeasureIsNotAUserEdit` carries TWO reds against ONE
-# base scene, which is a shape this dict has not held before: they are two
-# unrelated mechanisms (a role the derived-geometry predicate does not know,
-# and a composite pass that re-seats the posted list after the baseline was
-# aligned to it) that reach the reader as one sentence in one save. Their
-# count may therefore drop to 1 rather than to 0 when the first owner lands,
-# and a batch that reads a line vanishing as "the class is done" would be
-# wrong twice over. Neither is a `Mutant`: what is wrong is what
+# ONE JOINED AND LEFT on 2026-08-18, inside one day, which is the shortest
+# stay this dict has recorded. `TestALineDecorationRemeasureIsNotAUserEdit`
+# arrived with curator batch 35 as the SECOND entry filed off another
+# agent's witnessed miss rather than off a sweep or a spike — the
+# Pin-to-Canvas client-surface agent handed over a browser measurement
+# instead of closing with it in prose, which is the motion batch 32's entry
+# established and the one worth keeping — and the v0.9 commit-narration task
+# flipped both reds the same day.
+#
+# It carried TWO reds against ONE base scene, a shape this dict had not held
+# before: two unrelated mechanisms (a role the derived-geometry predicate
+# did not know, and a composite pass that re-seated the posted list after
+# the baseline had been aligned to it) reaching the reader as one sentence
+# in one save. The curator's warning that the count would drop to 1 rather
+# than to 0 when the first owner landed was CORRECT and is worth keeping as
+# precedent: it did, and the two fixes were independent — `_geometry_derived`
+# learning the `decoration` role, and `_interpret_user_composites` restoring
+# the posted order — each proven by stubbing it and watching only its own
+# red return. Neither was ever a `Mutant`: what was wrong is what
 # `Store.commit` writes into the save record, `collect_findings` has no code
-# for it, and `lint_layout` is right to be silent — the picture is fine.
+# for it, and `lint_layout` was right to be silent — the picture was fine.
+# The class stays in the file at five green tests; only the colour moved.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALineDecorationRemeasureIsNotAUserEdit": 2,
     "TestTheEntityNameClearsItsOwnAttributeRows": 2,
     "TestOneLineHeightHasTwoReaders": 2,
 }
@@ -24362,7 +24368,25 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
     drifted elements were `line`s, `dirtyMap` read false, and the next
     save recorded a `resized` fact against the tick.
 
-    WHO FLIPS THESE: the work package that owns the re-measure guard,
+    BOTH FLIPPED 2026-08-18 (v0.9 commit-narration), by two separate
+    changes as the curator's routing note predicted — the count dropped
+    2 -> 1 -> 0 and never 2 -> 0, and each fix was proven to own exactly
+    its own red by stubbing it and watching that red alone come back.
+    The tick's re-measure was first, because it is the handover's defect
+    and the smaller change. Each method's docstring carries its own
+    `THE FIX THAT FLIPPED THIS` paragraph.
+
+    A FOURTH POLE joined the curator's three on 2026-08-19, from the
+    review of the first repair: a user-dragged standalone BACKDROP must
+    still narrate `moved`. The first attempt at the re-measure fix
+    silenced the whole `role: "decoration"` axis — a role the public ops
+    schema lets an agent author — and none of the original three poles
+    could see it, because the `resized` pole's `rule` carries no role at
+    all and so exercises the fall-through rather than the new branch.
+    The full suite, both floors and the render tier, passed with that
+    regression in. A pole has to sit on the branch under test.
+
+    WHO FLIPPED THESE: the work package that owns the re-measure guard,
     i.e. whoever owns `_geometry_derived` / `_text_metric_derived` and
     `Store.commit`'s composite pass. Not the curator and not the client-
     surface agent who witnessed it — a fix and its acceptance test from
@@ -24401,6 +24425,65 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             {"resized": 1},
             "a plain line the user dragged taller stopped narrating, so "
             "the red below would pass against a differ that says nothing")
+
+    def test_a_dragged_backdrop_still_narrates_its_move(self) -> None:
+        """The fourth pole: an agent-authored BACKDROP is the user's to move.
+
+        Added 2026-08-19 by the review of the first repair, which had
+        keyed `_geometry_derived` on `role: "decoration"` alone. That
+        role is not an internal marker — it is a first-class value of
+        the PUBLIC ops schema (`references/ops-reference.md` lists it
+        among the four an agent may set on an `add`) and
+        `references/layout.md` instructs the agent to author one: "one
+        thick low-opacity `role: decoration` backdrop line" behind N
+        parallel edges. A backdrop has no host, carries no
+        `COMPOSED_PART_KEYS` tag, and `reconcile_composed` never touches
+        it, so its geometry is the author's and a user's drag of it is
+        a gesture like any other.
+
+        MEASURED at the broken commit, through this same `Store.commit`:
+        `{"saved_no_changes": 1}` for both a `line` and a `rectangle`
+        backdrop, on a drag AND on a resize — the tool telling the user
+        they did nothing, which is the exact sentence this class exists
+        to stop and a fresh instance of the ownership family the wave's
+        carry-forward names as the next assessment's predicted headline.
+
+        WHY THE OTHER THREE POLES DID NOT CATCH IT, which is the whole
+        reason this one exists: the `resized` pole's `rule` carries NO
+        role at all, so it exercises the predicate's fall-through and
+        never reaches the branch the repair added. A pole has to sit on
+        the branch under test, not merely on the same verb.
+        """
+        store = _composed_screen(with_body=False)
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "screen",
+            "ops": [{"op": "add", "element": {
+                "id": "backdrop", "type": "line", "x": 80, "y": 400,
+                "width": 400, "height": 0, "points": [[0, 0], [400, 0]],
+                "role": "decoration"}}]})
+        seeded = next(e for e in store.scenes["screen"]
+                      if e["id"] == "backdrop")
+        cd = seeded.get("customData") or {}
+        self.assertEqual(
+            (cd.get("role"), [k for k in canvas.COMPOSED_PART_KEYS
+                              if cd.get(k)]),
+            ("decoration", []),
+            "the fixture stopped being a STANDALONE backdrop — it must "
+            "carry the role and no part tag, or it is testing the "
+            "composed-part branch instead of the one that regressed")
+
+        def drag(els: list[dict]) -> None:
+            """Move the backdrop the way a user drags it."""
+            for e in els:
+                if e["id"] == "backdrop":
+                    e["x"], e["y"] = e["x"] + 60, e["y"] + 40
+
+        self.assertEqual(
+            _resave(store, drag).get("verb_counts"), {"moved": 1},
+            "a user dragged an agent-authored backdrop and the tool "
+            "stopped saying so — `role: decoration` is authorable "
+            "through the ops schema and is one axis too coarse to "
+            "silence; the derived half is `_composed_part`")
 
     def test_a_real_restack_still_narrates_reordered(self) -> None:
         """The firing pole for `reordered`, ungated, on the same verb.
@@ -24448,7 +24531,6 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             "saying `saved_no_changes`, so the red below is not about "
             "the second composite after all")
 
-    @unittest.expectedFailure
     def test_the_ticks_remeasured_height_is_not_a_user_resize(self) -> None:
         """The handover's defect: the tick inside a box nobody clicked.
 
@@ -24474,6 +24556,27 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
         that re-derives composed parts before the diff instead — and a
         red that had named the flag would have to be rewritten to accept
         the second.
+
+        THE FIX THAT FLIPPED THIS (v0.9 commit-narration):
+        `_geometry_derived` now answers True for a `role: "decoration"`
+        that ALSO carries one of `COMPOSED_PART_KEYS`. One predicate and
+        not two readers, deliberately — `_text_metric_derived` answers a
+        different question (font metrics on text), and teaching it about
+        lines would have been this wave's headline defect, one rule
+        typed at two sites, for the sixth time.
+
+        THE FIRST ATTEMPT KEYED ON THE ROLE ALONE and shipped a live
+        regression for one commit, which is why the fourth pole above
+        exists. `role: "decoration"` is a first-class value of the
+        PUBLIC ops schema an agent may set on any `add`, and layout.md
+        instructs it to author a standalone backdrop; silencing the
+        whole role made a user's own drag of one narrate
+        `saved_no_changes`. The honest axis is being a composite's PART
+        — `COMPOSED_PART_KEYS` is the name this repo already gave it,
+        and `normalize_z_order` had been drawing the same line one
+        function away the whole time. Both now read one `_composed_part`
+        helper so they cannot drift. Origin: curator batch 35,
+        2026-08-18; flipped 2026-08-18; corrected 2026-08-19.
         """
         self.assertEqual(
             _resave(_composed_screen(with_body=False),
@@ -24482,7 +24585,6 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             "the browser re-measured a composed check stroke on load and "
             "the save blamed the user for resizing it")
 
-    @unittest.expectedFailure
     def test_a_byte_identical_repost_narrates_nothing(self) -> None:
         """The save that changed nothing and narrated two changes.
 
@@ -24513,6 +24615,29 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
         FIRST user save of any artifact carrying two composites,
         including a save whose real content is one deliberate edit,
         where it takes the headline's `(+N more)` and buries it.
+
+        THE FIX THAT FLIPPED THIS, the same day (v0.9 commit-narration):
+        `_interpret_user_composites` now snapshots the POSTED order on
+        entry and stable-sorts back into it once the reconciliation is
+        done, so normalization gets no vote on sequence — parts minted
+        during the pass miss the snapshot and keep the append-at-the-end
+        placement they have today. Fixed at that one site rather than in
+        `reconcile_composed`'s branches because TWO of them already
+        churn, measured: `_compose_body_lines` rebuilds every wavy line
+        and `_reset_attribute_rows` every entity row, both by removal
+        and re-append, and a third branch written later would have had
+        to remember. Not fixed inside `reconcile_composed` itself
+        because the seed and agent paths call it too, and their order is
+        nobody's claim about anything — which is also why the seed path
+        and the commit path now agree rather than the commit path having
+        been taught the seed's answer.
+
+        Task 52's ground did not move. `align_baseline_order` states
+        this same invariant for the BASELINE side of the diff and is
+        untouched; this makes it true of the POSTED side, so both
+        sequences the differ compares now come from what the person was
+        actually shown. Origin: curator batch 35, 2026-08-18; flipped
+        2026-08-18.
         """
         store = _composed_screen(with_body=True)
         cached = [e["id"] for e in store.scenes["screen"]]
