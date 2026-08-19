@@ -56,6 +56,16 @@ as a new save; nothing in the timeline does it and neither does ↺ revert.
   rename detectable as a rename rather than a delete-plus-add.
 - **Drag anything.** A locked element is a guardrail, not a wall — they can
   right-click to unlock, and that is always legitimate.
+- **Pin to Canvas** (`locked: true`) is how they say *this stays where I put
+  it*. Since v0.9 it binds the TOOL as well as the drag: nothing on the
+  server repositions a pinned element, and your ops on one come back
+  refused with the rest of the batch still applied. What it does NOT
+  protect is deletion by their own hand, or bookkeeping — a pinned arrow
+  whose target is deleted loses the dead binding and keeps its position.
+- **Ungrouping a widget** (Ctrl+Shift+G) is deliberate and permanent as far
+  as you are concerned: the save narrates it, the parts stop moving with
+  the body, and nothing re-groups them. Don't offer to "fix" it; ask what
+  they wanted the parts to do separately.
 - **The pending-revision banner** carries *Apply now*, *After I save* and
   *Discard*. Discard is theirs; if they use it, the revision is gone and you
   are told. Don't re-queue the same thing — ask what was wrong with it.

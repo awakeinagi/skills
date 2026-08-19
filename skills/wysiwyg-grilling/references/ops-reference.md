@@ -213,7 +213,21 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
   "checked": false,          //   place; checkbox/toggle only. Both fire
                              //   typed facts (value_changed/state_toggled)
   "links_to": "other-artifact",  // sets the element's navigation link
-  "locked": true,            // settled structure — the user can't drag it
+  "locked": true,            // PIN: settled structure. The user can't drag
+                             //   it, and neither can the tool — every
+                             //   non-user pass (tidy, fan, router, reroute,
+                             //   z-order, focus, feet, relayout) skips it
+                             //   and says how many it skipped. YOUR ops on
+                             //   a pinned element are refused, and so are
+                             //   ops one hop away (bound arrow, group
+                             //   sibling, container, frame); the rest of
+                             //   the batch still applies and `notes` says
+                             //   which ops were held. Flipping this
+                             //   attribute is the one thing never refused
+                             //   — but ask before unpinning someone's pin,
+                             //   and never bundle the unpin with a move in
+                             //   one op (that is refused whole). Fires
+                             //   `pinned` / `unpinned`. Accepted on `add`.
   "attributes": ["cash, mandate", "holds Positions"],
       // entities only: REPLACES the attribute rows, keeping the entity's
       // id — so its mappings, pins and rename detection all survive.
