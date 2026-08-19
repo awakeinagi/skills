@@ -21183,22 +21183,34 @@ def _part_id(store, aid, key, owner):
     return found[0]
 
 
-def _grouped_decorations(store):
-    """Seed a pinned decoration and an unpinned twin sharing one group.
+def _grouped_decorations(store, pin=True):
+    """Seed two decorations in one group, optionally pinning the first.
+
+    `pin=False` IS THE LIVE HALVES' SCENE, and the distinction is the
+    user's ruling rather than a convenience. A group-mate of a pin is
+    inside the declared dependency closure — "the four relations, as
+    ruled: the same element; an arrow bound to it; a group sibling; a
+    container or frame relationship" — so an op that moves a group
+    holding a pin is a DEPENDENT op and is held whole. Asking "does the
+    cascade still carry decorations" therefore has to be asked on a
+    batch that touches no pin, or it is asking for the tear rather than
+    for the carry.
 
     Args:
-        store: An empty Store. Left with `rule` pinned at the head.
+        store: An empty Store. Left at the head.
+        pin: Lock `rule`, making the group a pinned cluster.
 
     Returns:
-        `(pinned_xy, free_xy)` as they stand before any agent batch.
+        `(rule_xy, rule2_xy)` as they stand before any agent batch.
     """
     store.apply_batch(_PIN_SEED)
-    els = [dict(e) for e in store.scenes["f"]]
-    for e in els:
-        if e["id"] == "rule":
-            e["locked"] = True
-    store.commit(author="user", new_scenes={"f": els},
-                 base_revn=store.head_revn())
+    if pin:
+        els = [dict(e) for e in store.scenes["f"]]
+        for e in els:
+            if e["id"] == "rule":
+                e["locked"] = True
+        store.commit(author="user", new_scenes={"f": els},
+                     base_revn=store.head_revn())
     return _xy(store, "f", "rule"), _xy(store, "f", "rule2")
 
 
@@ -21240,21 +21252,43 @@ class TestAPinHoldsAgainstKinshipMintedInsideTheBatch(Base):
     question, and an agent that learned the rule from the refusal has
     learned something false about the tool.
 
-    The fix that flips these is a `pinned_to_canvas` check on the two
-    group-cascade sites in `apply_ops` (the mod arm's decoration carry and
-    the `del` arm's composite cleanup). Named by behaviour, not by line:
-    the implementer is moving this code as these are written.
+    WHAT FLIPS THESE IS NOT WHAT THIS DOCSTRING FIRST SAID, and the
+    correction is worth keeping because it cost two tests. The first
+    draft named the fix — "a `pinned_to_canvas` check on the two
+    group-cascade sites" — and then wrote live halves asserting that
+    shape's side effects: that an unpinned decoration in the pinned
+    group still travels. Measured, cascade-only leaves `rule` behind
+    while its group-mate moves `(+45, +25)` and the response says
+    NOTHING — `pin_held` None, `housekeeping` None. That is a torn group
+    (the C-6 class) plus the silence this very class exists to name, so
+    the live halves were pinning a variant of the defect rather than the
+    repair. The user's ruling settles the shape: a group sibling is one
+    of the four dependency relations, so the op is HELD WHOLE, and the
+    cascade guard is defence in depth behind it.
+
+    A CURATOR WHO NAMES A FIX IS RE-DERIVING THE FIX, which is not this
+    role's job and is how the premise got in. What a red owes is the
+    behaviour the user ruled on — the pin does not move, the pin is not
+    deleted, and something says so — spelled without reference to which
+    line closes it.
     """
 
     @unittest.expectedFailure
     def test_a_group_joined_by_an_add_does_not_carry_the_pin(self):
-        """Route 1: `add` into the group, then move what was added."""
+        """Route 1: `add` into the group, then move what was added.
+
+        `BatchError` suppressed for the reason spelled out on route 3:
+        refusing the batch whole and holding one op are both legal
+        answers, and a mutant that depends on which one it gets reports
+        a working fix as a red.
+        """
         pinned, _ = _grouped_decorations(self.store)
-        self.store.apply_batch(
-            {"base_revn": self.store.head_revn(), "artifact": "f",
-             "ops": [_joins_the_group(),
-                     {"op": "mod", "id": "badge",
-                      "attrs": {"x": 645, "y": 525}}]})
+        with contextlib.suppress(canvas.BatchError):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "f",
+                 "ops": [_joins_the_group(),
+                         {"op": "mod", "id": "badge",
+                          "attrs": {"x": 645, "y": 525}}]})
         self.assertEqual(_xy(self.store, "f", "rule"), pinned,
                          "a batch that never named the pin moved it")
 
@@ -21262,9 +21296,10 @@ class TestAPinHoldsAgainstKinshipMintedInsideTheBatch(Base):
     def test_a_group_joined_by_an_add_does_not_delete_the_pin(self):
         """Route 2: the same door, through the `del` arm's cleanup."""
         _grouped_decorations(self.store)
-        self.store.apply_batch(
-            {"base_revn": self.store.head_revn(), "artifact": "f",
-             "ops": [_joins_the_group(), {"op": "del", "id": "badge"}]})
+        with contextlib.suppress(canvas.BatchError):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "f",
+                 "ops": [_joins_the_group(), {"op": "del", "id": "badge"}]})
         self.assertIn("rule", {e["id"] for e in self.store.scenes["f"]},
                       "a batch that never named the pin deleted it")
 
@@ -21275,45 +21310,67 @@ class TestAPinHoldsAgainstKinshipMintedInsideTheBatch(Base):
         This one matters most for the fix's shape: a guard written as
         "exempt ids this batch minted" closes routes 1 and 2 and leaves
         this open, because `cart` existed before the batch and was
-        perfectly legal to mod. The guard belongs at the cascade.
+        perfectly legal to mod.
+
+        THE REFUSAL IS SUPPRESSED AND THE GEOMETRY IS THE ASSERTION,
+        after this mutant was caught being ERROR-RED against a fix that
+        had actually closed it. Both ops here name the same element, so
+        a gate that holds one holds both, nothing survives, and
+        `apply_batch` raises `BatchError` by design — the test then died
+        before its assertion and `expectedFailure` reported that exactly
+        as it reports a real red. It would have sat red forever over a
+        working fix. A mutant may not care HOW the tool refuses; it
+        cares that the pinned element did not move.
         """
         pinned, _ = _grouped_decorations(self.store)
-        self.store.apply_batch(
-            {"base_revn": self.store.head_revn(), "artifact": "f",
-             "ops": [{"op": "mod", "id": "cart",
-                      "attrs": {"groupIds": ["gD"]}},
-                     {"op": "mod", "id": "cart",
-                      "attrs": {"x": 640, "y": 520}}]})
+        with contextlib.suppress(canvas.BatchError):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "f",
+                 "ops": [{"op": "mod", "id": "cart",
+                          "attrs": {"groupIds": ["gD"]}},
+                         {"op": "mod", "id": "cart",
+                          "attrs": {"x": 640, "y": 520}}]})
         self.assertEqual(_xy(self.store, "f", "rule"), pinned,
                          "a mod-minted group carried the pin along")
 
-    def test_the_cascade_still_carries_an_unpinned_decoration(self):
+    def test_the_cascade_still_carries_decorations_when_no_pin_is_near(self):
         """The live half: the composite integrity this cascade exists for.
 
         UNGATED AND ASSERTED EVERY COMMIT, because the cheap way to pass
         the three reds above is to stop cascading at all — and grouped
         decorations travelling with their element is what keeps an X-box
         stroke on its placeholder and an attribute row under its entity.
-        A fix that breaks this has replaced one silent defect with a
-        louder one.
+
+        NO PIN IN THIS BATCH, which is the whole point of the scene and
+        not a way to dodge the gate. Both poles of the cascade have to
+        be asked somewhere they are genuinely reachable: with a pin in
+        the group the correct answer is "hold the op", so a batch that
+        touches a pin can only ever prove the refusal. This one proves
+        the carry, and it is untouched by any pin fix — which is what
+        makes it a real guard against the cascade being disabled.
         """
-        _, free = _grouped_decorations(self.store)
+        rule, rule2 = _grouped_decorations(self.store, pin=False)
         self.store.apply_batch(
             {"base_revn": self.store.head_revn(), "artifact": "f",
              "ops": [_joins_the_group(),
                      {"op": "mod", "id": "badge",
                       "attrs": {"x": 645, "y": 525}}]})
-        self.assertNotEqual(_xy(self.store, "f", "rule2"), free,
+        self.assertNotEqual(_xy(self.store, "f", "rule2"), rule2,
                             "the group cascade stopped carrying decorations")
+        self.assertNotEqual(_xy(self.store, "f", "rule"), rule,
+                            "the group cascade carried only part of a group")
 
-    def test_the_cascade_still_deletes_an_unpinned_decoration(self):
+    def test_the_cascade_still_deletes_decorations_when_no_pin_is_near(self):
         """The live half of the `del` arm's composite cleanup."""
-        _grouped_decorations(self.store)
+        _grouped_decorations(self.store, pin=False)
         self.store.apply_batch(
             {"base_revn": self.store.head_revn(), "artifact": "f",
              "ops": [_joins_the_group(), {"op": "del", "id": "badge"}]})
-        self.assertNotIn("rule2", {e["id"] for e in self.store.scenes["f"]},
+        left = {e["id"] for e in self.store.scenes["f"]}
+        self.assertNotIn("rule2", left,
                          "the composite cleanup stopped collecting parts")
+        self.assertNotIn("rule", left,
+                         "the composite cleanup collected only part of it")
 
     def test_the_front_door_refuses_a_del_on_the_pinned_element(self):
         """The control that makes the three reds mean something.
