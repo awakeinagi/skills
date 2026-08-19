@@ -13371,8 +13371,8 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         tgt = ix.get(eb) if eb and eb != sb else None
         if tgt is not None and len(seq) >= 2:
             # the DRAWN final approach, not the stored chord. This arm
-            # is `crosses_through_bound`'s cousin in the blind-spot 3
-            # sense — it reads a direction and a length off the last
+            # is `runs_on_node`'s cousin in the blind-spot 3 sense — it
+            # reads a direction and a length off the last
             # leg — and it inherited the identical error on a curved
             # one, so it migrates with the walk rather than being left
             # as a known-but-unfixed sibling.
@@ -13604,8 +13604,8 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # first round of this change said both in one breath to
                 # keep a test regex matching — an agent-facing message
                 # made inaccurate to satisfy a detector (task 19 review,
-                # F6). `crosses_through_bound`'s `lint_re` was widened
-                # to accept this second opening instead.
+                # F6). `runs_on_node`'s `lint_re` was widened to accept
+                # this second opening instead.
                 #
                 # The wording and the tier come from `run` alone, and the
                 # interior sentence quotes the SUM. A path with both an
@@ -13744,8 +13744,8 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # already indicted for where its foot IS never also gets
             # indicted for how it got there. That is what keeps the
             # 90-degree pole — an arrival lying ON the face — with
-            # `crosses_through_bound`, which measures the run in pixels
-            # and gives the better sentence; it is also, measured, what
+            # `runs_on_node`, which measures the run in pixels and gives
+            # the better sentence; it is also, measured, what
             # keeps this check off 412 of the 413 grazing arrivals in the
             # cramped-side sweep, whose builder starts every arrow on its
             # source's own border.
@@ -13817,8 +13817,8 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             if waives and key_w in waives:
                 continue
             # TWO SENTENCES, ONE OPENING — the arrangement
-            # `crosses_through_bound` next door already uses, and for its
-            # reason: the finding, the element, the magnitude and the
+            # `runs_on_node` next door already uses, and for its reason:
+            # the finding, the element, the magnitude and the
             # face are the same question, and only the REPAIR differs, so
             # one detector regex reads both and neither sentence has to
             # be made inaccurate to keep it matching. Saying "bring it in
@@ -14409,13 +14409,16 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # it is differs, and the remedy with it: nothing here is an
             # attachment, so "give the arrow an exit that steps off the
             # edge" is the wrong advice and "route it clear" is the
-            # right one. (Detector naming debt, for the curator: the
-            # registry row is still called `crosses_through_bound` and
-            # this half is not about a bound node. The CLAIM the row
-            # asserts — arrow ink lying on a node's outline — is
-            # unchanged, and its proving mutant still fires on the bound
-            # case, so coverage is honest; the NAME is now narrower than
-            # the check.)
+            # right one. (The detector naming debt this arm opened is
+            # PAID: the registry row was `crosses_through_bound`, and
+            # both halves of that name were false of it — an arrow drawn
+            # ON a border does not go INSIDE the box, and after this arm
+            # the row reads unbound nodes too. Renamed to `runs_on_node`
+            # by curator batch 38 on 2026-08-19, which covers interior
+            # and border, bound and unbound, and matches the siblings
+            # `passes_through_foreign` and `label_on_foreign_node`. The
+            # CLAIM is unchanged — arrow ink lying on a node's outline —
+            # and both halves now have a proving mutant.)
             #
             # NO WAIVE KEY, matching both siblings in this family. The
             # waive channel is for judgement calls; the producer

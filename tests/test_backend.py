@@ -21314,7 +21314,7 @@ class TestGrazingArrival(Base):
 
         An arrival lying exactly ALONG a face is this check's own
         extreme, and it is deliberately not this check's finding:
-        `crosses_through_bound` sees the same stroke as a run drawn on
+        `runs_on_node` sees the same stroke as a run drawn on
         the outline, reports it in PIXELS, and gives the better sentence
         for it. The arrival check sits behind that finding's `continue`,
         so the endpoint is indicted once.

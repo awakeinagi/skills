@@ -48,7 +48,7 @@ _ENDPOINT_RE = re.compile(
     r"arrow (?P<element>[\w-]+) claims to bind .+ but its "
     r"(?:start|end) point ends (?P<mag>\d+)px "
     r"(?P<dir>away|inside the shape)")
-# Two openings, one check. v0.9 WP4 gave `crosses_through_bound` a second
+# Two openings, one check. v0.9 WP4 gave `runs_on_node` a second
 # sentence for a run drawn flat ALONG the bound node's border, because the
 # first one ("enters X and runs Npx inside it") is false of an arrow that
 # never goes inside. Widened here rather than distorting the message to fit
@@ -501,7 +501,21 @@ DETECTORS: dict[str, dict] = {
     "endpoint_gap": {"lint_re": _ENDPOINT_RE,
                      "dirmap": {"away": "outside",
                                 "inside the shape": "inside"}},
-    "crosses_through_bound": {"lint_re": _RUNS_INSIDE_RE},
+    # RENAMED from `crosses_through_bound` by curator batch 38 on
+    # 2026-08-19, because both halves of the old name had gone false and
+    # a `DETECTORS` key that disagrees with the regex it is paired with
+    # is the same disease as a lint that disagrees with the drawing.
+    # "crosses_through" was false independently of anything: the row's
+    # regex has a second opening for a run drawn flat ALONG a border, and
+    # canvas.py's own comment says an arrow drawn ON a border does not go
+    # INSIDE the box. "bound" was falsified by v0.9 IMPORTANTS I-7, which
+    # widened the population from "shapes this arrow binds" to "shapes".
+    # `runs_on_node` covers interior and border, bound and unbound, and
+    # matches the siblings `passes_through_foreign` and
+    # `label_on_foreign_node`. Internal name only — it was never in a
+    # user- or agent-facing surface, which was verified by grep before
+    # the rename: every occurrence outside the harness was a comment.
+    "runs_on_node": {"lint_re": _RUNS_INSIDE_RE},
     "passes_through_foreign": {"lint_re": _PASSES_THROUGH_RE},
     "shared_attach_point": {"lint_re": _SHARED_ATTACH_RE},
     # v0.9 WP4b (task 24): the entry that flips
@@ -1765,7 +1779,7 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
         self.assertEqual(hits[0]["direction"], "outside")
         self.assertAlmostEqual(hits[0]["magnitude"], 50.0, delta=1.0)
 
-    def test_crosses_through_bound_parses_from_real_lint_output(self) -> None:
+    def test_runs_on_node_parses_from_real_lint_output(self) -> None:
         """An endpoint near the border after a long interior approach.
 
         Reads as crossing through, not merely gapped.
@@ -1779,7 +1793,7 @@ class TestDetectorsAgainstRealLint(unittest.TestCase):
                   points=[[600, 100], [310, 100]],
                   endBinding={"elementId": "n2", "focus": 0, "gap": 0})
         finds = collect_findings([node2, arrow])
-        hits = [f for f in finds if f["check"] == "crosses_through_bound"]
+        hits = [f for f in finds if f["check"] == "runs_on_node"]
         self.assertEqual(len(hits), 1)
         self.assertEqual(hits[0]["element"], "a1")
         self.assertIsNone(hits[0]["direction"])
@@ -18394,7 +18408,7 @@ _register(Mutant(
 # should be failed over.
 #
 # THE NEIGHBOUR IS THE UNGATED POLE, not a Silence, and it is what makes
-# the `crosses_through_bound` drain honest. The poles of a GATE are gated
+# the `runs_on_node` drain honest. The poles of a GATE are gated
 # and ungated (the `unroled_text_over_node` precedent above), so the pair
 # is: same builder, same node, same 98px of interior run, same named
 # element, and 3px of tail position is the single bit that differs. The
@@ -18407,10 +18421,10 @@ _register(Mutant(
     build=_crossing_tail,
     op="move_endpoint_to",
     args={"arrow_id": "e1", "end": "start", "x": 197, "y": 140},
-    expect=FindingSpec("crosses_through_bound", element="e1",
+    expect=FindingSpec("runs_on_node", element="e1",
                        magnitude=(98, 0.10), direction=None),
     neighbour=Neighbour(_crossing_tail,
-                        FindingSpec("crosses_through_bound", element="e1",
+                        FindingSpec("runs_on_node", element="e1",
                                     magnitude=(98, 0.10), direction=None))))
 
 
@@ -18456,10 +18470,10 @@ _register(Mutant(
     "curved_final_run_hides_interior_crossing",
     build=lambda: _two_leg_approach(_RUN_HIDDEN, True),
     op="unchanged", args={},
-    expect=FindingSpec("crosses_through_bound", element="e1",
+    expect=FindingSpec("runs_on_node", element="e1",
                        magnitude=(36, 0.10)),
     neighbour=Neighbour(lambda: _two_leg_approach(_RUN_HIDDEN, False),
-                        Silence("crosses_through_bound"))))
+                        Silence("runs_on_node"))))
 
 # Blind spot 3, pole 2 — FALSE ERROR, the other direction. The chord
 # measures 35.3px and raises an error against a drawing that reads
@@ -18470,9 +18484,9 @@ _register(Mutant(
     "curved_final_run_overstates_interior_crossing",
     build=lambda: _two_leg_approach(_RUN_OVERSTATED, True),
     op="unchanged", args={},
-    expect=Silence("crosses_through_bound"),
+    expect=Silence("runs_on_node"),
     neighbour=Neighbour(lambda: _two_leg_approach(_RUN_OVERSTATED, False),
-                        FindingSpec("crosses_through_bound", element="e1",
+                        FindingSpec("runs_on_node", element="e1",
                                     magnitude=(35, 0.10)))))
 
 # Blind spot 2, crossings. Zero chord crossings, two drawn ones.
@@ -19826,7 +19840,7 @@ class TestThePinHugSurvivesItsOwnContainer(unittest.TestCase):
 #   0 deg    (square)                    | a normal arrival      | nobody, rightly
 #   77 deg   (grazing)                   | a stroke sliding past | NOBODY
 #   90 deg   (along), run <= 2*tol       | ink on the outline    | NOBODY
-#   90 deg   (along), run >  2*tol       | ink on the outline    | crosses_through_bound
+#   90 deg   (along), run >  2*tol       | ink on the outline    | runs_on_node
 #
 # The two silent rows are the two mutants below; the loud row is both of
 # their neighbours, which is what makes each red a statement about a BAND
@@ -20017,7 +20031,7 @@ def _corner_feet(dx: float, dy: float) -> list[dict[str, Any]]:
                           [(0, 0), (180, -170 + dy)], "b", "hub")]
 
 
-# RED BY BAND, not by absence: `crosses_through_bound` owns this class and
+# RED BY BAND, not by absence: `runs_on_node` owns this class and
 # fires on it — 40px of stroke on the seam is reported twice, once per
 # bound node — and goes quiet at 24px. The gate is `run + on_border >
 # tol * 2` with `tol = endpoint_tol(node, TOL)`, which is 14 for a 120x60
@@ -20047,10 +20061,10 @@ _register(Mutant(
     "flush_stack_border_run_under_the_band",
     build=lambda: _shared_border_run(24, 0),
     op="unchanged", args={},
-    expect=FindingSpec("crosses_through_bound", element="e1",
+    expect=FindingSpec("runs_on_node", element="e1",
                        magnitude=(24, 0.10)),
     neighbour=Neighbour(lambda: _shared_border_run(40, 40),
-                        FindingSpec("crosses_through_bound", element="e1",
+                        FindingSpec("runs_on_node", element="e1",
                                     magnitude=(40, 0.10)))))
 
 # FLIPPED 2026-08-17 (v0.9 TASK-ARRIVALLINT). Was RED BY ABSENCE for six
@@ -20058,7 +20072,7 @@ _register(Mutant(
 # and this entry's demand — that whoever wrote it get the magnitude and
 # the direction right rather than merely fire — is what the spec below
 # still enforces. Named as its own check and not as an arm of
-# `crosses_through_bound` because the geometry is different: this stroke
+# `runs_on_node` because the geometry is different: this stroke
 # never touches the node until its last pixel, so there is no run to
 # measure and the existing lint has nothing to say by construction.
 #
@@ -20090,7 +20104,7 @@ _register(Mutant(
 # it, and the arrowhead lands edge-on where no head can be read.
 #
 # WHAT THE CHECKS REPORTED: nothing. `endpoint_gap` is 0 at both ends (both
-# feet are on their own outlines), `crosses_through_bound` measures 0
+# feet are on their own outlines), `runs_on_node` measures 0
 # interior and 0 on-border, and `enumerate_defects` returns [].
 #
 # MAGNITUDE 76.76 degrees, the deviation from the foot's own side normal,
@@ -20101,7 +20115,7 @@ _register(Mutant(
 # BOTTOM face of the same box is a perfectly ordinary picture.
 #
 # THE NEIGHBOUR CHANGED AT THE FLIP, which is the debt every flip in this
-# file owes: it used to borrow `crosses_through_bound`'s 50px run on an
+# file owes: it used to borrow `runs_on_node`'s 50px run on an
 # arrival lying exactly ALONG the left face, because no `arrival_through
 # _side` existed to have a pole. That borrow did real work — it proved the
 # geometry reached a live detector as soon as the angle reached 90 — and
@@ -20548,10 +20562,10 @@ _register(Mutant(
     "border_run_reads_an_unbound_neighbour",
     build=lambda: _border_run_past_a_bystander(220),
     op="unchanged", args={},
-    expect=FindingSpec("crosses_through_bound", element="e1",
+    expect=FindingSpec("runs_on_node", element="e1",
                        magnitude=(80, 0.10), direction=None),
     neighbour=Neighbour(lambda: _border_run_past_a_bystander(232),
-                        Silence("crosses_through_bound"))))
+                        Silence("runs_on_node"))))
 
 
 class TestMutantCatalogue(unittest.TestCase):
@@ -22062,7 +22076,7 @@ ASPIRATIONAL: dict[str, str] = {
     # (`arrival_through_side` left this table on 2026-08-17, v0.9
     # TASK-ARRIVALLINT — the entry that refilled it, gone in six days.
     # The lint landed, took a `DETECTORS` entry, and the mutant flipped in
-    # the same change, with its borrowed `crosses_through_bound`
+    # the same change, with its borrowed `runs_on_node`
     # neighbour replaced by this check's own quiet pole. SO THE TABLE IS
     # EMPTY AGAIN, for the second time; task 29's sentence about reading
     # that emptiness as an event rather than a state stands unchanged,
@@ -22150,7 +22164,7 @@ ASPIRATIONAL: dict[str, str] = {
 # hands that wrote the fix should not also write its acceptance test.
 
 UNCOVERED: dict[str, str] = {
-    # `crosses_through_bound` stood here from day one — the last DETECTORS
+    # `runs_on_node` stood here from day one — the last DETECTORS
     # row with no proving mutant — and was drained by curator batch 20
     # (2026-08-14) with `tolerable_gap_hides_interior_run`. Its own note
     # said "every scene that runs long enough inside a bound node to trip
@@ -22167,7 +22181,7 @@ UNCOVERED: dict[str, str] = {
     # 2026-08-12 by grepping errors.append/warnings.append/notes.append
     # over `lint_layout`'s body. The three templates
     # DETECTORS already covers via lint_re — endpoint_gap,
-    # crosses_through_bound, passes_through_foreign — are excluded here;
+    # runs_on_node, passes_through_foreign — are excluded here;
     # project_lint (canvas.py) delegates to lint_layout,
     # lint_glossary and lint_registry and has no direct appends of its
     # own, so it contributes no rows).
@@ -22961,7 +22975,7 @@ CATALOGUE_RED_IDS: set[str] = set()
 # TASK-ARRIVALLINT), the last of the three the spike program put here and
 # the only red-by-absence among them. `arrival_through_side` became a
 # live lint and a `DETECTORS` row in one change, and the borrowed
-# `crosses_through_bound` neighbour became this check's own quiet pole —
+# `runs_on_node` neighbour became this check's own quiet pole —
 # a curved elbow, square in the model, bowed past the bar in the drawing.
 #
 # THAT DEPARTURE IS ALL THIS NOTE CLAIMS, and the restraint is the point.
@@ -23033,7 +23047,7 @@ CATALOGUE_RED_IDS: set[str] = set()
 # was (`grazing_arrival_reads_as_square`, declared in `ASPIRATIONAL` as
 # `arrival_through_side` until it flipped). The other two were reds against checks
 # that exist, fire, and are already `proven` in the coverage table:
-# `crosses_through_bound` is proven and blind from 8px to 28px, and
+# `runs_on_node` is proven and blind from 8px to 28px, and
 # `shared_attach_point` is proven and answers a 12x12 SQUARE, so its
 # answers do not order by distance. A detector can be proven and still be
 # wrong about a neighbouring magnitude. That is the thing the coverage
@@ -25065,7 +25079,7 @@ class TestCoverage(unittest.TestCase):
         one check with no ungated firing expectation anywhere was
         `arrival_through_side`, which was red BY ABSENCE — no such check
         was written — and its neighbour deliberately borrowed a live
-        `crosses_through_bound` finding for exactly this reason.
+        `runs_on_node` finding for exactly this reason.
 
         THAT EXCEPTION CLOSED ITSELF on 2026-08-17 (v0.9
         TASK-ARRIVALLINT), and the way it closed is the argument for
@@ -25325,7 +25339,7 @@ class TestCoverage(unittest.TestCase):
         on-border run measured against a node the arrow does NOT bind.
         NO `DETECTORS` ROW AND NO `UNCOVERED` ROW, which is a fourth
         shape and the reason it needs saying here. This is not a new
-        check: it is `crosses_through_bound`'s existing claim — arrow
+        check: it is `runs_on_node`'s existing claim — arrow
         ink lying on a node's outline — with its population widened from
         "shapes this arrow binds" to "shapes", and it prints that check's
         own sentence, which `_RUNS_INSIDE_RE` already reads. So the row
@@ -25336,11 +25350,13 @@ class TestCoverage(unittest.TestCase):
         arm sits in — `tgt` there comes from `startBinding`/`endBinding`
         and there is no unbound node to reach.
 
-        NAMING DEBT, RECORDED RATHER THAN PAID: the row is still called
-        `crosses_through_bound` and half of what it now reads is about
-        an unbound node. Renaming a `DETECTORS` key is the curator's,
-        not a fix task's; the CLAIM the row asserts is unchanged, so
-        coverage is honest and only the name is narrower than the check.
+        NAMING DEBT, PAID by curator batch 38 on 2026-08-19: the row was
+        `crosses_through_bound`, and this widening falsified the second
+        half of that name exactly as the row's own regex had already
+        falsified the first. It is `runs_on_node` now. The widened half
+        also has its own proving mutant as of that batch
+        (`border_run_reads_an_unbound_neighbour`), so the row no longer
+        rests entirely on the bound case it was named for.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)

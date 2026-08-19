@@ -932,9 +932,9 @@ class TestModelTierMortality(_Mortal):
         """An arrow's endpoint gap going unreported must break something."""
         self.assertMortal("endpoint_gap")
 
-    def test_crosses_through_bound_death_is_noticed(self) -> None:
+    def test_runs_on_node_death_is_noticed(self) -> None:
         """An arrow crossing its own bound node, unreported."""
-        self.assertMortal("crosses_through_bound")
+        self.assertMortal("runs_on_node")
 
     def test_passes_through_foreign_death_is_noticed(self) -> None:
         """An arrow crossing a node it has no business in, unreported."""
