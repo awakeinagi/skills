@@ -27,6 +27,7 @@ Exit status is non-zero if any guard survived its own test.
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import subprocess
 import sys
@@ -49,15 +50,27 @@ _FINAL_ROUTE = (
 _RESOLVE = (
     '            if el is not None and role_of(el) == "pin" and \\\n'
     "                    not pinned_to_canvas(el):")
-_ART011 = (
-    '            before = (el.get("x"), el.get("y"))\n'
-    "            recenter_label(kept, cont)")
+# RE-POINTED when the N-1 fix rewrote this arm. The harness REFUSED to
+# run until it was — which is the anti-rot half of the pristine check
+# doing its other job: a moved anchor and a crashed sweep look identical
+# from here, and both must stop the run rather than silently skip a site.
+_ART011 = "            recenter_label(kept, cont)"
 _ART011_OLD = (
-    '            before = (el.get("x"), el.get("y"))\n'
     '            el["x"] = cont["x"] + max(\n'
     '                (cont.get("width", 0) - el.get("width", 0)) / 2, 4)\n'
     '            el["y"] = cont["y"] + max(\n'
     '                (cont.get("height", 0) - el.get("height", 0)) / 2, 4)')
+# The NARRATION condition, not a guard. The guard census counts sites
+# that stop a MOVE; N-1 was a site that stopped the move correctly and
+# said something false about why, which no guard mutant can reach. This
+# is the first entry that mutates a SENTENCE's condition, and its pair is
+# the negative-direction class rather than a movement assertion.
+_ART011_SAYS = (
+    '                    " — " + pinned_clause(1) if pinned_to_canvas(el)\n'
+    '                    else ""),')
+_ART011_SAYS_N1 = (
+    '                    " — " + pinned_clause(1) if True\n'
+    '                    else ""),')
 
 # (label, snippet, replacement, nth occurrence, test that must die)
 GUARDS: list[tuple[str, str, str, int, str]] = [
@@ -143,6 +156,9 @@ GUARDS: list[tuple[str, str, str, int, str]] = [
     ("validate_scene.ART011", _ART011, _ART011_OLD, 1,
      "TestTheLoadHealHonoursAPin."
      "test_the_label_refit_does_not_move_a_pinned_label"),
+    ("validate_scene.ART011_clause", _ART011_SAYS, _ART011_SAYS_N1, 1,
+     "TestNoPassClaimsAPinItDidNotHonour."
+     "test_the_load_refit_says_nothing_about_pins_when_none_are_pinned"),
     ("validate_scene.ART007",
      '            if (el.get("x"), el.get("y")) == before:\n'
      "                continue\n", "", 1,
@@ -223,10 +239,24 @@ def run_one(old: str, new: str, n: int, test: str, original: str) -> str:
         return "NO-OP"
     SRC.write_text(mutated, encoding="utf-8")
     try:
+        # `-B` AND A SWEPT CACHE, because a SURVIVED that is really a
+        # stale `.pyc` is the worst result this instrument can produce:
+        # it reports a guard as unobserved, which reads as a finding and
+        # sends someone writing a test for a hole that is not there.
+        # Observed once in three runs on a loaded machine —
+        # `contention_feet` SURVIVED in a full sweep and was KILLED both
+        # in isolation and on re-run — and rapid write/exec cycles inside
+        # one mtime granule are the standard cause. Cheap to rule out,
+        # expensive to chase later.
+        for cache in ROOT.rglob("__pycache__"):
+            for pyc in cache.glob("*.pyc"):
+                pyc.unlink(missing_ok=True)
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
         proc = subprocess.run(
-            [sys.executable, "-m", "unittest", "tests.test_backend." + test],
+            [sys.executable, "-B", "-m", "unittest",
+             "tests.test_backend." + test],
             cwd=str(ROOT), capture_output=True, text=True, timeout=900,
-            check=False)
+            check=False, env=env)
         return "KILLED" if proc.returncode != 0 else "SURVIVED"
     finally:
         SRC.write_text(original, encoding="utf-8")

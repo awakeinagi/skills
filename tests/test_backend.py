@@ -21345,6 +21345,135 @@ GEOMETRY_WRITERS: dict[str, tuple[int, str]] = {
 }
 
 
+class TestNoPassClaimsAPinItDidNotHonour(Base):
+    """`pinned_clause` may not appear where nothing was pinned.
+
+    THE DIRECTION THE CENSUS WAS MISSING. Eight assertions across this
+    file check that the clause APPEARS when an element is pinned, and
+    exactly one checked that it is ABSENT when none is — tidy's zeros
+    test. `validate_scene`'s ART-011 arm had the positive assertion and
+    not the negative, and that is precisely where the defect lived: the
+    clause was appended when the label's position was UNCHANGED rather
+    than when the label was PINNED, so an unpinned caption already
+    sitting where the refit would centre it produced "left 1 pinned
+    element where it is" with `locked` false.
+
+    THE GUARD SWEEP CANNOT REACH THIS, and the reason is worth stating
+    because it bounds what 22/22 means. Every mutant in
+    `tests/guard_mutants.py` deletes a GUARD and asks whether some test
+    notices the element MOVED. Here no guard is broken — the label
+    correctly does not move — and the defect is a sentence about WHY. A
+    census of guards is not a census of the narration those guards
+    produce, and a clause keyed on a proxy for the predicate rather than
+    on the predicate is invisible to both.
+
+    So this class is the negative half, one test per pass that emits the
+    clause conditionally. `pinned_clause` stays the single authority for
+    the WORDING; what these check is that each call site asks it the
+    right question.
+    """
+
+    LONG = "Cart contents and the current order summary"
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def _no_clause(self, blob, where):
+        self.assertNotIn(
+            canvas.pinned_clause(1), blob,
+            "%s claimed it left a pinned element alone with nothing "
+            "pinned: %r" % (where, blob))
+        self.assertNotIn(
+            "pinned element", blob,
+            "%s spoke about pinned elements with nothing pinned: %r"
+            % (where, blob))
+
+    def test_the_load_refit_says_nothing_about_pins_when_none_are_pinned(
+            self):
+        # THE REGRESSION ITSELF. The label is unpinned and pre-placed
+        # exactly where the refit would centre it, so it does not move —
+        # which is what the old condition mistook for a pin.
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        cont = next(e for e in els if e["id"] == "cart")
+        lbl = next(e for e in els if e["id"] == "cart-label")
+        lbl["text"] = lbl["originalText"] = self.LONG
+        lbl["width"] = 393
+        probe = [dict(cont), dict(lbl)]
+        canvas.fit_label_in(probe[0], probe[1])
+        canvas.recenter_label(probe, probe[0])
+        lbl["x"], lbl["y"] = probe[1]["x"], probe[1]["y"]
+        self.assertFalse(canvas.pinned_to_canvas(lbl))
+        _, issues = canvas.validate_scene(
+            {"type": "excalidraw", "elements": els}, "checkout-flow")
+        self._no_clause(" ".join(i.msg for i in issues), "ART-011")
+
+    def test_the_loaders_rerouter_says_nothing_about_pins_when_none_are(
+            self):
+        node = mk_el(id="box", type="rectangle", x=100, y=100, width=140,
+                     height=160, customData={"role": "node"})
+        far = mk_el(id="far", type="rectangle", x=500, y=100, width=140,
+                    height=60, customData={"role": "node"})
+        arrow = mk_el(id="a1", type="arrow", x=240, y=130, width=260,
+                      height=0, points=[[0, 0], [260, 0]],
+                      startBinding={"elementId": "box", "focus": 0,
+                                    "gap": 4},
+                      endBinding={"elementId": "far", "focus": 0, "gap": 4})
+        arrow["customData"] = {"routed": canvas._route_sig(arrow)}
+        issues = canvas.reroute_and_confess([node, far, arrow], node,
+                                            (140, 60), "art")
+        self._no_clause(" ".join(i.msg for i in issues),
+                        "reroute_and_confess")
+
+    def test_the_batch_post_passes_say_nothing_about_pins_when_none_are(
+            self):
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "payment",
+                      "attrs": {"x": 520, "y": 260}}]})
+        self._no_clause("\n".join(rec.get("housekeeping") or []),
+                        "apply_ops housekeeping")
+
+    def test_tidy_says_nothing_about_pins_when_none_are_pinned(self):
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "payment":
+                e["x"] = e["x"] + 3
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        rec = self.store.tidy("checkout-flow")
+        self._no_clause(rec.get("user_note") or "", "tidy's note")
+
+    def test_reroute_says_nothing_about_pins_when_none_are_pinned(self):
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e.get("type") == "arrow":
+                e["points"] = [[0, 0], [30, 25], [e.get("width", 100), 0]]
+                e["customData"] = dict(e.get("customData") or {},
+                                       routed=canvas._route_sig(e))
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        rec = self.store.reroute("checkout-flow")
+        self._no_clause(rec.get("user_note") or "", "Store.reroute's note")
+
+    def test_the_positive_direction_still_holds(self):
+        # the control for the controls: these tests must not pass by the
+        # clause having become unreachable everywhere
+        _pin(self.store, "checkout-flow", "cart")
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] in ("cart", "payment"):
+                e["x"] = e["x"] + 3
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        rec = self.store.tidy("checkout-flow")
+        self.assertIn(canvas.pinned_clause(1), rec.get("user_note") or "")
+
+
 class TestEveryGeometryWriterIsClassified(unittest.TestCase):
     """Every site that writes x/y/points either asks the pin, or says why not.
 

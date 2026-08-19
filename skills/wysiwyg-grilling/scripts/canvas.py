@@ -778,14 +778,22 @@ def validate_scene(doc, artifact_id):
             # was pinned is where it sits, and a caption clipping outside
             # its box is the same class of corruption as a dead binding.
             # Only the re-POSITIONING is the pin's to refuse.
-            before = (el.get("x"), el.get("y"))
             recenter_label(kept, cont)
+            # THE CLAUSE ASKS THE PREDICATE, NOT THE COORDINATES. This
+            # first appended `pinned_clause(1)` whenever the position was
+            # UNCHANGED, which is not the same question: a label already
+            # sitting where the refit would centre it does not move
+            # either, so an UNPINNED caption produced "left 1 pinned
+            # element where it is" with `locked` false. `pinned_clause`
+            # was the right single authority and this site asked it the
+            # wrong thing — the formatter cannot make a call site's
+            # condition true.
             issues.append(Issue(
                 "ART-011", "%s: label %s was wider than its container — "
                 "refit to wrap inside it%s" % (
                     artifact_id, el["id"],
-                    "" if (el.get("x"), el.get("y")) != before
-                    else " — " + pinned_clause(1)),
+                    " — " + pinned_clause(1) if pinned_to_canvas(el)
+                    else ""),
                 "", True))
             if (cont.get("width", 0), cont.get("height", 0)) != was[2:]:
                 issues += reroute_and_confess(kept, cont, was[2:],
