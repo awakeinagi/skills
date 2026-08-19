@@ -705,7 +705,18 @@ def validate_scene(doc, artifact_id):
                 el.get("x", 0) > c.get("x", 0) + c.get("width", 0) or
                 el.get("y", 0) + el.get("height", 0) < c.get("y", 0) or
                 el.get("y", 0) > c.get("y", 0) + c.get("height", 0)):
+            # A REPAIR IS ONLY FILED IF IT HAPPENED. `recenter_label`
+            # declines to move a pinned label, and this arm filed
+            # `repaired: True` regardless — telling the user the loader
+            # re-centred something it had deliberately left alone, on
+            # every load, forever. That is the same defect the refit arm
+            # below was fixed for (five labels re-reporting one repair
+            # across three projects); it reached here through a different
+            # decline. The position is the witness, not the call.
+            before = (el.get("x"), el.get("y"))
             recenter_label(kept, c)
+            if (el.get("x"), el.get("y")) == before:
+                continue
             issues.append(Issue("ART-007", "%s: label %s was detached from its "
                                 "container — re-centered"
                                 % (artifact_id, el["id"]), "", True))
@@ -752,13 +763,29 @@ def validate_scene(doc, artifact_id):
                 # business moving. A declined refit leaves the label
                 # exactly where it was drawn.
                 continue
-            el["x"] = cont["x"] + max(
-                (cont.get("width", 0) - el.get("width", 0)) / 2, 4)
-            el["y"] = cont["y"] + max(
-                (cont.get("height", 0) - el.get("height", 0)) / 2, 4)
+            # THROUGH THE GUARDED WRITER, NOT AROUND IT. This arm retyped
+            # `recenter_label`'s centring arithmetic inline, which made it
+            # the twenty-first caller of a rule whose whole design is that
+            # it has ONE writer — and the only caller that did not honour
+            # a pin. Measured: a pinned label at (12,92) landed at
+            # (52,128) after `validate_scene`, identical to the unpinned
+            # control, and it re-happened on every `Store` load, so the
+            # user's pin was undone by opening the project. The inline
+            # copy also could not keep `verticalAlign`'s top and bottom
+            # anchors, which `recenter_label` has honoured since v0.3.
+            #
+            # The WIDTH refit above still stands for a pinned label: what
+            # was pinned is where it sits, and a caption clipping outside
+            # its box is the same class of corruption as a dead binding.
+            # Only the re-POSITIONING is the pin's to refuse.
+            before = (el.get("x"), el.get("y"))
+            recenter_label(kept, cont)
             issues.append(Issue(
                 "ART-011", "%s: label %s was wider than its container — "
-                "refit to wrap inside it" % (artifact_id, el["id"]),
+                "refit to wrap inside it%s" % (
+                    artifact_id, el["id"],
+                    "" if (el.get("x"), el.get("y")) != before
+                    else " — " + pinned_clause(1)),
                 "", True))
             if (cont.get("width", 0), cont.get("height", 0)) != was[2:]:
                 issues += reroute_and_confess(kept, cont, was[2:],
@@ -1894,8 +1921,17 @@ def _close_widget_group(out):
     lines earlier — before anything knows whether this is a slider or a
     plain box. So a slider shipped with body, track and thumb sharing
     `sl-grp` and its caption in no group at all. Measured across all
-    eight composed kinds: 7 of 22 parts outside the body's group, all 7
-    of them labels. That is the whole reason tidy could move a widget's
+    eight composed kinds and one explicit spec (body unlabelled, entity
+    with two attributes): 10 of 22 parts outside the body's group at
+    10dc4bf, 0 of 22 after. THE DENOMINATOR IS A PROPERTY OF THE SPEC,
+    not of the code — an entity contributes one label plus n_attributes
+    rows and a body contributes n_waves, so a reviewer measuring with a
+    labelled body and a different attribute count gets a different pair
+    (11 of 23 on that spec, and 15 of 26 on another) without either being
+    wrong. What the CODE guarantees is the invariant: every composed part
+    shares its body's group. Of the seven kinds that append `gid` to the
+    body, each shipped exactly one loose part and all seven were bound
+    labels; `body` supplied the rest. That is the whole reason tidy could move a widget's
     caption independently of the widget, and the reason the user's own
     drag of a slider left its name behind.
 
@@ -2302,6 +2338,22 @@ def reconcile_composed(els, index, existing, el):
         index = {e["id"]: e for e in els}
     if existing is None:
         existing = set(index.keys())
+    # A PINNED PART IS NOT RECOMPOSED. This function is the one mover in
+    # the file that finds its targets by the `*_of` BACKLINKS rather than
+    # by `groupIds`, which is exactly why the gate could not see it: once
+    # the user ungroups a widget — the gesture this design blesses — or
+    # on any widget minted before the grouping repair, a pinned part has
+    # no structural tie left to its body and a `mod height` on the body
+    # walked the backlink and moved it. `_pin_kin` learned the backlink
+    # in the same change; this is the writer's half, and it is the half
+    # that does not depend on the gate having predicted the door.
+    #
+    # The whole scene is snapshotted rather than each arm being guarded,
+    # because there are seven arms and four helpers below and a per-arm
+    # check would be eleven chances to miss one — the same argument
+    # `recenter_label` makes for guarding the single writer.
+    pinned_before = {e["id"]: (e.get("x"), e.get("y"))
+                     for e in els if pinned_to_canvas(e)}
     cd = el.get("customData") or {}
     kind = cd.get("kind")
     if el.get("type") == "rectangle" and el.get("groupIds"):
@@ -2369,12 +2421,27 @@ def reconcile_composed(els, index, existing, el):
         gone = [t for t in els if (t.get("customData") or {})
                 .get("body_of") == el["id"]]
         for t in gone:
+            if pinned_to_canvas(t):
+                continue      # a pinned wave is not deleted and remade
             els.remove(t)
             index.pop(t["id"], None)
             existing.discard(t["id"])
         for t in _compose_body_lines(el, existing):
+            if t["id"] in index:
+                continue      # the pinned original is still standing
             els.append(t)
             index[t["id"]] = t
+    # THE POST-CONDITION, and it is the point rather than a belt on a
+    # brace. The failure this closes is a CLASS — a mover that reaches a
+    # part through a backlink the gate cannot see — so restoring the
+    # position of anything locked that moved holds the property for every
+    # arm above, including one added later by someone who never read this
+    # comment. Restoring rather than refusing keeps the widget's OTHER
+    # parts reconciled, which is what an unpinned part is entitled to.
+    for e in els:
+        was = pinned_before.get(e["id"])
+        if was is not None and (e.get("x"), e.get("y")) != was:
+            e["x"], e["y"] = was
 
 
 def edge_anchor(el, other_cx, other_cy):
@@ -3873,12 +3940,24 @@ def reroute_and_confess(els, node, before, artifact_id):
         (e.get("endBinding") or {}).get("elementId"))]
     obstacles = hard_obstacles(els)
     soft = soft_obstacles(els)
-    moved, kept_as_drawn = [], []
+    moved, kept_as_drawn, pinned_kept = [], [], []
     for arrow in bound:
         src = index.get((arrow.get("startBinding") or {}).get("elementId"))
         dst = index.get((arrow.get("endBinding") or {}).get("elementId"))
         if src is None or dst is None or not server_owns_geometry(arrow):
             kept_as_drawn.append(arrow["id"])
+            continue
+        if pinned_to_canvas(arrow):
+            # THE LOAD PATH'S OWN ROUTER, and it was gated on ownership
+            # and never on the pin. `validate_scene`'s label refit resizes
+            # the container, which calls this, which re-routes every
+            # server-owned arrow bound to it — so a pinned arrow was
+            # redrawn by OPENING THE PROJECT, with no user or agent
+            # action at all, and again on every subsequent load. Same
+            # shape as the ART-011 refit two doors up: a repair that is
+            # right about unpinned geometry and had never been asked
+            # whether this geometry was the user's to keep.
+            pinned_kept.append(arrow["id"])
             continue
         route_arrow(arrow, src, dst, obstacles, soft_obstacles=soft,
                     other_arrows=[(t["id"], t.get("x", 0), t.get("y", 0),
@@ -3895,6 +3974,13 @@ def reroute_and_confess(els, node, before, artifact_id):
         did = "no arrow was bound to it"
     if kept_as_drawn:
         did += "; left %s as drawn" % ", ".join(sorted(kept_as_drawn))
+    if pinned_kept:
+        # THROUGH `pinned_clause`, not a sentence of its own. Six passes
+        # say this and the wording is deliberately in one place; the
+        # loader saying it differently is how a reader learns to treat
+        # the two as different events when they are the same one.
+        did += "; %s (%s)" % (pinned_clause(len(pinned_kept)),
+                              ", ".join(sorted(pinned_kept)))
     return [Issue(
         "ART-012", "%s: the label refit resized %s (%gx%g to %gx%g) — %s"
         % (artifact_id, node["id"], before[0], before[1],
@@ -6884,6 +6970,33 @@ def _pin_kin(els, pid):
             out[eid] = "is the container of"
         elif e.get("frameId") == pid or p.get("frameId") == eid:
             out[eid] = "shares a frame with"
+        elif part_owner_id(p) == eid or part_owner_id(e) == pid:
+            # THE BACKLINK IS A KINSHIP EDGE TOO, and leaving it out was
+            # the hole `groupIds` could not cover. `reconcile_composed`
+            # finds and repositions a widget's parts BY their `*_of`
+            # backlinks, not by their groups — so a pinned part whose
+            # widget the user ungrouped had no structural tie left to its
+            # body, the gate saw nothing, and a `mod cb height` moved the
+            # locked box 15px. Two routes reach it and the second needs
+            # no user action at all: the ungroup is the gesture this
+            # design blesses and narrates, and the grouping repair is at
+            # MINT time with no migration, so every composed widget in an
+            # already-saved project still carries the old shape.
+            #
+            # `*_of` MEANS meaning and `groupIds` MEANS structure — that
+            # split is still right and this is not it collapsing. It is
+            # the gate learning to read both, because a mover that walks
+            # meaning can move something a gate reading only structure
+            # has no idea is related.
+            #
+            # LAST IN THE CHAIN on purpose. `part_owner_id` answers with
+            # `containerId` for bound text, so placing it earlier made a
+            # label's container report "is the composed owner of" when
+            # "is the container of" is the sentence that names it. Same
+            # refusal either way; the earlier branches word it better.
+            out[eid] = ("is the composed owner of"
+                        if part_owner_id(p) == eid
+                        else "is a composed part of")
     return out
 
 
@@ -6902,8 +7015,13 @@ def is_pin_flip(op):
     when the batch was written: the move was authored against a drawing
     the agent was not entitled to rearrange, and silently letting it
     through on the strength of an unpin in the same breath is how a pin
-    would become a formality. Unpin in one op, move in the next, and the
-    narration shows both.
+    would become a formality.
+
+    THE SAME REASONING BINDS THE WHOLE BATCH, not just the one op, and
+    saying so here because the refusal text used to advise otherwise.
+    `pin_held_ops` closes its guarded set over the scene as the batch
+    ARRIVED, so an unpin at op 3 does not release op 4 either — unpin in
+    one batch, move in the NEXT, and the narration shows both.
 
     Args:
         op: A validated op dict.
@@ -6951,15 +7069,70 @@ def pin_held_ops(els, ops):
     guarded = {}        # element id -> (pinned id, relation or None)
     for pid in sorted(pins):
         guarded[pid] = (pid, None)
+    pin_groups = {}     # groupId -> a pinned element id carrying it
     for pid in sorted(pins):
         for eid, rel in _pin_kin(els, pid).items():
             if eid not in guarded:
                 guarded[eid] = (pid, rel)
+        for g in (next(e for e in els if e["id"] == pid)
+                  .get("groupIds") or []):
+            pin_groups.setdefault(g, pid)
+    # DERIVED POSITIONS TRAVEL WITH WHAT DERIVES THEM. A bound label and a
+    # composed part do not have a position of their own — `recenter_label`
+    # and `reconcile_composed` recompute both from the owner on every
+    # geometry change — so holding an owner and releasing its caption
+    # leaves the caption behind at coordinates nothing will ever restore.
+    # Measured before this closure: a pinned `cart` grouped with
+    # `checkout` held the box and released `checkout-label`, which ended
+    # 495px clear of its own container with `containerId` intact.
+    #
+    # THIS IS NOT THE TRANSITIVE CLOSURE COMING BACK. It follows exactly
+    # one kind of edge — "your position is computed from theirs" — and
+    # that edge is what `part_owner_id` already names. A frame's children
+    # are NOT derived from the frame, so the frame explosion the one-hop
+    # bound exists to prevent stays prevented: a screen frame with thirty
+    # nodes still holds only the ops that name the frame itself.
+    for e in els:
+        oid = part_owner_id(e)
+        if oid and oid in guarded and e["id"] not in guarded:
+            guarded[e["id"]] = (guarded[oid][0],
+                                "has its position derived from")
     held, why = set(), {}
+    # OPS MAY JOIN A PINNED GROUP MID-BATCH, and until this loop existed
+    # they could then move it. The held set is computed from the PRE-batch
+    # scene, so an `add` carrying a pinned element's groupId — or a `mod
+    # groupIds` putting an existing element into it — created a group
+    # sibling the gate had never heard of, and the very next `mod x` rode
+    # `apply_ops`' grouped-decoration carry straight through the guard.
+    # Both doors are the same fact stated in an op rather than in the
+    # scene, so both are read out of the ops here.
+    for op in ops:
+        if not isinstance(op, dict):
+            continue
+        if op.get("op") == "add":
+            spec = op.get("element")
+            if not isinstance(spec, dict):
+                spec = {k: v for k, v in op.items() if k != "op"}
+            eid, gids = spec.get("id"), spec.get("groupIds")
+        elif op.get("op") == "mod" and isinstance(op.get("attrs"), dict):
+            eid, gids = op.get("id"), op["attrs"].get("groupIds")
+        else:
+            continue
+        if not eid or not isinstance(gids, (list, tuple)):
+            continue
+        for g in gids:
+            if g in pin_groups and eid not in guarded:
+                guarded[eid] = (pin_groups[g], "joins the group of")
     for i, op in enumerate(ops):
+        # `resolve_pin` JOINED THIS LIST after it was found deleting a
+        # pinned ❓ outright: its arm in `apply_ops` removes the glyph
+        # with no gate of its own, so judging only mod/del/reorder left
+        # the tool a delete verb that ignored pins. `add` still cannot be
+        # held — it mints an id that by definition nothing has pinned —
+        # and `pin`/`registry` move and remove nothing.
         if not isinstance(op, dict) or op.get("op") not in (
-                "mod", "del", "reorder"):
-            continue        # an `add` mints a new id and cannot be pinned
+                "mod", "del", "reorder", "resolve_pin"):
+            continue
         if is_pin_flip(op):
             continue
         eid = op.get("id")
@@ -7004,9 +7177,21 @@ def pin_refusal_lines(held, why, total):
     for i in sorted(held):
         eid, pid, rel = why[i]
         if rel is None:
-            lines.append("  op %d names %s, which is pinned — unpin it "
-                         "(`mod {\"id\": %r, \"attrs\": {\"locked\": "
-                         "false}}`) if the user has asked you to move it"
+            # "IN A LATER BATCH" IS LOAD-BEARING, not padding. The held
+            # set is computed from the scene as the batch ARRIVED, so an
+            # unpin sent as op N of this batch does not release op N+1 —
+            # the advice as first written produced a second refusal
+            # naming a pin the same batch had just removed. The behaviour
+            # is right and the wording was wrong: a move authored while
+            # the element was pinned was authored against a drawing the
+            # agent was not entitled to rearrange, which is the same
+            # reason `is_pin_flip` refuses a mixed op. Re-sending the
+            # move afterwards is a decision taken with the pin gone.
+            lines.append("  op %d names %s, which is pinned — if the user "
+                         "has asked you to move it, unpin it (`mod {\"id\": "
+                         "%r, \"attrs\": {\"locked\": false}}`) and re-send "
+                         "this op IN A LATER BATCH; an unpin later in THIS "
+                         "batch does not release it"
                          % (i, eid, eid))
         else:
             lines.append("  op %d names %s, which %s the pinned %s, so it "
@@ -7041,6 +7226,11 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
     # Copied, not aliased: `_validate_batch` hands in the very set it uses
     # to refuse an explicit colliding id, and minting must not grow it.
     pin_ids = set(known_pins or ())
+    # Composed parts a group carry declined to move because they are
+    # pinned. Collected across the whole batch and narrated once: the
+    # widget's owner moved and a part of it did not, which the reader
+    # cannot see in a diff and would otherwise meet as a torn widget.
+    held_parts = set()
 
     def resolve(eid, opi, verb):
         el = index.get(eid)
@@ -7366,6 +7556,24 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                     if set(other.get("groupIds") or []) & gset and \
                             (other.get("customData") or {}).get("role") == \
                             "decoration":
+                        # A PIN IS A PIN WHICHEVER END OF THE GROUP IT
+                        # SITS ON — the rule `_tidy_pass`' twin of this
+                        # loop already stated and this one did not obey.
+                        # The gate above normally holds a batch that
+                        # moves a pinned element's group sibling, but it
+                        # judges the PRE-batch scene, so an `add` (or a
+                        # `mod groupIds`) that joined the group inside
+                        # this same batch reached here unguarded and
+                        # moved a locked decoration 600x400px while the
+                        # response said "left 1 pinned element where it
+                        # is". The gate learned about mid-batch joins in
+                        # the same change; this check is the one that
+                        # does not depend on the gate having predicted
+                        # the door.
+                        if pinned_to_canvas(other):
+                            if housekeeping is not None:
+                                held_parts.add(other["id"])
+                            continue
                         other["x"] = other.get("x", 0) + dx
                         other["y"] = other.get("y", 0) + dy
             # rewires, processed jointly so one mod may set from AND to.
@@ -7438,7 +7646,47 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                             (other.get("customData") or {}).get("role") == \
                             "decoration":
                         doomed.add(other["id"])
+            # THE TOOL NEVER DELETES A PINNED ELEMENT, BY ANY DOOR. The
+            # front door is gated above — `del` on a pinned element, or
+            # on anything one hop from one, is refused and named. These
+            # three CASCADES are the back doors, and they were open: an
+            # `add` joining a pinned decoration's group followed by a
+            # `del` of the new element swept the pinned element into
+            # `doomed`, and the revision was headlined "housekeeping only
+            # (1 low-signal change)" with the deletion SUPPRESSED as
+            # derived noise. Same element, same effect, two doors,
+            # opposite answers — which is exactly the shape C-4 named
+            # when it said every ownership rule in this file was
+            # advisory.
+            #
+            # A survivor of a cascade keeps its POSITION and loses its
+            # dead references, which is the bookkeeping split stated
+            # below applied to containment rather than to bindings: the
+            # `containerId` and `frameId` sweeps further down clear what
+            # now points at nothing, and nothing here moves anything.
+            spared = {i2 for i2 in doomed
+                      if i2 != el["id"] and pinned_to_canvas(index[i2])}
+            if spared:
+                doomed -= spared
+                if housekeeping is not None:
+                    housekeeping.append(
+                        "op %d: %s would have been deleted along with %s. "
+                        "%s pinned, so %s still here — %s dangling "
+                        "reference(s) cleared instead."
+                        % (i, ", ".join(sorted(spared)), el["id"],
+                           "It is" if len(spared) == 1 else "They are",
+                           "it is" if len(spared) == 1 else "they are",
+                           len(spared)))
             els = [e for e in els if e["id"] not in doomed]
+            for e in els:
+                # a spared element's own dead pointers, cleared here for
+                # the reason the binding sweep below states
+                if e["id"] in spared:
+                    if e.get("containerId") in doomed:
+                        e["containerId"] = None
+                    if set(e.get("groupIds") or []) & gids:
+                        e["groupIds"] = [g for g in (e.get("groupIds") or [])
+                                         if g not in gids]
             # BOOKKEEPING IS NOT PROTECTED BY A PIN, and the distinction
             # is the point rather than an exception to it. What the user
             # pinned is the element's POSITION; a binding pointing at an
@@ -7598,8 +7846,16 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # a label was added (WP1). The cross-artifact scan and the
             # `here` guard that skips it are gated on this same role for
             # this same reason; this is the arm they both feed.
+            # A PINNED ❓ IS NOT TAKEN DOWN. `resolve_pin` is a delete
+            # verb, and it was the one delete verb the gate did not judge
+            # — so a glyph the user had pinned was removed outright while
+            # a front-door `del` on the same element was refused. The gate
+            # judges it now; this is the same rule at the writer, for the
+            # reason the whole round taught: the gate can only refuse the
+            # doors it was told about.
             el = index.get(op.get("id"))
-            if el is not None and role_of(el) == "pin":
+            if el is not None and role_of(el) == "pin" and \
+                    not pinned_to_canvas(el):
                 els = [e for e in els if e["id"] != el["id"]]
                 index.pop(el["id"], None)
 
@@ -7700,6 +7956,15 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                        + (", …" if len(drifted) > 6 else "")))
             if skipped:
                 housekeeping.append("housekeeping: " + pinned_clause(skipped))
+            if held_parts:
+                housekeeping.append(
+                    "%d composed part(s) (%s) did not travel with the group "
+                    "this batch moved — %s pinned, so the widget is now "
+                    "drawn apart. Unpin to let %s follow, or move %s by hand."
+                    % (len(held_parts), ", ".join(sorted(held_parts)),
+                       "it is" if len(held_parts) == 1 else "they are",
+                       "it" if len(held_parts) == 1 else "them",
+                       "it" if len(held_parts) == 1 else "them"))
             # THE PINNED ARROW WHOSE SHAPE WALKED AWAY. A pin on an arrow
             # does not freeze the nodes it binds (`_pin_kin` states why),
             # so an op may legitimately move a node out from under a path
@@ -7803,17 +8068,38 @@ def _group_owners(els):
         of those sets, so a caller can ask "is this carried by someone
         else" in one lookup.
     """
+    # DEDUPED PER GROUP. `groupIds` is a list and nothing on the write
+    # path makes it a set — `Store.commit` stores what the client posts,
+    # verbatim — so `["gA", "gA"]` reaches here and appended the SAME
+    # element twice. Two copies of the owner meant `len(cands) != 1`, the
+    # group resolved to no owner at all, and one duplicated id restored
+    # the pre-fix tearing whole: a slider came apart again
+    # again (v0.9 curator F2). Membership is a set question and is now
+    # asked as one.
     by_group = {}
     for e in els:
-        for g in (e.get("groupIds") or []):
-            by_group.setdefault(g, []).append(e)
+        for g in dict.fromkeys(e.get("groupIds") or []):
+            by_group.setdefault(g, {})[e["id"]] = e
     owners, parts = {}, set()
     for members in by_group.values():
-        cands = [m for m in members if not part_owner_id(m)]
+        cands = [m for m in members.values() if not part_owner_id(m)]
         if len(cands) != 1:
             continue
         own = cands[0]["id"]
-        kin = {m["id"] for m in members if m["id"] != own}
+        # A PART TRAVELS WITH ITS OWN BODY AND NOTHING ELSE. An element
+        # may be in several groups — the user selects a slider's thumb
+        # plus an unrelated box and presses Ctrl+G, and now the thumb is
+        # in `sl-grp` AND in theirs. Both groups resolve to an owner, so
+        # `_tidy_pass` carried the thumb twice and it took (2,-2) where
+        # its siblings took (1,-1): the widget tore because the part
+        # moved too FAR, which no amount of grouping could have caused
+        # before this table existed (v0.9 curator F1, a regression this
+        # work introduced). The `*_of` backlink is the tie-break, and it
+        # is the one thing that can be: it names which body this is a
+        # part OF, which is exactly the question, and it is why the
+        # backlinks were kept when the groups became real.
+        kin = {i for i, m in members.items()
+               if i != own and part_owner_id(m) == own}
         if kin:
             owners.setdefault(own, set()).update(kin)
             parts |= kin
@@ -7825,9 +8111,12 @@ def composed_group_gaps(els):
 
     THE DEFECT THIS MEASURES IS WHY TIDY TORE WIDGETS APART. A slider's
     body, track and thumb shared `sl-grp` while its LABEL was in no
-    group at all — measured across all eight composed kinds, 7 of 22
-    parts were outside their body's group and every one of them was a
-    bound label. A part outside the group is a part the canvas will not
+    group at all — measured across all eight composed kinds on one
+    explicit spec, 10 of 22 parts were outside their body's group at
+    10dc4bf. Seven were bound labels (one per labelled kind) and the rest
+    were `body`'s waves, whose owner carried no group at all. The pair
+    moves with the spec — see `_close_widget_group` — so the claim to
+    hold onto is the invariant, not the 22. A part outside the group is a part the canvas will not
     drag with the widget and that every group-walking pass in this file
     is blind to.
 
@@ -9354,7 +9643,14 @@ def headline_for(fact):
         return "pinned %s to the canvas" % (fact.get("label")
                                             or fact["element"])
     if n == "unpinned":
-        return "unpinned %s" % (fact.get("label") or fact["element"])
+        # "FROM THE CANVAS" for the same reason the positive arm says "to
+        # the canvas", and it was missing here: `pin_deleted` headlines
+        # "removed pin X" about a ❓ glyph, `unpinned` sits ABOVE it in
+        # SALIENCE, so a save doing both headlined the ambiguous line —
+        # `"unpinned Cart (+1 more)"` with `{"pin_deleted": 1,
+        # "unpinned": 1}`. The mitigation was only ever on one arm.
+        return "unpinned %s from the canvas" % (fact.get("label")
+                                                or fact["element"])
     if n == "widget_ungrouped":
         kin = fact.get("parts") or []
         return ("you ungrouped %s — its %d part%s no longer move with it, "
@@ -18179,9 +18475,15 @@ class Store:
             # a batch the apply path refuses, and the banner would show
             # the user a revision that cannot land.
             pin_held, pin_why = pin_held_ops(base_els, ops)
-            if pin_held and len(pin_held) == len(
-                    [o for o in ops if isinstance(o, dict)
-                     and o.get("op") in ("add", "mod", "del", "reorder")]):
+            # NOTHING SURVIVED means literally that — every op in the
+            # batch was held. The first spelling of this counted only
+            # add/mod/del/reorder, and adding `resolve_pin` to the judged
+            # kinds broke it silently: a batch whose one op was a held
+            # `resolve_pin` matched 1 == 0, fell through to the partial
+            # path, and committed a revision in which nothing had
+            # happened. Comparing against the whole op list cannot drift
+            # out of step with the judged list again.
+            if pin_held and len(pin_held) == len(ops):
                 # NOTHING SURVIVED, so there is no partial apply to
                 # narrate and an empty commit would land a revision
                 # headlined "saved without changing anything" over a
@@ -19153,7 +19455,7 @@ class Store:
         the size that reads as a rendering glitch rather than an edit.
         Now only a group's OWNER is snapped and its parts are carried by
         the owner's delta, so a widget has exactly one delta by
-        construction. `groups_are_whole` is what makes that reachable:
+        construction. `_close_widget_group` is what makes that reachable:
         until it ran, a widget's bound label was in no group at all.
 
         Args:
@@ -19176,7 +19478,7 @@ class Store:
         pinned = set()
         # Parts follow their owner; they are never snapped on their own
         # account. An element is a PART when it shares a group with an
-        # owner, which after `groups_are_whole` includes the bound label.
+        # owner, which after `_close_widget_group` includes the bound label.
         owners, parts = _group_owners(els)
         for e in els:
             if e["id"] in parts:
@@ -20124,7 +20426,22 @@ class ServerApp:
         # `x-pending`) is what pulled the revision. Written only when
         # there is something to say — an empty list on every revision is
         # noise in a stream an agent reads line by line.
-        notes = pin_glyph_notes(record, batch.get("ops") or [])
+        # THE REFUSAL HAS TO REACH THE AGENT, and on this path the event
+        # log is the ONLY place it can. A batch held at the banner is
+        # answered `queued: true` with "it validates and lints clean
+        # against the current head" — true when it was said — and the
+        # user may then pin an element before clicking Apply. The pin
+        # gate refuses the op at commit time and the browser sees it in
+        # the resolve response, but the agent is not the one who clicked:
+        # it heard "queued", and without these two lists it would next
+        # hear a headline for a revision it believes landed whole. That
+        # is the v0.4 class the queue-side `check_batch` was added to
+        # close — an agent told it had drawn, narrating as much — one
+        # door further along, which is why the fix is the same shape:
+        # say it on the surface the agent actually reads.
+        notes = (pin_glyph_notes(record, batch.get("ops") or [])
+                 + (record.get("pin_held") or [])
+                 + (record.get("housekeeping") or []))
         self.events.append("agent_revision", revn=record["revn"],
                            short_id=record["short_id"], pin_only=pin_only,
                            headline=record["summary"]["headline"],

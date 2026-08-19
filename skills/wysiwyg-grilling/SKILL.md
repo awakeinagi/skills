@@ -574,13 +574,39 @@ and priority order when suggesting views.
   (or your mod) and always legitimate; a lock is a guardrail, never a
   wall. Don't lock what's still in play.
 - **`locked` is now ENFORCED, and it is the user's "Pin to Canvas"**. It
-  stopped being advisory in v0.9: no tool-side pass will move a pinned
-  element — not tidy's snap, the fan, the router, re-routes, z-rebanding,
-  focus solving, contention feet or relayout — and each of those says how
-  many it left alone. Three things follow for you:
+  stopped being advisory in v0.9. **A pin binds the TOOL, and only the
+  tool** — that is the whole promise, and it is worth stating both halves
+  because a sentence you are told to rely on is worse than useless when
+  it is 95% true.
+
+  **What it covers**: every non-user pass that could reposition an
+  element — tidy's snap and its router, the fan, contention feet,
+  re-routes, z-rebanding, focus solving, relayout, the composed-part
+  reconciler, bound-label re-centring, and the load-time repairs. Twenty
+  guard sites hold it, and each one has a test that goes red if that
+  guard is deleted (`tests/guard_mutants.py`, 20/20).
+
+  **What it deliberately does NOT cover, and cannot**:
+  - **The user's own hand.** They drag, delete and unlock their own
+    pinned elements in the app, and `x-as-user` is the CLI standing in
+    for exactly that. Refusing there would be the tool overruling the
+    person who set the pin.
+  - **Deletion by the user in the app.** A pin is a POSITION guard, not
+    a preservation guard: Excalidraw's own delete has no `locked` check,
+    so a selected pinned element can still be deleted by hand. Say so if
+    the user's words suggest they think it protects against loss.
+  - **Bookkeeping.** A pinned arrow whose target is deleted loses the
+    dead binding and does not move. A stale binding is corruption, not
+    arrangement.
+  - **Replay.** Rebuilding a recorded revision reproduces what happened;
+    a pin set afterwards cannot retroactively edit history.
+
+  Three things follow for you:
   - **Your ops on a pinned element are refused**, and so are ops on
     anything one dependency hop away (an arrow bound to it, a group
-    sibling, its container or frame). *Everything else in the batch still
+    sibling, its container or frame, or the body a pinned part belongs
+    to — the last one holds even after the widget is ungrouped).
+    *Everything else in the batch still
     applies* — read the response's `notes`: it says "5 of 8 op(s)
     applied; ops 3,4,6 held: login-box is pinned". Do not re-send the
     whole batch; the other five landed.

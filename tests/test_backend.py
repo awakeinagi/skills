@@ -20503,6 +20503,58 @@ def _path(store, aid, eid):
     return (e.get("x"), e.get("y"), json.dumps(e.get("points") or []))
 
 
+def reads_locked(node):
+    """Whether this AST node ASKS an object whether it is locked.
+
+    QUOTE- AND SYNTAX-BLIND BY CONSTRUCTION. `ast.Constant.value` is the
+    string `locked` however it was written, which is what makes this a
+    rule rather than a spelling — the token scan this replaced matched
+    `get` `(` `"locked"` and let `e.get('locked')`, `e["locked"]` and
+    `"locked" in e` straight through, all three semantically identical to
+    the form it caught.
+
+    A WRITE IS NOT A READ. `x["locked"] = True` is how the flag is
+    legitimately set — by the client, by the tests, by the migration —
+    so only `ast.Load` subscripts count.
+
+    Args:
+        node: Any AST node.
+
+    Returns:
+        True when the node reads the `locked` attribute off an object.
+    """
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+            and node.func.attr == "get" and node.args:
+        first = node.args[0]
+        return isinstance(first, ast.Constant) and first.value == "locked"
+    if isinstance(node, ast.Subscript) and isinstance(node.ctx, ast.Load):
+        return isinstance(node.slice, ast.Constant) and \
+            node.slice.value == "locked"
+    if isinstance(node, ast.Compare) and isinstance(node.left, ast.Constant) \
+            and node.left.value == "locked":
+        return any(isinstance(o, (ast.In, ast.NotIn)) for o in node.ops)
+    return False
+
+
+# Reads of `locked` that are NOT asking "is this element pinned".
+#
+# THE `in` FORM IS GENUINELY AMBIGUOUS and that is why this table exists
+# rather than a cleverer matcher. `"locked" in x` means "this dict has
+# the key" when `x` is an element — a pin read, and banned — and "this
+# name is among the changed attributes" when `x` is a diff's attribute
+# set, which is a different question with a different answer. No AST walk
+# can tell those apart without knowing what `x` is, so the rule stays
+# strict and the exceptions are written down with their reason, the same
+# shape `GEOMETRY_WRITERS` uses for the writer side.
+LOCKED_READ_EXEMPT: dict[str, str] = {
+    'if "locked" in names:':
+        "asks whether the locked ATTRIBUTE CHANGED in this diff, not "
+        "whether an element is pinned — `names` is the changed-attribute "
+        "set built from the change record, and the arm it opens is the "
+        "one that emits the `pinned`/`unpinned` facts",
+}
+
+
 class TestLockedHasExactlyOneReader(unittest.TestCase):
     """`locked` may be read through `pinned_to_canvas` and nowhere else.
 
@@ -20518,28 +20570,61 @@ class TestLockedHasExactlyOneReader(unittest.TestCase):
     """
 
     def test_locked_is_read_only_inside_the_predicate(self):
-        # TOKENISED, not grepped: this function's own docstring names the
-        # rule it enforces, and a plain substring scan counted that
-        # sentence as a violation. Comments and strings are where a rule
-        # gets EXPLAINED, so the check has to read code only.
-        import tokenize
+        # ON THE AST, NOT ON TOKENS. The first version matched the token
+        # sequence `get` `(` `"locked"` and so enforced a SPELLING rather
+        # than the rule: `e.get('locked')` in single quotes is
+        # semantically identical, passed this test, and passes `ruff`
+        # too, since `pyproject.toml`'s `select` carries no `Q`. So did
+        # `e["locked"]` and `"locked" in e`. A class docstring claiming
+        # no second definition of a pin can exist has to mean it.
         src = Path(canvas.__file__).read_text(encoding="utf-8")
-        rows = set()
-        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
-        for i, tok in enumerate(toks):
-            if tok.type != tokenize.STRING or tok.string != '"locked"':
-                continue
-            prev = [t for t in toks[max(0, i - 3):i]
-                    if t.type not in (tokenize.NL, tokenize.NEWLINE,
-                                      tokenize.INDENT, tokenize.DEDENT)]
-            if len(prev) >= 2 and prev[-1].string == "(" \
-                    and prev[-2].string == "get":
-                rows.add(tok.start[0])
-        lines = sorted(src.splitlines()[r - 1].strip() for r in rows)
+        # `getattr` because `ast.AST` has no `lineno` in general — only
+        # the `expr`/`stmt` subclasses carry one, and `reads_locked` only
+        # ever answers True for an `expr`. The default is unreachable and
+        # is there so the type is honest rather than asserted.
+        reads = [getattr(n, "lineno", 0) for n in ast.walk(ast.parse(src))
+                 if reads_locked(n)]
+        lines = sorted({src.splitlines()[n - 1].strip() for n in reads})
+        lines = [ln for ln in lines if ln not in LOCKED_READ_EXEMPT]
         self.assertEqual(
             lines, ['return bool(el.get("locked"))'],
-            "`locked` must be read through `pinned_to_canvas` only; found "
-            "at lines %r" % (sorted(rows),))
+            "`locked` must be READ through `pinned_to_canvas` only — any "
+            "spelling, any quoting. If a hit asks a DIFFERENT question "
+            "(did this attribute change?), add it to LOCKED_READ_EXEMPT "
+            "with the reason. Found at lines %r" % (sorted(reads),))
+
+    def test_every_reader_exemption_states_which_question_it_asks(self):
+        for line, reason in sorted(LOCKED_READ_EXEMPT.items()):
+            self.assertGreater(
+                len(reason), 40,
+                "%r is exempted with a reason too short to be one: %r"
+                % (line, reason))
+            self.assertIn(
+                "locked", line,
+                "%r is exempted but does not mention the attribute" % line)
+
+    def test_the_spellings_the_old_token_scan_missed_are_caught(self):
+        """The detector is quote- and syntax-blind, proved on synthetic source.
+
+        A guard that only bites the canonical spelling is one the next
+        person routes around without meaning to, so this asserts the
+        DETECTOR rather than the file: each form the token scan let
+        through is fed to the same walk and must be seen.
+        """
+        for form in ('x.get("locked")', "x.get('locked')", 'x["locked"]',
+                     '"locked" in x', "'locked' not in x"):
+            with self.subTest(form=form):
+                tree = ast.parse("def f(x):\n    return %s\n" % form)
+                hits = sum(1 for n in ast.walk(tree) if reads_locked(n))
+                self.assertEqual(hits, 1,
+                                 "%s slipped past the reader check" % form)
+
+    def test_a_write_is_not_mistaken_for_a_read(self):
+        # setting the flag is how it legitimately gets set — by the
+        # client, by tests, by the migration — and banning that would ban
+        # the feature
+        tree = ast.parse('def f(x):\n    x["locked"] = True\n')
+        self.assertEqual([n for n in ast.walk(tree) if reads_locked(n)], [])
 
     def test_the_predicate_treats_absent_false_and_none_alike(self):
         self.assertFalse(canvas.pinned_to_canvas({}))
@@ -20553,10 +20638,18 @@ class TestPinnedSurvivesEveryNonUserMover(Base):
 
     BOTH DIRECTIONS ON EVERY PASS, deliberately. A guard that skipped
     everything would pass a one-sided "the pinned thing did not move"
-    test while silently disabling the repair the pass exists for — and
-    the frozen corpus has ZERO locked elements, so no corpus
-    differential can catch that. The second assertion in each test is
-    the one doing the work.
+    test while silently disabling the repair the pass exists for. The
+    frozen corpus cannot catch that either: 2 of its 976 elements carry
+    `locked` (0.20%), so a corpus differential over this feature is a
+    near-total zero and evidence of nothing. The second assertion in
+    each test is the one doing the work.
+
+    AND BOTH DIRECTIONS IS STILL NOT ENOUGH ON ITS OWN. A verifier
+    mutation-tested these guards one at a time and found seven whose
+    deletion the whole suite never noticed — the tests here were passing
+    without observing the guard's PRESENCE. `TestEachPinGuardIsObserved`
+    is the answer to that, and `/tmp/pinprobe/guard_mutants.py` (the
+    method, recorded in the task report) is how it is checked.
     """
 
     def setUp(self):
@@ -20605,7 +20698,16 @@ class TestPinnedSurvivesEveryNonUserMover(Base):
         rec = self.store.tidy("checkout-flow")
         self.assertNotIn("pinned", rec.get("user_note") or "")
 
-    def test_the_fan_skips_pinned_arrows_and_still_fans_the_others(self):
+    def test_the_op_gate_holds_a_batch_that_would_move_a_pinned_arrow(self):
+        # RENAMED FROM `test_the_fan_skips_pinned_arrows_and_still_fans_
+        # the_others`, which named the fan and exercised the router: it
+        # pins t1 and then mods `payment`, a node t1 binds at neither
+        # end, so deleting the guard from `fan_attach_points`, from
+        # `contention_feet` or from both `apply_ops` route sites left it
+        # green. The only guard it ever reached is `pin_held_ops`, and
+        # that is what it is now called. The fan's own proof is
+        # `TestEachPinGuardIsObserved.test_the_fan_leaves_a_pinned_arrow_
+        # alone`, which drives `fan_attach_points` directly.
         self.store.apply_batch(
             {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
              "ops": [{"op": "add", "element": {"type": "arrow", "id": "t9"},
@@ -20671,14 +20773,16 @@ class TestPinnedSurvivesEveryNonUserMover(Base):
         self.assertIn("is the container of",
                       "\n".join(cm.exception.errors))
 
-    def test_reroute_leaves_pinned_arrows_alone(self):
-        _pin(self.store, "checkout-flow", "t1")
-        was = _path(self.store, "checkout-flow", "t1")
-        els, changes = canvas.reroute_scene(self.store.scenes["checkout-flow"])
-        now = next(e for e in els if e["id"] == "t1")
-        self.assertEqual((now.get("x"), now.get("y"),
-                          json.dumps(now.get("points") or [])), was)
-        self.assertNotIn("t1", {c["id"] for c in changes})
+    # `test_reroute_leaves_pinned_arrows_alone` STOOD HERE AND WAS
+    # VACUOUS. It asserted t1's path was unchanged after `reroute_scene`
+    # and that "t1" was not in `changes` — in a seeded scene the router
+    # had no intention of touching, so BOTH assertions held with the
+    # guard deleted. Its replacement,
+    # `TestEachPinGuardIsObserved.test_reroute_scene_leaves_a_pinned_
+    # arrow_alone`, first proves the unpinned run really does re-route
+    # t1 and only then asserts the pinned one does not. Recorded rather
+    # than silently dropped: a test that passes for the wrong reason is
+    # worse than no test, and the shape is worth recognising again.
 
 
 class TestPinnedRefusesAgentOps(Base):
@@ -20869,6 +20973,39 @@ class TestPinNarration(Base):
                       canvas.headline_for({"fact": "pinned",
                                            "element": "x", "label": "Login"}))
 
+    def test_neither_pin_verb_can_be_read_as_the_question_glyph(self):
+        # BOTH ARMS, because the mitigation was only ever on one. In this
+        # repo a `pin` is a ❓ and `pin_deleted` headlines "removed pin
+        # X"; `unpinned` sits ABOVE `pin_deleted` in SALIENCE, so a save
+        # doing both put the ambiguous line on top — "unpinned Cart (+1
+        # more)" beside {"pin_deleted": 1, "unpinned": 1}.
+        for fact in ("pinned", "unpinned"):
+            line = canvas.headline_for({"fact": fact, "element": "e1",
+                                        "label": "Cart"})
+            self.assertIn("the canvas", line,
+                          "%s reads as a question-glyph verb: %r"
+                          % (fact, line))
+
+    def test_the_collision_case_itself_headlines_unambiguously(self):
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "id": "pin-q7", "target": "cart",
+                      "question": "which?"}]})
+        _pin(self.store, "checkout-flow", "cart")
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]
+               if e["id"] != "pin-q7"]
+        for e in els:
+            if e["id"] == "cart":
+                e["locked"] = False
+        rec = self.store.commit(author="user",
+                                new_scenes={"checkout-flow": els},
+                                base_revn=self.store.head_revn())
+        counts = rec["summary"]["verb_counts"]
+        self.assertEqual(counts.get("unpinned"), 1, counts)
+        self.assertEqual(counts.get("pin_deleted"), 1, counts)
+        self.assertIn("from the canvas", rec["summary"]["headline"])
+
     def test_every_new_fact_is_in_salience(self):
         for name in ("pinned", "unpinned", "widget_ungrouped"):
             self.assertIn(name, canvas.SALIENCE)
@@ -20916,7 +21053,9 @@ class TestComposedWidgetsAreRealGroups(Base):
                                  % spec["kind"])
 
     def test_the_bound_label_is_in_the_group_too(self):
-        # the measured drift: 7 of 22 parts were outside, all of them labels
+        # the measured drift on this spec: 10 of 22 parts outside at
+        # 10dc4bf — seven bound labels, one per labelled kind, plus
+        # `body`'s three waves. The 22 is the spec's, not the code's.
         for spec in self.WIDGETS:
             with self.subTest(kind=spec["kind"]):
                 out = self._mint(spec)
@@ -20986,6 +21125,105 @@ class TestComposedWidgetsAreRealGroups(Base):
                             for e in self.store.scenes["w2"]),
                         "the tool silently re-grouped an ungrouped widget")
 
+    def _slider_deltas(self, aid, mutate=None):
+        """Nudge a whole scene off-grid, tidy it, return per-element deltas.
+
+        THE ASSERTION THIS SERVES IS AN OUTCOME: "a widget moves as one
+        thing". It deliberately does not care whether that is achieved by
+        the snap, by the carry, or by refusing to move anything — a test
+        that pins the mechanism survives only the repair its author
+        happened to imagine.
+
+        Args:
+            aid: Artifact id.
+            mutate: Optional callable handed the element list before the
+                nudge, for arranging groups.
+
+        Returns:
+            `{element_id: (dx, dy)}` across the tidy.
+        """
+        els = [dict(e) for e in self.store.scenes[aid]]
+        if mutate is not None:
+            mutate(els)
+        for e in els:
+            e["x"] = e.get("x", 0) + 3
+            e["y"] = e.get("y", 0) - 3
+        self.store.commit(author="user", new_scenes={aid: els},
+                          base_revn=self.store.head_revn())
+        before = {e["id"]: (e.get("x"), e.get("y"))
+                  for e in self.store.scenes[aid]}
+        self.store.tidy(aid)
+        after = {e["id"]: (e.get("x"), e.get("y"))
+                 for e in self.store.scenes[aid]}
+        return {i: (after[i][0] - before[i][0], after[i][1] - before[i][1])
+                for i in before if i in after}
+
+    def _seed_slider(self, aid, extra=()):
+        """Create an artifact holding one slider (and anything extra).
+
+        Args:
+            aid: Artifact id to create.
+            extra: Further ops appended to the seeding batch.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "create": {"id": aid, "name": aid, "type": "wireframe"},
+            "ops": [{"op": "add", "id": "sl", "type": "rectangle",
+                     "x": 100, "y": 200, "width": 160, "height": 44,
+                     "label": "Volume", "kind": "slider", "value": 60},
+                    *extra]})
+
+    def test_a_user_group_across_widgets_does_not_double_a_parts_delta(self):
+        # F1, A REGRESSION THIS WORK INTRODUCED. `_group_owners` was
+        # many-to-many: the user selects a slider's thumb plus an
+        # unrelated box and presses Ctrl+G, both groups resolve to an
+        # owner, and `_tidy_pass` carried the thumb TWICE — (2,-2) where
+        # its siblings took (1,-1). No part could take two deltas before
+        # this table existed, which is what makes it ours rather than
+        # inherited. The `*_of` backlink is the tie-break.
+        self._seed_slider("f1", [
+            {"op": "add", "id": "box", "type": "rectangle", "x": 500,
+             "y": 500, "width": 80, "height": 40}])
+
+        def group(els):
+            for e in els:
+                if e["id"] in ("sl-thumb", "box"):
+                    e["groupIds"] = [*(e.get("groupIds") or []), "usergrp"]
+        d = self._slider_deltas("f1", group)
+        widget = {i: v for i, v in d.items() if i.startswith("sl")}
+        self.assertEqual(len(set(widget.values())), 1,
+                         "the widget came apart: %r" % (widget,))
+
+    def test_a_duplicated_group_id_still_resolves_an_owner(self):
+        # F2: `groupIds` is a list and `Store.commit` stores what the
+        # client posts, so ["gA", "gA"] reaches `_group_owners`, appended
+        # the owner twice, and `len(cands) != 1` dropped the group — one
+        # duplicated id restored the pre-fix tearing whole.
+        self._seed_slider("f2")
+
+        def dup(els):
+            for e in els:
+                if e["id"] == "sl":
+                    e["groupIds"] = ["sl-grp", "sl-grp"]
+        d = self._slider_deltas("f2", dup)
+        widget = {i: v for i, v in d.items() if i.startswith("sl")}
+        self.assertEqual(len(set(widget.values())), 1,
+                         "a duplicated gid tore the widget: %r" % (widget,))
+
+    def test_a_user_save_still_stores_a_duplicated_group_id_verbatim(self):
+        # the reachability half: nothing on the write path dedupes, so
+        # the case above is reachable through an ordinary save and the
+        # repair belongs in the reader, which is where it is.
+        self._seed_slider("f2b")
+        els = [dict(e) for e in self.store.scenes["f2b"]]
+        for e in els:
+            if e["id"] == "sl":
+                e["groupIds"] = ["sl-grp", "sl-grp"]
+        self.store.commit(author="user", new_scenes={"f2b": els},
+                          base_revn=self.store.head_revn())
+        sl = next(e for e in self.store.scenes["f2b"] if e["id"] == "sl")
+        self.assertEqual(sl["groupIds"], ["sl-grp", "sl-grp"])
+
     def test_a_hand_made_group_with_no_owner_is_left_alone(self):
         scene = [mk_el(id="a", type="rectangle", groupIds=["g"]),
                  mk_el(id="b", type="rectangle", groupIds=["g"]),
@@ -21005,6 +21243,1141 @@ class TestPinnedAddSpec(Base):
              "height": 40, "locked": True}, set(), errors, 0)
         self.assertEqual(errors, [])
         self.assertTrue(canvas.pinned_to_canvas(out[0]))
+
+
+# The manifest the writer-site test reads. Appended to tests/test_backend.py.
+GEOMETRY_WRITERS: dict[str, tuple[int, str]] = {
+    # --- SELF-GUARDED: the function asks `pinned_to_canvas` itself ------
+    # Each names the test that DIES when its guard is deleted. That third
+    # field is the round-2 lesson: a disposition is a claim, and a claim
+    # with no test whose absence it breaks is the same "line that happens
+    # to be correct today" this table was built to stop. Checked by
+    # `tests/guard_mutants.py`, which patches each guard out and runs the
+    # named test.
+    "fan_attach_points": (3, "SELF-GUARDED — drops pinned arrows at its "
+                             "candidate loop, before `ends`/`per_side`. "
+                             "Dies with: test_the_fan_leaves_a_pinned_"
+                             "arrow_alone"),
+    "recenter_label": (6, "SELF-GUARDED — the single writer of bound-label "
+                          "position; returns early for a pinned label. "
+                          "Dies with: test_recenter_label_honours_a_pinned_"
+                          "label"),
+    "_tidy_pass": (4, "SELF-GUARDED — asks for the snap AND for the group "
+                      "carry; a part pinned at either end does not move. "
+                      "Dies with: test_tidy_snap_skips_pinned_and_still_"
+                      "snaps_the_rest, test_tidys_router_leaves_a_pinned_"
+                      "arrow_alone"),
+    "apply_ops": (5, "MIXED — the grouped-decoration carry is SELF-GUARDED "
+                     "(v0.9 fix round D1); the other four write the element "
+                     "an op named, which the gate has already judged. "
+                     "Dies with: test_the_carry_itself_refuses_a_pinned_"
+                     "part, test_the_cascade_itself_spares_a_pinned_"
+                     "element_and_says_so"),
+
+    # --- UPSTREAM-GUARDED: the caller drops pinned before reaching here -
+    "_stamp_contention": (3, "UPSTREAM — `contention_feet` drops pinned "
+                             "arrows before building `movable`. Dies with: "
+                             "test_contention_feet_leave_a_pinned_arrow_"
+                             "alone"),
+    "route_arrow": (3, "UPSTREAM — every housekeeping caller (tidy, both "
+                       "`apply_ops` post-passes, `reroute_scene`) drops "
+                       "pinned arrows first; the op-path caller writes the "
+                       "arrow its own op named. Dies with: test_reroute_"
+                       "scene_leaves_a_pinned_arrow_alone, test_the_f1_"
+                       "post_pass_leaves_a_pinned_arrow_alone, test_the_"
+                       "final_routing_pass_leaves_a_pinned_arrow_alone"),
+
+    # --- GATE-COVERED: no local check; `pin_held_ops` refuses the op -----
+    # These are the ones to look at first when a pin leaks again: D1 was
+    # exactly this disposition, correct until a door opened that the gate
+    # could not see from the pre-batch scene.
+    # PROMOTED FROM GATE-COVERED TO SELF-GUARDED, and the promotion is
+    # the whole story of review finding C-3. As GATE-COVERED the claim
+    # was "a pinned part is grouped with its owner, so the gate holds the
+    # op" — true only while the widget IS grouped. This is the one mover
+    # in the file that finds its targets by the `*_of` BACKLINKS, so once
+    # the user ungrouped the widget (the gesture this design blesses) or
+    # on any widget minted before the grouping repair, the structural tie
+    # the gate reads was gone and this walked the meaning edge straight
+    # past it. It now holds a post-condition of its own: nothing locked
+    # ends the call somewhere it did not start.
+    "reconcile_composed": (13, "SELF-GUARDED — snapshots every pinned "
+                               "position on entry and restores any that "
+                               "moved, so all seven arms and four helpers "
+                               "are covered by one property rather than "
+                               "eleven checks. Dies with: test_the_"
+                               "reconciler_itself_restores_a_pinned_part"),
+    "_recompose_xbox": (3, "UPSTREAM — reached only from "
+                           "`reconcile_composed`, whose post-condition "
+                           "restores any pinned position this moves; it "
+                           "re-derives the X strokes from the owner's new "
+                           "box and never reads their old position"),
+    "_recompose_input_value": (1, "UPSTREAM — reached only from "
+                                  "`reconcile_composed`, whose "
+                                  "post-condition covers it; re-insets the "
+                                  "value text from the owner's left edge"),
+    "_recompose_kpi_value": (1, "UPSTREAM — reached only from "
+                                "`reconcile_composed`, whose post-condition "
+                                "covers it; re-centres the value row on the "
+                                "owner's new width"),
+    "_set_label": (4, "GATE-COVERED — `mod label` on an element whose bound "
+                      "label is pinned is held: the label is the container's "
+                      "derived-position kin and vice versa"),
+    "_snap_geom": (3, "GATE-COVERED — rounds the authored geometry of the "
+                      "element the op named, at that op's own moment"),
+
+    # --- EXEMPT: a pin cannot bind these, and the reason is not "small" --
+    "cmd_x_as_user": (2, "EXEMPT — this IS the user's hand. `x-as-user` is "
+                         "the CLI standing in for a drag, and a pin protects "
+                         "position against the TOOL, never against the "
+                         "person who set it"),
+    "make_element": (5, "EXEMPT — mints NEW elements; nothing can have "
+                        "pinned an id that did not exist a line ago"),
+    "normalize_element": (1, "EXEMPT — rounds `points` to storable precision "
+                             "on every read and write. It changes no "
+                             "position: `_round_geom` maps a coordinate to "
+                             "itself at storage precision"),
+    "replay_changes": (2, "EXEMPT — reconstructs a RECORDED revision. Replay "
+                          "must be faithful to what happened; a pin set "
+                          "afterwards cannot retroactively edit history, and "
+                          "a replay that honoured it would diverge from the "
+                          "record it is rebuilding"),
+}
+
+
+class TestEveryGeometryWriterIsClassified(unittest.TestCase):
+    """Every site that writes x/y/points either asks the pin, or says why not.
+
+    THE READER-SIDE TEST WAS NOT ENOUGH, and this exists because that was
+    proved rather than suspected. `TestLockedHasExactlyOneReader` shows
+    nobody reads `locked` raw — and a verifier then found four movers that
+    never asked the predicate at all: `apply_ops`' grouped-decoration
+    carry moved a pinned element 600x400px while the response said it had
+    left it alone; the same door deleted one through the `del` cascade;
+    `resolve_pin` removed a pinned ❓ outright; and `validate_scene`'s
+    label refit re-centred a pinned label on every load by retyping
+    `recenter_label`'s arithmetic inline. One reader proves nothing about
+    N writers.
+
+    SO THIS ENUMERATES THE WRITERS AND FORCES A CLASSIFICATION. It does
+    not try to INFER whether a write is guarded — inference is what
+    `apply_ops` would have passed, since it asks the predicate elsewhere
+    in the same function. It asserts the census instead: a new or moved
+    geometry write changes a count, the count fails here, and a human has
+    to say which of the four dispositions it takes and why. That is the
+    `lint_layout` append-count pin's shape, applied to the thing this
+    feature actually depends on.
+
+    The four dispositions, and the one to distrust: SELF-GUARDED (asks
+    the predicate), UPSTREAM (its callers drop pinned first), GATE-COVERED
+    (no local check; `pin_held_ops` refuses the op) and EXEMPT (a pin
+    cannot bind it). **GATE-COVERED is the one that failed.** It is a
+    claim about every path that reaches the site, and D1 was correct under
+    it right up until an `add` created a group membership the gate could
+    not see in the pre-batch scene. A site sitting here is fine; a site
+    sitting here without anyone having re-checked its paths is how this
+    round happened.
+    """
+
+    def _census(self):
+        """Count geometry writes per enclosing function, from the AST.
+
+        Returns:
+            `{function_name: count}` over assignments to a `["x"]`,
+            `["y"]` or `["points"]` subscript.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        enclosing = {}
+
+        def walk(node, fn):
+            for child in ast.iter_child_nodes(node):
+                nf = (child.name
+                      if isinstance(child, (ast.FunctionDef,
+                                            ast.AsyncFunctionDef)) else fn)
+                enclosing[child] = nf
+                walk(child, nf)
+
+        walk(tree, "<module>")
+        hits: dict[str, int] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, ast.AugAssign):
+                targets = [node.target]
+            else:
+                continue
+            for t in targets:
+                for sub in ([t] if not isinstance(t, ast.Tuple) else t.elts):
+                    if not isinstance(sub, ast.Subscript):
+                        continue
+                    k = sub.slice
+                    if isinstance(k, ast.Constant) and \
+                            k.value in ("x", "y", "points"):
+                        fn = enclosing.get(node, "<module>")
+                        hits[fn] = hits.get(fn, 0) + 1
+        return hits
+
+    def test_no_geometry_writer_is_unclassified(self):
+        census = self._census()
+        missing = sorted(set(census) - set(GEOMETRY_WRITERS))
+        self.assertEqual(
+            missing, [],
+            "these functions write element geometry and are not in "
+            "GEOMETRY_WRITERS — classify each as SELF-GUARDED, UPSTREAM, "
+            "GATE-COVERED or EXEMPT, with the reason: %r" % (missing,))
+
+    def test_no_classification_outlives_its_writer(self):
+        census = self._census()
+        stale = sorted(set(GEOMETRY_WRITERS) - set(census))
+        self.assertEqual(
+            stale, [],
+            "these are classified in GEOMETRY_WRITERS but no longer write "
+            "geometry — delete the rows, they are now claims about nothing: "
+            "%r" % (stale,))
+
+    def test_the_write_counts_have_not_drifted(self):
+        census = self._census()
+        drift = {fn: (GEOMETRY_WRITERS[fn][0], census[fn])
+                 for fn in sorted(set(census) & set(GEOMETRY_WRITERS))
+                 if GEOMETRY_WRITERS[fn][0] != census[fn]}
+        self.assertEqual(
+            drift, {},
+            "geometry write-site counts moved (name: expected -> found). A "
+            "NEW write in an already-classified function does not inherit "
+            "that classification — re-read the site, confirm which "
+            "disposition it takes, then update the count: %r" % (drift,))
+
+    def test_every_classification_carries_a_reason(self):
+        for fn, (_, reason) in sorted(GEOMETRY_WRITERS.items()):
+            self.assertTrue(
+                any(reason.startswith(d) for d in
+                    ("SELF-GUARDED", "UPSTREAM", "GATE-COVERED", "EXEMPT",
+                     "MIXED")),
+                "%s's reason must open with its disposition: %r"
+                % (fn, reason))
+            self.assertGreater(
+                len(reason), 40,
+                "%s's reason is too short to be one — say what makes the "
+                "site safe: %r" % (fn, reason))
+
+    def test_the_self_guarded_ones_really_do_ask(self):
+        # the half of the manifest a test CAN verify mechanically: a
+        # function claiming SELF-GUARDED must name the predicate in its
+        # own body. (The converse is not asserted — `apply_ops` names it
+        # in arms unrelated to some of its writes, which is precisely why
+        # the counts above exist.)
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        bodies = {n.name: ast.get_source_segment(src, n) or ""
+                  for n in ast.walk(tree)
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        for fn, (_, reason) in sorted(GEOMETRY_WRITERS.items()):
+            if not reason.startswith(("SELF-GUARDED", "MIXED")):
+                continue
+            self.assertIn(
+                "pinned_to_canvas", bodies.get(fn, ""),
+                "%s claims to guard itself but never calls the predicate"
+                % fn)
+
+
+class TestPinnedSurvivesTheBackDoors(Base):
+    """The doors the gate could not see, found by a verifier (v0.9 D1–D5).
+
+    EVERY ONE OF THESE IS THE SAME SHAPE: the gate judged the batch, and a
+    mover downstream of it did not ask the predicate. They are kept
+    together because that shape, not any one of them, is the finding — and
+    because each has a CONTROL proving the unpinned path still works, so a
+    guard that simply disabled the mover cannot pass.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    def _deco(self, locked, gid="gD"):
+        """Put a decoration in a group, optionally pinned, via a user save.
+
+        Args:
+            locked: Whether the decoration is pinned.
+            gid: The group id it carries.
+
+        Returns:
+            Its id.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        els.append(dict(canvas.BASE_DEFAULTS, **{
+            "id": "rule", "type": "line", "x": 45, "y": 125,
+            "width": 100, "height": 0, "points": [[0, 0], [100, 0]],
+            "groupIds": [gid], "locked": locked,
+            "customData": {"role": "decoration", "author": "agent"}}))
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        return "rule"
+
+    # ---- D1: the grouped-decoration carry --------------------------------
+    def test_an_add_joining_a_pinned_group_cannot_then_move_it(self):
+        self._deco(locked=True)
+        before = _xy(self.store, "checkout-flow", "rule")
+        # PARTIAL, not refused: the `add` is real work and lands. Only the
+        # move that would have ridden the group carry is held.
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "add", "id": "badge", "type": "rectangle",
+                      "x": 10, "y": 10, "width": 40, "height": 20,
+                      "groupIds": ["gD"]},
+                     {"op": "mod", "id": "badge",
+                      "attrs": {"x": 600, "y": 400}}]})
+        self.assertIn("joins the group of",
+                      "\n".join(rec.get("pin_held") or []))
+        self.assertEqual(_xy(self.store, "checkout-flow", "rule"), before,
+                         "the group carry moved a pinned decoration")
+        self.assertTrue(any(e["id"] == "badge"
+                            for e in self.store.scenes["checkout-flow"]),
+                        "the unrelated `add` was held too")
+
+    def test_a_mod_groupids_joining_a_pinned_group_cannot_move_it(self):
+        # the second door: no `add` at all, since groupIds is in MOD_ATTRS
+        self._deco(locked=True)
+        before = _xy(self.store, "checkout-flow", "rule")
+        with self.assertRaises(canvas.BatchError):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(),
+                 "artifact": "checkout-flow",
+                 "ops": [{"op": "mod", "id": "payment",
+                          "attrs": {"groupIds": ["gD"]}},
+                         {"op": "mod", "id": "payment",
+                          "attrs": {"x": 900, "y": 900}}]})
+        self.assertEqual(_xy(self.store, "checkout-flow", "rule"), before)
+
+    def test_the_carry_itself_refuses_a_pinned_part(self):
+        # DEFENCE IN DEPTH, driven at `apply_ops` directly so the gate is
+        # out of the picture: the mover must refuse on its own account,
+        # because the gate can only close doors somebody predicted.
+        scene = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        scene.append(mk_el(id="rule", type="line", x=45, y=125,
+                           groupIds=["gD"], locked=True,
+                           customData={"role": "decoration"}))
+        for e in scene:
+            if e["id"] == "payment":
+                e["groupIds"] = ["gD"]
+        errors, house = [], []
+        out = canvas.apply_ops(
+            scene, [{"op": "mod", "id": "payment", "attrs": {"x": 900}}],
+            errors, housekeeping=house)
+        self.assertEqual(errors, [])
+        rule = next(e for e in out if e["id"] == "rule")
+        self.assertEqual((rule["x"], rule["y"]), (45, 125),
+                         "the carry moved a pinned decoration")
+        self.assertIn("did not travel with the group", "\n".join(house))
+
+    def test_the_carry_still_moves_an_unpinned_part(self):
+        self._deco(locked=False)
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "payment":
+                e["groupIds"] = ["gD"]
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        before = _xy(self.store, "checkout-flow", "rule")
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "payment",
+                      "attrs": {"x": 900, "y": 900}}]})
+        self.assertNotEqual(_xy(self.store, "checkout-flow", "rule"), before,
+                            "the carry stopped working for unpinned parts")
+
+    # ---- D1b: the delete cascades ----------------------------------------
+    def test_a_del_cascade_cannot_take_a_pinned_element(self):
+        self._deco(locked=True)
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "add", "id": "tmp", "type": "rectangle",
+                      "x": 10, "y": 10, "width": 40, "height": 20,
+                      "groupIds": ["gD"]},
+                     {"op": "del", "id": "tmp"}]})
+        self.assertIn("joins the group of",
+                      "\n".join(rec.get("pin_held") or []))
+        self.assertTrue(any(e["id"] == "rule"
+                            for e in self.store.scenes["checkout-flow"]),
+                        "the del cascade took a pinned element")
+
+    def test_the_cascade_itself_spares_a_pinned_element_and_says_so(self):
+        scene = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        scene.append(mk_el(id="rule", type="line", x=45, y=125,
+                           groupIds=["gD"], locked=True,
+                           customData={"role": "decoration"}))
+        scene.append(mk_el(id="tmp", type="rectangle", x=10, y=10,
+                           groupIds=["gD"]))
+        errors, house = [], []
+        out = canvas.apply_ops(scene, [{"op": "del", "id": "tmp"}],
+                               errors, housekeeping=house)
+        self.assertEqual(errors, [])
+        self.assertTrue(any(e["id"] == "rule" for e in out),
+                        "the group cascade deleted a pinned element")
+        self.assertFalse(any(e["id"] == "tmp" for e in out))
+        self.assertIn("would have been deleted along with", "\n".join(house))
+
+    def test_the_cascade_still_takes_unpinned_decorations(self):
+        scene = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        scene.append(mk_el(id="rule", type="line", x=45, y=125,
+                           groupIds=["gD"], locked=False,
+                           customData={"role": "decoration"}))
+        scene.append(mk_el(id="tmp", type="rectangle", x=10, y=10,
+                           groupIds=["gD"]))
+        errors = []
+        out = canvas.apply_ops(scene, [{"op": "del", "id": "tmp"}], errors)
+        self.assertEqual(errors, [])
+        self.assertFalse(any(e["id"] == "rule" for e in out),
+                         "the group cascade stopped working")
+
+    # ---- D3: resolve_pin was a delete verb the gate did not judge --------
+    def test_resolve_pin_cannot_take_down_a_pinned_glyph(self):
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "id": "pin-q1", "target": "cart",
+                      "question": "which?"}]})
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "pin-q1":
+                e["locked"] = True
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        # ASSERTED AS AN OUTCOME, NOT A MECHANISM. The promise is that a
+        # pinned ❓ is still on the canvas afterwards; whether the tool
+        # keeps it by refusing the batch or by declining the removal is
+        # this file's choice and may change. The curator's red for this
+        # defect reads the RECORD (`apply_batch(...)[0]`) and so cannot
+        # express "refused" as a legal answer — it reports still-red
+        # against a tree that keeps the promise the other way. That is
+        # the `_land_or_refuse` lesson: assert the scene left behind, or
+        # the test survives only one of two correct repairs and gets
+        # weakened to match whatever shipped.
+        head = self.store.head_revn()
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": head, "artifact": "checkout-flow",
+                 "ops": [{"op": "resolve_pin", "id": "pin-q1",
+                          "answer": "settled"}]})
+        self.assertIn("0 of 1 op(s) applied",
+                      "\n".join(cm.exception.errors))
+        self.assertEqual(self.store.head_revn(), head,
+                         "a wholly-held batch still wrote a revision")
+        self.assertTrue(any(e["id"] == "pin-q1"
+                            for e in self.store.scenes["checkout-flow"]),
+                        "resolve_pin deleted a pinned ❓")
+
+    def test_the_resolve_arm_itself_spares_a_pinned_glyph(self):
+        # DRIVEN AT `apply_ops` DIRECTLY, because the gate always fires
+        # first: `pin_held_ops` refuses a `resolve_pin` naming a pinned
+        # glyph, so through `apply_batch` the writer-side check below is
+        # unreachable and a mutation of it survives every integration
+        # test. That is not a reason to delete the check — it is the
+        # reason this test exists at the unit level, and the whole lesson
+        # of the round: the gate can only close doors somebody predicted,
+        # so the writer refuses on its own account too.
+        scene = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        scene.append(mk_el(id="pin-q9", type="text", x=10, y=10,
+                           text="❓", locked=True,
+                           customData={"role": "pin", "question": "which?",
+                                       "status": "open"}))
+        errors = []
+        out = canvas.apply_ops(
+            scene, [{"op": "resolve_pin", "id": "pin-q9", "answer": "yes"}],
+            errors)
+        self.assertEqual(errors, [])
+        self.assertTrue(any(e["id"] == "pin-q9" for e in out),
+                        "the resolve arm deleted a pinned ❓")
+
+    def test_the_resolve_arm_still_takes_an_unpinned_glyph(self):
+        scene = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        scene.append(mk_el(id="pin-q8", type="text", x=10, y=10,
+                           text="❓", locked=False,
+                           customData={"role": "pin", "question": "which?",
+                                       "status": "open"}))
+        errors = []
+        out = canvas.apply_ops(
+            scene, [{"op": "resolve_pin", "id": "pin-q8", "answer": "yes"}],
+            errors)
+        self.assertEqual(errors, [])
+        self.assertFalse(any(e["id"] == "pin-q8" for e in out),
+                         "the resolve arm stopped removing glyphs")
+
+    def test_resolve_pin_still_takes_down_an_unpinned_glyph(self):
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "id": "pin-q2", "target": "cart",
+                      "question": "which?"}]})
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "resolve_pin", "id": "pin-q2",
+                      "answer": "settled"}]})
+        self.assertFalse(any(e["id"] == "pin-q2"
+                             for e in self.store.scenes["checkout-flow"]),
+                         "resolve_pin stopped removing glyphs")
+
+    # ---- C-3: the backlink the gate could not read ----------------------
+    def _checkbox(self, aid, ungroup):
+        """A checkbox whose box is pinned, optionally ungrouped by the user.
+
+        Args:
+            aid: Artifact id to create.
+            ungroup: Strip every groupId, as the user's Ctrl+Shift+G does.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "create": {"id": aid, "name": aid, "type": "wireframe"},
+            "ops": [{"op": "add", "id": "cb", "type": "rectangle",
+                     "x": 100, "y": 100, "width": 160, "height": 28,
+                     "label": "Agree", "kind": "checkbox", "checked": True}]})
+        els = [dict(e) for e in self.store.scenes[aid]]
+        for e in els:
+            if e["id"] == "cb-box":
+                e["locked"] = True
+            if ungroup:
+                e["groupIds"] = []
+        self.store.commit(author="user", new_scenes={aid: els},
+                          base_revn=self.store.head_revn())
+
+    def test_a_pinned_part_is_safe_after_the_user_ungroups_the_widget(self):
+        # C-3. `reconcile_composed` finds parts by their `*_of` BACKLINKS
+        # while the gate read only `groupIds`, so once the widget was
+        # ungrouped — the gesture this design blesses and narrates — a
+        # `mod height` on the body walked the backlink and moved the
+        # locked box. The same hole is open with no user action at all on
+        # any widget minted before the grouping repair, since that repair
+        # is at mint time with no migration.
+        self._checkbox("c3", ungroup=True)
+        before = _xy(self.store, "c3", "cb-box")
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "c3",
+                 "ops": [{"op": "mod", "id": "cb", "attrs": {"height": 60}}]})
+        self.assertIn("composed owner of", "\n".join(cm.exception.errors))
+        self.assertEqual(_xy(self.store, "c3", "cb-box"), before)
+
+    def test_the_reconciler_itself_restores_a_pinned_part(self):
+        # DRIVEN AT `reconcile_composed` DIRECTLY, past the gate: the
+        # writer must hold the property on its own account, because the
+        # gate can only refuse doors somebody predicted — which is the
+        # whole lesson of this feature's two fix rounds.
+        scene = [mk_el(id="cb", type="rectangle", x=100, y=100, width=160,
+                       height=28, customData={"kind": "checkbox",
+                                              "checked": True}),
+                 mk_el(id="cb-box", type="rectangle", x=108, y=106,
+                       width=16, height=16, locked=True,
+                       customData={"role": "decoration", "box_of": "cb"})]
+        was = (scene[1]["x"], scene[1]["y"])
+        scene[0]["height"] = 60
+        canvas.reconcile_composed(scene, None, None, scene[0])
+        self.assertEqual((scene[1]["x"], scene[1]["y"]), was,
+                         "the reconciler moved a pinned part")
+
+    def test_the_reconciler_still_moves_an_unpinned_part(self):
+        scene = [mk_el(id="cb", type="rectangle", x=100, y=100, width=160,
+                       height=28, customData={"kind": "checkbox",
+                                              "checked": True}),
+                 mk_el(id="cb-box", type="rectangle", x=108, y=106,
+                       width=16, height=16, locked=False,
+                       customData={"role": "decoration", "box_of": "cb"})]
+        was = (scene[1]["x"], scene[1]["y"])
+        scene[0]["height"] = 60
+        canvas.reconcile_composed(scene, None, None, scene[0])
+        self.assertNotEqual((scene[1]["x"], scene[1]["y"]), was,
+                            "the reconciler stopped reconciling")
+
+    def test_a_still_grouped_widget_is_held_by_the_group_edge(self):
+        # the control for the control: the structural edge still works,
+        # so the backlink edge is an addition and not a replacement
+        self._checkbox("c3b", ungroup=False)
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "c3b",
+                 "ops": [{"op": "mod", "id": "cb", "attrs": {"height": 60}}]})
+        self.assertIn("grouped with", "\n".join(cm.exception.errors))
+
+    # ---- D2: the derived-position closure --------------------------------
+    def test_a_held_elements_bound_label_is_held_with_it(self):
+        """THE RULING ON THE ONE-HOP BOUNDARY, recorded as a test.
+
+        The curator's `TestAPinnedClusterHalfAppliesAtTheOneHopBoundary`
+        is a PREMISE PIN over the old behaviour: a pinned `cart` grouped
+        with `checkout` held the box and released its caption, leaving
+        the caption 495px clear of its own container. That pin now fires
+        against this tree, which is what a premise pin is for — it says
+        somebody has ruled, and asks for restatement rather than
+        deletion. This is the ruling it should be restated around.
+
+        THE RULE: the held set is closed over DERIVED POSITIONS as well
+        as over one hop of kinship. A bound label and a composed part
+        have no position of their own — `recenter_label` and
+        `reconcile_composed` recompute both from the owner — so holding
+        an owner and releasing its caption strands the caption at
+        coordinates nothing will restore. It is not the transitive
+        closure returning: it follows one edge, "your position is
+        computed from theirs", and a frame's children are not derived
+        from the frame, which is why
+        `test_the_closure_does_not_explode_through_a_frame` still holds.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] in ("cart", "checkout"):
+                e["groupIds"] = ["gG"]
+            if e["id"] == "cart":
+                e["locked"] = True
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        before = _xy(self.store, "checkout-flow", "checkout-label")
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(),
+                 "artifact": "checkout-flow",
+                 "ops": [{"op": "mod", "id": "checkout", "attrs": {"x": 800}},
+                         {"op": "mod", "id": "checkout-label",
+                          "attrs": {"x": 800}}]})
+        self.assertIn("has its position derived from",
+                      "\n".join(cm.exception.errors))
+        self.assertEqual(_xy(self.store, "checkout-flow", "checkout-label"),
+                         before)
+
+    def test_the_closure_does_not_explode_through_a_frame(self):
+        # the bound that makes the closure safe: a pinned node inside a
+        # frame must not hold every other node in that frame
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        els.append(mk_el(id="screenF", type="frame", x=0, y=0,
+                         width=1200, height=600, name="SCREEN"))
+        for e in els:
+            if e["id"] in ("cart", "payment", "confirm"):
+                e["frameId"] = "screenF"
+            if e["id"] == "cart":
+                e["locked"] = True
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "payment", "attrs": {"x": 505}}]})
+        self.assertEqual(_xy(self.store, "checkout-flow", "payment")[0], 505,
+                         "a frame sibling two hops from the pin was held")
+
+
+class TestTheLoadHealHonoursAPin(Base):
+    """`validate_scene` was the twenty-first caller (v0.9 D4/D5)."""
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+
+    # A REFIT THE FITTER WILL NOT DECLINE. `fit_label_in` returns the
+    # label unchanged when no wrap of its text sits better than the text
+    # as written — which is true of "Cart" at any width — and the arm
+    # `continue`s on that, so a short label never reaches the re-centring
+    # this test is about. The long text is what makes the refit real.
+    LONG = "Cart contents and the current order summary"
+
+    def _scene(self, locked, wide):
+        """A scene whose cart-label is pinned and/or over-wide.
+
+        Args:
+            locked: Pin the label.
+            wide: Make it wider than its container, so the refit fires.
+
+        Returns:
+            An Excalidraw document ready for `validate_scene`.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "cart-label":
+                e["locked"] = locked
+                if wide:
+                    # inside the container, so the DETACHED arm (ART-007)
+                    # does not fire first and re-centre it before the
+                    # refit arm is reached
+                    e["x"], e["y"] = 45, 130
+                    e["width"] = 393
+                    e["text"] = e["originalText"] = self.LONG
+                else:
+                    e["x"], e["y"] = 900, 900     # detached: ART-007
+        return {"type": "excalidraw", "elements": els}
+
+    def test_the_label_refit_does_not_move_a_pinned_label(self):
+        doc, issues = canvas.validate_scene(self._scene(True, True),
+                                            "checkout-flow")
+        lbl = next(e for e in doc["elements"] if e["id"] == "cart-label")
+        self.assertEqual((lbl["x"], lbl["y"]), (45, 130),
+                         "the load-heal moved a pinned label")
+        # THROUGH THE FORMATTER, not a hand-written phrase. This first
+        # asserted the literal "it is pinned", which is a wording only
+        # this one site used — and a declined repair said here in one
+        # voice and in `pinned_clause`'s everywhere else teaches a reader
+        # that the loader's silence is a different event from tidy's. It
+        # is the same event, so it gets the same sentence (curator batch
+        # 37's C-2 red asserts exactly this).
+        self.assertIn(canvas.pinned_clause(1),
+                      " ".join(i.msg for i in issues if i.code == "ART-011"))
+
+    def test_the_label_refit_still_moves_an_unpinned_label(self):
+        doc, _ = canvas.validate_scene(self._scene(False, True),
+                                       "checkout-flow")
+        lbl = next(e for e in doc["elements"] if e["id"] == "cart-label")
+        self.assertNotEqual((lbl["x"], lbl["y"]), (45, 130),
+                            "the load-heal stopped refitting labels")
+
+    def test_a_declined_recentre_files_no_repair(self):
+        # ART-007 claimed `repaired: True` for a move it never made
+        doc, issues = canvas.validate_scene(self._scene(True, False),
+                                            "checkout-flow")
+        lbl = next(e for e in doc["elements"] if e["id"] == "cart-label")
+        self.assertEqual((lbl["x"], lbl["y"]), (900, 900),
+                         "the loader re-centred a pinned label")
+        self.assertEqual([i for i in issues if i.code == "ART-007"], [],
+                         "the loader filed a repair it declined to make")
+
+    def test_a_real_recentre_still_files_its_repair(self):
+        doc, issues = canvas.validate_scene(self._scene(False, False),
+                                            "checkout-flow")
+        lbl = next(e for e in doc["elements"] if e["id"] == "cart-label")
+        self.assertNotEqual((lbl["x"], lbl["y"]), (900, 900),
+                            "ART-007 stopped re-centring detached labels")
+        self.assertTrue([i for i in issues if i.code == "ART-007"],
+                        "ART-007 stopped reporting real re-centres")
+
+
+class TestTheAgentHearsARefusalItDidNotSee(Base):
+    """A pin set while a batch waited at the banner must reach the agent.
+
+    THE AGENT IS NOT THE ONE WHO CLICKS APPLY. It was answered `queued:
+    true` with "validates and lints clean against the current head" —
+    true when it was said — and the user may pin an element before
+    pulling the banner. The refusal then reaches the browser and, until
+    this test, nothing else: `commit_pending` built its event from the
+    pin-glyph notes alone. That is the v0.4 class (an agent told it had
+    drawn, narrating as much) one door further along.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.app = canvas.ServerApp(self.project)
+        self.store = self.app.store
+        self.store.apply_batch(seed_flow_batch())
+
+    def tearDown(self):
+        self.app.log_file.close()
+        super().tearDown()
+
+    def test_a_pin_during_the_hold_is_reported_on_the_event_log(self):
+        self.app.dirty = True
+        resp = self.app.handle_post(
+            "/api/apply",
+            {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "payment", "attrs": {"x": 500}},
+                     {"op": "mod", "id": "confirm", "attrs": {"x": 900}}]})
+        self.assertTrue(resp.get("queued"))
+        _pin(self.store, "checkout-flow", "confirm")
+        self.app.dirty = False
+        entry = next(p for p in self.app.pending
+                     if p["id"] == resp["pending_id"])
+        self.app.commit_pending(entry)
+        ev = [e for e in self.app.events.events
+              if e.get("type") == "agent_revision"]
+        self.assertTrue(ev, "no agent_revision event")
+        notes = "\n".join(ev[-1].get("notes") or [])
+        self.assertIn("held: confirm is pinned", notes,
+                      "the agent was never told an op was refused")
+        self.assertEqual(_xy(self.store, "checkout-flow", "confirm")[0], 700)
+        self.assertEqual(_xy(self.store, "checkout-flow", "payment")[0], 500)
+
+
+class TestTheRefusalAdviceIsFollowable(Base):
+    """The advice must not recommend a batch that is refused again."""
+
+    def test_the_advice_says_a_later_batch(self):
+        self.store.apply_batch(seed_flow_batch())
+        _pin(self.store, "checkout-flow", "cart")
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(),
+                 "artifact": "checkout-flow",
+                 "ops": [{"op": "mod", "id": "cart", "attrs": {"x": 999}}]})
+        text = "\n".join(cm.exception.errors)
+        self.assertIn("IN A LATER BATCH", text)
+
+    def test_and_the_behaviour_the_advice_describes_is_the_real_one(self):
+        # the loop the old advice would have sent the agent round
+        self.store.apply_batch(seed_flow_batch())
+        _pin(self.store, "checkout-flow", "cart")
+        rec, _ = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "cart",
+                      "attrs": {"locked": False}},
+                     {"op": "mod", "id": "cart", "attrs": {"x": 999}}]})
+        self.assertEqual(_xy(self.store, "checkout-flow", "cart")[0], 40,
+                         "an unpin later in the same batch released the move")
+        # ...and in the NEXT batch it lands
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "cart", "attrs": {"x": 999}}]})
+        self.assertEqual(_xy(self.store, "checkout-flow", "cart")[0], 999)
+
+
+class TestEachPinGuardIsObserved(Base):
+    """One test per guard site, each red when that guard is deleted.
+
+    THE CLAIM THIS EXISTS TO MAKE HONEST. The first round of this work
+    shipped "35 tests, both directions on every guard" — and a verifier
+    mutation-tested the guards one at a time and found SEVEN of eleven
+    could have their pin check deleted outright with the whole suite
+    still green. The lines were live (flipping them to skip-everything
+    broke 3, 22, 14, 2 and 5 tests), so nothing was dead; what was
+    missing is that nothing observed the guard's PRESENCE. Two of the
+    tests that looked like proof were worse than one-sided:
+    `test_reroute_leaves_pinned_arrows_alone` asserted a path was
+    unchanged in a scene `reroute_scene` did not want to touch anyway,
+    and `test_the_fan_skips_pinned_arrows_and_still_fans_the_others`
+    named the fan and exercised the router.
+
+    SO EACH TEST HERE DRIVES ITS MOVER DIRECTLY where it can, rather than
+    through a batch: a pass reached through `apply_batch` is behind the
+    op gate, and the gate passing is not the pass being guarded. Every
+    one carries an unpinned CONTROL in the same scene, so a guard that
+    over-skips fails too — the direction the verifier found already
+    covered.
+
+    The instrument that proves it is `/tmp/pinprobe/guard_mutants.py`,
+    which patches each guard out of a scratch copy and runs the test
+    named beside it in `GEOMETRY_WRITERS`' sibling table below.
+    """
+
+    def _fan_scene(self, pin_id=None):
+        """Two arrows converging on one side of a node, optionally pinned.
+
+        Args:
+            pin_id: Arrow id to pin, or None.
+
+        Returns:
+            An element list the fan has real work to do on.
+        """
+        els = [
+            mk_el(id="src1", type="rectangle", x=0, y=0, width=80, height=40,
+                  customData={"role": "node"}),
+            mk_el(id="src2", type="rectangle", x=0, y=200, width=80, height=40,
+                  customData={"role": "node"}),
+            mk_el(id="dst", type="rectangle", x=400, y=100, width=120,
+                  height=80, customData={"role": "node"}),
+        ]
+        for i, s in enumerate(("src1", "src2"), start=1):
+            a = mk_el(id="a%d" % i, type="arrow", x=80, y=20 + (i - 1) * 200,
+                      width=320, height=100,
+                      points=[[0, 0], [320, 120 - (i - 1) * 200]],
+                      startBinding={"elementId": s, "focus": 0, "gap": 4},
+                      endBinding={"elementId": "dst", "focus": 0, "gap": 4})
+            a["customData"] = {"routed": canvas._route_sig(a)}
+            if a["id"] == pin_id:
+                a["locked"] = True
+            els.append(a)
+        return els
+
+    def test_the_fan_leaves_a_pinned_arrow_alone(self):
+        # DRIVEN DIRECTLY: `fan_attach_points` is the unit under test, so
+        # no batch, no gate, no router in the way.
+        free = self._fan_scene(pin_id=None)
+        canvas.fan_attach_points(free)
+        moved_when_free = {e["id"]: (e["x"], e["y"],
+                                     json.dumps(e["points"]))
+                           for e in free if e["id"].startswith("a")}
+        pinned = self._fan_scene(pin_id="a1")
+        was = {e["id"]: (e["x"], e["y"], json.dumps(e["points"]))
+               for e in pinned if e["id"].startswith("a")}
+        skipped = canvas.fan_attach_points(pinned)
+        now = {e["id"]: (e["x"], e["y"], json.dumps(e["points"]))
+               for e in pinned if e["id"].startswith("a")}
+        # the fan HAD work to do here — proven by the unpinned run
+        self.assertNotEqual(moved_when_free["a1"], was["a1"],
+                            "this scene gives the fan nothing to do, so it "
+                            "cannot prove a guard; rebuild it")
+        self.assertEqual(now["a1"], was["a1"],
+                         "the fan respaced a pinned arrow")
+        self.assertEqual(skipped, 1, "the fan did not count its skip")
+
+    def test_contention_feet_leave_a_pinned_arrow_alone(self):
+        # a side too short for its feet is what `contention_feet` fires on
+        def scene(pin):
+            els = [mk_el(id="n%d" % i, type="rectangle", x=0, y=i * 90,
+                         width=80, height=40, customData={"role": "node"})
+                   for i in range(3)]
+            els.append(mk_el(id="tiny", type="rectangle", x=400, y=100,
+                             width=40, height=40,
+                             customData={"role": "node"}))
+            for i in range(3):
+                a = mk_el(id="c%d" % i, type="arrow", x=80, y=20 + i * 90,
+                          width=320, height=100,
+                          points=[[0, 0], [320, 100 - i * 90]],
+                          startBinding={"elementId": "n%d" % i,
+                                        "focus": 0, "gap": 4},
+                          endBinding={"elementId": "tiny",
+                                      "focus": 0, "gap": 4})
+                a["customData"] = {"routed": canvas._route_sig(a)}
+                if a["id"] == pin:
+                    a["locked"] = True
+                els.append(a)
+            return els
+        free = scene(None)
+        canvas.contention_feet(free)
+        free_now = {e["id"]: (e["x"], e["y"], json.dumps(e["points"]))
+                    for e in free if e["id"].startswith("c")}
+        pinned = scene("c0")
+        was = {e["id"]: (e["x"], e["y"], json.dumps(e["points"]))
+               for e in pinned if e["id"].startswith("c")}
+        skipped = canvas.contention_feet(pinned)
+        now = {e["id"]: (e["x"], e["y"], json.dumps(e["points"]))
+               for e in pinned if e["id"].startswith("c")}
+        self.assertNotEqual(free_now["c0"], was["c0"],
+                            "this scene gives the feet nothing to do, so it "
+                            "cannot prove a guard; rebuild it")
+        self.assertEqual(now["c0"], was["c0"],
+                         "contention feet moved a pinned arrow")
+        self.assertEqual(skipped, 1, "the feet did not count their skip")
+
+    def test_reroute_scene_leaves_a_pinned_arrow_alone(self):
+        # THE VACUOUS TEST THIS REPLACES asserted a path was unchanged in
+        # a scene `reroute_scene` had no intention of touching. The fix is
+        # to prove the intention first: the unpinned run must re-route
+        # this very arrow, or the pinned run proves nothing.
+        self.store.apply_batch(seed_flow_batch())
+        base = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in base:                      # fossilise: bend every path
+            if e.get("type") == "arrow":
+                e["points"] = [[0, 0], [30, 25], [e.get("width", 100), 0]]
+                e["customData"] = dict(e.get("customData") or {},
+                                       routed=canvas._route_sig(e))
+                e["points"] = [[0, 0], [30, 25], [e.get("width", 100), 0]]
+        free, changes_free = canvas.reroute_scene(base)
+        touched = {c["id"] for c in changes_free}
+        self.assertIn("t1", touched,
+                      "reroute_scene would not touch t1 in this scene, so "
+                      "asserting it stayed put proves nothing")
+        pinned_base = [dict(e, locked=(e["id"] == "t1")) for e in base]
+        was = next(e for e in pinned_base if e["id"] == "t1")
+        was_geom = (was["x"], was["y"], json.dumps(was["points"]))
+        out, changes = canvas.reroute_scene(pinned_base)
+        now = next(e for e in out if e["id"] == "t1")
+        self.assertEqual((now["x"], now["y"], json.dumps(now["points"])),
+                         was_geom, "reroute_scene re-routed a pinned arrow")
+        self.assertNotIn("t1", {c["id"] for c in changes})
+        self.assertTrue({c["id"] for c in changes},
+                        "reroute_scene stopped re-routing everything")
+
+    def test_the_f1_post_pass_leaves_a_pinned_arrow_alone(self):
+        # the F1 pass fires on arrows whose bound node moved. A pinned
+        # ARROW does not guard its endpoints (`_pin_kin` is one-way), so
+        # this op is legal and the pass is what must refuse.
+        self.store.apply_batch(seed_flow_batch())
+        _pin(self.store, "checkout-flow", "t1")
+        was_t1 = _path(self.store, "checkout-flow", "t1")
+        was_t2 = _path(self.store, "checkout-flow", "t2")
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "mod", "id": "checkout",
+                      "attrs": {"x": 300, "y": 320}}]})
+        self.assertEqual(_path(self.store, "checkout-flow", "t1"), was_t1,
+                         "the F1 post-pass re-routed a pinned arrow")
+        self.assertNotEqual(_path(self.store, "checkout-flow", "t2"), was_t2,
+                            "the F1 post-pass stopped re-routing entirely")
+
+    def test_the_final_routing_pass_leaves_a_pinned_arrow_alone(self):
+        # THE SCENE IS SEARCHED, NOT GUESSED. A straight span with a box
+        # dropped across it does NOT prove this: the pass runs, the
+        # router is asked, and it re-elects the same straight path — so
+        # the geometry is identical whether the guard exists or not, and
+        # the first two attempts at this test passed for that reason. An
+        # ELBOW is what the router will actually redraw: an L whose long
+        # leg is blocked re-elects to the mirror L, which is a visible
+        # 40px move of the whole arrow. The control asserts that
+        # re-election happens before the pinned assertion means anything.
+        ops = []
+        for tag, y0 in (("p", 100), ("f", 700)):
+            ops += [
+                {"op": "add", "id": tag + "1", "type": "rectangle", "x": 0,
+                 "y": y0, "width": 80, "height": 40, "role": "node"},
+                {"op": "add", "id": tag + "2", "type": "rectangle", "x": 600,
+                 "y": y0 + 200, "width": 80, "height": 40, "role": "node"},
+                {"op": "add", "element": {"type": "arrow", "id": tag + "a"},
+                 "from": tag + "1", "to": tag + "2"}]
+        self.store.apply_batch({
+            "base_revn": 0,
+            "create": {"id": "rt", "name": "RT", "type": "flow"},
+            "ops": ops})
+        _pin(self.store, "rt", "pa")
+        was_pinned = _path(self.store, "rt", "pa")
+        was_free = _path(self.store, "rt", "fa")
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "rt",
+             "ops": [{"op": "add", "id": "blkp", "type": "rectangle",
+                      "x": 228, "y": 92, "width": 120, "height": 200,
+                      "role": "node"},
+                     {"op": "add", "id": "blkf", "type": "rectangle",
+                      "x": 228, "y": 692, "width": 120, "height": 200,
+                      "role": "node"}]})
+        self.assertNotEqual(_path(self.store, "rt", "fa"), was_free,
+                            "the final routing pass had no work to do in "
+                            "this scene, so it cannot prove a guard")
+        self.assertEqual(_path(self.store, "rt", "pa"), was_pinned,
+                         "the final routing pass re-routed a pinned arrow")
+
+    def test_tidys_router_leaves_a_pinned_arrow_alone(self):
+        self.store.apply_batch(seed_flow_batch())
+        _pin(self.store, "checkout-flow", "t1")
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:                    # bend the paths so tidy re-routes
+            if e.get("type") == "arrow":
+                e["points"] = [[0, 0], [20, 18], [e.get("width", 100), 0]]
+                # RE-STAMPED, or the bend makes the arrow read as USER
+                # geometry and every router in the file declines it — the
+                # test would then pass with the guard deleted, for the
+                # same reason the vacuous one it replaces did.
+                e["customData"] = dict(e.get("customData") or {},
+                                       routed=canvas._route_sig(e))
+        self.store.commit(author="user", new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        was_t1 = _path(self.store, "checkout-flow", "t1")
+        was_t2 = _path(self.store, "checkout-flow", "t2")
+        self.store.tidy("checkout-flow")
+        self.assertEqual(_path(self.store, "checkout-flow", "t1"), was_t1,
+                         "tidy's router re-routed a pinned arrow")
+        self.assertNotEqual(_path(self.store, "checkout-flow", "t2"), was_t2,
+                            "tidy's router stopped re-routing entirely")
+
+    def test_a_pinned_part_does_not_ride_its_owners_snap(self):
+        """The group-cascade guard — the site whose comment states the rule.
+
+        THE TWELFTH SITE, and it was unobserved: deleting
+        `_tidy_pass`'s `if pinned_to_canvas(p)` left the whole suite
+        green at 1618 tests, verified by mutation before this test
+        existed. Its own comment reads "a pin is a pin whichever end of
+        the group it sits on" — so the guard that ARTICULATES the
+        invariant C-1 breaks was the one nothing was checking.
+
+        It needs its own scene because the tidy tests either pin the
+        BODY (which the snap loop's own guard catches first) or pin
+        nothing. Here the body is free and a PART is pinned: the body
+        snaps, and the carry must leave the part where it is.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "create": {"id": "s12", "name": "S12", "type": "wireframe"},
+            "ops": [{"op": "add", "id": "sl", "type": "rectangle",
+                     "x": 100, "y": 200, "width": 160, "height": 44,
+                     "label": "Volume", "kind": "slider", "value": 60}]})
+        els = [dict(e) for e in self.store.scenes["s12"]]
+        for e in els:
+            e["x"] = e.get("x", 0) + 3      # knock the widget off-grid
+            e["y"] = e.get("y", 0) - 3
+            if e["id"] == "sl-thumb":
+                e["locked"] = True
+        self.store.commit(author="user", new_scenes={"s12": els},
+                          base_revn=self.store.head_revn())
+        before = {e["id"]: (e.get("x"), e.get("y"))
+                  for e in self.store.scenes["s12"]}
+        self.store.tidy("s12")
+        after = {e["id"]: (e.get("x"), e.get("y"))
+                 for e in self.store.scenes["s12"]}
+        self.assertEqual(after["sl-thumb"], before["sl-thumb"],
+                         "the group cascade carried a pinned part")
+        self.assertNotEqual(after["sl"], before["sl"],
+                            "the snap did not run, so this proves nothing")
+
+    def test_the_loader_does_not_reroute_a_pinned_arrow(self):
+        """The thirteenth site: `reroute_and_confess`, on the LOAD path.
+
+        Gated on ownership and never on the pin, so a pinned arrow was
+        redrawn by OPENING THE PROJECT — no user action, no agent op —
+        and again on every subsequent load. It is reached from
+        `validate_scene`'s label refit, which resizes the container and
+        then re-routes everything bound to it.
+        """
+        # THE BOX IS ALREADY THE NEW SIZE when this is called — that is
+        # the contract: `validate_scene` refits the label, grows the
+        # container, and hands the OLD dimensions in `before` so the
+        # message can name the change. A test that passes `before` without
+        # actually resizing gives the router the same geometry it already
+        # solved, it re-elects the same path, and the control cannot tell
+        # a working guard from a dead one.
+        node = mk_el(id="box", type="rectangle", x=100, y=100, width=140,
+                     height=160, customData={"role": "node"})
+        far = mk_el(id="far", type="rectangle", x=500, y=100, width=140,
+                    height=60, customData={"role": "node"})
+        arrow = mk_el(id="a1", type="arrow", x=240, y=130, width=260,
+                      height=0, points=[[0, 0], [260, 0]], locked=True,
+                      startBinding={"elementId": "box", "focus": 0,
+                                    "gap": 4},
+                      endBinding={"elementId": "far", "focus": 0, "gap": 4})
+        arrow["customData"] = {"routed": canvas._route_sig(arrow)}
+        free = dict(arrow, id="a2", locked=False)
+        free["customData"] = {"routed": canvas._route_sig(free)}
+        was = (arrow["x"], arrow["y"], json.dumps(arrow["points"]))
+        was_free = (free["x"], free["y"], json.dumps(free["points"]))
+        issues = canvas.reroute_and_confess([node, far, arrow, free], node,
+                                            (140, 60), "art")
+        self.assertEqual((arrow["x"], arrow["y"],
+                          json.dumps(arrow["points"])), was,
+                         "the loader re-routed a pinned arrow")
+        self.assertNotEqual((free["x"], free["y"],
+                             json.dumps(free["points"])), was_free,
+                            "the loader stopped re-routing entirely")
+        self.assertIn(canvas.pinned_clause(1),
+                      "\n".join(i.msg for i in issues))
+
+    def test_relayout_leaves_pinned_elements_alone(self):
+        # `_cmd_mermaid_relayout` needs the browser conversion, so the
+        # conversion is stubbed and everything downstream of it is real —
+        # which is where the guard lives. Named because the verifier found
+        # this site had NO test naming it at all.
+        self.store.apply_batch(seed_flow_batch())
+        _pin(self.store, "checkout-flow", "cart")
+        # REVERSED offsets on purpose. `_cmd_mermaid_relayout` pins
+        # dagre's min corner to the current layout's min corner, so a
+        # skeleton set that happens to map the first element back onto
+        # itself emits no op for it — and `cart` is the first element and
+        # the one being pinned. Reversing guarantees cart is a move the
+        # filter has to refuse, which is the whole point of the test.
+        rects = [e for e in self.store.scenes["checkout-flow"]
+                 if e.get("type") == "rectangle"]
+        skeletons = [{"id": "n_" + e["id"], "type": "rectangle",
+                      "x": 900 + 300 * (len(rects) - 1 - i), "y": 900,
+                      "width": 140, "height": 60}
+                     for i, e in enumerate(rects)]
+        printed = []
+        args = argparse.Namespace(
+            project=str(self.tmp), artifact="checkout-flow", tab_timeout=5,
+            no_headless=True, check=True, render=False)
+        with mock.patch.object(canvas, "_mermaid_convert",
+                               return_value=(skeletons, None)), \
+                mock.patch.object(canvas, "cmd_apply", return_value=0), \
+                mock.patch("builtins.print",
+                           side_effect=lambda *a, **k: printed.append(
+                               " ".join(str(x) for x in a))):
+            canvas._cmd_mermaid_relayout(args, self.project, self.store)
+        blob = "\n".join(printed)
+        self.assertIn("pinned", blob,
+                      "relayout said nothing about the pin it skipped")
+        bpath = (self.project.runtime_dir /
+                 "mermaid-relayout-checkout-flow.json")
+        self.assertTrue(bpath.exists(), "relayout wrote no batch")
+        ops = json.loads(bpath.read_text())["ops"]
+        self.assertNotIn("cart", [o["id"] for o in ops],
+                         "relayout emitted a move for a pinned element")
+        self.assertTrue([o for o in ops if o["id"] != "cart"],
+                        "relayout emitted nothing at all")
 
 
 if __name__ == "__main__":
