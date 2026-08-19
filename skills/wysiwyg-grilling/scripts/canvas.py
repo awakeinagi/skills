@@ -1210,6 +1210,39 @@ def _round_geom(v):
     return v
 
 
+def points_extent(points):
+    """The box a point-strung element's `points` actually span.
+
+    THE SPAN, NOT THE REACH FROM THE ORIGIN, and the distinction is the
+    whole reason this exists. `points` are offsets from the element's
+    `x`/`y`, so `max(abs(p))` answers "how far from the anchor does this
+    path get", which equals the width only when the path never goes
+    negative. Every self-loop does: a `run -> run` loop stores points
+    spanning 52px whose largest absolute x is 28, so the element claimed
+    a 28px box around a 52px drawing. Excalidraw's `restoreElement` runs
+    `getSizeFromPoints` — this function — on load, so the client silently
+    repairs the lie and ships the repair back on the next save, where the
+    save diff narrates it to the user as a resize they never made.
+
+    This is the standing repo rule "bound point-strung elements by their
+    points, never by a stored width/height" — and it binds when WRITING
+    geometry, not only when checking it.
+
+    Args:
+        points: The element's `points` — a list of `[dx, dy]` offsets.
+
+    Returns:
+        `(width, height)` — the x-span and y-span of the points. `(0, 0)`
+        for an empty path, which is the extent an element with nowhere to
+        go occupies.
+    """
+    if not points:
+        return (0, 0)
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return (max(xs) - min(xs), max(ys) - min(ys))
+
+
 def normalize_element(el):
     """Normalize one element in place: pin volatile attrs, round geometry."""
     el = dict(el)
@@ -2216,14 +2249,33 @@ def _compose_control_glyph(el, kind, checked, existing_ids):
     return out
 
 
+CHECK_STROKE_PTS = [[0, 0], [4, 4], [10, -6]]
+
+
 def _check_stroke(el, existing_ids):
-    """Build the check-mark stroke of a checked checkbox."""
+    """Build the check-mark stroke of a checked checkbox.
+
+    The box is DERIVED from the stroke's own points rather than written
+    down beside them: the literal `height=8` that used to sit here
+    matched neither the reach (6) nor the span (10) of
+    `CHECK_STROKE_PTS`, so every checked box shipped a 10x8 claim around
+    a 10x10 drawing and the client corrected it on load — four fabricated
+    "resized" narrations per artifact. See `points_extent`.
+
+    Args:
+        el: The checkbox rectangle the stroke belongs to.
+        existing_ids: Live id set for id registration.
+
+    Returns:
+        The check-mark line element.
+    """
     cy = el["y"] + el.get("height", 28) / 2.0
+    cw, ch = points_extent(CHECK_STROKE_PTS)
     return _deco(
         el["id"] + "-chk", "chk_of", el["id"], el["id"] + "-grp",
         existing_ids, type="line",
-        x=el["x"] + 11, y=cy - 1, width=10, height=8,
-        points=[[0, 0], [4, 4], [10, -6]], lastCommittedPoint=None,
+        x=el["x"] + 11, y=cy - 1, width=cw, height=ch,
+        points=[list(p) for p in CHECK_STROKE_PTS], lastCommittedPoint=None,
         startBinding=None, endBinding=None,
         startArrowhead=None, endArrowhead=None, elbowed=False,
         strokeWidth=2)
@@ -3220,8 +3272,7 @@ def _snap_geom(arrow):
     arrow["points"] = [[_round_geom(p[0]), _round_geom(p[1])]
                        for p in (arrow.get("points") or [])]
     if arrow["points"]:
-        arrow["width"] = max(abs(p[0]) for p in arrow["points"])
-        arrow["height"] = max(abs(p[1]) for p in arrow["points"])
+        arrow["width"], arrow["height"] = points_extent(arrow["points"])
 
 
 def _stamp_route(arrow):
@@ -3766,8 +3817,7 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
     pts = [[px - x1, py - y1] for px, py in path]
     gap = 6
     arrow["x"], arrow["y"] = x1, y1
-    arrow["width"] = max(abs(p[0]) for p in pts)
-    arrow["height"] = max(abs(p[1]) for p in pts)
+    arrow["width"], arrow["height"] = points_extent(pts)
     arrow["points"] = pts
     arrow["roundness"] = derived_roundness(arrow)   # derived, never authored
     # SNAP FIRST, THEN SOLVE, and the order is the whole point. `_snap_geom`
@@ -4886,8 +4936,7 @@ def fan_attach_points(els):
                 continue
         a["x"], a["y"] = sx, sy
         a["points"] = pts
-        a["width"] = max(abs(p[0]) for p in pts)
-        a["height"] = max(abs(p[1]) for p in pts)
+        a["width"], a["height"] = points_extent(pts)
         # SNAP FIRST, THEN SOLVE — the same ordering `route_arrow` states
         # its reasons for. A fan slot is `L*k/(N+1)` and is fractional far
         # more often than a route is, so this is the call site that
@@ -5424,8 +5473,7 @@ def _stamp_contention(a, which, anchor, foot, side, node, ix):
     x0, y0 = path[0]
     a["x"], a["y"] = x0, y0
     a["points"] = [[px - x0, py - y0] for px, py in path]
-    a["width"] = max(abs(p[0]) for p in a["points"])
-    a["height"] = max(abs(p[1]) for p in a["points"])
+    a["width"], a["height"] = points_extent(a["points"])
     a["roundness"] = derived_roundness(a)
     _stamp_route(a)         # snap first, then solve — route_arrow's order
     spts, ax0, ay0 = a["points"], a["x"], a["y"]

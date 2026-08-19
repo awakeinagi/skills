@@ -8691,8 +8691,11 @@ class TestFanAttachPoints(unittest.TestCase):
                                     "gap": 1},
                    "endBinding": {"elementId": "N", "focus": 0, "gap": 1},
                    "customData": {"role": "edge"}}
-            arr["width"] = max(abs(p[0]) for p in arr["points"])
-            arr["height"] = max(abs(p[1]) for p in arr["points"])
+            # THE SPAN, via the product's own helper. This carried a
+            # private `max(abs(p))` copy of the bug `points_extent` fixes,
+            # so a regression test seeded here would have agreed with a
+            # broken product and stayed green either way.
+            arr["width"], arr["height"] = canvas.points_extent(arr["points"])
             arr["customData"]["routed"] = canvas._route_sig(arr)
             els.append(arr)
         return els

@@ -22239,8 +22239,14 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # wrong twice over. Neither is a `Mutant`: what is wrong is what
 # `Store.commit` writes into the save record, `collect_findings` has no code
 # for it, and `lint_layout` is right to be silent — the picture is fine.
+#
+# THAT CLASS DROPPED 2 -> 1 on 2026-08-19, which is the outcome the
+# paragraph above predicted and the reason it was written down: v0.9's F1
+# (`points_extent`) flipped the check-stroke red by making the composer
+# store a height its points agree with, and the `reordered` red beside it
+# is untouched and still owned. The class is NOT done.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALineDecorationRemeasureIsNotAUserEdit": 2,
+    "TestALineDecorationRemeasureIsNotAUserEdit": 1,
     "TestTheEntityNameClearsItsOwnAttributeRows": 2,
     "TestOneLineHeightHasTwoReaders": 2,
 }
@@ -24167,11 +24173,22 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             "saying `saved_no_changes`, so the red below is not about "
             "the second composite after all")
 
-    @unittest.expectedFailure
     def test_the_ticks_remeasured_height_is_not_a_user_resize(self) -> None:
         """The handover's defect: the tick inside a box nobody clicked.
 
-        MEASURED 2026-08-18 at this tree's head: `{"resized": 1}` with
+        FLIPPED GREEN 2026-08-19 by v0.9's F1 (`points_extent`). This is
+        the second of the two repairs this red was deliberately written
+        not to prejudge — "a fix that re-derives composed parts before
+        the diff instead" — and it is that one taken further upstream:
+        `_check_stroke` no longer stores a height its own points
+        contradict, so `[[0,0],[4,4],[10,-6]]` is authored 10 tall and
+        the browser's `restore` has nothing to correct. There is no
+        drift left for `_geometry_derived` to be taught about, which is
+        why the guard named below is still untouched and why the sibling
+        red about `reordered` is still red.
+
+        MEASURED 2026-08-18 at the tree's head BEFORE that fix:
+        `{"resized": 1}` with
         the headline "resized cb-chk", where the truth is the
         `{"saved_no_changes": 1}` the green above measures on the same
         scene. Direction is false-positive throughout — the user resized
