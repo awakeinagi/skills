@@ -7,15 +7,34 @@ file; `CLAUDE.md` points here. Read it before writing code.
 
 | Path | What | Language |
 | --- | --- | --- |
-| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~24.2k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
+| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~24.7k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
 | `skills/wysiwyg-grilling/` | The shipped Claude Code skill (`SKILL.md` + `references/`). | Markdown |
 | `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. <!-- live:frontend_src_lines -->~4.3k<!-- /live:frontend_src_lines --> lines. | TypeScript / React 18 |
-| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->854<!-- /live:test_backend_cases --> tests — the largest module in a `tests/` tree that also holds the mutation harness and the render tier. | Python |
+| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->878<!-- /live:test_backend_cases --> tests — the largest module in a `tests/` tree that also holds the mutation harness and the render tier. | Python |
+| `tests/fixtures/` | The frozen corpus every check is measured against: real drawings from past sessions, byte-exact. Across 5 projects it currently lints to <!-- live:corpus_census -->artifacts=24 scopes=28 errors=0 warnings=50 notes=43<!-- /live:corpus_census -->. | Excalidraw JSON |
 
 The frontend builds *into* the skill (`vite.config.ts` → `scripts/web/`), so a
 released skill is self-contained.
 
-Three numbers in that table are **live values**, not literals: an
+**`artifacts` and `scopes` are different numbers and the row says both.**
+There are 24 artifacts; 28 is what got LINTED, because the registry is a scope
+with findings of its own and no artifact behind it (r5-1 — `cmd_lint` carries
+the ruling). `scopes - artifacts` is the count of projects that currently have
+a registry finding, so it moves when one is settled while `artifacts` does
+not: delete one project's glossary and it reads 27 with nothing removed.
+
+**Quote the corpus census from that row, never from a measurement you took.**
+Two reviewers reading the same corpus published `0/46/27` and `0/38/20`. The
+warnings half of that gap turned out not to be a difference of convention at
+all: one reader asked for each artifact's type as
+`registry["artifacts"][aid]["type"]`, and the registry has **no `artifacts`
+key** — so the type came back `None` for all 24, silently, switching off every
+type-gated check. Use `Store.artifact_type()`. The notes half *is* structural
+(registry-scope and cross-artifact findings a per-artifact walk cannot reach).
+The calculator's docstring in `tests/livedoc.py` carries the full derivation,
+including the one figure nobody has reproduced.
+
+Four numbers in that table are **live values**, not literals: an
 `<!-- live:NAME -->` / `<!-- /live:NAME -->` comment pair wraps a value that
 `tests/livedoc.py` computes, and `python3 tests/livedoc.py check` runs as a
 pre-commit hook so they cannot go stale. Every one of them had — this table
@@ -203,6 +222,15 @@ manually, `uvx pre-commit run --all-files`. To update pinned tool versions,
 The frontend hooks need `node_modules`; run
 `npm --prefix frontends/wysiwyg-grilling ci` once, or those hooks will fail
 with a clear message rather than silently passing.
+
+That sentence was **not true until 2026-08-18** (v0.9 whole-branch review,
+M-6): a fresh clone got `sh: 1: eslint: not found` and exit 127, which is
+loud but names neither the cause nor the fix. The `frontend-deps` hook now
+runs first on the same file set and prints the `npm ci` line, so the promise
+above is kept by a check rather than by this paragraph. Recorded rather than
+quietly corrected, because "the docs described a behaviour the tool did not
+have" is the class this repo keeps finding and the useful part is the
+pattern.
 
 ## Formatting — no autoformatter
 

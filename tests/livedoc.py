@@ -102,8 +102,10 @@ derivation that has stopped being watched.
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
@@ -330,6 +332,149 @@ def unittest_suite_cases() -> str:
         and render tier included.
     """
     return str(_discovered_case_count("test*.py"))
+
+
+@calculator("corpus_census")
+def corpus_census() -> str:
+    """What the frozen corpus lints to, by a convention that is CODE.
+
+    THE DISAGREEMENT THIS SETTLES (v0.9 whole-branch review, N-3). Two
+    readers measured the same 24 artifacts and published `0/46/27` and
+    `0/38/20`.
+
+    THE FIRST EXPLANATION OF THAT GAP, SHIPPED HERE, WAS WRONG, and it
+    is corrected rather than quietly replaced because the wrong version
+    was the more comfortable one. It said the gap was the registry
+    pseudo-scope — a scope with findings of its own and no artifact
+    behind it, which a per-artifact walk cannot see. That is a real
+    thing, and it is not the cause: measured at `10dc4bf` the registry
+    scope carries **0 warnings**, so it cannot account for a warnings
+    gap at all. "Two legitimate conventions" was a plausible story that
+    nobody had measured, which is the exact failure this whole review
+    round has been about.
+
+    WHAT ACTUALLY PRODUCES THE TWO NUMBERS, re-derived at `10dc4bf`:
+
+      * WARNINGS, 46 vs 38 — not a convention. A per-artifact reader
+        asked for the artifact's type as
+        `registry["artifacts"][aid]["type"]`, and **the registry has no
+        `artifacts` key**: `.get("artifacts", {})` returns `{}` and the
+        type comes back `None` for all 24, silently. That switches off
+        every type-gated check (the wireframe reading-order family), and
+        it is worth exactly the 8 warnings in question. The type lives
+        in `artifact_meta` and is reached by `Store.artifact_type()`,
+        which defaults to `"flow"`. Hand the per-artifact walk the RIGHT
+        type and it reports 46 — and the message SETS are identical, not
+        merely the totals, which is the check that distinguishes "same
+        answer" from "two errors cancelling".
+
+      * NOTES, 27 vs 18 — structural, and genuinely two things a
+        per-artifact call cannot reach: 5 registry-scope notes (settled
+        glossary terms with no concept, view debt) and 4 cross-artifact
+        notes from `cross_lint` (unmapped KPI tiles, a wireframe label
+        colliding with a domain term). Those 9 are the whole gap.
+
+    So there is ONE right answer for warnings and one reader that was
+    misreading a key, and a real structural difference for notes only.
+
+    WHAT I CANNOT REPRODUCE, SAID PLAINLY. The published `0/38/20` has
+    38 warnings, which the mis-keyed reading gives exactly, and **20
+    notes, which no reading I have found produces** — the mis-keyed walk
+    gives 18. I have not identified what makes 20 and I am not going to
+    guess at it: an unexplained two-note discrepancy labelled as
+    unexplained is worth more than a second plausible cause, which is
+    how the first version of this docstring went wrong.
+
+    THE CLI'S READING IS THE ONE PINNED — every line `lint` prints, over
+    each project in turn — because it is what a human reproduces by
+    running the tool, and because the alternative is missing findings
+    rather than counting them differently. Derived through
+    `Store.lint_lines()`, the same call `cmd_lint` prints from, not a
+    re-implementation of it, for the reason `_harness` gives about
+    second copies of a derivation.
+
+    ARTIFACTS AND SCOPES ARE DIFFERENT NUMBERS, and this shipped calling
+    28 of them "artifacts" until the pin-pruning stream caught it before
+    the fold. `Store.lint_lines()` is keyed by SCOPE, and the registry is
+    a scope with findings of its own and no artifact behind it — so the
+    24-artifact corpus answers 28. That is r5-1, and the ruling against
+    it is in `cmd_lint`, in the very function this derives from: "SCOPES,
+    not ARTIFACTS … a project with one artifact printed `ARTIFACTS=2`".
+    Re-committing it here would have been worse than in the CLI, for two
+    reasons that are the whole argument for naming both:
+
+      * TRACKED PROSE IS QUOTED. N-3 exists because two readers already
+        published different counts off this corpus; a marker reading
+        "28 artifacts" hands the next one a fourth number with an
+        authoritative label on it.
+      * SCOPES MOVES FOR REASONS ARTIFACTS DO NOT. `lint_debt` adds the
+        registry key only `if any(reg[k] …)`, so the total is 24 plus
+        however many projects currently HAVE a registry finding —
+        `argus-r4-arm3` has none and contributes no scope. Measured:
+        delete one project's CONTEXT.md glossary and the count goes 28
+        -> 27 with no artifact gone. A live value that moves for a
+        reason unrelated to its own name is worse than a stale one,
+        because `refresh` will dutifully rewrite it and nobody will ask
+        why.
+
+    Both are emitted under the names the repo already owns, and they
+    close arithmetically — `scopes - artifacts` is the number of
+    projects carrying registry findings — which is the same shape as the
+    `SCOPES + QUARANTINED` identity `cmd_lint` documents.
+
+    Returns:
+        `artifacts=A scopes=S errors=E warnings=W notes=N`.
+
+    Raises:
+        AssertionError: If the fixture corpus is absent or holds no
+            project, which would otherwise report a confident zero
+            about a corpus that is not there; or if scopes ever falls
+            BELOW artifacts, which would mean an artifact was linted
+            under no scope and the two readings have stopped being
+            reconcilable.
+    """
+    sys.path.insert(0, str(REPO / "skills" / "wysiwyg-grilling" / "scripts"))
+    import canvas
+    roots = sorted(p for p in (REPO / "tests" / "fixtures").glob("*")
+                   if p.is_dir() and (p / "artifacts").is_dir())
+    if not roots:
+        raise AssertionError(
+            "no fixture project under tests/fixtures holds an artifacts/ "
+            "directory — the corpus has moved and this calculator would "
+            "report 0/0/0 rather than fail")
+    tally = {"errors": 0, "warnings": 0, "notes": 0}
+    arts = scopes = 0
+    tmp = Path(tempfile.mkdtemp(prefix="livedoc-census-"))
+    try:
+        for src in roots:
+            # COPIED, NOT READ IN PLACE. `Store` writes — it repairs on
+            # load and lays down a runtime tree — and a calculator that
+            # mutated the corpus it measures would make `refresh`
+            # non-idempotent, which this module's header forbids.
+            root = tmp / src.name
+            shutil.copytree(src, root / "project_knowledge")
+            store = canvas.Store(canvas.Project(root))
+            lines = store.lint_lines()
+            # ARTIFACTS from the loaded scenes, SCOPES from what was
+            # linted. Two reads because they are two facts; taking the
+            # second and calling it the first is the defect this
+            # docstring records.
+            arts += len(store.scenes)
+            scopes += len(lines)
+            for row in lines.values():
+                for tier in tally:
+                    tally[tier] += len(row.get(tier) or [])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    if scopes < arts:
+        raise AssertionError(
+            "the corpus linted %d scopes over %d artifacts — fewer scopes "
+            "than artifacts means an artifact was linted under no scope, "
+            "and the two readings have stopped being reconcilable"
+            % (scopes, arts))
+    return ("artifacts=%d scopes=%d errors=%d warnings=%d notes=%d"
+            % (arts, scopes, tally["errors"], tally["warnings"],
+               tally["notes"]))
 
 
 def _harness() -> ModuleType:

@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import ast
 import base64
+import colorsys
 import contextlib
 import copy
 import hashlib
@@ -4819,7 +4820,26 @@ class TestArgusR4Arm3Fixture(FixtureReplayBase):
         self.assertTrue(all("reading order" in w or "precedes" in w
                             for w in lint["admin-console"]["warnings"]
                             if w not in furniture["admin-console"]))
-        self.assertEqual(len(lint["dashboard"]["warnings"]), 2)
+        # 2 -> 4 on 2026-08-18 (v0.9 whole-branch review, N-1). Two pin
+        # glyphs on this artifact STRADDLE a panel edge, and the
+        # partial-cover refusal meant a text half on a filled box got no
+        # legibility reading at all. It has one now: the amber
+        # `#b45309` the tool mints its pins in reads 4.33:1 on
+        # `reader-backdrop` and 3.99:1 on `nav`, both under 1.4.3's 4.5.
+        #
+        # THESE ARE TRUE FINDINGS BY THE CHECK'S OWN EXISTING STANDARD,
+        # which is the argument for letting the corpus move rather than
+        # exempting them: the SAME pin, on the SAME panel, WHOLLY
+        # covered, has always produced the same reading and the same
+        # suggested shade through `contrast_text`. The old zero was the
+        # refusal hiding a finding the tool already reports one pixel of
+        # movement away — asserted below rather than described, so a
+        # regression that re-silences the straddle fails here.
+        straddles = [w for w in lint["dashboard"]["warnings"]
+                     if "across TWO grounds" in w]
+        self.assertEqual(len(straddles), 2, straddles)
+        self.assertTrue(all("#b45309" in w for w in straddles), straddles)
+        self.assertEqual(len(lint["dashboard"]["warnings"]), 4)
         for aid, r in lint.items():
             self.assertEqual(r["errors"], [],
                              "unexpected ERROR in %s: %r" % (aid, r["errors"]))
@@ -7595,19 +7615,107 @@ class TestTheGroundIsWhatTheDrawingPutsUnderTheInk(Base):
         self.assertIn("on %s" % canvas.PAPER_GROUND, got[0])
         self.assertIn("darken the ink", got[0])
 
-    def test_a_box_under_only_part_of_the_text_is_refused(self):
-        """Two grounds, no single ratio — so the check declines."""
+    def test_a_box_under_only_part_of_the_text_reports_the_worse_ground(self):
+        """Two grounds, no single ratio — so BOTH, and the worse reading.
+
+        THIS TEST USED TO ASSERT THE OPPOSITE, and the change is the
+        whole of N-1. The blocker round made this case refuse, which was
+        right about the ratio and wrong about the silence: a genuinely
+        unreadable half-covering label got no legibility finding at all,
+        and what the user was left with — the overlap warning below —
+        is a sentence about geometry.
+
+        What survives unchanged is the doctrine the refusal protected:
+        NO SINGLE INVENTED RATIO. The finding names both grounds, gives
+        the worse of two REAL readings, and says in so many words that
+        there is no single reading. Nothing here is computed against a
+        colour the picture does not show.
+        """
         els = self.scene_with("#ffffff", tx=200)
-        self.assertEqual(self.ink_findings(els), [],
-                         "the glyphs stand on paper AND on navy; a ratio "
-                         "against either one is a confident wrong number")
+        got = self.ink_findings(els)
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("across TWO grounds", got[0])
+        self.assertIn("no single reading", got[0])
+        # BOTH grounds named, and both are colours in the picture.
+        self.assertIn("#1b2a4a", got[0])
+        self.assertIn(canvas.PAPER_GROUND, got[0])
+        # The WORSE of the two is the number it leads with: white on
+        # cream paper, not white on navy (which reads 14.22 and passes).
+        worse = canvas.contrast_ratio(
+            canvas.parse_color("#ffffff"),
+            canvas.parse_color(canvas.PAPER_GROUND))
+        self.assertIn("worse of the two is %.2f:1" % worse, got[0])
+        # NO SHADE FIXES THIS ONE, so the repair is the geometry rather
+        # than a colour that would fix half the word and break the rest.
+        self.assertIn("the repair is the geometry", got[0])
+        self.assertNotIn("nearest compliant shade", got[0])
         overlaps = [w for w in canvas.project_lint(
             self.project, els, registry=self.store.registry,
             artifact_type="wireframe", aid="hdr-demo")["warnings"]
             if "lies on top of" in w]
-        self.assertEqual(len(overlaps), 1, "the refusal is only defensible "
-                                           "because the geometry is still "
-                                           "reported: %r" % overlaps)
+        self.assertEqual(len(overlaps), 1, "the geometry is still reported "
+                                           "beside the legibility: %r"
+                                           % overlaps)
+
+    def test_a_straddle_offers_a_shade_when_one_clears_both_grounds(self):
+        """The other repair branch, and the reason it is a search.
+
+        Whether a straddle is fixable by colour is a MEASURED property
+        of the two grounds, not a policy: white ink over a WHITE box and
+        cream paper has plenty of shades clearing 4.5:1 on both, while
+        the navy case above has none. Both branches are pinned so a
+        rewrite cannot collapse them into one answer.
+        """
+        got = self.ink_findings(self.scene_with("#ffffff", fill="#ffffff",
+                                                tx=200))
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("across TWO grounds", got[0])
+        self.assertIn("which clears the floor on both", got[0])
+        shade = got[0].split("recolour it to ")[1][:7]
+        for ground in ("#ffffff", canvas.PAPER_GROUND):
+            self.assertGreaterEqual(
+                canvas.contrast_ratio(canvas.parse_color(shade),
+                                      canvas.parse_color(ground)),
+                canvas.CONTRAST_TEXT,
+                "%s was offered but does not clear the floor on %s"
+                % (shade, ground))
+
+    def test_a_readable_straddle_stays_silent(self):
+        """The direction that stops the arm from reporting every overlap.
+
+        A straddle is not a defect; an ILLEGIBLE straddle is. Dark ink
+        across a pale box and the paper clears the floor on both
+        grounds, and the check must say nothing about it — otherwise
+        the arm is an overlap detector wearing a contrast message.
+        """
+        self.assertEqual(
+            self.ink_findings(self.scene_with("#1e1e1e", fill="#ffffff",
+                                              tx=200)), [])
+
+    def test_a_stack_of_two_fills_still_refuses(self):
+        """The boundary the arm draws, and why it is where it is.
+
+        With ONE cover the two grounds are certain — the box where it
+        covers, the paper where it does not. Add a second fill and a
+        lower one may be hidden entirely beneath a higher one, so
+        naming its colour would name a ground the picture does not
+        show. The arm refuses rather than guess, which is a deliberate
+        UNDER-report: it can miss a straddle it cannot prove and it can
+        never invent one.
+        """
+        els = self.scene_with("#ffffff", tx=200)
+        els = [dict(e) for e in els]
+        ix = {e["id"]: i for i, e in enumerate(els)}
+        second = dict(els[ix["navy"]])
+        second["id"] = "navy2"
+        second["x"] = 260
+        els.insert(ix["hdr"], second)
+        self.assertEqual(
+            [w for w in canvas.lint_layout(els, artifact_type="wireframe",
+                                           aid="hdr-demo")["warnings"]
+             if "1.4.3 asks" in w], [],
+            "two fills under one text: the arm cannot prove which "
+            "colours the glyphs stand on, so it must not name any")
 
     def test_the_lint_measures_against_the_canvas_the_user_looks_at(self):
         """`PAPER_GROUND`, not `SVG_GROUND` — the second cluster item.
@@ -7724,6 +7832,274 @@ class TestTheRepairNamesTheDirectionItMoved(unittest.TestCase):
         self.assertEqual(len(got), 1, got)
         self.assertNotIn("shade of the same hue", got[0])
         self.assertIn("raise its opacity or darken the ink", got[0])
+
+
+class TestASuggestedShadeClearsTheFloorAtThePrecisionItIsPrinted(
+        unittest.TestCase):
+    """The colour a finding names must pass the check it cites.
+
+    THE DEFECT (v0.9 minors review, IM-1). N-1's straddle arm needed the
+    "compliant on every ground" question and got a SECOND search written
+    beside `nearest_compliant` rather than a generalisation of it. The
+    second one scanned in floats and verified the float, while the
+    message printed `hexof(...)` — 8 bits. So the shade the sentence
+    named was not the shade the search had checked, and it could round
+    back under the floor it claimed to clear: 102 of 765 constructed
+    straddles printed a failing suggestion, the worst at 4.4885 against
+    a floor of 4.5.
+
+    This is the confident-wrong-advice family C-1 was filed for, one
+    rounding step down, and it is also this branch's own recurring
+    shape: one rule, two sites, only one carrying the fix. The repair
+    was the factoring — there is now one walk and one quantization —
+    so the pins below are written against the PROPERTY rather than
+    against the straddle arm, and any future third caller inherits them.
+    """
+
+    PAPER = None
+
+    def setUp(self):
+        self.PAPER = canvas.parse_color(canvas.PAPER_GROUND)
+
+    def _shade(self, msg):
+        """The hex a finding suggests, as a triple.
+
+        Args:
+            msg: One warning line.
+
+        Returns:
+            The parsed (r, g, b), or None when it names no shade.
+        """
+        m = re.search(r"(?:shade of the same hue: |recolour it to )"
+                      r"(#[0-9a-f]{6})", msg)
+        return canvas.parse_color(m.group(1)) if m else None
+
+    def test_the_searcher_returns_a_shade_that_is_already_8_bit(self):
+        """The property, stated where it is now enforced.
+
+        Asserted on the returned triple rather than through a message,
+        because that is the seam the two callers share: a float here is
+        the defect regardless of which sentence prints it.
+        """
+        got = canvas.nearest_compliant_all(
+            canvas.parse_color("#d0d0d0"),
+            [canvas.parse_color("#f2f2f2"), self.PAPER],
+            canvas.CONTRAST_TEXT, 100)
+        self.assertIsNotNone(got)
+        for channel in got:
+            self.assertIsInstance(channel, int, got)
+        # and it clears the floor on BOTH, as the 8-bit colour it is
+        for bg in (canvas.parse_color("#f2f2f2"), self.PAPER):
+            self.assertGreaterEqual(
+                canvas.contrast_ratio(canvas.composite_over(got, bg, 100), bg),
+                canvas.CONTRAST_TEXT)
+
+    def test_the_straddle_case_that_used_to_print_a_failing_shade(self):
+        """The reproduction, through `lint_layout` and not the helper.
+
+        `#d0d0d0` ink across an `#f2f2f2` box and the paper suggested
+        `#6f6f6f`, which reads 4.4885 on the box. The number is pinned
+        rather than described so that a regression is visible as a
+        number and not as a re-worded sentence.
+        """
+        els = [{"id": "bx", "type": "rectangle", "x": 100, "y": 100,
+                "width": 200, "height": 60, "backgroundColor": "#f2f2f2",
+                "strokeColor": "#1e1e1e", "opacity": 100,
+                "customData": {"role": "node"}},
+               {"id": "t1", "type": "text", "x": 200, "y": 115,
+                "width": 200, "height": 25, "text": "Dashboard",
+                "fontSize": 20, "strokeColor": "#d0d0d0",
+                "backgroundColor": "transparent", "opacity": 100}]
+        got = [w for w in canvas.lint_layout(els, aid="d")["warnings"]
+               if "TWO grounds" in w]
+        self.assertEqual(len(got), 1, got)
+        shade = self._shade(got[0])
+        self.assertIsNotNone(shade, got[0])
+        # the OLD answer, kept as the thing that must not come back
+        self.assertLess(
+            canvas.contrast_ratio(
+                canvas.composite_over(canvas.parse_color("#6f6f6f"),
+                                      canvas.parse_color("#f2f2f2"), 100),
+                canvas.parse_color("#f2f2f2")),
+            canvas.CONTRAST_TEXT,
+            "#6f6f6f is the shade that used to be printed here; if it "
+            "now passes, this test has stopped measuring the defect")
+        for bg in (canvas.parse_color("#f2f2f2"), self.PAPER):
+            self.assertGreaterEqual(
+                canvas.contrast_ratio(
+                    canvas.composite_over(shade, bg, 100), bg),
+                canvas.CONTRAST_TEXT,
+                "the printed shade fails the floor it claims: %r" % got[0])
+
+    def test_no_arm_prints_a_shade_that_misses_its_floor(self):
+        """All three suggestion sites, swept — the sibling check IM-1 asked for.
+
+        `nearest_compliant`'s quantization was already right, so the two
+        older arms were correct; sweeping them anyway is what turns
+        "I read the code" into "I measured it", and it is what would
+        catch a fourth arm added without the property.
+        """
+        checked = 0
+        for ink in ("#ffffff", "#d0d0d0", "#c0c0c0", "#7a5230", "#c0d8e8"):
+            for fill in ("#f2f2f2", "#efefef", "#dadada", "#a5a5a5",
+                         "transparent"):
+                for opac in (100, 85):
+                    box = canvas.parse_color(fill)
+                    ground = box if box is not None else self.PAPER
+                    node = {"id": "bx", "type": "rectangle", "x": 100,
+                            "y": 100, "width": 300, "height": 80,
+                            "backgroundColor": fill,
+                            "strokeColor": "#1e1e1e", "opacity": 100,
+                            "customData": {"role": "node"}}
+                    text = {"id": "t1", "type": "text", "y": 120,
+                            "width": 200, "height": 25, "text": "Dashboard",
+                            "fontSize": 20, "strokeColor": ink,
+                            "backgroundColor": "transparent",
+                            "opacity": opac}
+                    cases = (
+                        ([node, dict(text, x=120)], [ground]),
+                        ([node, dict(text, x=350)],
+                         [g for g in (box, self.PAPER) if g is not None]),
+                        ([{"id": "s1", "type": "rectangle", "x": 100,
+                           "y": 100, "width": 120, "height": 60,
+                           "backgroundColor": "transparent",
+                           "strokeColor": ink, "opacity": opac,
+                           "customData": {"role": "node"}}], [self.PAPER]),
+                    )
+                    for els, grounds in cases:
+                        for w in canvas.lint_layout(els, aid="d")["warnings"]:
+                            floor = (canvas.CONTRAST_OBJECT
+                                     if "1.4.11" in w else
+                                     canvas.CONTRAST_TEXT)
+                            shade = self._shade(w)
+                            if shade is None:
+                                continue
+                            checked += 1
+                            for bg in grounds:
+                                self.assertGreaterEqual(
+                                    canvas.contrast_ratio(
+                                        canvas.composite_over(shade, bg,
+                                                              opac), bg),
+                                    floor,
+                                    "printed shade misses its floor: %r" % w)
+        self.assertGreater(checked, 100,
+                           "the sweep found almost no suggestions to check, "
+                           "so its silence means nothing (%d)" % checked)
+
+
+class TestTheToolsOwnFurniturePassesItsOwnCheck(Base):
+    """The ❓ amber cleared the floor this file enforces on everyone else.
+
+    THE DEFECT (v0.9 minors round, third item). `#b45309` reads 4.33:1
+    on `reader-backdrop` and 3.99:1 on `nav` — two panel colours the
+    skill's own wireframes use — against the 4.5:1 its 1.4.3 check asks
+    of everybody. So the tool shipped furniture that its own lint
+    reports, which is the report-don't-guess doctrine failing in the
+    cheapest place there is to keep it: a constant.
+
+    The repair is the CHECK'S OWN ANSWER and not a designer's eye —
+    `nearest_compliant_all` over all five grounds at once — which is why
+    it is a palette change and not a geometry one, and why hue and
+    saturation come through held.
+
+    THE FROZEN CORPUS IS NOT MIGRATED and the two findings on
+    `argus-r4-arm3/dashboard` stand. Those 41 elements across 21
+    artifacts were drawn before this ruling; rewriting them would be the
+    tool editing drawings nobody asked it to edit, which is this
+    review's own headline defect. A lint reporting an old drawing's real
+    legibility problem is the lint working.
+    """
+
+    #: Every ground this file actually draws a pin on.
+    GROUNDS = ("#faf8f2", "#fdfcf8", "#f0eeea", "#e9e5da", "#ffffff")
+
+    def test_the_pin_ink_clears_the_text_floor_on_every_ground(self):
+        """The property, on all five, as the colour that is stored."""
+        ink = canvas.parse_color(canvas.PIN_INK)
+        for ground in self.GROUNDS:
+            self.assertGreaterEqual(
+                canvas.contrast_ratio(ink, canvas.parse_color(ground)),
+                canvas.CONTRAST_TEXT,
+                "%s fails 1.4.3 on %s, and this file enforces that floor "
+                "on the user" % (canvas.PIN_INK, ground))
+
+    def test_the_old_amber_is_the_thing_that_must_not_come_back(self):
+        """The firing direction: without it the test above proves nothing.
+
+        A pin colour that happened to pass would satisfy the assertion
+        above whether or not anyone had ever looked. This names the two
+        grounds the old one failed, with the readings, so a revert is
+        visible as the defect rather than as a diff.
+        """
+        old = canvas.parse_color("#b45309")
+        failures = {g: canvas.contrast_ratio(old, canvas.parse_color(g))
+                    for g in self.GROUNDS
+                    if canvas.contrast_ratio(old, canvas.parse_color(g))
+                    < canvas.CONTRAST_TEXT}
+        self.assertEqual(sorted(failures), ["#e9e5da", "#f0eeea"], failures)
+        self.assertAlmostEqual(failures["#f0eeea"], 4.33, delta=0.01)
+        self.assertAlmostEqual(failures["#e9e5da"], 3.99, delta=0.01)
+
+    def test_the_repair_holds_the_hue_so_the_marker_stays_the_marker(self):
+        """Recognisably the same amber, or the fix costs the language."""
+        old = colorsys.rgb_to_hls(
+            *(c / 255.0 for c in canvas.parse_color("#b45309")))
+        new = colorsys.rgb_to_hls(
+            *(c / 255.0 for c in canvas.parse_color(canvas.PIN_INK)))
+        self.assertAlmostEqual(old[0], new[0], places=3)   # hue
+        self.assertAlmostEqual(old[2], new[2], places=2)   # saturation
+        self.assertLess(new[1], old[1], "the repair darkens")
+
+    def test_a_pin_minted_today_is_silent_on_the_panel_it_used_to_fail(self):
+        """Through the real op funnel, on the ground that used to fire.
+
+        Both placements, because they are the two arms N-1 split: wholly
+        on the panel goes through `contrast_text` and straddling its edge
+        through `contrast_straddle`, and the old amber tripped both.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "d",
+            "create": {"id": "d", "name": "D", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "panel", "x": 100, "y": 100,
+                "width": 300, "height": 100, "backgroundColor": "#e9e5da",
+                "strokeColor": "#1e1e1e", "role": "node"}},
+                {"op": "pin", "target": "panel",
+                 "question": "whose word is this?"}]})
+        els = self.store.scenes["d"]
+        pin = next(e for e in els
+                   if (e.get("customData") or {}).get("role") == "pin")
+        self.assertEqual(pin["strokeColor"], canvas.PIN_INK)
+        for x in (150, 390):
+            pin["x"], pin["y"] = x, 130
+            self.assertEqual(
+                [w for w in canvas.lint_layout(
+                    els, artifact_type="wireframe", aid="d")["warnings"]
+                 if "1.4.3 asks" in w], [],
+                "a pin minted today still fails the tool's own floor at x=%d"
+                % x)
+            # ...and the OLD colour on the same scene does fire, so the
+            # silence above is the colour and not the placement.
+            pin["strokeColor"] = "#b45309"
+            self.assertTrue(
+                [w for w in canvas.lint_layout(
+                    els, artifact_type="wireframe", aid="d")["warnings"]
+                 if "1.4.3 asks" in w],
+                "the old amber went quiet at x=%d, so this scene no longer "
+                "measures the defect" % x)
+            pin["strokeColor"] = canvas.PIN_INK
+
+    def test_no_amber_literal_survives_outside_the_constant(self):
+        """One name, for the reason `FURNITURE_INK` gives beside it.
+
+        It was four literals and moving it meant grep. The docstring
+        recording the old value is allowed; a live one is not.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        live = [ln for ln in src.splitlines()
+                if "#b45309" in ln and not ln.lstrip().startswith("#")]
+        self.assertEqual(live, [],
+                         "the pin amber is spelled outside PIN_INK: %r" % live)
 
 
 class TestEveryWaiveSuggestionCanBeApplied(Base):
@@ -7928,8 +8304,8 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         self.assertTrue(spellings[-1].strip().startswith('return "waive {'),
                         spellings)
         self.assertEqual(
-            src.count("waive_hint("), 15,
-            "the waive call sites moved — 14 findings plus the "
+            src.count("waive_hint("), 17,
+            "the waive call sites moved — 16 findings plus the "
             "definition. Re-derive this count; do not relax it")
 
 
@@ -15267,8 +15643,36 @@ class TestTheRerouteOfferWithdrawsItself(unittest.TestCase):
         # has crooked arrivals this cannot reach
         self.assertEqual(canvas.oblique_arrivals(
             self.store.scenes["edgar-late"]), [])
-        self.assertIn("nothing on edgar-late arrives crooked",
-                      self.store.reroute("edgar-late")["summary"]["headline"])
+        head = self.store.reroute("edgar-late")["summary"]["headline"]
+        self.assertIn("already arrive square", head)
+        # v0.9 whole-branch review M-5: and it names the DENOMINATOR. The
+        # sentence used to be "nothing on X arrives crooked", byte-equal
+        # for a drawing whose arrivals were all checked and square and
+        # for one with no arrivals at all — a bare zero over an unnamed
+        # population, on the surface where the user is most likely to
+        # conclude the tool looked at something.
+        _crooked, examined = canvas.arrival_census(
+            self.store.scenes["edgar-late"])
+        self.assertGreater(examined, 0, "this fixture is the square case, "
+                                        "not the empty one")
+        self.assertIn("all %d bound endpoint(s)" % examined, head)
+
+    def test_an_artifact_with_no_arrivals_says_so_instead(self):
+        """The other side of M-5, and the reason the split is not cosmetic.
+
+        Zero-crooked-because-square and zero-crooked-because-empty are
+        different facts about a drawing, and only one of them is
+        reassuring. They shared a sentence; they now cannot, and the
+        counts behind both come from the walk that found the zero rather
+        than from a second census that could disagree with it.
+        """
+        bare = [{"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 100, "height": 60,
+                 "customData": {"role": "node"}}]
+        self.assertEqual(canvas.arrival_census(bare), ([], 0))
+        said = canvas.reroute_decline(bare, "bare")
+        self.assertIn("no bound arrow endpoints to measure", said)
+        self.assertNotIn("already arrive square", said)
 
     def test_the_refusal_names_the_endpoints_it_is_refusing_about(self):
         """The refusal arm keeps its claim AND now shows its working.
@@ -21559,6 +21963,344 @@ class TestShapeAwareLabelRoom(Base):
         # the same label on a diamond IS this check's business
         els[0]["type"] = "diamond"
         self.assertEqual(len(self._overhangs(els)), 1)
+
+    def _adrift(self, els):
+        """The scene's off-its-owner label warnings.
+
+        Args:
+            els: The scene's element list.
+
+        Returns:
+            The matching warning lines.
+        """
+        lint = canvas.lint_layout(els, artifact_type="flow")
+        return [w for w in lint["warnings"] if "clear of" in w]
+
+    def test_a_label_dragged_off_its_owner_is_reported(self):
+        """v0.9 whole-branch review M-3: the check reads WHERE the ink is.
+
+        THE DEFECT. `over = drawn_w - room` compares two WIDTHS, which
+        is only the right question if the label and its owner share a
+        centre — and nothing enforces that at read time. `render_svg`
+        paints a bound text at its own stored `x` with no re-centring,
+        and `recenter_label` is an opt-in step on the MUTATION paths,
+        so a label the user dragged in the browser and saved stays
+        where they put it. Measured at `10dc4bf`: a label bound to a
+        diamond and parked clear of it drew ZERO findings.
+        """
+        els = self._bound("diamond", 200, 100, "HI")
+        self.assertEqual(self._overhangs(els) + self._adrift(els), [],
+                         "a centred label that fits must stay silent")
+        # ...and the same label dragged 400px away is not silent.
+        els[1]["x"] = 400
+        got = self._adrift(els)
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("none of the text lands on it", got[0])
+        # The REMEDY is placement, not sizing: "shorten it" cannot help
+        # a label 400px clear of a 200px node, so the two readings must
+        # not share a sentence.
+        self.assertEqual(self._overhangs(els), [],
+                         "a displaced label is not an oversized one")
+
+    def test_an_off_centre_label_is_measured_from_where_it_sits(self):
+        """The position-blindness itself, as a number rather than a case.
+
+        The old check reported the IDENTICAL overhang for a label
+        centred and for the same label slid sideways, because `x` was
+        never read. Two slides of different sizes must now give two
+        different answers, and the centred one must be the smallest.
+        """
+        base = self._bound("diamond", 200, 100, "HI")
+
+        def over_px(dx):
+            """The reported px for this label slid `dx` to the right.
+
+            Args:
+                dx: Horizontal offset applied to the label.
+
+            Returns:
+                The number in whichever of the two sentences fired, or
+                0 when the check is silent.
+            """
+            els = [dict(e) for e in base]
+            els[1] = dict(els[1])
+            els[1]["x"] = els[1]["x"] + dx
+            got = self._overhangs(els) + self._adrift(els)
+            if not got:
+                return 0
+            return int(re.search(r"(\d+)px", got[0]).group(1))
+
+        # The band this label sits in is 160px of body, so a short label
+        # has real room to move before it reaches the outline. The
+        # slides are chosen to straddle it rather than assumed to.
+        self.assertEqual(over_px(0), 0, "centred and fitting")
+        near, far = over_px(85), over_px(95)
+        self.assertGreater(near, 0, "slid past the outline, so it overhangs")
+        self.assertGreater(far, near,
+                           "sliding further must read as worse; equal "
+                           "numbers are the position-blindness itself")
+
+    def test_a_centred_label_reduces_to_the_old_arithmetic(self):
+        """The property that keeps the fixture corpus still.
+
+        The interval comparison must agree with `drawn_w - room` exactly
+        when the label is centred, which is every label the tool itself
+        mints. Asserted as an identity rather than trusted, because it
+        is the whole reason this fix moved no corpus number.
+        """
+        text = "Unsplittable" * 2
+        els = self._bound("diamond", 200, 100, text)
+        node, lbl = els
+        drawn_w = max(canvas.text_dims(text, 16)[0], lbl["width"])
+        drawn_h = max(canvas.text_dims(text, 16)[1], lbl["height"])
+        cy = lbl["y"] + max(lbl["height"], drawn_h) / 2.0
+        room = canvas.shape_band_width(node, cy - drawn_h / 2.0,
+                                       cy + drawn_h / 2.0)
+        span = canvas.shape_band_span(node, cy - drawn_h / 2.0,
+                                      cy + drawn_h / 2.0)
+        self.assertIsNotNone(span)
+        self.assertAlmostEqual(span[1] - span[0], room, places=9)
+        ink_cx = lbl["x"] + max(lbl["width"], drawn_w) / 2.0
+        interval_over = (max(span[0] - (ink_cx - drawn_w / 2.0), 0.0)
+                         + max((ink_cx + drawn_w / 2.0) - span[1], 0.0))
+        self.assertAlmostEqual(interval_over, drawn_w - room, places=9)
+
+
+class TestAPinReadsAsBelongingToWhateverItSitsBeside(Base):
+    """v0.9 whole-branch review M-4: the ❓ that drifted off its subject.
+
+    `pin_spot` already owns the rule — "hugging the target, never in a
+    neighbour" — and enforces it when the glyph is PLACED. Nothing
+    re-asks it afterwards, so a pin placed correctly and then left
+    behind by a node that moved goes on pointing at whatever it now sits
+    beside, and no check objected. Re-derived on the frozen corpus: the
+    review's own headline instance reproduces at 8.0px measured glyph
+    box to node box, which is what pins the metric down.
+
+    THE CHECK REPORTS THE DIVERGENCE, NOT A REMEDY, and that is the part
+    worth defending: the pin may be in the wrong place, or it may have
+    been asking about the other node all along and the `target` is what
+    is wrong. Both are one edit away and the check cannot tell them
+    apart, so it names both distances and lets the reader decide.
+    """
+
+    def _scene(self, pin_x, status="open"):
+        """Two nodes and a pin targeting the left one.
+
+        Args:
+            pin_x: Where the ❓ glyph sits.
+            status: The pin's `customData.status`.
+
+        Returns:
+            The three-element scene.
+        """
+        return [
+            {"id": "left", "type": "rectangle", "x": 0, "y": 0,
+             "width": 100, "height": 60, "customData": {"role": "node"}},
+            {"id": "right", "type": "rectangle", "x": 400, "y": 0,
+             "width": 100, "height": 60, "customData": {"role": "node"}},
+            {"id": "pin-q", "type": "text", "x": pin_x, "y": 20,
+             "width": 26, "height": 26, "text": "❓", "fontSize": 20,
+             "customData": {"role": "pin", "target": "left",
+                            "status": status, "question": "which one?"}},
+        ]
+
+    def _drift(self, els):
+        """The scene's pin-drift warnings.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            The matching warning lines.
+        """
+        return [w for w in canvas.lint_layout(els, aid="d")["warnings"]
+                if "asks about" in w and "reads as" in w]
+
+    def test_a_pin_nearer_a_rival_than_its_target_is_reported(self):
+        """The firing pole, and both distances in the sentence."""
+        got = self._drift(self._scene(360))
+        self.assertEqual(len(got), 1, got)
+        self.assertIn("asks about left", got[0])
+        self.assertIn("from right", got[0])
+        # BOTH numbers, because the reader judges the strength of the
+        # reading and the check does not do it for them.
+        self.assertRegex(got[0], r"drawn \d+px from it and only \d+px from")
+        # and it names neither repair as the right one
+        self.assertIn("a judgement this check cannot make", got[0])
+
+    def test_a_pin_hugging_its_own_target_stays_silent(self):
+        """The direction that stops this becoming a proximity detector."""
+        self.assertEqual(self._drift(self._scene(104)), [])
+
+    def test_a_difference_inside_the_hug_standoff_stays_silent(self):
+        """The margin is DERIVED, so the marginal case has a reason.
+
+        `PIN_HUG_PX` is the distance `pin_spot` itself places at, so a
+        rival nearer by less than that sits inside the tool's own
+        placement tolerance — "nearer" there is arithmetic rather than
+        something a reader would see. Four corpus pins are in exactly
+        that band and this is what keeps them quiet without a magic
+        number, so the constant is asserted rather than assumed.
+        """
+        self.assertEqual(canvas.PIN_HUG_PX, 8)
+        els = self._scene(0)
+        # slide the RIVAL until it is nearer than the target by less
+        # than the standoff, with the pin between the two
+        els[2]["x"], els[2]["y"] = 150, 20
+        els[1]["x"] = 150 + 26 + int(canvas._rect_gap(els[2], els[0])) - 4
+        gap_own = canvas._rect_gap(els[2], els[0])
+        gap_rival = canvas._rect_gap(els[2], els[1])
+        self.assertLess(gap_rival, gap_own, "the rival must be nearer")
+        self.assertLess(gap_own - gap_rival, canvas.PIN_HUG_PX)
+        self.assertEqual(self._drift(els), [])
+
+    def test_a_container_of_the_target_is_not_a_rival(self):
+        """A screen is not a neighbour — `pin_spot`'s own frame rule.
+
+        A pin hugging a button inside a panel is nearer the panel than
+        the button by construction, so without this the check would fire
+        on every correctly-placed pin on every wireframe.
+        """
+        els = self._scene(104)
+        els.append({"id": "panel", "type": "rectangle", "x": -20, "y": -20,
+                    "width": 200, "height": 120,
+                    "customData": {"role": "node"}})
+        self.assertTrue(canvas._rect_contains(els[-1], els[0]))
+        self.assertEqual(self._drift(els), [])
+
+    def test_a_closed_pin_is_not_this_checks_business(self):
+        """The boundary with the pin-pruning defect, drawn deliberately.
+
+        THE REASON IS THE QUESTION'S STATUS, NOT THE GLYPH'S ABSENCE.
+        An earlier draft of this docstring said a resolved pin's ❓
+        "should not be on the canvas at all" and rested the silence on
+        that — which is false, and worth recording rather than quietly
+        replacing. The pin-pruning fix REPORTS a closed pin whose glyph
+        is still live; it does not delete it, because deleting it would
+        be the tool editing the drawing in a revision nobody asked for,
+        which is this review's own headline defect one layer out. So a
+        closed ❓ genuinely stays on the canvas and a reader genuinely
+        sees it.
+
+        The silence holds anyway, for the reason that survives: where a
+        question the project has already CLOSED happens to sit is not a
+        fact worth moving anything over. Its repair is a `del`, which
+        the pruning check asks for; moving it would be answering the
+        wrong question about it.
+
+        AND THE STATUS COMES FROM THE REGISTRY. This test used to pass a
+        `customData["status"]` of "resolved" and watch the check go
+        quiet, which was the wrong store: on the frozen corpus the two
+        copies differ on 9 of 41 pins and the VERDICT flips on 8 of them
+        (element "open", registry "resolved"). The ninth differs only as
+        a string — `pin-cutoff`, element "resolved" against registry
+        "pruned" — and both readings agree it is closed, so 9 rows carry
+        8 decisions and 8 is the number that moved this check. Counts
+        are not sets; the sibling stream caught me quoting the row count
+        for the decision count, which is the same error IMP-1 and I-4
+        were filed for.
+
+        `answer_pin` writes both copies and nothing else does, which is
+        why they drift. A check about a pin and its fact having diverged
+        cannot read the diverged copy — it fired on `pin-book-fails`, a
+        question the project had already answered, at the same time as
+        the pruning note told an agent to delete that very glyph
+        (v0.9 MIN-2).
+        """
+        # the element still says "open" — as 9 corpus pins do — and the
+        # registry is what decides
+        els = self._scene(360, status="open")
+        self.assertEqual(len(self._drift(els)), 1,
+                         "premise: this placement is a finding when the "
+                         "question is live")
+        self.assertEqual(
+            [w for w in canvas.lint_layout(
+                els, aid="d", closed_pins=frozenset({"pin-q"}))["warnings"]
+             if "asks about" in w and "reads as" in w], [])
+
+    def test_the_two_pin_checks_are_exact_complements(self):
+        """Disjoint by construction, not by two literals agreeing.
+
+        The pruning finding fires ON `CLOSED_PIN_STATUSES` and this one
+        is silent on it, so no pin can draw both "delete this glyph" and
+        "move it closer". Asserted against the constant rather than
+        against a copy of its contents, because a second spelling is
+        exactly how the two would drift back apart.
+        """
+        self.assertEqual(canvas.CLOSED_PIN_STATUSES,
+                         ("pruned", "resolved", "dismissed"))
+        self.assertNotIn("open", canvas.CLOSED_PIN_STATUSES)
+        self.assertNotIn("answered", canvas.CLOSED_PIN_STATUSES,
+                         "an answered pin still carries its answer on the "
+                         "canvas; it is not a closed question")
+
+    def test_the_closed_status_set_is_defined_exactly_once(self):
+        """A fold hazard, made loud instead of silent.
+
+        The pin-pruning stream hoisted this same constant, same name and
+        same value, at a different place in this same file. Two
+        definitions of one name is the dangerous shape rather than the
+        merely untidy one: git merges both without a conflict, Python
+        keeps whichever is last, and NOTHING FAILS — so the duplicate
+        would survive precisely because it is invisible. The whole point
+        of the constant is that the two checks are complements of ONE
+        spelling; two spellings that happen to be equal today is the
+        thing it exists to prevent, one level up.
+
+        IT MATCHES BY NAME AND NEVER BY POSITION, which started as luck
+        and is now deliberate. Two streams are extending this file from
+        opposite ends, so every line number either of them writes for
+        this constant is drifting by construction — its own moved seven
+        lines when the comment above it grew, and it moves again the
+        moment the other stream's block lands. A guard keyed to a line
+        or to a neighbouring symbol would go quietly vacuous under
+        exactly the edits it exists to survive. Anything that has to
+        identify this definition in prose should name its NEIGHBOUR
+        (`PIN_INK`, immediately above) rather than its line.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        defs = [ln for ln in src.splitlines()
+                if ln.startswith("CLOSED_PIN_STATUSES")]
+        self.assertEqual(
+            len(defs), 1,
+            "CLOSED_PIN_STATUSES is defined %d times — the fold merged two "
+            "copies and Python silently kept the last: %r" % (len(defs), defs))
+
+    def test_project_lint_reads_the_status_from_the_registry(self):
+        """The threading, end to end, through the funnel that has both.
+
+        `lint_layout` cannot see the registry, so a pin's liveness has
+        to arrive the way `waives` does. Driven through `project_lint`
+        rather than by passing `closed_pins` by hand, because the defect
+        MIN-2 caught was in the wiring and not in the predicate.
+        """
+        els = self._scene(360, status="open")
+        self.store.registry["pins"] = [
+            {"id": "pin-q", "artifact": "d", "element": "left",
+             "question": "which one?", "status": "open"}]
+        got = canvas.project_lint(self.project, els,
+                                  registry=self.store.registry, aid="d")
+        self.assertTrue([w for w in got["warnings"]
+                         if "asks about" in w and "reads as" in w])
+        self.store.registry["pins"][0]["status"] = "resolved"
+        got = canvas.project_lint(self.project, els,
+                                  registry=self.store.registry, aid="d")
+        self.assertEqual([w for w in got["warnings"]
+                          if "asks about" in w and "reads as" in w], [],
+                         "the registry closed the question and the check "
+                         "is still talking about where its glyph sits")
+
+    def test_the_waive_key_round_trips(self):
+        """A finding an agent cannot silence is a finding it will ignore."""
+        got = self._drift(self._scene(360))
+        self.assertIn("waive {op: registry, action: waive", got[0])
+        key = got[0].split("key: '")[1].split("'")[0]
+        self.assertEqual(
+            [w for w in canvas.lint_layout(
+                self._scene(360), aid="d",
+                waives={key: {"reason": "asked on purpose"}})["warnings"]
+             if "asks about" in w and "reads as" in w], [])
 
 
 class TestDeletionConsequenceSurface(Base):
