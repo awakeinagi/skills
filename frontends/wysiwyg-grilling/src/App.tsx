@@ -1578,22 +1578,27 @@ export default function App() {
     // NOT through `restoreForRender`, unlike `patchElement` and
     // `flipControl`. Those two change geometry or add elements, so they
     // need the re-measure; this flips one boolean on elements the canvas
-    // already restored.
+    // has already restored. That principle is the whole reason, and it
+    // needs no measurement.
     //
-    // A/B, both builds run through Pin ALL → Save on the rich fixture and
-    // diffed on what reached DISK: routing the flip through restore
-    // rewrote the x and width of **27 bound labels** and nothing else
-    // (`btn-rerun-all-label` 912→904, w 214→230; `cb-macro-label` w
-    // 100→106; …). Pinning is a promise not to move things, so a pin that
-    // re-measures every label in the artifact and saves the new numbers
-    // is the one thing it must not do.
+    // It is stated that flatly because TWO measured justifications for
+    // this line have now been withdrawn, both by the same method error —
+    // reading a number without the baseline that gives it meaning:
     //
-    // What this does NOT do — corrected 2026-08-18 after review built the
-    // counterfactual — is change the narration. Both variants narrate
-    // identically (`resized cb-market-chk (+6 more) — 7× resized, 3×
-    // moved`). That drift is the r5b-2 class, server-side, and is owned
-    // by curator batch 35's reds; an earlier version of this comment
-    // claimed the credit for it and was wrong.
+    //   1. "it removes a phantom reorder narration" — false. Both
+    //      variants narrate identically. (No counterfactual was built;
+    //      an observed string was attributed to the nearest edit.)
+    //   2. "restore rewrites 27 bound labels and this does not" — also
+    //      false, and backwards. Measured AUTHORED-vs-first-pin-save,
+    //      both builds touch the identical 63 rows on the identical 37
+    //      ids, with zero ids unique to either. Of the 46 rows where the
+    //      two differ, restore lands CLOSER to the authored value in 46
+    //      and this build in 0. (An A/B with no baseline: `A vs B` was
+    //      measured, `authored vs A` never was.)
+    //
+    // What that A/B actually shows: the bound-label re-measure is not
+    // `setPinned`'s doing in EITHER variant. It is load-restore drift,
+    // owned elsewhere, and nothing here fixes or worsens it.
     api.updateScene({ elements: els });
     const what = n === 1 ? "this element" : `${n} elements`;
     toast(pinned
