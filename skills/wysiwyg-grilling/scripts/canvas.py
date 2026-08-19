@@ -20988,6 +20988,20 @@ class Store:
         # denominator of the sentence this returns (C-3). Read
         # before any routing for the same reason `routed` is:
         # routing changes neither bindings nor ownership.
+        #
+        # THE `id: null` DIVERGENCE THIS COMMENT CARRIED IS RETIRED HERE,
+        # and it is recorded rather than dropped because it was the
+        # load-bearing claim of the C-3 repair's review (MI-1). On the
+        # unfolded branch this loop resolved its bindings through
+        # `server_routed_connectors`' own index, which drops elements
+        # whose `id` is None, so on a scene holding one an arrow bound
+        # to NOTHING stopped being routed against that anonymous
+        # element — three of seven adversarial scenes diverged, all of
+        # them holding an `id: null`. This fold keeps the tip's
+        # `index.get` lookup below, so both sides resolve identically
+        # again and the divergence is gone rather than merely
+        # unreachable. Verified over 40 scenes: ink, settle and
+        # `reroute_is_fossil` byte-identical to the tip.
         connectors = set(server_routed_connectors(els))
         for e in els:
             if e.get("id") not in routed:
