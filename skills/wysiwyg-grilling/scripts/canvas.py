@@ -1402,6 +1402,18 @@ NUNITO_ADVANCE = {
     "n": 0.57, "o": 0.56, "p": 0.59, "q": 0.59, "r": 0.36, "s": 0.48,
     "t": 0.36, "u": 0.56, "v": 0.52, "w": 0.84, "x": 0.53, "y": 0.52,
     "z": 0.47, "{": 0.36, "|": 0.27, "}": 0.36, "~": 0.6,
+    # U+2753 BLACK QUESTION MARK ORNAMENT — the ❓ pin glyph, and the one
+    # entry here that is not Latin. Measured by the same method as the
+    # rest (headless Chromium measureText at 100px against the vendored
+    # face, 2dp): 0.5890 em, i.e. 11.78px at the pins' fontSize 20. It
+    # needs an entry precisely BECAUSE it is not Latin: without one it
+    # falls to the `east_asian_width` arm below, which calls it 1.2 em
+    # and overstates the box by 117%. This font stack has no colour-emoji
+    # face, so U+2753 renders as a plain amber `?` — narrower than a `W`,
+    # not wider. A machine whose fallback DOES supply a colour emoji
+    # would measure roughly 1.2 em, which is the caveat this number
+    # carries and the reason the client re-measures on load.
+    "❓": 0.59,
 }
 _ADVANCE_FALLBACK = 0.62
 
@@ -1432,9 +1444,21 @@ def _nunito_face_css(web_root):
 def _display_width(line):
     """Advance width of a line in EMs against the vendored canvas font.
 
-    CJK and fullwidth forms count 1.2em (their old two-cell treatment at
-    the 0.6 factor — unchanged so wide scripts keep their headroom);
-    unknown characters fall back to 0.62em.
+    A MEASURED ADVANCE BEATS A WIDTH-CLASS GUESS, which is why the table
+    is consulted first. The `east_asian_width` arm used to win outright,
+    so a character that had been measured could still be estimated from
+    its Unicode class — and exactly one character in the corpus was in
+    that position: U+2753, the ❓ pin glyph, called 1.2 em by the class
+    and 0.59 em by the ruler. Counted over all 24 corpus artifacts, the
+    characters reaching that arm were `{'❓': 41}` and nothing else: a
+    rule written for CJK headroom, exercised by no CJK at all, whose only
+    live consumer it overstated by 117%. Ordering it after the table
+    leaves the headroom intact — no CJK codepoint is in the table — while
+    letting a measurement, where one exists, be the answer.
+
+    CJK and fullwidth forms with no measured advance still count 1.2em
+    (their old two-cell treatment at the 0.6 factor, so wide scripts keep
+    their headroom); anything else unknown falls back to 0.62em.
 
     Args:
         line: One line of text (no newlines).
@@ -1444,10 +1468,11 @@ def _display_width(line):
     """
     w = 0.0
     for ch in line:
-        if unicodedata.east_asian_width(ch) in ("W", "F"):
-            w += 1.2
-        else:
-            w += NUNITO_ADVANCE.get(ch, _ADVANCE_FALLBACK)
+        adv = NUNITO_ADVANCE.get(ch)
+        if adv is None:
+            adv = (1.2 if unicodedata.east_asian_width(ch) in ("W", "F")
+                   else _ADVANCE_FALLBACK)
+        w += adv
     return w
 
 
@@ -7587,11 +7612,14 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None):
                 existing.add(pid)          # mint_id only wrote the union
             pin_ids.add(pid)
             px, py = pin_spot(anchor, els) if anchor else (40, 40)
+            # The box is the ESTIMATE for this glyph, centred in the slot
+            # `pin_spot` placed — never a literal. See `pin_glyph_box`.
+            gw, gh, ginset = pin_glyph_box()
             pin_el = dict(BASE_DEFAULTS)
             pin_el.update({
-                "id": pid, "type": "text", "x": px, "y": py,
-                "width": 26, "height": 26, "text": "❓",
-                "originalText": "❓", "fontSize": 20,
+                "id": pid, "type": "text", "x": px + ginset, "y": py,
+                "width": gw, "height": gh, "text": "❓",
+                "originalText": "❓", "fontSize": PIN_GLYPH_FS,
                 "fontFamily": FONT_LEGIBLE, "textAlign": "center",
                 "verticalAlign": "top", "lineHeight": 1.25,
                 "containerId": None, "autoResize": True,
@@ -10041,6 +10069,46 @@ def marker_anchor(el, dx=0, dy=0, corner="br"):
 # not a claim worth making.
 PIN_HUG_PX = 8
 
+# The square slot a ❓ is PLACED in — a reservation, not a measurement.
+# It is deliberately not the glyph's ink box, and the two used to be the
+# same number (26) purely because a mis-estimated glyph happened to fill
+# its slot. The ink is ~12x25 (see NUNITO_ADVANCE's "❓" entry); the slot
+# stays 26x26 because that is the footprint `pin_spot` tests collisions
+# against and the footprint the client's `pinSpot` tests them against
+# too — a parity gate holds the two defaults equal, and shrinking this to
+# the ink would re-open the r4b-3 crowding it was sized to fix and move
+# pins on drawings nobody asked to change. The glyph is CENTRED in the
+# slot, which is what keeps the ink where it has always been drawn while
+# the claimed box shrinks around it.
+PIN_SLOT_PX = 26
+
+# The size a ❓ is set at. Named because three things must agree: the
+# stored `fontSize`, the `text_dims` call that sizes the box, and the
+# advance measured for U+2753 at this size.
+PIN_GLYPH_FS = 20
+
+
+def pin_glyph_box():
+    """The ink box a ❓ occupies, and where it sits inside its slot.
+
+    Derived from `text_dims` rather than written down, so the composer
+    and the estimator cannot drift apart again: they were two independent
+    copies of `26` that agreed only by coincidence — the literal was
+    hand-written and `text_dims` reached the same number through the
+    `east_asian_width` arm this file no longer lets win. Either could
+    have moved without the other.
+
+    Returns:
+        `(width, height, inset)` — the glyph's estimated ink box, and the
+        horizontal inset that centres it in a `PIN_SLOT_PX` slot. Callers
+        place at `spot_x + inset` so the drawn centre is unchanged from
+        when the box filled the slot; Excalidraw and `render_svg` both
+        anchor a `textAlign: center` text at `x + width / 2`, so the
+        centre is the only thing the picture depends on.
+    """
+    gw, gh = text_dims("❓", PIN_GLYPH_FS)
+    return (gw, gh, (PIN_SLOT_PX - gw) / 2.0)
+
 
 def _rect_gap(a, b):
     """Clearance between two elements' boxes, 0 when they touch.
@@ -10088,7 +10156,7 @@ def _rect_contains(outer, inner):
             >= inner.get("y", 0) + inner.get("height", 0))
 
 
-def pin_spot(anchor, els, size=26):
+def pin_spot(anchor, els, size=PIN_SLOT_PX):
     """Where a ❓ glyph sits: hugging the target, never in a neighbour.
 
     The constant top-right offset is layout-density-blind (r4b-3): on a
@@ -10117,10 +10185,13 @@ def pin_spot(anchor, els, size=26):
     Args:
         anchor: The target element.
         els: The scene (collision candidates).
-        size: Glyph bbox edge in px.
+        size: Edge of the square SLOT the glyph is placed in, in px — a
+            reservation and not the glyph's ink, which is narrower. See
+            `PIN_SLOT_PX`; callers centre the ink in what this returns
+            via `pin_glyph_box`.
 
     Returns:
-        `(x, y)` for the glyph.
+        `(x, y)` — the top-left of the slot, not of the ink.
     """
     px, py = marker_anchor(anchor, dx=PIN_HUG_PX, dy=-PIN_HUG_PX,
                            corner="tr")
@@ -24360,21 +24431,28 @@ def _x_user_pin(target, question, x, y):
     driver that posts what the product does not is a finding built on a
     scene no user could produce.
 
+    The glyph box comes from `pin_glyph_box`, for the reason the note
+    above gives: a driver that posts what the product does not is a
+    finding built on a scene no user could produce. The two 26x26
+    literals that used to sit here were a third copy of a box the
+    composer no longer writes.
+
     Args:
         target: Element id the question is about.
         question: The question text.
-        x: Left edge of the glyph.
+        x: Left edge of the glyph's SLOT — the ink is centred in it.
         y: Top edge of the glyph.
 
     Returns:
         A single text element carrying the pin's `customData`.
     """
+    gw, gh, ginset = pin_glyph_box()
     el = dict(BASE_DEFAULTS)
     el.update({
         "id": "pin-user-" + hashlib.sha1(
             question.encode("utf-8")).hexdigest()[:8],
-        "type": "text", "x": x, "y": y, "width": 26, "height": 26,
-        "text": "❓", "originalText": "❓", "fontSize": 20,
+        "type": "text", "x": x + ginset, "y": y, "width": gw, "height": gh,
+        "text": "❓", "originalText": "❓", "fontSize": PIN_GLYPH_FS,
         "fontFamily": FONT_LEGIBLE, "textAlign": "center",
         "strokeColor": PIN_INK, "autoResize": True,
         "customData": {"role": "pin", "author": "user", "target": target,
