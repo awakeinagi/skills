@@ -24411,6 +24411,147 @@ class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
             "the two verbs disagree about a wrapped name")
 
 
+class TestEachFamilyIsMeasuredAtItsOwnSpacing(unittest.TestCase):
+    """A text's spacing is its FAMILY'S, not this skill's font's.
+
+    OWED BY THIS STREAM, and green rather than red on purpose: a red
+    here would push `label_overflows_shape` back to `UNCOVERED`, since a
+    red mutant's own `expect` is not evidence that a check speaks. The
+    divergence is closed; what these pins hold is its SIZE, so the day
+    somebody re-blinds the measurement the catalogue does not simply
+    re-agree with itself.
+
+    THE DEFECT, and it is one this task briefly shipped. `text_dims`
+    fell back to Nunito's 1.35 for every text whatever its `fontFamily`;
+    the client does not — the shipped bundle spells
+    `element.lineHeight || getLineHeight(element.fontFamily)` at five
+    sites, and a family change rewrites the stored value from the same
+    table. So a text with no stored `lineHeight` in a non-Nunito family
+    was measured here at a spacing the browser would never draw it at.
+
+    WHERE IT COULD ACTUALLY REACH A DRAWING, measured rather than
+    assumed, because the first scoping of this was wrong in both
+    directions. Every one of the 24 fixture artifacts' 454 texts is
+    `fontFamily=6` WITH a stored `lineHeight`, so the frozen corpus has
+    zero exposure. Our own minting always stamps the field — proven
+    below — so shipped output was never *divergent* either; it was
+    typographically wrong for a face an agent asked for, which is a
+    smaller and different claim. The exposure is text that arrives with
+    the field UNSET: imported scenes (`validate_scene` does not stamp
+    it, proven below) and hand-authored fixtures, of which this repo has
+    ten sites under `tests/`.
+
+    One of those ten is `_labelled_shape`, the catalogue's diamond
+    scene, and that is why `diamond_label_overflows_shape`'s magnitude
+    moved 11 -> 15 for a day under a font-blind `text_dims` and moved
+    back. It must keep `fontFamily=1`: it is the only catalogue scene
+    standing on this divergence, and tidying it to 6 would delete the
+    evidence.
+    """
+
+    def test_the_diamond_label_is_read_at_virgils_spacing(self) -> None:
+        """What the reader sees: 11px, at the face the label carries."""
+        scene = _labelled_shape("diamond")
+        node, lbl = scene
+        self.assertEqual(
+            (lbl.get("fontFamily"), lbl.get("lineHeight")), (1, None),
+            "this scene has stopped being a non-Nunito text with no "
+            "stored spacing, which is the only shape this divergence "
+            "has — do not tidy `fontFamily` to 6")
+        self.assertEqual(canvas.line_height_of(lbl),
+                         canvas.FONT_METRICS[1][3],
+                         "the label is no longer read at its own "
+                         "family's spacing")
+        band = canvas.text_dims(lbl["text"], 16,
+                                canvas.line_height_of(lbl))[1]
+        cy = lbl["y"] + max(lbl["height"], band) / 2.0
+        self.assertEqual(
+            (band, cy, canvas.shape_band_width(node, cy - band / 2.0,
+                                               cy + band / 2.0)),
+            (20, 50.0, 160.0),
+            "the font-aware reading of this scene has moved; the "
+            "catalogue's 11px magnitude is derived from it")
+
+    def test_reading_it_at_our_own_fonts_spacing_moves_the_finding(self
+                                                                   ) -> None:
+        """And what the server computed while it was font-blind: 15px.
+
+        The same label, the same box, ONE field's interpretation apart.
+        At Nunito's 1.35 the band is 21 rather than 20, so `cy` lands
+        half a pixel lower and the rhombus is read at a narrower chord —
+        156 instead of 160 — and the overhang comes out 15 instead of
+        11. Neither number is wrong arithmetic; they are answers to two
+        different questions, and only one of them is the picture.
+
+        The neighbour is the part worth keeping in view: at 220px wide
+        the check must stay QUIET, and the font-blind reading left that
+        silence 0.6px of margin where the font-aware one leaves 5. A
+        second blind pixel would have taken the catalogue's own control
+        with it.
+        """
+        scene = _labelled_shape("diamond")
+        node, lbl = scene
+        blind = canvas.text_dims(lbl["text"], 16,
+                                 canvas.NUNITO_LINE_HEIGHT)[1]
+        cy = lbl["y"] + max(lbl["height"], blind) / 2.0
+        chord = canvas.shape_band_width(node, cy - blind / 2.0,
+                                        cy + blind / 2.0)
+        self.assertEqual(
+            (blind, cy, chord, lbl["width"] - chord), (21, 50.5, 156.0, 15.0),
+            "the font-blind reading of this scene has moved, so the gap "
+            "this pin holds — 15 computed against 11 seen — no longer "
+            "measures what a blind `text_dims` costs")
+        wide = _labelled_shape("diamond", width=220)
+        margin = canvas.shape_band_width(
+            wide[0], cy - blind / 2.0, cy + blind / 2.0) - wide[1]["width"]
+        self.assertLess(
+            margin, 1.0,
+            "the font-blind reading no longer crowds the neighbour's "
+            "silence, so this pin has stopped recording why one more "
+            "blind pixel would have cost the control")
+
+    def test_the_field_is_stamped_by_us_and_never_by_a_load(self) -> None:
+        """Where the exposure is, and where it is not.
+
+        Both halves matter and they point opposite ways, which is why
+        this is one test: everything we MINT carries the field (so no
+        drawing this tool produces depends on the fallback), and nothing
+        on the LOAD path stamps it (so an imported text keeps whatever
+        the file had — usually nothing — and is read by its family
+        forever after).
+        """
+        errors: list[str] = []
+        minted = canvas.apply_ops([], [
+            {"op": "add", "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+             "width": 160, "height": 60, "label": "Decide",
+             "fontFamily": 1},
+            {"op": "add", "id": "t1", "type": "text", "x": 0, "y": 200,
+             "text": "loose", "fontFamily": 1}], errors)
+        self.assertEqual(errors, [])
+        texts = [e for e in minted if e.get("type") == "text"]
+        self.assertTrue(texts, "the batch minted no text at all")
+        self.assertEqual(
+            [e.get("lineHeight") for e in texts],
+            [canvas.FONT_METRICS[1][3]] * len(texts),
+            "text we mint in family 1 no longer carries family 1's own "
+            "spacing, so the drawing we describe and the one the client "
+            "lays out have parted")
+        loaded, _ = canvas.validate_scene(
+            {"type": "excalidraw", "version": 2, "elements": [
+                el(id="i1", type="text", x=0, y=0, width=100, height=20,
+                   text="imported", originalText="imported", fontSize=16,
+                   fontFamily=1)]}, "a")
+        imported = loaded["elements"][0]
+        self.assertIsNone(
+            imported.get("lineHeight"),
+            "the load path has started stamping `lineHeight`. That would "
+            "be a bigger change than it looks — it decides what the "
+            "client draws — so it needs its own ruling, and this pin is "
+            "the record that it did not happen by accident")
+        self.assertEqual(canvas.line_height_of(imported),
+                         canvas.FONT_METRICS[1][3])
+
+
 def _dragged_name_scene(drop: int) -> list[dict]:
     """The entity of `_entity_rows_scene`, with its name dragged down.
 
@@ -24618,6 +24759,100 @@ class TestTextDrawnOnText(unittest.TestCase):
             "the crowded pair no longer intersects, so its silence has "
             "stopped being about the bar this check sets")
 
+    def test_it_speaks_at_the_depths_the_picture_calls_broken(self) -> None:
+        """The calibration, executable — the sweep as an assertion.
+
+        The bar was rendered rather than argued: the corpus's own pair,
+        drawn in the VENDORED Nunito face at nine overlap depths, is
+        clean through 5px, marginal at 6-7 and plainly collided from 8,
+        where 8 and 9 are indistinguishable from the 11 this check
+        already reported. This walks the same depths through
+        `lint_layout`.
+
+        It exists because the differential above cannot catch a bar that
+        drifts LAX. Every case there is either far above the bar or far
+        below it, so a tolerance that doubled would pass all of them —
+        which is exactly what happened for a day, when half a line box
+        silenced the 8px and 9px cases and the corpus census could not
+        see it. A census with no case in the disputed band is not
+        evidence about the band.
+        """
+        for depth, speak in ((0, False), (4, False), (5, False),
+                             (6, True), (8, True), (9, True), (11, True)):
+            note = el(id="note", type="text", x=760, y=600, width=316,
+                      height=40, fontSize=16, lineHeight=1.25,
+                      text="POSITION carries as_of - which is\nwhat makes "
+                           "'stale' representable.",
+                      originalText="POSITION carries as_of - which is\n"
+                                   "what makes 'stale' representable.")
+            feeds = el(id="feeds", type="text", x=1000, y=640 - depth,
+                       width=48, height=20, text="feeds", fontSize=16,
+                       lineHeight=1.25, originalText="feeds",
+                       textAlign="center")
+            hits = [w for w in canvas.lint_layout([note, feeds])["warnings"]
+                    if "ink over ink" in w]
+            self.assertEqual(
+                bool(hits), speak,
+                "at %dpx of overlap the check %s, and the rendered sweep "
+                "in the vendored Nunito face says it should %s: the bar "
+                "is %.2fpx"
+                % (depth, "spoke" if hits else "was silent",
+                   "speak" if speak else "stay quiet",
+                   canvas.ink_clearance(feeds)))
+
+    def test_the_bar_is_derived_and_not_a_constant(self) -> None:
+        """The bar tracks size, spacing AND face — because it is measured.
+
+        A tolerance that stopped varying would still pass every other
+        test in this class, since they all sit at one size in one font.
+        This is the pin that says the number is read off the client's
+        metrics rather than chosen: four regimes that must differ, and
+        the two that a fraction of the line box could not tell apart.
+
+        The last pair is the sharp one. Lilita One and Helvetica have
+        line heights within 0.0 of each other (1.15 both), so ANY
+        fraction of the line box gives them the same bar — but Lilita
+        One's descender is 0.220em against Helvetica's 0.230em of a
+        2048-unit em, and the faces sit differently in their boxes, so
+        the depth at which glyphs actually meet is not the same. Only a
+        bar read from the metrics can say so.
+        """
+        def bar(fs: float, lh: float | None, fam: int) -> float:
+            """`ink_clearance` for one size, spacing and family.
+
+            Args:
+                fs: The text's `fontSize`.
+                lh: A stored `lineHeight`, or None to let the family's
+                    own metric answer.
+                fam: The `fontFamily` number.
+
+            Returns:
+                The bar in px, rounded to 2dp.
+            """
+            e = {"type": "text", "fontSize": fs, "fontFamily": fam}
+            if lh is not None:
+                e["lineHeight"] = lh
+            return round(canvas.ink_clearance(e), 2)
+
+        self.assertEqual(
+            (bar(16, 1.25, 6), bar(12, 1.35, 6), bar(24, 1.35, 6)),
+            (5.65, 4.24, 8.47),
+            "the bar has stopped tracking fontSize")
+        upem, asc, desc, _ = canvas.FONT_METRICS[6]
+        self.assertAlmostEqual(
+            bar(16, 2.0, 6) - bar(16, 1.35, 6),
+            round(16 * 2.0 - 16 * (asc - desc) / upem, 2), 1,
+            "the gap between the double-spaced bar and the normal one is "
+            "no longer exactly the leading a 2.0 line box carries, so the "
+            "bar has stopped tracking lineHeight the way the rendered "
+            "sweep says it must")
+        self.assertNotEqual(
+            bar(16, None, 7), bar(16, None, 2),
+            "the bar gives Lilita One and Helvetica the same answer. "
+            "They share a lineHeight, so this is what a fraction of the "
+            "line box would do — the bar is no longer read off the "
+            "faces' own metrics")
+
     def test_the_corpus_is_quiet_and_the_corpus_has_pairs_in_it(self
                                                                ) -> None:
         """The census, with its denominator, because a zero needs one.
@@ -24631,14 +24866,21 @@ class TestTextDrawnOnText(unittest.TestCase):
         attribute under test, and the number is what makes the silence a
         measurement rather than a coincidence.
 
-        ONE finding had to be answered to get here, and it is why the
-        vertical bar is half a line box rather than the 4px its
-        neighbours use: an arrow label reading 'feeds' sat 5px into the
-        bottom of a note's last line, 13px wide — one pixel of glyph band
-        under a leading that both line boxes carry, and 62px of clear
-        canvas in the rasterized picture. Not a defect, and not silenced
-        by a special case: the bar is derived from the smaller text's own
-        line box, and the witnessed defect clears it by a factor of two.
+        ONE finding had to be answered to get here, and answering it is
+        what set the bar: an arrow label reading 'feeds' sat 5px into the
+        bottom of a note's last line, 13px wide. Rendered in the vendored
+        Nunito face it is crowding rather than collision — but NOT for
+        the reason first written down here, which was "half a line box is
+        leading". Nunito's own metrics refute that: an 1011 + 353 glyph
+        band is 1.364em against a 1.35em box, so the box carries no
+        leading to discount and at 1.25 the glyphs overflow it by 9%. A
+        half-box bar silenced 8px and 9px overlaps that the same
+        rasterized sweep shows plainly broken.
+        The bar is `ink_clearance` — leading plus descender depth, both
+        read off the client's metrics table — which puts the corpus case
+        5.0 against 5.65 with margin rather than on a boundary, fires
+        from 6px where the picture turns marginal, and rises to 15.8px at
+        double spacing where the same picture stays clean to 12.
         """
         corpus = sorted((Path(__file__).resolve().parent
                          / "fixtures").rglob("*.excalidraw"))
@@ -24685,6 +24927,15 @@ class TestTextDrawnOnText(unittest.TestCase):
 _CLIENT_FONT_METRICS = re.compile(
     r"\[[A-Za-z_$][\w$]*\.Nunito\]:\{metrics:\{unitsPerEm:1e3,ascender:1011,"
     r"descender:-353,lineHeight:([\d.]+)\}")
+# The client's WHOLE per-font table, and the enum that numbers it. Two
+# regexes because the bundle keeps them apart: the metrics are keyed by
+# the font's name (`[dn.Nunito]`, or `[dn["Lilita One"]]` where the name
+# has a space) and `dn` itself maps those names to the `fontFamily`
+# integers our elements carry.
+_CLIENT_METRICS_ROW = re.compile(
+    r'\[dn(?:\.|\[")([\w ]+?)(?:"\])?\]:\{metrics:\{unitsPerEm:([\de.]+),'
+    r'ascender:(-?\d+),descender:(-?\d+),lineHeight:([\d.]+)\}')
+_CLIENT_FAMILY_ENUM = re.compile(r'dn=\{([^}]*Excalifont:5[^}]*)\}')
 
 
 def _drawn_block(scene: list[dict]) -> int:
@@ -24807,6 +25058,47 @@ class TestOneLineHeightHasTwoReaders(unittest.TestCase):
             "direction that puts ink outside the box — so re-derive "
             "NUNITO_LINE_HEIGHT from %s rather than re-tuning it"
             % (canvas.NUNITO_LINE_HEIGHT, found, src[0]))
+
+    def test_every_font_the_client_knows_is_in_our_table(self) -> None:
+        """The same referee, widened to the WHOLE metrics table.
+
+        Nunito's row was pinned first because Nunito is what this skill
+        draws with, and pinning one row of a table is how the same defect
+        stayed open for every other face: `fontFamily` is a field an
+        agent can set and an import can carry, so a text in family 1 was
+        being measured at family 6's spacing. `FONT_METRICS` now holds
+        every row, and every row is derived here from the one bundle the
+        page loads — names joined to the `fontFamily` integers through
+        the client's own `dn` enum, so a bundle that re-numbers a family
+        fails as loudly as one that re-tunes its metrics.
+
+        `ascender` and `descender` are pinned beside `lineHeight`,
+        because they are not decoration: `ink_clearance` reads them, and
+        the text-over-text bar is what they decide.
+        """
+        web = (Path(__file__).resolve().parents[1] / "skills" /
+               "wysiwyg-grilling" / "scripts" / "web")
+        src = re.findall(r'src="/assets/(index-[\w-]+\.js)"',
+                         (web / "index.html").read_text(encoding="utf-8"))
+        bundle = (web / "assets" / src[0]).read_text(encoding="utf-8",
+                                                     errors="replace")
+        enum = _CLIENT_FAMILY_ENUM.search(bundle)
+        self.assertIsNotNone(enum, "the client's `dn` family enum has "
+                                   "moved; %s" % src[0])
+        numbers = {name.strip('"'): int(num) for name, num in
+                   re.findall(r'"?([\w ]+?)"?:(\d+)',
+                              enum.group(1) if enum else "")}
+        derived = {}
+        for name, upem, asc, desc, lh in _CLIENT_METRICS_ROW.findall(bundle):
+            if name in numbers:
+                derived[numbers[name]] = (int(float(upem)), int(asc),
+                                          int(desc), float(lh))
+        self.assertEqual(
+            canvas.FONT_METRICS, derived,
+            "canvas.FONT_METRICS and the shipped client's own table have "
+            "parted. Re-derive the table from %s — every reader of a "
+            "text's spacing, and the bar `text_over_text` sets, is read "
+            "off these numbers" % src[0])
 
     def test_the_export_paints_the_block_at_the_elements_line_height(self
                                                                      ) -> None:
