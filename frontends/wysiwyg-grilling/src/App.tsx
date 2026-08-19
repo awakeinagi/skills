@@ -12,6 +12,7 @@ import { DocReader } from "./components/DocReader";
 import { AnchoredPopover, AnchoredQuestion, anchorStyle } from "./components/AnchoredPopover";
 import { TooltipCard, TooltipEditor } from "./components/Tooltip";
 import { Inspector } from "./components/Inspector";
+import { hostIdOf, isComposedPiece } from "./composed";
 import { libraryItems, TEMPLATES, templateElements } from "./library";
 
 const POLL_MS = 2500;
@@ -301,6 +302,126 @@ const elBox = (e: SceneEl): Rect => {
            w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 };
 };
 
+/** What the app knows about where the canvas is looking. */
+type Camera = { scrollX: number; scrollY: number; zoom: number };
+
+/**
+ * Scene point → pixels inside `.canvas-wrap`.
+ *
+ * The one place this arithmetic lives. It was open-coded at four sites
+ * (leader lines, the onion skin's transform, the tripwire mark, the
+ * tooltip dot) before the tack badge needed a fifth, and an overlay whose
+ * position is re-derived by hand is an overlay that drifts from the
+ * drawing it annotates the next time the camera model changes.
+ * @param p A point in scene coordinates.
+ * @param cam The live camera.
+ * @returns Absolute `left`/`top` for an element positioned in `.canvas-wrap`.
+ */
+const screenPt = (p: Pt, cam: Camera) => ({
+  left: (p.x + cam.scrollX) * cam.zoom,
+  top: (p.y + cam.scrollY) * cam.zoom,
+});
+
+/**
+ * Scene rect → pixel rect inside `.canvas-wrap`.
+ *
+ * Sizes scale with zoom and offsets do not, which is exactly the trap a
+ * hand-rolled conversion falls into: `screenPt` alone cannot place a
+ * marker on a box's far corner without the caller multiplying the extent
+ * by the zoom itself.
+ * @param r A rectangle in scene coordinates.
+ * @param cam The live camera.
+ * @returns The same rectangle in `.canvas-wrap` pixels.
+ */
+const screenBox = (r: Rect, cam: Camera) => ({
+  ...screenPt({ x: r.x, y: r.y }, cam),
+  width: r.w * cam.zoom, height: r.h * cam.zoom,
+});
+
+/**
+ * The smallest scene rect containing every element given.
+ *
+ * Bounds come from `elBox`, so a point-strung element contributes the hull
+ * of its POINTS and never its stored width — the same rule that keeps a
+ * leftward arrow from claiming canvas it never paints.
+ * @param els The elements to bound.
+ * @returns The union rectangle, or null when the list is empty.
+ */
+const unionBox = (els: SceneEl[]): Rect | null => {
+  if (!els.length) return null;
+  const bs = els.map(elBox);
+  const x = Math.min(...bs.map((b) => b.x));
+  const y = Math.min(...bs.map((b) => b.y));
+  return { x, y,
+           w: Math.max(...bs.map((b) => b.x + b.w)) - x,
+           h: Math.max(...bs.map((b) => b.y + b.h)) - y };
+};
+
+/** Where the "always show pin icon" preference persists. */
+const PIN_ALWAYS_KEY = "wysiwyg-pin-always";
+
+/** Screen px the group tack sits clear of its union box's corner, so it
+ * reads as OUTSIDE the selection the way `markerAnchor` puts a single
+ * tack outside its shape. */
+const TACK_GAP = 8;
+
+/** What the pin rules need to read off an element. */
+type PinEl = Omit<SceneEl, "customData"> & {
+  locked?: boolean; containerId?: string | null;
+  customData?: Record<string, unknown> | null };
+
+/**
+ * Is this element one "Pin ALL" should target?
+ *
+ * Only OWNERS. A bound label, the ❓ glyph, a composed attribute row and a
+ * checkbox's tick do not have positions of their own — they are placed
+ * relative to the thing they belong to, so pinning one is pinning the same
+ * fact twice and leaves a pin the user cannot see the point of. On a real
+ * corpus that is 469 of 976 elements, half the drawing, badged for nothing.
+ * They follow their host, which "Pin ALL" does pin.
+ *
+ * A deliberate pin ON a label by hand is still honoured — this predicate
+ * scopes the bulk gesture, not the flag.
+ * @param e A live scene element.
+ * @returns True when "Pin ALL" should pin it.
+ */
+const pinnable = (e: PinEl) => {
+  if (e.isDeleted) return false;
+  const cd: Record<string, unknown> = e.customData || {};
+  if (String(cd.role || "") === "pin") return false;
+  return !isComposedPiece(e);
+};
+
+/**
+ * A selection resolved to the elements a pin means anything on.
+ *
+ * A selection is rarely the thing the user thinks they clicked. Clicking
+ * one KPI tile selects two elements (the tile and its value text); a
+ * click on a body block selects five wavy decoration strokes and not the
+ * transparent rectangle they belong to; a click anywhere in a grouped
+ * checkbox selects the box, the tick and the host. Pin those literally
+ * and the menu offers "Pin 5 elements" for one gesture and the drawing
+ * grows five badges where the user asked for one.
+ *
+ * So every selected element resolves to its OWNER, deduped. Only if
+ * nothing resolves — a selection of pieces whose hosts are gone — does
+ * this hand back what it was given, because refusing to pin anything at
+ * all is the worse answer.
+ * @param sel The currently selected live elements.
+ * @param scene Every live element, for looking hosts up.
+ * @returns The elements the pin action should act on.
+ */
+const pinTargets = <T extends PinEl>(sel: T[], scene: T[]): T[] => {
+  const out = new Map<string, T>();
+  for (const e of sel) {
+    const host = hostIdOf(e);
+    const owner = host ? scene.find((x) => x.id === host) : e;
+    const pick = owner && pinnable(owner) ? owner : pinnable(e) ? e : null;
+    if (pick?.id) out.set(pick.id, pick);
+  }
+  return out.size ? [...out.values()] : sel;
+};
+
 /**
  * Where a `w`×`h` insert should land, given where the user is looking.
  *
@@ -435,6 +556,21 @@ export default function App() {
   const [hoverTip, setHoverTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const [revertPrompt, setRevertPrompt] = useState(false);
   const [selElId, setSelElId] = useState<string | null>(null);
+  // v0.9 "Pin to Canvas" — a pinned element is Excalidraw's own `locked`,
+  // and Excalidraw draws a locked element no differently at all: no
+  // badge, no border, no handles. The tack is the whole affordance, and
+  // because a locked element cannot be click-selected it is also the only
+  // way back out that does not go through a menu.
+  const [selIds, setSelIds] = useState<string[]>([]);
+  const [hoverPinId, setHoverPinId] = useState<string | null>(null);
+  const [pinAlways, setPinAlways] = useState<boolean>(() =>
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem(PIN_ALWAYS_KEY) === "1");
+  // Element GEOMETRY has no React presence: `selEl` and friends re-derive
+  // from `dirtyMap`/`state`, which move once per save and never during a
+  // move, so an overlay keyed off them freezes while the drawing under it
+  // travels. This ticks on every real element mutation instead.
+  const [geomTick, setGeomTick] = useState(0);
   const [docsList, setDocsList] = useState<string[]>([]);
   const [insertOpen, setInsertOpen] = useState(false);
   const [mermaidOpen, setMermaidOpen] = useState(false);
@@ -468,11 +604,17 @@ export default function App() {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const cameraRef = useRef({ scrollX: 0, scrollY: 0, zoom: 1 });
   const hoverTimerRef = useRef<any>(null);
+  // the pinned set, mirrored for the pointer-move handler: without it,
+  // tracking hover would run a full-scene hit test at pointer rate on
+  // every artifact, pinned or not
+  const pinnedIdsRef = useRef<Set<string>>(new Set());
+  const pinAlwaysRef = useRef(false);
 
   currentRef.current = currentArtifact;
   dirtyRef.current = dirtyMap;
   viewingRef.current = viewingRevn;
   cameraRef.current = camera;
+  pinAlwaysRef.current = pinAlways;
 
   const toast = useCallback((text: string) => {
     const id = ++toastSeq;
@@ -680,6 +822,10 @@ export default function App() {
     if (selKey !== prevSelRef.current) {
       prevSelRef.current = selKey;
       setSelElId(selIds.length === 1 ? selIds[0] : null);
+      // the WHOLE selection, not just the singleton: `selElId` is null
+      // for a multi-select, so every selection-driven surface was blind
+      // to two-or-more until the tack needed a union box
+      setSelIds(selIds);
       if (selIds.length === 1 && Date.now() > suppressPinOpenRef.current) {
         const sel = els.find((e) => e.id === selIds[0]);
         if (sel?.customData?.role === "pin") {
@@ -733,6 +879,10 @@ export default function App() {
     for (const e of els) v += (e.version || 0) + (e.isDeleted ? 13 : 0);
     if (v === verSumRef.current && pendingBaselineRef.current !== aid) return;
     verSumRef.current = v;
+    // past the gate a real mutation happened — a move, a resize, a pin.
+    // Canvas overlays derive their position from element geometry, so
+    // this is the only signal that tells them to re-read it.
+    setGeomTick((t) => t + 1);
     const live = els.filter((e) => !e.isDeleted).map((e) => e);
     const fp = fingerprint(live);
     if (pendingBaselineRef.current === aid) {
@@ -1336,6 +1486,45 @@ export default function App() {
     return best;
   }, [sceneAt]);
 
+  /** The smallest PINNED element whose box contains the point.
+   *
+   * Deliberately NOT `hitAtClient`, which skips `type === "frame"` and
+   * `role === "label"`. Those exclusions are right for a tooltip — you do
+   * not want a frame's card when you hover its children — and they were
+   * catastrophic here. Every route to a tack ran through that hit test or
+   * through selection, and Excalidraw makes a locked element
+   * unselectable, so a class the hover test skipped was a class that
+   * could be pinned and then never unpinned: measured on a pinned frame,
+   * hover gave no tack at its interior, edge OR corner, a click selected
+   * nothing so the Inspector never rendered, and a right-click offered no
+   * pin group at all. The only ways out were a preference living in some
+   * OTHER element's menu, or restoring the all-pinned state.
+   *
+   * Smallest-area-first, so a pinned child inside a pinned frame still
+   * wins its own tack, and bounded by `elBox` so an arrow is measured by
+   * its POINTS rather than a stored width it may not reach.
+   * @param clientX Pointer x in client coords.
+   * @param clientY Pointer y in client coords.
+   * @returns The pinned element under the pointer, or null.
+   */
+  const pinnedAtClient = useCallback((clientX: number, clientY: number) => {
+    const api = apiRef.current;
+    const p = sceneAt(clientX, clientY);
+    if (!api || !p) return null;
+    let best: any = null;
+    let bestArea = Infinity;
+    for (const e of api.getSceneElements()) {
+      if (e.isDeleted || !e.locked) continue;
+      const b = elBox(e);
+      if (p.sx >= b.x && p.sx <= b.x + b.w &&
+          p.sy >= b.y && p.sy <= b.y + b.h) {
+        const area = (b.w * b.h) || 1;
+        if (area < bestArea) { best = e; bestArea = area; }
+      }
+    }
+    return best;
+  }, [sceneAt]);
+
   /** Patch a live element (fields + customData; null cd value deletes the
    * key). Version bump makes the change reach the dirty fingerprint, so
    * it lands in the next Save and narrates like any user edit. */
@@ -1353,6 +1542,77 @@ export default function App() {
     });
     api.updateScene({ elements: restoreForRender(els) as any });
   }, []);
+
+  /** Pin (or unpin) a set of elements in ONE scene update.
+   *
+   * A pin is Excalidraw's native `locked` AND NOTHING ELSE. That flag buys
+   * the whole guarantee for free — no drag, no resize, no rubber-band, no
+   * Ctrl+A, no transform handles — and `api.ts`'s dirty fingerprint already
+   * hashes it, so a pin reaches Save with no new plumbing.
+   *
+   * No companion `customData` key, deliberately (ruled 2026-08-18 with the
+   * server half). One flag, one truth: the server's guard is the single
+   * predicate `bool(el["locked"])`, so anything else that sets it — the
+   * Inspector checkbox, Excalidraw's own Ctrl+Shift+L, a third-party import,
+   * the elements already locked in the corpus — is protected and badged on
+   * exactly the same terms as this. A second key would also write a second
+   * significant-attr change per element and narrate every pin twice.
+   *
+   * One `updateScene` for the whole set, deliberately. `doSave` posts whole
+   * scenes, so N pins are one POST, one revision, one narration line — the
+   * client must never fan a bulk gesture out into per-element writes.
+   * @param ids The element ids to change.
+   * @param pinned True to pin, false to unpin.
+   */
+  const setPinned = useCallback((ids: string[], pinned: boolean) => {
+    const api = apiRef.current;
+    if (!api || !ids.length) return;
+    const want = new Set(ids);
+    let n = 0;
+    const els = api.getSceneElements().map((e: any) => {
+      if (!want.has(e.id) || e.isDeleted || !!e.locked === pinned) return e;
+      n++;
+      return { ...e, locked: pinned, version: (e.version || 0) + 1 };
+    });
+    if (!n) return;
+    // NOT through `restoreForRender`, unlike `patchElement` and
+    // `flipControl`. Those two change geometry or add elements, so they
+    // need the re-measure; this flips one boolean on elements the canvas
+    // has already restored. That principle is the whole reason, and it
+    // needs no measurement.
+    //
+    // It is stated that flatly because TWO measured justifications for
+    // this line have now been withdrawn, both by the same method error —
+    // reading a number without the baseline that gives it meaning:
+    //
+    //   1. "it removes a phantom reorder narration" — false. Both
+    //      variants narrate identically. (No counterfactual was built;
+    //      an observed string was attributed to the nearest edit.)
+    //   2. "restore rewrites 27 bound labels and this does not" — also
+    //      false, and backwards. Measured AUTHORED-vs-first-pin-save,
+    //      both builds touch the identical 63 rows on the identical 37
+    //      ids, with zero ids unique to either. Of the 46 rows where the
+    //      two differ, restore lands CLOSER to the authored value in 46
+    //      and this build in 0. (An A/B with no baseline: `A vs B` was
+    //      measured, `authored vs A` never was.)
+    //
+    // What that A/B actually shows: the bound-label re-measure is not
+    // `setPinned`'s doing in EITHER variant. It is load-restore drift,
+    // owned elsewhere, and nothing here fixes or worsens it.
+    api.updateScene({ elements: els });
+    const what = n === 1 ? "this element" : `${n} elements`;
+    toast(pinned
+      ? `📌 Pinned ${what} — Save to record it. A pin stops drags, not deletes.`
+      : `Unpinned ${what} — Save to record it.`);
+  }, [toast]);
+
+  /** Persist "always show pin icon" — a preference about the drawing's
+   * chrome, so it rides localStorage next to the theme rather than the
+   * artifact, and survives a reload. */
+  useEffect(() => {
+    try { localStorage.setItem(PIN_ALWAYS_KEY, pinAlways ? "1" : "0"); }
+    catch { /* private mode */ }
+  }, [pinAlways]);
 
   // e2e hook (v0.8): scene→screen through the app's own camera, so
   // browser tests click elements instead of guessing the fit transform.
@@ -1447,7 +1707,6 @@ export default function App() {
     const h = (e: MouseEvent) => {
       if (viewingRef.current != null) return;
       const hit = hitAtClient(e.clientX, e.clientY);
-      if (!hit) return;
       let tries = 0;
       const inject = () => {
         const menu = wrap.querySelector<HTMLElement>("ul.context-menu") ||
@@ -1456,7 +1715,7 @@ export default function App() {
           if (++tries < 10) setTimeout(inject, 30);
           return;
         }
-        if (menu.querySelector(".wg-tooltip-item")) return;
+        if (menu.querySelector(".wg-tooltip-item, .wg-pin-item")) return;
         // collapse the bulkiest native groups into hover flyouts (user
         // request: the flat menu ate too much vertical space). Moving
         // the original <li> nodes keeps their React handlers and
@@ -1505,12 +1764,25 @@ export default function App() {
                            "Send to back", "Bring to front"].includes(l),
                    "Arrange");
         }
-        const live = apiRef.current?.getSceneElements()
-          .find((x: any) => x.id === hit.id && !x.isDeleted) || hit;
-        const has = !!live.customData?.tooltip;
-        const mk = (label: string, fn: () => void) => {
+        const api = apiRef.current;
+        const scene: any[] = api
+          ? api.getSceneElements().filter((x: any) => !x.isDeleted) : [];
+        // WHICH elements the menu is about. Right-click has already made
+        // the selection — Excalidraw's own hit test runs first, and it is
+        // fill-aware where `hitAtClient` is a bbox test, so the two
+        // disagree on any transparent-background shape. Trust the
+        // selection; fall back to our hit only when there is none (the
+        // menu opened on something Excalidraw declined to select).
+        const selMap = api?.getAppState()?.selectedElementIds || {};
+        const selNow = Object.keys(selMap).filter((k) => selMap[k]);
+        const ids = (selNow.length ? selNow : hit ? [hit.id] : [])
+          .filter((id) => scene.some((x) => x.id === id));
+        const targets = pinTargets(
+          scene.filter((x) => ids.includes(x.id)), scene);
+        const targetIds = targets.map((x) => x.id);
+        const mk = (label: string, fn: () => void, cls = "wg-tooltip-item") => {
           const li = document.createElement("li");
-          li.className = "wg-tooltip-item";
+          li.className = cls;
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "context-menu-item";
@@ -1524,20 +1796,114 @@ export default function App() {
             fn();
           });
           li.appendChild(btn);
+          return li;
+        };
+        /** One flyout holding the pin action and its preference — the
+         * user asked for a group, not two loose items, and it reuses the
+         * same DOM shape `collapse` builds for the native groups. */
+        const mkGroup = (title: string,
+          items: Array<{ label: string; fn: () => void }>) => {
+          const parent = document.createElement("li");
+          parent.className = "wg-submenu-parent wg-pin-item";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "context-menu-item";
+          const span = document.createElement("span");
+          span.className = "context-menu-item__label";
+          span.textContent = title;
+          const arrow = document.createElement("span");
+          arrow.className = "context-menu-item__shortcut";
+          arrow.textContent = "▸";
+          btn.append(span, arrow);
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+          });
+          const sub = document.createElement("ul");
+          sub.className = "context-menu wg-submenu";
+          parent.addEventListener("mouseenter", () => {
+            const r = parent.getBoundingClientRect();
+            const fitsRight = r.right + 200 <= window.innerWidth;
+            sub.style.left = (fitsRight ? r.right : r.left - 180) + "px";
+            sub.style.top = Math.max(8, Math.min(
+              r.top - 8, window.innerHeight - 40 * items.length - 24)) + "px";
+          });
+          for (const it of items)
+            sub.appendChild(mk(it.label, it.fn, "wg-pin-item"));
+          parent.append(btn, sub);
+          menu.appendChild(parent);
+        };
+        // the separator is appended by whichever item comes first, not up
+        // front: on an artifact with nothing drawn, neither arm has
+        // anything to offer and an eagerly-added separator left the
+        // native menu ending in a rule with nothing under it.
+        let sepDone = false;
+        const sep = () => {
+          if (sepDone) return;
+          sepDone = true;
+          const li = document.createElement("li");
+          li.className = "context-menu-item-separator wg-tooltip-item";
           menu.appendChild(li);
         };
-        const sep = document.createElement("li");
-        sep.className = "context-menu-item-separator wg-tooltip-item";
-        menu.appendChild(sep);
-        mk(has ? "✎ Edit tooltip…" : "🛈 Add tooltip…",
-          () => openTooltipEditor(live));
-        if (has) mk("Remove tooltip", () => setElementTooltip(live.id, ""));
+        if (targets.length) {
+          sep();
+          const allPinned = targets.every((x) => x.locked);
+          const what = targets.length === 1
+            ? "this element" : `${targets.length} elements`;
+          mkGroup("📌 Pin to Canvas", [
+            { label: allPinned ? `Unpin ${what}` : `Pin ${what} to canvas`,
+              fn: () => setPinned(targetIds, !allPinned) },
+            { label: `${pinAlwaysRef.current ? "☑" : "☐"} Always show pin icon`,
+              fn: () => setPinAlways((v) => !v) },
+          ]);
+        } else {
+          // The empty-canvas arm. Scope is exactly what is drawn NOW:
+          // anything added later arrives unpinned, which is the only
+          // reading of "all" that does not quietly become a mode.
+          //
+          // The two directions have DIFFERENT scopes, deliberately.
+          // Pinning targets owners only — a derived position is not the
+          // user's to pin. Unpinning must reach EVERYTHING locked,
+          // however it got that way: the agent's `mod {"locked": true}`
+          // on a settled label is doctrine (`SKILL.md`, "lock what's
+          // settled"), and running the pin scope in both directions meant
+          // a menu item reading "Unpin ALL Elements" left that label
+          // pinned. An item makes a promise in plain words; this is the
+          // scope that keeps it.
+          const pinScope = scene.filter(pinnable);
+          const lockedNow = scene.filter((x) => x.locked);
+          const scopePinned = pinScope.length > 0 &&
+            pinScope.every((x) => x.locked);
+          const unpinArm = lockedNow.length > 0 &&
+            (scopePinned || pinScope.length === 0);
+          if (unpinArm) {
+            const ids2 = lockedNow.map((x) => x.id);
+            sep();
+            menu.appendChild(mk("📌 Unpin ALL Elements",
+              () => setPinned(ids2, false), "wg-pin-item wg-pin-all"));
+          } else if (pinScope.length) {
+            const ids2 = pinScope.map((x) => x.id);
+            sep();
+            menu.appendChild(mk("📌 Pin ALL Elements to Canvas",
+              () => setPinned(ids2, true), "wg-pin-item wg-pin-all"));
+          }
+        }
+        if (hit) {
+          sep();
+          const live = targets.find((x: any) => x.id === hit.id) ||
+            scene.find((x: any) => x.id === hit.id) || hit;
+          const has = !!live.customData?.tooltip;
+          menu.appendChild(mk(has ? "✎ Edit tooltip…" : "🛈 Add tooltip…",
+            () => openTooltipEditor(live)));
+          if (has) menu.appendChild(
+            mk("Remove tooltip", () => setElementTooltip(live.id, "")));
+        }
       };
       setTimeout(inject, 0);
     };
     wrap.addEventListener("contextmenu", h);
     return () => wrap.removeEventListener("contextmenu", h);
-  }, [hitAtClient, openTooltipEditor, setElementTooltip]);
+  }, [hitAtClient, openTooltipEditor, setElementTooltip, setPinned]);
 
   /* hover → tooltip card after a beat; any movement re-arms */
   const onWrapPointerMove = useCallback((e: React.PointerEvent) => {
@@ -1545,17 +1911,28 @@ export default function App() {
     if (hoverTip) setHoverTip(null);
     if (e.buttons !== 0 || walkIdx != null) return;
     const { clientX, clientY } = e;
+    // the tack appears on hover unless the preference pins it on. The hit
+    // test is skipped outright while nothing on this artifact is pinned,
+    // so an unpinned drawing pays nothing at pointer rate — and it is
+    // `pinnedAtClient`, not `hitAtClient`, because the latter skips
+    // frames and labels and the tack is a pinned element's only
+    // affordance.
+    const over = pinnedIdsRef.current.size
+      ? pinnedAtClient(clientX, clientY) : null;
+    const pinId = over?.id ?? null;
+    setHoverPinId((h) => (h === pinId ? h : pinId));
     hoverTimerRef.current = setTimeout(() => {
       const el = hitAtClient(clientX, clientY);
       const text = el?.customData?.tooltip;
       const p = sceneAt(clientX, clientY);
       if (text && p) setHoverTip({ x: p.wx + 14, y: p.wy + 12, text });
     }, 450);
-  }, [hitAtClient, sceneAt, hoverTip, walkIdx]);
+  }, [hitAtClient, pinnedAtClient, sceneAt, hoverTip, walkIdx]);
 
   const onWrapPointerLeave = useCallback(() => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     setHoverTip(null);
+    setHoverPinId(null);
   }, []);
 
   /** Revert all: drop every unsaved buffer and restore the currently
@@ -1605,6 +1982,71 @@ export default function App() {
     return apiRef.current.getSceneElements()
       .find((e: any) => e.id === selElId && !e.isDeleted) || null;
   }, [selElId, dirtyMap, state, camera]);
+
+  /** Every pinned element on the artifact in front of us. */
+  const pinnedEls = useMemo(() => {
+    if (viewingRevn != null || !apiRef.current) return [];
+    return apiRef.current.getSceneElements()
+      .filter((e: any) => !e.isDeleted && e.locked);
+  }, [geomTick, viewingRevn, currentArtifact, dirtyMap, state]);
+  pinnedIdsRef.current = new Set(pinnedEls.map((e: any) => e.id));
+
+  /** The live selection, reduced to what a pin acts on — the same rule
+   * the context menu applies, so the tack and the menu can never be
+   * talking about different elements. */
+  const selOwners = useMemo(() => {
+    if (!selIds.length || !apiRef.current) return [];
+    const live = apiRef.current.getSceneElements()
+      .filter((e: any) => !e.isDeleted);
+    const sel = live.filter((e: any) => selIds.includes(e.id));
+    return pinTargets(sel, live).map((e: any) => e.id);
+  }, [selIds, geomTick]);
+
+  /** Which pinned elements are showing their tack right now.
+   *
+   * Not all of them by default: a badge on every pinned element at all
+   * times competes with the drawing, and the drawing is the point. Hover
+   * and selection are the moments the user is asking about one element —
+   * and the preference is there for the sessions where they would rather
+   * see the whole shape of what is settled. */
+  const tacks = useMemo(() => {
+    if (pinAlways) return pinnedEls;
+    const show = new Set<string>(selOwners);
+    if (hoverPinId) show.add(hoverPinId);
+    return pinnedEls.filter((e: any) => show.has(e.id));
+  }, [pinnedEls, pinAlways, selOwners, hoverPinId]);
+
+  /** The one tack a MULTI-selection gets, on its union box's corner.
+   *
+   * Two or more selected elements drove no UI at all before this — every
+   * anchored surface in the app is `selIds.length === 1 ? … : null`. A
+   * per-element tack each would stack N badges over a region the user is
+   * treating as one thing, so the group gets one badge and one verb.
+   *
+   * A DECISION the spec did not ask for, recorded as one: on an UNPINNED
+   * multi-selection this renders 📍 and pins, which is a canvas pinning
+   * affordance that single-select deliberately does not have. It is the
+   * natural home for the union-box requirement — a group's verb has
+   * nowhere else to live — but it is an addition, not a reading of the
+   * brief, and it should be the first thing cut if the surface feels
+   * crowded.
+   *
+   * The `+ TACK_GAP` matches the single tack's placement: `markerAnchor`
+   * puts a badge OUTSIDE the shape's bottom-right, and the raw union
+   * corner with `translate(-50%,-50%)` would sit centred on the corner
+   * instead, which reads as a different affordance at a glance. */
+  const groupTack = useMemo(() => {
+    if (viewingRevn != null || selOwners.length < 2 || !apiRef.current) return null;
+    const els = apiRef.current.getSceneElements()
+      .filter((e: any) => !e.isDeleted && selOwners.includes(e.id));
+    const box = unionBox(els);
+    if (!box) return null;
+    const b = screenBox(box, camera);
+    return { ids: els.map((e: any) => e.id), n: els.length,
+             pinned: els.every((e: any) => e.locked),
+             style: { left: b.left + b.width + TACK_GAP,
+                      top: b.top + b.height + TACK_GAP } };
+  }, [selOwners, geomTick, viewingRevn, camera]);
 
   /* ---------------- Phase 6: wireframing power tools ---------------- */
 
@@ -2106,23 +2548,23 @@ export default function App() {
                 in the canvas's stacking context with pointer-events:none,
                 so its buttons never received a click (capability
                 assessment: 'Propagate' clicks fell through to the canvas) */}
-            {tripTagsForCurrent.map(({ el, t }: any) => (
-              <div
-                key={t.id}
-                className="trip-mark"
-                style={{
-                  // hug the shape, not its bounding box (r3-1) — the
-                  // third instance of that bug, found by grepping
-                  left: (markerAnchor(el, 0, 0, "tr").x + camera.scrollX) * camera.zoom,
-                  top: (markerAnchor(el, 0, 0, "tr").y + camera.scrollY) * camera.zoom - 10,
-                }}
-                onClick={() => setAnchored({ kind: "tripwire", data: t,
-                  el: { x: el.x, y: el.y, width: el.width, height: el.height } })}
-                title="mapping tripwire — click to read and answer"
-              >
-                <span className="trip-q">?</span>
-              </div>
-            ))}
+            {tripTagsForCurrent.map(({ el, t }: any) => {
+              // hug the shape, not its bounding box (r3-1) — the third
+              // instance of that bug, found by grepping
+              const p = screenPt(markerAnchor(el, 0, 0, "tr"), camera);
+              return (
+                <div
+                  key={t.id}
+                  className="trip-mark"
+                  style={{ left: p.left, top: p.top - 10 }}
+                  onClick={() => setAnchored({ kind: "tripwire", data: t,
+                    el: { x: el.x, y: el.y, width: el.width, height: el.height } })}
+                  title="mapping tripwire — click to read and answer"
+                >
+                  <span className="trip-q">?</span>
+                </div>
+              );
+            })}
             {/* tooltip presence dots (v0.3) — hover-only content needs a
                 discoverable tell. Anchored to the SHAPE's edge, not its
                 bounding box (v0.6): on a diamond or an ellipse the
@@ -2130,16 +2572,40 @@ export default function App() {
                 ~40px clear of the decision node it belonged to and read
                 as a stray mark. */}
             {tooltipDots.map((e: any) => {
-              const a = markerAnchor(e);
+              const p = screenPt(markerAnchor(e), camera);
               return (
                 <div key={`tip-${e.id}`} className="tip-dot"
-                  style={{
-                    left: (a.x + camera.scrollX) * camera.zoom - 4,
-                    top: (a.y + camera.scrollY) * camera.zoom - 4,
-                  }}
+                  style={{ left: p.left - 4, top: p.top - 4 }}
                   title="has a tooltip — hover the element" />
               );
             })}
+            {/* the thumb-tack. Excalidraw renders a locked element no
+                differently at ALL — no badge, no border, no handles — so
+                without this a pin is invisible, and since a locked element
+                cannot be click-selected, unpinning would exist only in a
+                menu. A `.canvas-wrap` child with its own pointer-events,
+                never inside the canvas's stacking context: the v0.3 hover
+                card lived there behind pointer-events gating and its
+                buttons never received a click. */}
+            {tacks.map((e: any) => {
+              const p = screenPt(markerAnchor(e), camera);
+              return (
+                <button key={`tack-${e.id}`} type="button" className="pin-tack"
+                  style={{ left: p.left, top: p.top }}
+                  title="pinned to canvas — click to unpin"
+                  onClick={() => setPinned([e.id], false)}>📌</button>
+              );
+            })}
+            {groupTack && (
+              <button type="button" className="pin-tack group"
+                style={groupTack.style}
+                title={groupTack.pinned
+                  ? `${groupTack.n} pinned elements — click to unpin all`
+                  : `pin all ${groupTack.n} selected elements to the canvas`}
+                onClick={() => setPinned(groupTack.ids, !groupTack.pinned)}>
+                {groupTack.pinned ? "📌" : "📍"}
+              </button>
+            )}
             {hoverTip && <TooltipCard x={hoverTip.x} y={hoverTip.y} text={hoverTip.text} />}
             {ctl && viewingRevn == null && (
               <AnchoredPopover
@@ -2285,6 +2751,7 @@ export default function App() {
               docs={docsList}
               disabled={viewingRevn != null}
               onPatch={(patch, cdPatch) => patchElement(selEl.id, patch, cdPatch)}
+              onPin={(pinned) => setPinned([selEl.id], pinned)}
               onEditTooltip={() => openTooltipEditor(selEl)}
             />
           ) : null}

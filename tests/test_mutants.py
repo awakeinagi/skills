@@ -22223,7 +22223,24 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # red whose owner is a person rather than a task is the thing the routing
 # rule above was written to prevent. Re-read both `WHO FLIPS THIS:`
 # paragraphs the day that triage names its tasks.
+#
+# ONE JOINED on 2026-08-18 (curator batch 35), and it is the SECOND entry
+# here filed off another agent's witnessed miss rather than off a sweep or a
+# spike — the Pin-to-Canvas client-surface agent handed over a browser
+# measurement instead of closing with it in prose, which is the motion batch
+# 32's entry established and the one worth keeping.
+# `TestALineDecorationRemeasureIsNotAUserEdit` carries TWO reds against ONE
+# base scene, which is a shape this dict has not held before: they are two
+# unrelated mechanisms (a role the derived-geometry predicate does not know,
+# and a composite pass that re-seats the posted list after the baseline was
+# aligned to it) that reach the reader as one sentence in one save. Their
+# count may therefore drop to 1 rather than to 0 when the first owner lands,
+# and a batch that reads a line vanishing as "the class is done" would be
+# wrong twice over. Neither is a `Mutant`: what is wrong is what
+# `Store.commit` writes into the save record, `collect_findings` has no code
+# for it, and `lint_layout` is right to be silent — the picture is fine.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestALineDecorationRemeasureIsNotAUserEdit": 2,
     "TestTheEntityNameClearsItsOwnAttributeRows": 2,
     "TestOneLineHeightHasTwoReaders": 2,
 }
@@ -23735,8 +23752,17 @@ class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
 # `set_line_height` of `_boxed_label(height=64)`); it is written here beside
 # its magnitude sibling instead, so one defect keeps one home.
 # ---------------------------------------------------------------------------
+# The identifier holding the font enum is MINIFIER-GENERATED and is not
+# pinned here: it was `dn` when this was written and became `un` the day a
+# frontend commit added one module, because that reshuffles the chunk graph
+# and renames every short symbol in it. Pinning it made an unrelated source
+# change fail this test with "the client no longer gives Nunito 1.35" while
+# the bundle still plainly said 1.35, in the same entry chunk, one letter
+# over. Everything the referee actually claims — that the number is READ
+# OFF the shipped bundle rather than written down here — is preserved by
+# matching any identifier; `1.35` stays the assertion.
 _CLIENT_FONT_METRICS = re.compile(
-    r"\[dn\.Nunito\]:\{metrics:\{unitsPerEm:1e3,ascender:1011,"
+    r"\[[A-Za-z_$][\w$]*\.Nunito\]:\{metrics:\{unitsPerEm:1e3,ascender:1011,"
     r"descender:-353,lineHeight:([\d.]+)\}")
 
 
@@ -23908,6 +23934,319 @@ class TestOneLineHeightHasTwoReaders(unittest.TestCase):
             "block — the check reserved height at the 1.25 default and "
             "the number a reader would widen the box by is short by %d"
             % (quoted, drawn, drawn - (quoted[0] if quoted else drawn)))
+
+
+# ---------------------------------------------------------------------------
+# CURATOR BATCH 35 (2026-08-18). The record narrating the SERVER's own
+# derivation as something the user did, on composed decorations. Witnessed in
+# a browser by the Pin-to-Canvas client-surface agent while hunting for a
+# save whose content was exactly the pins: on the e2e `testMini` fixture the
+# first load already disagreed with disk on 11 of 18 elements with
+# `dirtyMap` reading false, and the next save was narrated
+# "resized cb-chk (+5 more) — 1x resized, 5x reordered" over a session whose
+# only user content was lock flips. `cb-chk` is the tick inside a checkbox
+# nobody clicked.
+#
+# THE NAMED CHECK IS `tests/test_backend.py`'s `TestClientRemeasure`, and it
+# is genuinely silent here rather than wrong: re-run at this tree's head it
+# is 5/5 green, and every one of its five is about TEXT — the class was
+# built for the browser's font re-measurement (capability assessment
+# 2026-08-08) and its predicate pair says so. `_text_metric_derived` answers
+# only for `type == "text"` plus the labelled-container min-height settle,
+# and `_geometry_derived` knows `role` `"label"` and `"pin"`, text with a
+# `containerId`, and BOUND arrows and lines. A `line` carrying
+# `role: "decoration"` and no bindings — which is every check stroke and
+# every body-text rule the composer emits — is outside both, so the same
+# drift the guard absorbs on a label is narrated as a user resize.
+#
+# NOT `CATALOGUE` ENTRIES, for the reason the two classes above give in
+# their own words: a `Mutant` is judged by `collect_findings` over an
+# ELEMENT LIST, and what is wrong here is what `Store.commit` MINTS into the
+# save record. There is no finding code for a `FindingSpec` to name, no
+# operator that can express "post this scene back unchanged", and
+# `lint_layout` is correct to be silent — the picture is fine. The harm is
+# entirely in the history.
+#
+# TWO REDS FROM ONE BASE SCENE, per the dedupe-families rule, and they are
+# two DIFFERENT mechanisms that happened to arrive in one save. The first is
+# the handover's own defect. The second was found by minimizing it: the
+# control built to prove the probe could see silence was itself red, so it
+# is written down rather than quietly worked around.
+# ---------------------------------------------------------------------------
+def _composed_screen(with_body: bool) -> canvas.Store:
+    """A wireframe seeded through the real write path, as `testMini` does.
+
+    THE COMPOSER IS THE POINT, so the parts are never hand-written: the
+    `kind: "checkbox"` host makes `cb-box`, the `cb-chk` tick (a `line`
+    with `points` and `role: "decoration"`) and the `cb-label` bound
+    text, and a `kind: "body"` host makes one wavy `line` per ~16px of
+    height. Writing those by hand would let the seeder drift from the
+    thing the client actually receives, which is the drift under test.
+
+    The body block is 32px and not the fixture's 80px because `n` is
+    `height // 16`: 32 yields the two lines that are the fewest able to
+    show the reorder, where 80 yields five and says the same thing four
+    times over. Two composites and not one because the second red needs
+    a composite whose parts something else's reconciliation can push —
+    see `test_one_composite_reposts_without_a_word`, which is the same
+    scene with `with_body=False` and is silent.
+
+    Args:
+        with_body: True to add the body-text block beside the checkbox.
+
+    Returns:
+        A loaded store at revn 1 holding the `screen` artifact.
+
+    Raises:
+        AssertionError: If the seed batch reported an error. A pin whose
+            fixture failed to build states nothing about `commit`, and
+            must not reach the assertions wearing a half-built scene.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-composed-"))
+    ops = [{"op": "add", "element": {
+        "id": "cb", "type": "rectangle", "x": 80, "y": 100, "width": 220,
+        "height": 28, "label": "Macro calendar", "kind": "checkbox",
+        "checked": True}}]
+    if with_body:
+        ops.append({"op": "add", "element": {
+            "id": "body", "type": "rectangle", "x": 420, "y": 180,
+            "width": 240, "height": 32, "kind": "body"}})
+    project = canvas.Project(root)
+    project.ensure_tree()
+    store = canvas.Store(project)
+    record, _ = store.apply_batch({
+        "base_revn": 0, "ops": ops,
+        "create": {"id": "screen", "type": "wireframe", "concept": "screen",
+                   "name": "Screen"}})
+    if record.get("revn") != 1:
+        raise AssertionError(
+            "the seed batch did not land: %r. Nothing below is measuring a "
+            "composed scene" % (record,))
+    return store
+
+
+def _resave(store: canvas.Store,
+            edit: Callable[[list[dict]], None]) -> dict[str, Any]:
+    """Hand the client its own scene back, apply one edit, and commit.
+
+    A deep copy of `Store.scenes[aid]` and not a rebuilt list, because
+    that cache IS what the client is handed — `/api/state` serves those
+    bytes verbatim — so an `edit` that does nothing posts back exactly
+    what the browser holds. The copy also matters for a second reason
+    the reds below depend on: `commit` mutates the list it is given in
+    place, so a caller sharing the store's own list would be diffing a
+    scene against itself.
+
+    Args:
+        store: The store to commit against, at its own head.
+        edit: Mutates the posted element list in place. May do nothing.
+
+    Returns:
+        The save record's `summary` — `verb_counts`, `headline`.
+    """
+    posted = copy.deepcopy(store.scenes["screen"])
+    edit(posted)
+    record = store.commit("user", {"screen": posted},
+                          base_revn=store.head_revn())
+    return (record or {}).get("summary") or {}
+
+
+def _set_height(eid: str, value: float) -> Callable[[list[dict]], None]:
+    """An edit that resizes one element by id.
+
+    Args:
+        eid: The element to resize.
+        value: The new `height`.
+
+    Returns:
+        An edit callable for `_resave`.
+    """
+    def edit(els: list[dict]) -> None:
+        """Write the height onto the named element."""
+        for e in els:
+            if e["id"] == eid:
+                e["height"] = value
+    return edit
+
+
+class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
+    """Composed furniture drifts, and the history blames the user.
+
+    `TestClientRemeasure` in `test_backend.py` states the rule this
+    class extends — client re-measurement "must never masquerade as user
+    edits" — and proves it for text alone. Excalidraw's `restore` also
+    re-derives a `line`'s `width`/`height` from its `points` on load, so
+    a check stroke stored 10x8 arrives back 10x10 having been touched by
+    nobody. Measured in a browser on `testMini`, 2026-08-18: 6 of the 11
+    drifted elements were `line`s, `dirtyMap` read false, and the next
+    save recorded a `resized` fact against the tick.
+
+    WHO FLIPS THESE: the work package that owns the re-measure guard,
+    i.e. whoever owns `_geometry_derived` / `_text_metric_derived` and
+    `Store.commit`'s composite pass. Not the curator and not the client-
+    surface agent who witnessed it — a fix and its acceptance test from
+    one pair of hands is the run-5 pattern this harness exists to
+    refuse. The two reds want two different repairs and may be routed to
+    two owners; they share a class because they share a base scene and
+    were witnessed in one save, not because one change closes both.
+
+    WHAT IS NOT PINNED HERE, so the silence is not read as evidence: the
+    text half of the same load (`cb-label` 113px stored against 99.94px
+    measured, `pin-kpi` 26x26 against 12x25) is the MODELLED case —
+    `restoreForRender` stores label text unwrapped on purpose and the
+    server absorbs it — and `TestClientRemeasure` already owns it. Only
+    the `line` half is a miss.
+    """
+
+    def test_a_drawn_lines_real_resize_still_narrates(self) -> None:
+        """The firing pole for `resized`, ungated, on the same verb.
+
+        Without this the first red could be satisfied by a differ that
+        stopped minting `resized` at all, or by a repair that silenced
+        the verb for every `line` rather than for derived ones — and a
+        wireframe's plain rules and dividers are `line`s a user draws
+        and drags like anything else. `rule` is added by a second batch
+        so it carries no composer `role`, which is the one axis the fix
+        may key on.
+        """
+        store = _composed_screen(with_body=False)
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "screen",
+            "ops": [{"op": "add", "element": {
+                "id": "rule", "type": "line", "x": 80, "y": 400,
+                "width": 200, "height": 0, "points": [[0, 0], [200, 0]]}}]})
+        self.assertEqual(
+            _resave(store, _set_height("rule", 40)).get("verb_counts"),
+            {"resized": 1},
+            "a plain line the user dragged taller stopped narrating, so "
+            "the red below would pass against a differ that says nothing")
+
+    def test_a_real_restack_still_narrates_reordered(self) -> None:
+        """The firing pole for `reordered`, ungated, on the same verb.
+
+        The second red asserts an absence of this verb, and an absence
+        proves nothing where the verb is dead. A genuine restack — the
+        checkbox's own box lifted to the front of the list — is the
+        gesture `reordered` exists to narrate, and it must survive
+        whatever suppression closes the red.
+        """
+        def restack(els: list[dict]) -> None:
+            """Lift `cb-box` to the front of the posted list."""
+            i = next(i for i, e in enumerate(els) if e["id"] == "cb-box")
+            els.insert(0, els.pop(i))
+
+        counts = _resave(_composed_screen(with_body=False),
+                         restack).get("verb_counts") or {}
+        self.assertEqual(
+            counts.get("reordered"), 2,
+            "a deliberate restack no longer narrates `reordered`: %r"
+            % (counts,))
+
+    def test_one_composite_reposts_without_a_word(self) -> None:
+        """The silence pole, and the control that localizes the second red.
+
+        The same unchanged repost as the red below with the body block
+        left out, and it says `saved_no_changes` — the differ's own word
+        for "you saved and nothing moved". That is what makes the red a
+        statement about the SECOND composite's reconciliation rather
+        than about no-op saves in general, and it is the pole that fails
+        if `_resave` ever stops posting the scene the client holds — a
+        builder that handed back some other list would read as silent
+        here while making the red mean nothing.
+
+        It is also where the quiet answer the two reds assert comes
+        from, measured rather than assumed: both of them expect exactly
+        this dict, so neither has to guess what a healthy save of an
+        untouched scene looks like.
+        """
+        self.assertEqual(
+            _resave(_composed_screen(with_body=False),
+                    lambda els: None).get("verb_counts"),
+            {"saved_no_changes": 1},
+            "a single-composite scene posted back unchanged stopped "
+            "saying `saved_no_changes`, so the red below is not about "
+            "the second composite after all")
+
+    @unittest.expectedFailure
+    def test_the_ticks_remeasured_height_is_not_a_user_resize(self) -> None:
+        """The handover's defect: the tick inside a box nobody clicked.
+
+        MEASURED 2026-08-18 at this tree's head: `{"resized": 1}` with
+        the headline "resized cb-chk", where the truth is the
+        `{"saved_no_changes": 1}` the green above measures on the same
+        scene. Direction is false-positive throughout — the user resized
+        nothing — and the magnitude is the whole finding, so the
+        assertion is on the counts and not on the verb's mere presence:
+        a repair that narrated the drift as some quieter verb would
+        still be telling history a person acted.
+
+        The drift is Excalidraw's own, not a number invented here.
+        `restore` recomputes a line's height from its `points`, and
+        `[[0,0],[4,4],[10,-6]]` spans -6..4 = 10px against the 8px the
+        composer stored, which is exactly the 8 -> 10 the browser
+        posted back on `testMini` before anyone had touched the canvas.
+
+        Stated on `verb_counts` rather than on the change entry's
+        `derived` flag deliberately, so the pin does not prejudge the
+        repair. Teaching `_geometry_derived` about `role: "decoration"`
+        is the obvious shape and would flip this, but so would a fix
+        that re-derives composed parts before the diff instead — and a
+        red that had named the flag would have to be rewritten to accept
+        the second.
+        """
+        self.assertEqual(
+            _resave(_composed_screen(with_body=False),
+                    _set_height("cb-chk", 10)).get("verb_counts"),
+            {"saved_no_changes": 1},
+            "the browser re-measured a composed check stroke on load and "
+            "the save blamed the user for resizing it")
+
+    @unittest.expectedFailure
+    def test_a_byte_identical_repost_narrates_nothing(self) -> None:
+        """The save that changed nothing and narrated two changes.
+
+        MEASURED 2026-08-18: posting `Store.scenes["screen"]` back
+        verbatim returns `{"reordered": 2}`, headline "reordered
+        body-body1 (+1 more)" — 5 on the fixture's 80px block, since the
+        count is one per element the regroup displaces. Truth is the
+        `{"saved_no_changes": 1}` the same repost produces one composite
+        down, direction false-positive, and no edit was made at all: the
+        `edit` callable here does nothing.
+
+        NOT the drift `align_baseline_order` already fixed, which is why
+        this is a new red beside a green `TestReplayOrderFidelity` and
+        not a re-opening of it. Task 52's repair holds on this scene —
+        cache and replay agree, asserted below before the count is read,
+        so a regression there fails here with a different message.
+        `commit` then calls `_interpret_user_composites` on the POSTED
+        list, after the baseline has been aligned, and
+        `reconcile_composed` re-seats the checkbox's parts so `cb-label`
+        moves from the end of the list to just behind `cb-chk`. The
+        differ sees the body's two lines one slot later than the
+        baseline holds them and mints the user a `reordered` fact each.
+        The seed path and the commit path disagree about where a
+        composite's bound label belongs; the record calls that
+        disagreement the user's doing.
+
+        The consequence is worse than one noisy save: this fires on the
+        FIRST user save of any artifact carrying two composites,
+        including a save whose real content is one deliberate edit,
+        where it takes the headline's `(+N more)` and buries it.
+        """
+        store = _composed_screen(with_body=True)
+        cached = [e["id"] for e in store.scenes["screen"]]
+        replayed = [e["id"] for e in
+                    store.state_at(1)["screen"]["elements"]]
+        self.assertEqual(
+            cached, replayed,
+            "the cache and the replay have come apart, which is the "
+            "OTHER phantom-reorder defect (Task 52); this pin is about "
+            "the one commit manufactures on a scene where they agree")
+        self.assertEqual(
+            _resave(store, lambda els: None).get("verb_counts"),
+            {"saved_no_changes": 1},
+            "a save that posted the client's scene back byte for byte "
+            "narrated a restack the user never made")
 
 
 class TestCoverage(unittest.TestCase):

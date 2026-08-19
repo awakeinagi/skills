@@ -629,6 +629,25 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   pointer-events: none;
 }
 
+/* ---------- the thumb-tack: a pinned element's only affordance -------
+   `pointer-events: auto` is stated rather than inherited: this badge is
+   a BUTTON, and the one canvas overlay in this app whose buttons were
+   left to inherit ended up inside the canvas's stacking context behind
+   pointer-events gating, where every click fell through to Excalidraw
+   (v0.3 regression). Deliberately NOT `--pin`, which is the ❓ question
+   glyph's colour — a pin here is a position, not a question. */
+.pin-tack {
+  position: absolute; z-index: 30; pointer-events: auto; cursor: pointer;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; font-size: 12px; line-height: 1;
+  border-radius: 50%; border: 2px solid #fff; background: var(--chrome-2);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+}
+.pin-tack:hover { transform: translate(-50%, -50%) scale(1.14); }
+/* the multi-selection's group tack, on the union box's corner */
+.pin-tack.group { border-style: dashed; }
+
 /* injected tooltip items in Excalidraw's native context menu inherit its
    own .context-menu-item styling; only the hover needs a nudge */
 .wg-tooltip-item .context-menu-item:hover {
