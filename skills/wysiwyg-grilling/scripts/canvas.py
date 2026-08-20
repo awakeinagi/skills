@@ -1245,6 +1245,39 @@ def _round_geom(v):
     return v
 
 
+def points_extent(points):
+    """The box a point-strung element's `points` actually span.
+
+    THE SPAN, NOT THE REACH FROM THE ORIGIN, and the distinction is the
+    whole reason this exists. `points` are offsets from the element's
+    `x`/`y`, so `max(abs(p))` answers "how far from the anchor does this
+    path get", which equals the width only when the path never goes
+    negative. Every self-loop does: a `run -> run` loop stores points
+    spanning 52px whose largest absolute x is 28, so the element claimed
+    a 28px box around a 52px drawing. Excalidraw's `restoreElement` runs
+    `getSizeFromPoints` — this function — on load, so the client silently
+    repairs the lie and ships the repair back on the next save, where the
+    save diff narrates it to the user as a resize they never made.
+
+    This is the standing repo rule "bound point-strung elements by their
+    points, never by a stored width/height" — and it binds when WRITING
+    geometry, not only when checking it.
+
+    Args:
+        points: The element's `points` — a list of `[dx, dy]` offsets.
+
+    Returns:
+        `(width, height)` — the x-span and y-span of the points. `(0, 0)`
+        for an empty path, which is the extent an element with nowhere to
+        go occupies.
+    """
+    if not points:
+        return (0, 0)
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return (max(xs) - min(xs), max(ys) - min(ys))
+
+
 def normalize_element(el):
     """Normalize one element in place: pin volatile attrs, round geometry."""
     el = dict(el)
@@ -1654,7 +1687,25 @@ def text_dims(text: str | None, font_size: float,
     # sum of advances, and the 2px holds that with margin on every one
     # of them.
     width_px = int(width + 0.999) + 2
-    return (max(width_px, 10), max(int(height), int(font_size * line_height)))
+    # CEIL THE LINE BOX TOO. This was `int()`, the only place the
+    # function rounded DOWN, and it disagreed with the ceil directly
+    # above it for no stated reason: at fontSize 14 a line box is 17.5px
+    # and this reserved 17, while the client measures 17.5 — 13 corpus
+    # texts and every fontSize whose line box is fractional (14, 10).
+    # Under-reserving height is the direction that loses content off the
+    # bottom rather than margin, which is the very failure the
+    # `line_height` parameter above exists to prevent.
+    #
+    # THIS DOES NOT MAKE THE ROUND TRIP A FIXED POINT, and saying so is
+    # the point: `normalize_element` rounds every stored width/height to
+    # a whole pixel, so a client answer of 17.5 has no representation on
+    # disk at all — 17 before this change, 18 after. The residue is
+    # <=0.5px, silent (`_text_metric_derived` suppresses it), and closes
+    # only if the store learns fractional text extents. What changes here
+    # is the SIGN: the server now reserves slightly more than the ink
+    # instead of slightly less.
+    line_box = math.ceil(font_size * line_height)
+    return (max(width_px, 10), max(math.ceil(height), line_box))
 
 
 def wrap_label_text(text, inner, fs):
@@ -2466,14 +2517,33 @@ def _compose_control_glyph(el, kind, checked, existing_ids):
     return out
 
 
+CHECK_STROKE_PTS = [[0, 0], [4, 4], [10, -6]]
+
+
 def _check_stroke(el, existing_ids):
-    """Build the check-mark stroke of a checked checkbox."""
+    """Build the check-mark stroke of a checked checkbox.
+
+    The box is DERIVED from the stroke's own points rather than written
+    down beside them: the literal `height=8` that used to sit here
+    matched neither the reach (6) nor the span (10) of
+    `CHECK_STROKE_PTS`, so every checked box shipped a 10x8 claim around
+    a 10x10 drawing and the client corrected it on load — four fabricated
+    "resized" narrations per artifact. See `points_extent`.
+
+    Args:
+        el: The checkbox rectangle the stroke belongs to.
+        existing_ids: Live id set for id registration.
+
+    Returns:
+        The check-mark line element.
+    """
     cy = el["y"] + el.get("height", 28) / 2.0
+    cw, ch = points_extent(CHECK_STROKE_PTS)
     return _deco(
         el["id"] + "-chk", "chk_of", el["id"], el["id"] + "-grp",
         existing_ids, type="line",
-        x=el["x"] + 11, y=cy - 1, width=10, height=8,
-        points=[[0, 0], [4, 4], [10, -6]], lastCommittedPoint=None,
+        x=el["x"] + 11, y=cy - 1, width=cw, height=ch,
+        points=[list(p) for p in CHECK_STROKE_PTS], lastCommittedPoint=None,
         startBinding=None, endBinding=None,
         startArrowhead=None, endArrowhead=None, elbowed=False,
         strokeWidth=2)
@@ -3631,8 +3701,7 @@ def _snap_geom(arrow):
     arrow["points"] = [[_round_geom(p[0]), _round_geom(p[1])]
                        for p in (arrow.get("points") or [])]
     if arrow["points"]:
-        arrow["width"] = max(abs(p[0]) for p in arrow["points"])
-        arrow["height"] = max(abs(p[1]) for p in arrow["points"])
+        arrow["width"], arrow["height"] = points_extent(arrow["points"])
 
 
 def _stamp_route(arrow):
@@ -4177,8 +4246,7 @@ def route_arrow(arrow, src, dst, obstacles=None, soft_obstacles=None,
     pts = [[px - x1, py - y1] for px, py in path]
     gap = 6
     arrow["x"], arrow["y"] = x1, y1
-    arrow["width"] = max(abs(p[0]) for p in pts)
-    arrow["height"] = max(abs(p[1]) for p in pts)
+    arrow["width"], arrow["height"] = points_extent(pts)
     arrow["points"] = pts
     arrow["roundness"] = derived_roundness(arrow)   # derived, never authored
     # SNAP FIRST, THEN SOLVE, and the order is the whole point. `_snap_geom`
@@ -5334,8 +5402,7 @@ def fan_attach_points(els):
                 continue
         a["x"], a["y"] = sx, sy
         a["points"] = pts
-        a["width"] = max(abs(p[0]) for p in pts)
-        a["height"] = max(abs(p[1]) for p in pts)
+        a["width"], a["height"] = points_extent(pts)
         # SNAP FIRST, THEN SOLVE — the same ordering `route_arrow` states
         # its reasons for. A fan slot is `L*k/(N+1)` and is fractional far
         # more often than a route is, so this is the call site that
@@ -5891,8 +5958,7 @@ def _stamp_contention(a, which, anchor, foot, side, node, ix):
     x0, y0 = path[0]
     a["x"], a["y"] = x0, y0
     a["points"] = [[px - x0, py - y0] for px, py in path]
-    a["width"] = max(abs(p[0]) for p in a["points"])
-    a["height"] = max(abs(p[1]) for p in a["points"])
+    a["width"], a["height"] = points_extent(a["points"])
     a["roundness"] = derived_roundness(a)
     _stamp_route(a)         # snap first, then solve — route_arrow's order
     spts, ax0, ay0 = a["points"], a["x"], a["y"]
@@ -8402,11 +8468,14 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                 existing.add(pid)          # mint_id only wrote the union
             pin_ids.add(pid)
             px, py = pin_spot(anchor, els) if anchor else (40, 40)
+            # The box is the ESTIMATE for this glyph, centred in the slot
+            # `pin_spot` placed — never a literal. See `pin_glyph_box`.
+            gw, gh, ginset = pin_glyph_box()
             pin_el = dict(BASE_DEFAULTS)
             pin_el.update({
-                "id": pid, "type": "text", "x": px, "y": py,
-                "width": 26, "height": 26, "text": "❓",
-                "originalText": "❓", "fontSize": 20,
+                "id": pid, "type": "text", "x": px + ginset, "y": py,
+                "width": gw, "height": gh, "text": "❓",
+                "originalText": "❓", "fontSize": PIN_GLYPH_FS,
                 "fontFamily": FONT_LEGIBLE, "textAlign": "center",
                 "verticalAlign": "top", "lineHeight": 1.25,
                 "containerId": None, "autoResize": True,
@@ -11259,6 +11328,46 @@ def marker_anchor(el, dx=0, dy=0, corner="br"):
 # not a claim worth making.
 PIN_HUG_PX = 8
 
+# The square slot a ❓ is PLACED in — a reservation, not a measurement.
+# It is deliberately not the glyph's ink box, and the two used to be the
+# same number (26) purely because a mis-estimated glyph happened to fill
+# its slot. The ink is ~12x25 (see NUNITO_ADVANCE's "❓" entry); the slot
+# stays 26x26 because that is the footprint `pin_spot` tests collisions
+# against and the footprint the client's `pinSpot` tests them against
+# too — a parity gate holds the two defaults equal, and shrinking this to
+# the ink would re-open the r4b-3 crowding it was sized to fix and move
+# pins on drawings nobody asked to change. The glyph is CENTRED in the
+# slot, which is what keeps the ink where it has always been drawn while
+# the claimed box shrinks around it.
+PIN_SLOT_PX = 26
+
+# The size a ❓ is set at. Named because three things must agree: the
+# stored `fontSize`, the `text_dims` call that sizes the box, and the
+# advance measured for U+2753 at this size.
+PIN_GLYPH_FS = 20
+
+
+def pin_glyph_box():
+    """The ink box a ❓ occupies, and where it sits inside its slot.
+
+    Derived from `text_dims` rather than written down, so the composer
+    and the estimator cannot drift apart again: they were two independent
+    copies of `26` that agreed only by coincidence — the literal was
+    hand-written and `text_dims` reached the same number through the
+    `east_asian_width` arm this file no longer lets win. Either could
+    have moved without the other.
+
+    Returns:
+        `(width, height, inset)` — the glyph's estimated ink box, and the
+        horizontal inset that centres it in a `PIN_SLOT_PX` slot. Callers
+        place at `spot_x + inset` so the drawn centre is unchanged from
+        when the box filled the slot; Excalidraw and `render_svg` both
+        anchor a `textAlign: center` text at `x + width / 2`, so the
+        centre is the only thing the picture depends on.
+    """
+    gw, gh = text_dims("❓", PIN_GLYPH_FS)
+    return (gw, gh, (PIN_SLOT_PX - gw) / 2.0)
+
 
 def _rect_gap(a, b):
     """Clearance between two elements' boxes, 0 when they touch.
@@ -11306,7 +11415,7 @@ def _rect_contains(outer, inner):
             >= inner.get("y", 0) + inner.get("height", 0))
 
 
-def pin_spot(anchor, els, size=26):
+def pin_spot(anchor, els, size=PIN_SLOT_PX):
     """Where a ❓ glyph sits: hugging the target, never in a neighbour.
 
     The constant top-right offset is layout-density-blind (r4b-3): on a
@@ -11335,10 +11444,13 @@ def pin_spot(anchor, els, size=26):
     Args:
         anchor: The target element.
         els: The scene (collision candidates).
-        size: Glyph bbox edge in px.
+        size: Edge of the square SLOT the glyph is placed in, in px — a
+            reservation and not the glyph's ink, which is narrower. See
+            `PIN_SLOT_PX`; callers centre the ink in what this returns
+            via `pin_glyph_box`.
 
     Returns:
-        `(x, y)` for the glyph.
+        `(x, y)` — the top-left of the slot, not of the ink.
     """
     px, py = marker_anchor(anchor, dx=PIN_HUG_PX, dy=-PIN_HUG_PX,
                            corner="tr")
@@ -25802,21 +25914,28 @@ def _x_user_pin(target, question, x, y):
     driver that posts what the product does not is a finding built on a
     scene no user could produce.
 
+    The glyph box comes from `pin_glyph_box`, for the reason the note
+    above gives: a driver that posts what the product does not is a
+    finding built on a scene no user could produce. The two 26x26
+    literals that used to sit here were a third copy of a box the
+    composer no longer writes.
+
     Args:
         target: Element id the question is about.
         question: The question text.
-        x: Left edge of the glyph.
+        x: Left edge of the glyph's SLOT — the ink is centred in it.
         y: Top edge of the glyph.
 
     Returns:
         A single text element carrying the pin's `customData`.
     """
+    gw, gh, ginset = pin_glyph_box()
     el = dict(BASE_DEFAULTS)
     el.update({
         "id": "pin-user-" + hashlib.sha1(
             question.encode("utf-8")).hexdigest()[:8],
-        "type": "text", "x": x, "y": y, "width": 26, "height": 26,
-        "text": "❓", "originalText": "❓", "fontSize": 20,
+        "type": "text", "x": x + ginset, "y": y, "width": gw, "height": gh,
+        "text": "❓", "originalText": "❓", "fontSize": PIN_GLYPH_FS,
         "fontFamily": FONT_LEGIBLE, "textAlign": "center",
         "strokeColor": PIN_INK, "autoResize": True,
         "customData": {"role": "pin", "author": "user", "target": target,

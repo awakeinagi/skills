@@ -8710,8 +8710,11 @@ class TestFanAttachPoints(unittest.TestCase):
                                     "gap": 1},
                    "endBinding": {"elementId": "N", "focus": 0, "gap": 1},
                    "customData": {"role": "edge"}}
-            arr["width"] = max(abs(p[0]) for p in arr["points"])
-            arr["height"] = max(abs(p[1]) for p in arr["points"])
+            # THE SPAN, via the product's own helper. This carried a
+            # private `max(abs(p))` copy of the bug `points_extent` fixes,
+            # so a regression test seeded here would have agreed with a
+            # broken product and stayed green either way.
+            arr["width"], arr["height"] = canvas.points_extent(arr["points"])
             arr["customData"]["routed"] = canvas._route_sig(arr)
             els.append(arr)
         return els
@@ -13966,8 +13969,14 @@ class TestMarkerAnchor(unittest.TestCase):
               "question": "Which way?"}], errors, [])
         self.assertEqual(errors, [])
         pin = next(e for e in out if e["id"] == "pin-1")
-        # 8px clear of the STROKE, not 79px clear of the corner
-        self.assertEqual((pin["x"], pin["y"]), (258, 117))
+        # 8px clear of the STROKE, not 79px clear of the corner. 258 is
+        # the SLOT `pin_spot` places; the glyph's ink is narrower than
+        # the slot and centred in it, so the element's own x is inset by
+        # that half-difference. The hug distance — what this test is
+        # about — is unchanged, and the drawn centre still lands at
+        # 258 + PIN_SLOT_PX/2.
+        _gw, _gh, ginset = canvas.pin_glyph_box()
+        self.assertEqual((pin["x"], pin["y"]), (258 + ginset, 117))
 
     def test_the_router_still_owns_the_name_edge_anchor(self):
         # this helper was first written AS `edge_anchor`, which already
