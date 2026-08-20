@@ -59,6 +59,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import hashlib
+import http.server
 import importlib
 import inspect
 import io
@@ -71,6 +72,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 import zlib
@@ -6469,7 +6471,13 @@ _SVG_DIMS = re.compile(r"width='(\d+)' height='(\d+)' viewBox='"
 # code under test cannot notice when that code moves it out of the regime.
 # `TestRenderParityRegime` is where the number is checked.
 _WIDE_LABEL = "a considerably wider label"
-_WIDE_LABEL_W = 192
+# 192 until TASK-TEXT-TRUTH gave `NUNITO_ADVANCE` the vendored face's own
+# advances: 'r' is 0.365 em where the 2dp table said 0.360, and this
+# string carries three of them. The REGIME was re-checked and not merely
+# the number — the centered label's drawn left edge moves -86 to -86.5,
+# still past the 40px pad, so it is the same clip this scene was built
+# to observe.
+_WIDE_LABEL_W = 193
 
 
 def _reframe(svg: str, pad: int) -> tuple[str, int, int]:
@@ -7301,7 +7309,11 @@ class TestRenderParityRegime(unittest.TestCase):
         `lineHeight` default change moves it without touching either
         number above.
         """
-        self.assertEqual(canvas.text_dims(_WRAPPED_LABEL, 16), (338, 20),
+        # 338 until TASK-TEXT-TRUTH; the face's real advances make it 339.
+        # The other two claims were re-derived rather than assumed: the
+        # greedy wrap still gives four lines (79/98/89/67px against the
+        # 100px bound) and the last baseline is still 73.6.
+        self.assertEqual(canvas.text_dims(_WRAPPED_LABEL, 16), (339, 20),
                          "the font metrics moved: re-measure the wrapped "
                          "scene's regime, and the frame arithmetic in "
                          "test_the_bounds_loop_frames_the_wrapped_text_it_"
@@ -8450,3 +8462,248 @@ class TestRenderTierAborts(unittest.TestCase):
             _browser()
         self.assertIn("no chromium", str(caught.exception))
         self.assertIn("ms-playwright", str(caught.exception))
+
+
+# The repertoire `canvas.NUNITO_ADVANCE` is built over, as RANGES rather
+# than as a roster, so this file can re-probe exactly the set the table
+# was generated from instead of inheriting its keys. A roster taken from
+# the table could never notice a character the face gained or lost,
+# because it would only ever ask about what is already there.
+ADVANCE_REPERTOIRE = ((0x20, 0x7E), (0xA0, 0x17F), (0x2000, 0x206F),
+                      (0x20A0, 0x20BF))
+
+_FACE_PROBE = """<!doctype html><meta charset="utf-8"><style>%s</style>
+<body><pre id="out">working</pre><script>
+const CHARS = %s, SUBSETS = %s;
+(async () => {
+  for (const s of SUBSETS) {
+    for (const probe of ['ABCabc123', '\\u00E9\\u0100', '\\u2014\\u00B7']) {
+      try { await document.fonts.load('1000px "' + s + '"', probe); }
+      catch (e) {}
+    }
+  }
+  await document.fonts.ready;
+  const c = document.createElement('canvas').getContext('2d');
+  const res = {};
+  for (const ch of CHARS) {
+    c.font = '1000px "__NoSuchFace__", "Segoe UI Emoji"';
+    const base = c.measureText(ch).width;
+    for (const s of SUBSETS) {
+      c.font = '1000px "' + s + '", "Segoe UI Emoji"';
+      const w = c.measureText(ch).width;
+      if (Math.abs(w - base) > 1e-9) { res[ch] = w; break; }
+    }
+  }
+  await fetch('/__result', {method: 'POST', body: JSON.stringify(res)});
+  document.getElementById('out').textContent = 'done';
+})();
+</script>"""
+
+
+def _face_advances() -> dict[str, float]:
+    """Read the vendored Nunito's advances back out of the shipped files.
+
+    The client's own measuring engine, pointed at the client's own font
+    files: `canvas.measureText(ch).width` at 1000px, which is Nunito's
+    `unitsPerEm`, so what comes back is an exact count of font units.
+    This is how `canvas.NUNITO_ADVANCE` was built and it is the only way
+    it CAN be built — every face the skill ships is WOFF2, whose table
+    data is one Brotli stream, and the stdlib has no Brotli.
+
+    TWO THINGS HERE ARE LOAD-BEARING AND BOTH WERE FOUND BY GETTING THEM
+    WRONG FIRST.
+
+    Each subset file gets its OWN family name. The five
+    `Nunito-Regular-*.woff2` files are unicode-range subsets, and five
+    `@font-face` rules sharing one family with no `unicode-range` do not
+    compose — the last declared rule wins the entire range, so a single
+    "Nunito" probe silently reports the other four subsets' glyphs as
+    absent. Measured: probed as one family the bundle appears to have
+    274 of the glyphs it was asked for; probed separately, 703.
+
+    Every character is measured TWICE, once against the subset and once
+    against a family that does not exist with the same fallback tail,
+    and kept only when the two differ. Without that control the probe
+    reports the machine's own fallback font as if it were the vendored
+    face — which is how a table entry becomes a number that holds only
+    on the machine that generated it.
+
+    Returns:
+        Character to advance in ems, for every character of
+        `ADVANCE_REPERTOIRE` the vendored subsets actually supply.
+
+    Raises:
+        RuntimeError: If no vendored Nunito subset is present, or the
+            page never posted a measurement. Propagates `_browser`'s
+            when there is no chromium. The tier never degrades to a
+            skip: not measuring is a failure, not a pass (spec §7).
+    """
+    web = Path(canvas.__file__).resolve().parent / "web"
+    files = sorted((web / "fonts" / "Nunito").glob("Nunito-Regular-*.woff2"))
+    if not files:
+        raise RuntimeError("no vendored Nunito under %s — the advance table "
+                           "cannot be derived from a bundle with no face"
+                           % (web / "fonts" / "Nunito"))
+    names = ["NunitoSub%d" % i for i in range(len(files))]
+    css = "".join("@font-face{font-family:'%s';font-display:block;"
+                  "src:url('/fonts/Nunito/%s') format('woff2');}"
+                  % (n, p.name) for n, p in zip(names, files))
+    chars = sorted({chr(c) for lo, hi in ADVANCE_REPERTOIRE
+                    for c in range(lo, hi + 1)})
+    page = _FACE_PROBE % (css, json.dumps(chars), json.dumps(names))
+    posted: dict[str, str] = {}
+
+    class _Handler(http.server.SimpleHTTPRequestHandler):
+        """Serve the vendored bundle and collect the page's answer."""
+
+        def __init__(self, *a: Any, **kw: Any) -> None:
+            """Root the static server at the shipped web bundle.
+
+            Args:
+                *a: Positional args for the base handler.
+                **kw: Keyword args for the base handler.
+            """
+            super().__init__(*a, directory=str(web), **kw)
+
+        def do_POST(self) -> None:
+            """Take the measurement the page fetches back."""
+            n = int(self.headers.get("Content-Length", 0))
+            posted["data"] = self.rfile.read(n).decode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *a: Any) -> None:
+            """Keep the access log out of the test output.
+
+            Args:
+                *a: Ignored.
+            """
+
+    probe = web / "_face_probe.html"
+    probe.write_text(page, encoding="utf-8")
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    workdir = Path(_mkworkdir())
+    proc = None
+    try:
+        proc = subprocess.Popen(
+            [_browser(), *CHROME_FLAGS, "--no-first-run",
+             "--user-data-dir=%s" % (workdir / "u"),
+             "http://127.0.0.1:%d/_face_probe.html" % port],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        deadline = time.time() + 180
+        while time.time() < deadline and "data" not in posted:
+            time.sleep(0.25)
+    finally:
+        if proc is not None:
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait()
+        srv.shutdown()
+        srv.server_close()
+        probe.unlink(missing_ok=True)
+        shutil.rmtree(workdir, ignore_errors=True)
+    if "data" not in posted:
+        raise RuntimeError("the face probe never reported: chromium did not "
+                           "reach http://127.0.0.1:%d/_face_probe.html"
+                           % port)
+    return {ch: units / 1000.0
+            for ch, units in json.loads(posted["data"]).items()}
+
+
+@unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
+                             "(starts a headless browser)")
+class TestTheAdvanceTableIsTheVendoredFaces(unittest.TestCase):
+    """`NUNITO_ADVANCE` must be the shipped font, not a calibration.
+
+    The referee for `canvas.text_dims`' widths, and the reason that
+    function can stop calling itself an estimate. Same shape as the pin
+    that derives `NUNITO_LINE_HEIGHT` from the shipped bundle: the
+    constant in `canvas.py` is asserted against a value re-derived here
+    from the asset it describes, so a font update that re-tunes an
+    advance fails HERE rather than silently re-opening the gap between
+    what the server reserves and what the browser paints.
+
+    ONE PROBE, THREE CLAIMS, and the last two matter as much as the
+    first. That every entry is the face's own number is the obvious one.
+    That the table STOPS where the face does is what keeps it honest: a
+    glyph the face has no outline for is drawn by whatever the machine
+    running the browser happens to have, so baking its width would put a
+    number in a shipped file that holds only on the machine that
+    generated it. U+2753 is the live instance — 41 in the corpus, and it
+    measures 0.589 em here where a machine with a colour emoji font
+    would say about 1.2.
+
+    Attributes:
+        face: The probed advances, shared by the whole class.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Probe the vendored face once for the whole class."""
+        cls.face = _face_advances()
+
+    def test_every_entry_is_the_vendored_faces_own_advance(self) -> None:
+        """Each table entry equals the shipped face's advance, to 3dp.
+
+        3dp is exact and not a tolerance: Nunito's em is 1000 units, so
+        an advance the face supplies is a whole number of them and
+        `units / 1000` has three decimals with nothing after. Asserting
+        an equality rather than an `assertAlmostEqual` is what makes a
+        re-tuned face fail here instead of being absorbed.
+        """
+        self.assertTrue(self.face, "the probe found no Nunito glyph at all")
+        for ch, want in sorted(canvas.NUNITO_ADVANCE.items()):
+            with self.subTest(char="U+%04X" % ord(ch)):
+                self.assertIn(ch, self.face,
+                              "NUNITO_ADVANCE carries U+%04X (%r) at %.3f em, "
+                              "but the vendored subsets have no such glyph — "
+                              "that number is this machine's fallback font, "
+                              "not the face the drawing is painted in"
+                              % (ord(ch), ch, want))
+                self.assertEqual(round(self.face[ch], 3), want,
+                                 "U+%04X (%r): the shipped face measures "
+                                 "%.4f em and canvas.py reserves %.3f"
+                                 % (ord(ch), ch, self.face[ch], want))
+
+    def test_the_table_stops_exactly_where_the_face_does(self) -> None:
+        """No repertoire glyph the face supplies is missing from the table.
+
+        The other direction, and the one a re-generation gets wrong by
+        forgetting to re-run: a character the face carries but the table
+        lacks silently takes `_ADVANCE_FALLBACK`, which is the defect
+        the table exists to remove — U+00B7 read 0.62 against a true
+        0.233 and made one 12px caption 34.75px too wide.
+        """
+        missing = sorted(ch for ch in self.face
+                         if ch not in canvas.NUNITO_ADVANCE)
+        self.assertEqual(missing, [],
+                         "the vendored face supplies %d repertoire glyphs "
+                         "that NUNITO_ADVANCE does not carry, so each falls "
+                         "to the %.2f em guess: %r"
+                         % (len(missing), canvas._ADVANCE_FALLBACK, missing))
+
+    def test_the_pin_glyph_is_absent_because_the_face_lacks_it(self) -> None:
+        """U+2753 stays out of the table, and the probe says why.
+
+        Not an omission to be tidied up later. `_display_width` reads
+        the table BEFORE the width-class arms, so an entry here would
+        take U+2753 off the 1.2 em arm it sits on — a change to the
+        pin's geometry, which belongs to the stream that owns the pin
+        composer's stored box and not to the estimator. What this
+        asserts is the fact underneath that split: the vendored face has
+        no outline for it, so any number written here would be the width
+        of whatever font THIS machine reached for.
+        """
+        self.assertNotIn("❓", self.face,
+                         "the vendored Nunito now supplies U+2753 — the "
+                         "reason it is kept out of NUNITO_ADVANCE has gone, "
+                         "and the pin glyph's estimate can become a "
+                         "measurement")
+        self.assertNotIn("❓", canvas.NUNITO_ADVANCE,
+                         "U+2753 has an entry in NUNITO_ADVANCE, but the "
+                         "vendored face has no such glyph: that number is "
+                         "this machine's emoji font")
