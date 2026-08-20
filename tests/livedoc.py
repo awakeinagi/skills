@@ -1204,6 +1204,25 @@ def check_files(paths: Sequence[Path]) -> list[str]:
     returned list — louder than drift on purpose, because drift is what
     `refresh` repairs and those three are not.
 
+    NO EMPTY-`paths` REFUSAL HERE OR IN `refresh_files`, and that is a
+    ruling rather than an oversight (2026-08-20; raised as a possible
+    instance of the passes-over-an-absent-subject class and withdrawn).
+    `check_files([])` returning `[]` is the correct answer to the
+    question asked — there is no drift among zero files — and not a
+    check going quiet: the subject of this function is the markers in
+    the list it is handed, while "is that list the whole surface?" is a
+    different question owned by `tracked_prose_files`, which raises on
+    an empty listing and says why. A refusal here would also make these
+    two LESS total than they are, for no gain the caller does not
+    already provide. (Under a `pass_filenames: true` wiring, where "this
+    commit touched no markdown" is a legitimate empty list, it would be
+    actively wrong — but that wiring does not exist today, so it is a
+    reason to prefer this ruling and not the ruling itself.) Contrast the
+    de-duplication `refresh_files` keeps even though its caller already
+    de-duplicates — that one stops a corrupt WRITE from an input a
+    caller may legitimately supply, which is a different argument and
+    not a precedent for this.
+
     Args:
         paths: Files to check.
 

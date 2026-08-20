@@ -502,6 +502,14 @@ class TestTheGuardCensusChecksItsOwnSubjects(InstrumentCase):
     than by `AttributeError`. Re-run with the function present but
     re-worded, to prove nothing here depends on its message text.
 
+    A SECOND RESTORATION, for the empty-roster case, because that
+    reverse-apply does not produce the world it needs — it deletes the
+    census wholesale, where the case is about a census that ran and
+    found nothing to say. Replace `guard_mutants.assert_roster_populated`
+    with a no-op, which is exactly the pre-fix path: `check_subjects`
+    then walks `[]`, completes, and returns `[]`, and the case fails
+    `AssertionError: SystemExit not raised`. Measured 2026-08-20.
+
     THE ROSTER IS SYNTHETIC and `SRC` points at a three-line scratch
     file, because the question is whether the CHECK can see a broken
     subject — not whether today's `canvas.py` has one. The live roster
@@ -596,6 +604,33 @@ class TestTheGuardCensusChecksItsOwnSubjects(InstrumentCase):
                 check(), [],
                 "a roster whose anchors all apply and whose tests all "
                 "resolve was reported broken")
+
+    def test_an_empty_roster_is_refused_and_not_reported_clean(self) -> None:
+        """THE INPUT EVERY CASE ABOVE MISSED: no subjects at all.
+
+        The two cases above hand the census rosters of four rows and of
+        two, and the live-roster case below hands it twenty-three, so
+        none of them could reach the one roster that made the gate
+        meaningless. `GUARDS = []` walked to completion, found no broken
+        subject because there was no subject, and `--check` printed
+        "0 mutants, every anchor applies and every named test resolves"
+        and exited 0. A merge that emptied or truncated the roster was
+        therefore reported as a clean commit by the hook that exists to
+        notice exactly that.
+
+        Asserting the STATUS and not the wording, like its neighbours:
+        2 is refuse-to-run, and it must not collapse into the 1 that
+        means some subjects need re-pointing. There is nothing here to
+        re-point.
+        """
+        check = self.subject_check()
+        with self.census_over([]), self.assertRaises(SystemExit) as caught:
+            check()
+        self.assertEqual(
+            caught.exception.code, 2,
+            "an empty roster must refuse to run (2) rather than report "
+            "broken subjects (1) or, worse, return [] — there are no "
+            "subjects to report on, which is the finding")
 
     def test_the_live_roster_still_has_every_subject(self) -> None:
         """The real `GUARDS` against the real `canvas.py`, as the hook runs.
