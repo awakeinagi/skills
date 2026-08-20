@@ -11356,14 +11356,25 @@ class TestCrossLintJoinIsLoadBearing(CrossLintDriver, Base):
             no false claim left to catch, which is the correct outcome,
             not a miss." This roster fires.
 
-        SO THE DISAGREEMENT IS EXACTLY ONE CASE, and it is a judgement
-        about what the docs owe a reader rather than about rot: four
-        audiences lose the fact, silently, and each of those five
-        documents states it where a reader of that artifact TYPE meets
-        the question. That is not a curator's call to make alone. The
-        roster is kept because it is green and catches something real;
-        if the owning WP rules for `unmarked_values`' position, deleting
-        it is one line and this comment is the reason to cite.
+        RULED: KEEP BOTH (team-lead, 2026-08-20), and the reason is that
+        THEY GUARD DIFFERENT SUBJECTS rather than one being a weaker
+        copy of the other. `unmarked_values` guards LITERAL DRIFT — a
+        derived value appearing as an unheld copy — and its zero on the
+        reword is correct for that subject, because a deleted sentence
+        leaves no literal to be wrong.
+
+        This roster guards A RULING'S PRESENCE. These five sentences do
+        not exist because a value needed holding; they exist because the
+        user ruled on 2026-08-20 that the docs must state which pairs
+        the strict checks join, after the previous wording implied a
+        reach the tool does not have. A doc that silently drops the
+        statement is not "no false claim left to catch" — it is out of
+        compliance with that ruling, and the reader of `sequence.md` who
+        never meets the sentence is back in exactly the state the ruling
+        existed to end: believing a cross-type mapping earns strict
+        checks it does not earn. Nothing else in the tree notices.
+
+        The two overlap on one of two shapes. That is not redundancy.
         """
         root = Path(canvas.__file__).parent.parent
         marked, bare = {}, {}
@@ -12307,16 +12318,21 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
                                    "than deleting it")
         prose = said.group(1)
         # EITHER SPELLING IS LEGITIMATE and the pin must not prefer one:
-        # the caveat may name the term canonically (as a live marker
-        # does) or spell it out at reading length in prose. Demanding
-        # the long form AND forbidding the short one, as the first
-        # version of this pin did, is a contradiction that fires on any
-        # honest move between them — which is how it read on a merge
-        # result where another branch had made the term a live value.
+        # the caveat may name the term canonically — as the
+        # `live:mermaid_er_carries` marker does — or spell it out at
+        # reading length. Demanding the long form AND forbidding the
+        # short one, as the first version of this pin did, is a
+        # contradiction that fires on any honest move between them, and
+        # it is what took the candidate red once both were in one tree.
         # What is invariant is that the caveat NAMES the term.
-        aliases = {"the decoration text inside entities":
-                   "the decoration text a domain seeder draws inside an "
-                   "entity"}
+        #
+        # `ALIASES` IS EMPTY, AND STAYS ASSERTED-AS-NEEDED. It once held
+        # the reading-length phrase, which the marker has since replaced
+        # in `SKILL.md`; an entry kept past its use is drift holding a
+        # licence, so it is deleted rather than carried. The loop below
+        # is what makes re-adding one honest: a declared alias that no
+        # longer appears in the prose fails, naming itself.
+        aliases = {}
         carried = [canvas.MERMAID_DROP_LABELS[t]
                    for t in canvas.MERMAID_DROP_ROLES_NON_ER]
         self.assertTrue(carried, "no format-dependent term remains; the "
@@ -12333,9 +12349,15 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
             self.assertIn(label, set(canvas.MERMAID_DROP_LABELS.values()),
                           "alias kept for a label that no longer exists: "
                           "%r" % label)
-            if label in prose and alias in prose:
-                self.fail("the caveat carries BOTH spellings of %r — one "
-                          "of them is an unheld copy of the other" % label)
+            self.assertIn(alias, prose,
+                          "the alias for %r is declared but appears "
+                          "nowhere in the caveat — delete it rather than "
+                          "keeping a second name for one category alive"
+                          % label)
+            self.assertNotIn(label, prose,
+                             "the caveat carries BOTH spellings of %r — "
+                             "one of them is an unheld copy of the other"
+                             % label)
 
     def test_a_role_only_er_carries_is_never_dropped_under_er(self):
         """The caveat's behavioural half, so the prose pin is not alone.
