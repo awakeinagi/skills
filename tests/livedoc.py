@@ -602,6 +602,138 @@ def nudge_after_minutes() -> str:
 # nothing, which is worse than the honest literal it replaced.
 
 
+def _corpus_roots() -> list[Path]:
+    """The fixture projects the census walks, found once for both readers.
+
+    ONE FINDER, TWO CALLERS, on purpose. `corpus_census` and
+    `corpus_projects` publish numbers that only mean anything together —
+    "across N projects it lints to ..." — so a second copy of this glob
+    would be free to drift from the first and the sentence would go
+    quietly self-contradictory rather than loudly wrong. The repo's own
+    phrasing for this, in `.pre-commit-config.yaml`, is that a remedy
+    spelled twice is a remedy that drifts.
+
+    Returns:
+        Sorted project roots under `tests/fixtures/` that hold an
+        `artifacts/` directory. `mermaid/` has none and is not a project
+        by this definition, which is why the count is not "directories
+        under fixtures".
+
+    Raises:
+        AssertionError: If none is found, which would otherwise let both
+            callers report a confident zero about a corpus that has moved
+            rather than emptied.
+    """
+    roots = sorted(p for p in (REPO / "tests" / "fixtures").glob("*")
+                   if p.is_dir() and (p / "artifacts").is_dir())
+    if not roots:
+        raise AssertionError(
+            "no fixture project under tests/fixtures holds an artifacts/ "
+            "directory — the corpus has moved and this calculator would "
+            "report 0/0/0 rather than fail")
+    return roots
+
+
+@calculator("corpus_projects")
+def corpus_projects() -> str:
+    """How many fixture projects the corpus census is taken across.
+
+    AGENTS.md's row read "Across 5 projects" as a literal beside a live
+    census, which is the half-derived shape this module exists to remove:
+    the four numbers after it could not go stale and the number before
+    them could, so adding a sixth fixture project would have made one
+    sentence disagree with itself and passed the gate.
+
+    Returns:
+        The project count, exactly.
+    """
+    return str(len(_corpus_roots()))
+
+
+def _gate_hooks() -> tuple[list[str], list[str]]:
+    """Split `.pre-commit-config.yaml`'s hooks into automatic and manual.
+
+    READ AS TEXT, NOT AS YAML, because `canvas.py`'s stdlib-only rule has
+    no yaml parser behind it and this module is imported by the hook it
+    describes. The shape relied on is the one pre-commit itself requires:
+    a hook opens with a `- id:` item, and a hook that is manual-only says
+    so with a `stages:` line naming `manual` before the next `- id:`.
+    Full-line comments are stripped first, so the prose above the manual
+    hooks — which quotes `--hook-stage manual` at length — cannot be
+    mistaken for configuration.
+
+    Returns:
+        `(automatic, manual)` hook ids. `automatic` is what
+        `pre-commit run --all-files` executes; `manual` is what it does
+        NOT, which is the whole reason this is derived rather than
+        counted by hand.
+
+    Raises:
+        AssertionError: If the config is missing or declares no hook at
+            all — either way the gate's size is unknown, and an unknown
+            gate reported as a number is the defect this calculator was
+            added for.
+    """
+    path = REPO / ".pre-commit-config.yaml"
+    if not path.is_file():
+        raise AssertionError(
+            "%s is not in this tree, so the gate's hook census cannot be "
+            "derived" % path.name)
+    body = [ln for ln in path.read_text(encoding="utf-8").splitlines()
+            if not ln.lstrip().startswith("#")]
+    automatic: list[str] = []
+    manual: list[str] = []
+    current = ""
+    staged = False
+
+    def close() -> None:
+        """File the hook just finished under the stage it declared."""
+        if current:
+            (manual if staged else automatic).append(current)
+    for line in body:
+        found = re.match(r"\s*-\s*id:\s*(\S+)", line)
+        if found:
+            close()
+            current, staged = found.group(1), False
+        elif current and re.match(r"\s*stages:.*\bmanual\b", line):
+            staged = True
+    close()
+    if not automatic and not manual:
+        raise AssertionError(
+            "%s declares no `- id:` hook, so the gate is either empty or "
+            "no longer readable as text — refusing to publish a zero"
+            % path.name)
+    return automatic, manual
+
+
+@calculator("gate_hooks_automatic")
+def gate_hooks_automatic() -> str:
+    """How many hooks `uvx pre-commit run --all-files` actually runs.
+
+    Returns:
+        The count, exactly.
+    """
+    return str(len(_gate_hooks()[0]))
+
+
+@calculator("gate_hooks_manual")
+def gate_hooks_manual() -> str:
+    """How many hooks the gate does NOT run without `--hook-stage manual`.
+
+    THE NUMBER THIS EXISTS TO KEEP HONEST is the one in the sentence
+    beside it. AGENTS.md called `pre-commit run --all-files` "Everything,
+    as CI runs it" — wrong twice, and the half that mattered is this
+    half: the guard-mutant sweep and the Playwright suite are manual-only
+    and a reader who believed "Everything" had no reason to run either.
+
+    Returns:
+        The count, exactly. Zero is a legitimate answer and is published
+        as one: it would mean the manual stage had been retired, which is
+        a change a reader should see rather than a broken measurement.
+    """
+    return str(len(_gate_hooks()[1]))
+
+
 @calculator("corpus_census")
 def corpus_census() -> str:
     """What the frozen corpus lints to, by a convention that is CODE.
@@ -703,13 +835,7 @@ def corpus_census() -> str:
     """
     sys.path.insert(0, str(REPO / "skills" / "wysiwyg-grilling" / "scripts"))
     import canvas
-    roots = sorted(p for p in (REPO / "tests" / "fixtures").glob("*")
-                   if p.is_dir() and (p / "artifacts").is_dir())
-    if not roots:
-        raise AssertionError(
-            "no fixture project under tests/fixtures holds an artifacts/ "
-            "directory — the corpus has moved and this calculator would "
-            "report 0/0/0 rather than fail")
+    roots = _corpus_roots()
     tally = {"errors": 0, "warnings": 0, "notes": 0}
     arts = scopes = 0
     tmp = Path(tempfile.mkdtemp(prefix="livedoc-census-"))
