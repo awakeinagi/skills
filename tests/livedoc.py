@@ -572,6 +572,46 @@ def detector_coverage_totals() -> str:
                tally["UNCOVERED"]))
 
 
+@calculator("guard_mutant_sites")
+def guard_mutant_sites() -> str:
+    """How many pin guard sites `tests/guard_mutants.py` mutates.
+
+    THE CLAIM THIS REPLACES WAS THREE SHORT AND SAID NOTHING ABOUT IT.
+    SKILL.md promised "Twenty guard sites ... 20/20" while the roster
+    held 23, and the number is exactly the shape that rots: sites get
+    added by the work that finds them, and the sentence quoting the total
+    lives in another file. The roster is the single source, so this reads
+    it rather than restating it.
+
+    NOT THE KILL COUNT — that needs the sweep, which rewrites `canvas.py`
+    in place for twenty minutes and is a hand-run instrument by design
+    (see that module's header). The prose states the sweep result as a
+    dated measurement instead, and `TestTheGuardRosterStillResolves`
+    keeps the anchors honest between sweeps.
+
+    Returns:
+        The count as a decimal string.
+
+    Raises:
+        AssertionError: If the roster cannot be imported. A calculator
+            that cannot reach its subject must refuse rather than fall
+            through to the stored value.
+    """
+    tests_dir = str(Path(__file__).resolve().parent)
+    if tests_dir not in sys.path:
+        sys.path.insert(0, tests_dir)
+    try:
+        import guard_mutants
+    except Exception as exc:
+        raise AssertionError(
+            "tests/guard_mutants.py could not be imported (%s), so the "
+            "guard-site count cannot be recomputed. That is a finding "
+            "about the instrument, not about the prose holding the "
+            "marker — do not delete the marker to make it go away" % exc
+        ) from exc
+    return str(len(guard_mutants.GUARDS))
+
+
 # --------------------------------------------------------------------------
 # The marker: parse, check, repair.
 # --------------------------------------------------------------------------

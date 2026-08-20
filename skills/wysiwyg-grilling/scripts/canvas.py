@@ -8414,7 +8414,7 @@ def recenter_label(els, el):
                                         label.get("height", 0)) / 2, 4)
 
 
-def _pin_kin(els, pid):
+def _pin_kin(els, pid, units=None):
     """The elements one dependency hop from a pinned one.
 
     ONE HOP, NEVER THE TRANSITIVE CLOSURE, and that bound is the whole
@@ -8439,9 +8439,26 @@ def _pin_kin(els, pid):
     those the harm genuinely does run both ways — moving a group sibling
     moves the pinned member.
 
+    THE GROUP EDGE IS THE MOVE UNIT, NOT THE SHARED ID, and that is not
+    the transitive closure coming back either. It follows the same single
+    edge it always did — "moving this moves the pinned one" — asked with
+    the notion of a group that `apply_ops` actually carries by. The two
+    drifted apart the moment that carry became `_group_components`':
+    with `sl-grp{sl,thumb,track}` overlapping `usergrp{thumb,box}` and
+    `sl` pinned, `box` shares no id with `sl`, so the gate released a
+    `mod x` on it — and the carry then walked the thumb and the track
+    400px off the pinned body while the narration said only that the box
+    had moved. A gate that judges by a different definition than the
+    mover it guards is not a gate. The frame explosion the one-hop bound
+    prevents stays prevented: this closes over group membership only, and
+    a frame is not a group.
+
     Args:
         els: The scene the batch is being applied to.
         pid: A pinned element's id, present in `els`.
+        units: `_group_components(els)`, when the caller already has it —
+            `pin_held_ops` asks once per pinned element and the answer is
+            the same every time. None recomputes it.
 
     Returns:
         `{element_id: relation}` — the relation phrased to complete the
@@ -8449,7 +8466,9 @@ def _pin_kin(els, pid):
     """
     ix = {e["id"]: e for e in els}
     p = ix[pid]
-    pg = set(p.get("groupIds") or [])
+    if units is None:
+        units = _group_components(els)
+    unit = units.get(pid) or frozenset()
     out = {}
     for e in els:
         eid = e["id"]
@@ -8475,7 +8494,7 @@ def _pin_kin(els, pid):
             out[eid] = "is %s %s bound to" % (
                 "an" if connector_noun(e)[0] in "aeiou" else "a",
                 connector_noun(e))
-        elif pg and set(e.get("groupIds") or []) & pg:
+        elif eid in unit:
             out[eid] = "is grouped with"
         elif e.get("containerId") == pid:
             out[eid] = "is the bound label of"
@@ -8582,14 +8601,25 @@ def pin_held_ops(els, ops):
     guarded = {}        # element id -> (pinned id, relation or None)
     for pid in sorted(pins):
         guarded[pid] = (pid, None)
+    # ONE NOTION OF "GROUP", SHARED WITH THE MOVER. Computed once here and
+    # handed to every `_pin_kin` call: the answer cannot differ between
+    # pins, and asking per pin made this O(pins x elements) for a fact
+    # that is a property of the scene.
+    ix = {e["id"]: e for e in els}
+    units = _group_components(els)
     pin_groups = {}     # groupId -> a pinned element id carrying it
     for pid in sorted(pins):
-        for eid, rel in _pin_kin(els, pid).items():
+        for eid, rel in _pin_kin(els, pid, units).items():
             if eid not in guarded:
                 guarded[eid] = (pid, rel)
-        for g in (next(e for e in els if e["id"] == pid)
-                  .get("groupIds") or []):
-            pin_groups.setdefault(g, pid)
+        # EVERY GROUP IN THE PINNED ELEMENT'S UNIT, not only the ids it
+        # carries itself. This is the mid-batch door's half of the same
+        # correction: an `add` joining `usergrp` reaches the pinned `sl`
+        # through the thumb exactly as a pre-existing member does, and
+        # reading only `sl`'s own `groupIds` left that door open.
+        for member in sorted(units.get(pid) or {pid}):
+            for g in (ix[member].get("groupIds") or []):
+                pin_groups.setdefault(g, pid)
     # DERIVED POSITIONS TRAVEL WITH WHAT DERIVES THEM. A bound label and a
     # composed part do not have a position of their own — `recenter_label`
     # and `reconcile_composed` recompute both from the owner on every

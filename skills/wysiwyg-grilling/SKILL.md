@@ -582,9 +582,11 @@ and priority order when suggesting views.
   **What it covers**: every non-user pass that could reposition an
   element — tidy's snap and its router, the fan, contention feet,
   re-routes, z-rebanding, focus solving, relayout, the composed-part
-  reconciler, bound-label re-centring, and the load-time repairs. Twenty
+  reconciler, bound-label re-centring, and the load-time repairs.
+  <!-- live:guard_mutant_sites -->23<!-- /live:guard_mutant_sites -->
   guard sites hold it, and each one has a test that goes red if that
-  guard is deleted (`tests/guard_mutants.py`, 20/20).
+  guard is deleted — `tests/guard_mutants.py`, all of them killed on the
+  2026-08-20 sweep.
 
   **What it deliberately does NOT cover, and cannot**:
   - **The user's own hand.** They drag, delete and unlock their own
