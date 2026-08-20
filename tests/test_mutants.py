@@ -17462,6 +17462,13 @@ def _composed_widget(grouped: bool) -> list[dict]:
 # is really one. If a catalogue red ever acquires an owner more specific
 # than "the task that lands this check", it needs a home this convention
 # does not currently give it.
+#
+# HISTORICAL as of 2026-08-20: `catalogue_red_ids()` is EMPTY and so is
+# `RULE8_EXEMPT`, so the first of those two homes no longer exists and the
+# convention describes a population of zero. Left standing rather than
+# deleted because the hole it names is real and returns with the next
+# catalogue red — but read it as a rule waiting for a subject, not as a
+# description of where an owner can be found today.
 CATALOGUE: dict[str, Mutant] = {}
 
 
@@ -25190,35 +25197,107 @@ def red_bearing_classes() -> dict[str, int]:
 # objects and found seven unpaired. Two were defects and are repaired
 # (`diamond_facet_overfire`'s neighbour now fires, and
 # `headless_chain_reads_through_node`'s neighbour test asserts a third
-# scene's firing beside the pole). The five below are the legitimate ones,
-# and putting them here rather than in a paragraph is the point of the
-# table: an ASPIRATIONAL borrow stops being prose the next agent may not
-# read and becomes a row a flip has to DELETE, in the same change that
-# gives the check a pole of its own.
+# scene's firing beside the pole). Putting the rest here rather than in a
+# paragraph is the point of the table: an ASPIRATIONAL borrow stops being
+# prose the next agent may not read and becomes a row a flip has to
+# DELETE, in the same change that gives the check a pole of its own.
 #
 # Adding a row is a judgement, not a convenience. The only reason this
-# table accepts is "no firing pole can be constructed", and the four
-# borrows qualify for the strongest possible version of it — their checks
-# do not exist, so `Silence` on them passes vacuously and the neighbour is
-# a placeholder holding the mutant's shape until one does.
-RULE8_EXEMPT: dict[str, str] = {
-    # The three WP7 contrast rows each said "Delete this row when the
-    # check lands", and on 2026-08-16 (task 29) all three did — deleted
-    # here in the same change that gave each check a pole of its own, so
-    # every one of those three `Silence`es is now paired with a
-    # `FindingSpec` on the same check in the same mutant's other slot and
-    # needs no exemption at all. That is the table working as designed:
-    # a borrow that was prose the next agent might not read became a row
-    # a flip had to delete, and the flip deleted it.
-    "headless_chain_reads_through_node:neighbour":
-        "the Silence IS this mutant's discriminator — `headless` is the "
-        "only variable between the two scenes — so a FindingSpec here "
-        "would buy the pole by spending the assertion. The firing rides "
-        "beside it instead: `test_neighbour_headless_chain_reads_through_"
-        "node` asserts `phantom_passthrough` fires at 80px on "
-        "`_attach_chain(shared=True)` through the same `collect_findings` "
-        "call, and dies with the detector (stub-checked 2026-08-16)",
-}
+# table accepts is "no firing pole can be constructed", and the borrows
+# qualified for the strongest possible version of it — their checks did
+# not exist, so `Silence` on them passed vacuously and the neighbour was
+# a placeholder holding the mutant's shape until one did.
+#
+# EMPTY SINCE 2026-08-20 (curator batch 44), which is the table working
+# and the guard below failing. Five rows have stood here. Four were
+# deleted by the flips that gave their checks a pole — WP5 task 25's
+# `frame_containment`, WP7 task 29's contrast trio — exactly as designed.
+# The fifth, `headless_chain_reads_through_node:neighbour`, was excused
+# for a different reason: rule 8 refuses to count a RED mutant's own
+# `expect`, so while that mutant was red its `FindingSpec` could not pair
+# the neighbour's `Silence`. TASK-24-FOLLOW-UP turned it green on
+# 2026-08-16 and the pairing became real in the same move — the
+# ASPIRATIONAL note above says so in as many words — but nothing deleted
+# the row, because the guard written to catch that never computed the
+# pairing its own docstring names. It asked whether the row pointed at a
+# real Silence, which a dead row answers exactly as a live one does, so
+# emptying this table changed no result in the whole suite. Both halves
+# are repaired below: the guard shares ONE pairing predicate with the
+# gate that needs it, and proves its own discrimination on rows it builds
+# rather than on a population that is allowed to be empty.
+RULE8_EXEMPT: dict[str, str] = {}
+
+
+def rule_eight_paired(mutant: Mutant, slot: str, red: bool) -> bool:
+    """Report whether the Silence in `slot` has a firing beside it.
+
+    ONE definition of rule 8's pairing, called by the gate that demands
+    a pairing and by the guard that prunes the exemptions excusing its
+    absence. Two copies is how the table above came to outlive the thing
+    it excused: the gate had stopped needing the last row four days
+    before anyone noticed, because the guard was asking a different
+    question and getting a comfortable answer.
+
+    Args:
+        mutant: The catalogue entry holding both slots.
+        slot: `"expect"` or `"neighbour"` — which one holds the Silence.
+        red: Whether this mutant is declared red. A red mutant's own
+            `expect` records a finding the check does NOT emit today, so
+            it cannot pair a Silence that every green run asserts.
+
+    Returns:
+        True if the mutant's OTHER slot holds a `FindingSpec` on the same
+        check and that slot counts as evidence.
+    """
+    here = mutant.expect if slot == "expect" else mutant.neighbour.expect
+    other = mutant.neighbour.expect if slot == "expect" else mutant.expect
+    counts = True if slot == "expect" else not red
+    return bool(counts and isinstance(other, FindingSpec)
+                and other.check == here.check)
+
+
+def rule_eight_rot(exempt: dict[str, str], catalogue: dict[str, Mutant],
+                   reds: set[str]) -> list[str]:
+    """Report each way the exemption rows have gone stale, one per line.
+
+    Takes its table, catalogue and red set as ARGUMENTS rather than
+    reading the module globals, and that is the point rather than a
+    style choice: `RULE8_EXEMPT` empties itself as flips land, so a
+    guard that can only walk the real rows starts passing by having
+    nothing to walk. Parameterized, the same code can be handed a live
+    row and a dead one and made to tell them apart.
+
+    Args:
+        exempt: Rows keyed `"<mutant id>:<slot>"`, valued with a reason.
+        catalogue: The mutants those keys name.
+        reds: Mutant ids declared red, per `catalogue_red_ids`.
+
+    Returns:
+        One complaint per stale row, in key order. Empty means every row
+        is still a live judgement.
+    """
+    stale: list[str] = []
+    for key, reason in sorted(exempt.items()):
+        mid, _, slot = key.partition(":")
+        if mid not in catalogue:
+            stale.append("%s names %r, which is not a mutant" % (key, mid))
+            continue
+        if slot not in ("expect", "neighbour"):
+            stale.append("%s names no slot" % key)
+            continue
+        if not str(reason).strip():
+            stale.append("%s has no reason" % key)
+        mutant = catalogue[mid]
+        here = mutant.expect if slot == "expect" else mutant.neighbour.expect
+        if not isinstance(here, Silence):
+            stale.append("%s excuses a slot that is not a Silence — the "
+                         "row has gone stale" % key)
+        elif rule_eight_paired(mutant, slot, mid in reds):
+            stale.append(
+                "%s excuses a Silence that IS paired now — %s fires in "
+                "the same mutant's other slot, so the row excuses nothing "
+                "and is obsolete: delete it" % (key, here.check))
+    return stale
 
 
 class TestTheCurvedFinalsCrossRatherThanRun(unittest.TestCase):
@@ -32387,19 +32466,16 @@ class TestCoverage(unittest.TestCase):
                              None)
             red = bool(getattr(method, "__unittest_expecting_failure__",
                                False))
-            slots = (("expect", mutant.expect, mutant.neighbour.expect,
-                      True),
-                     ("neighbour", mutant.neighbour.expect, mutant.expect,
-                      not red))
-            for slot, here, other, other_counts in slots:
+            for slot in ("expect", "neighbour"):
+                here = (mutant.expect if slot == "expect"
+                        else mutant.neighbour.expect)
                 if not isinstance(here, Silence):
                     continue
                 key = "%s:%s" % (mid, slot)
-                paired = (other_counts and isinstance(other, FindingSpec)
-                          and other.check == here.check)
                 with self.subTest(mutant=mid, slot=slot):
                     self.assertTrue(
-                        paired or key in RULE8_EXEMPT,
+                        rule_eight_paired(mutant, slot, red)
+                        or key in RULE8_EXEMPT,
                         "%s asserts %s is SILENT and nothing in this "
                         "mutant makes it FIRE — a detector answering "
                         "nothing passes both poles. Pair it, or declare "
@@ -32416,24 +32492,72 @@ class TestCoverage(unittest.TestCase):
         flip gives one of these Silences a firing partner the row is
         obsolete and has to go, or the next reader cannot tell which of
         the entries are live judgements.
+
+        REWRITTEN 2026-08-20 (curator batch 44), because it asserted the
+        first three of those and never the fourth — the one the sentence
+        above calls the point. It checked that each row named a real
+        Silence carrying a real reason, and a DEAD row answers all of
+        that exactly as a live one does. So
+        `headless_chain_reads_through_node:neighbour` stood for four days
+        after TASK-24-FOLLOW-UP's flip paired it, and deleting the
+        table's only row was invisible to all 1850 tests. The pairing now
+        comes from `rule_eight_paired`, the same call the gate above
+        makes, so the guard cannot go on excusing what the gate has
+        stopped demanding.
+
+        The population is ALLOWED to be empty and this test is therefore
+        allowed to be vacuous — that is what a fully pruned table looks
+        like, and failing on it would punish the outcome. What stops the
+        vacuum from meaning nothing is
+        `test_the_rot_guard_can_see_the_rot_it_names`, which runs this
+        same code over rows it builds itself.
         """
-        for key, reason in sorted(RULE8_EXEMPT.items()):
-            mid, _, slot = key.partition(":")
-            with self.subTest(exemption=key):
-                self.assertIn(mid, CATALOGUE,
-                              "RULE8_EXEMPT names %r, which is not a "
-                              "mutant" % mid)
-                self.assertIn(slot, ("expect", "neighbour"),
-                              "RULE8_EXEMPT key %r names no slot" % key)
-                self.assertTrue(str(reason).strip(),
-                                "RULE8_EXEMPT %s has no reason" % key)
-                mutant = CATALOGUE[mid]
-                here = (mutant.expect if slot == "expect"
-                        else mutant.neighbour.expect)
-                self.assertIsInstance(
-                    here, Silence,
-                    "RULE8_EXEMPT %s excuses a slot that is not a "
-                    "Silence — the row has gone stale" % key)
+        self.assertEqual(
+            rule_eight_rot(RULE8_EXEMPT, CATALOGUE, catalogue_red_ids()),
+            [], "RULE8_EXEMPT rows that have stopped excusing anything")
+
+    def test_the_rot_guard_can_see_the_rot_it_names(self) -> None:
+        """Both poles of `rule_eight_rot`, on rows built for the purpose.
+
+        The guard above walks `RULE8_EXEMPT`, which is empty, so today it
+        passes by having nothing to walk and a green run says nothing
+        about whether it could still see a stale row. That is asserted
+        here instead, on a fabricated one-mutant catalogue. Fabricated
+        and not real because the real catalogue has no unpaired Silence
+        left to excuse — adding a row to make the quiet half testable
+        would be inventing a judgement nobody made, which is the failure
+        mode this whole table exists against.
+
+        The quiet half and the loud half differ in exactly ONE variable,
+        whether the mutant is red, and that is the event that killed the
+        real row on 2026-08-16 rather than an arbitrary knob.
+        """
+        cat = {"m": Mutant(
+            "m", build=lambda: [], op="unchanged", args={},
+            expect=FindingSpec("phantom_passthrough"),
+            neighbour=Neighbour(lambda: [],
+                                Silence("phantom_passthrough")))}
+        row = {"m:neighbour": "the Silence is the discriminator here"}
+        self.assertEqual(
+            rule_eight_rot(row, cat, {"m"}), [],
+            "`m` is RED, so its FindingSpec records a finding the check "
+            "does not emit and cannot pair the neighbour's Silence — the "
+            "row is a live judgement and the guard must stay quiet")
+        for table, reds, want in ((row, set(), "obsolete"),
+                                  ({"ghost:neighbour": "r"}, set(),
+                                   "not a mutant"),
+                                  ({"m:elsewhere": "r"}, {"m"},
+                                   "names no slot"),
+                                  ({"m:neighbour": "   "}, {"m"},
+                                   "has no reason"),
+                                  ({"m:expect": "r"}, {"m"},
+                                   "not a Silence")):
+            with self.subTest(rot=want):
+                said = rule_eight_rot(table, cat, reds)
+                self.assertTrue(
+                    any(want in line for line in said),
+                    "a row that is %r drew %s — the guard is blind to one "
+                    "of the four rots it names" % (want, said))
 
     def test_every_detector_is_proven_or_named(self) -> None:
         """Every DETECTORS entry is either proven or carries an UNCOVERED reason."""
