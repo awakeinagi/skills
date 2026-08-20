@@ -24074,7 +24074,19 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # re-derived count; it belongs to the owner of that pair, which is why this
 # curator filed them rather than fixing them. See the class for the flip
 # proof — both flip together under two independently worded repairs.
+#
+# FOUR, not two, after the batch's own review round the same day, and this
+# value was READ OFF the guard a second time. The two added are
+# `TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture` — a reviewer found
+# that `TestTheInkBandHelperMeasuresTheCheckItQuotes`' live pole writes `16`
+# in where the check reads the element and keeps a newline the check
+# flattens, so it agrees with the check only because the apex fixture is
+# fontSize 16 with no newline in it. Neither is a wrong answer today; both
+# are a pin that would go on passing over a check that had broken. Two reds
+# and not one because they are two inputs and a repair can close either
+# alone. Also a harness defect, also not `canvas.py`.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture": 2,
     "TestTheHalfPixelProseStatesTheSpacingItMeasures": 2,
 }
 
@@ -32555,6 +32567,50 @@ _EMITTER_ONE_LINE = "Ack"
 _EMITTER_TWO_LINE = "Acknowledged"
 
 
+def _token_of_ink(ink: int, node_width: int,
+                  font_size: int = 16) -> str | None:
+    """A single token of exactly `ink` px that paints the DEEP block.
+
+    Built rather than looked up, and from a family chosen so the search
+    is exhaustive rather than lucky: `W`, `n` and `i` are wide, medium
+    and narrow enough that runs of them cover every integer ink width
+    from 91 to 179 on this rhombus with no gaps. Only tokens the server
+    wrap leaves WHOLE and the client chops to exactly two lines are
+    returned, because those are the ones that produce the shallow-block
+    ink and the deep-block depth at once — which is the pairing the
+    paragraph's overhang sentence describes.
+
+    Args:
+        ink: The exact `text_ink_width` wanted.
+        node_width: The rhombus's width, which sets the client's cap.
+        font_size: The label's size.
+
+    Returns:
+        The token, or None when no member of the family paints that
+        width under those wrap conditions. None is a RESULT and not a
+        failure: it means the paragraph implies a label this rhombus
+        cannot carry, which is a finding about the paragraph.
+    """
+    cap = int(canvas.client_wrap_width(
+        {"type": "diamond", "width": node_width, "height": node_width}))
+    for wide in range(16):
+        for mid in range(12):
+            for thin in range(12):
+                token = "W" * wide + "n" * mid + "i" * thin
+                if not token:
+                    continue
+                if canvas.text_ink_width(token, font_size) != ink:
+                    continue
+                if len(canvas.wrap_label_text(
+                        token, cap, font_size).split("\n")) != 1:
+                    continue
+                if len(canvas.client_wrapped_lines(
+                        token, cap, font_size)) != 2:
+                    continue
+                return token
+    return None
+
+
 def _emitter_band(y: int, text: str, width: int,
                   height: int) -> tuple[float, float]:
     """The band `lint_layout` really probes, on the paragraph's scene.
@@ -32620,9 +32676,36 @@ class TestTheEmitterProseMeasuresTheSpacingItDescribes(unittest.TestCase):
     handback's table was verified against the shipped code before this
     was written, and all five figures reproduce — one line 20px, two
     lines 40, an 80px chord above the waist under both, and 100 -> 60
-    below it. The two OVERHANGS are the exception and are pinned
-    differently; see the last method for why the paragraph cannot support
-    a stronger claim about them than it does.
+    below it.
+
+    THE OVERHANGS WERE CHALLENGED AND THE CHALLENGE WAS MEASURED, which
+    is the part of this class worth reading. A reviewer derived that the
+    pair solves to an ink of 172, identified 172 as `text_dims`'
+    RESERVED width for `'Send for second review'` — whose
+    `text_ink_width`, the number this arm actually reads, is 170 — and
+    concluded the pair should be 70 -> 110 and that no scene on this
+    rhombus pairs a shallow-or-deep block with 172px of ink anyway.
+    Both halves were checked here and both fail:
+
+      * `'Send for second review'` wraps to THREE lines under a 90px
+        cap on BOTH wraps, so it paints a 60px block and cannot produce
+        the shallow/deep contrast the sentence is about. The one string
+        that gives an ink of 170 is the one string that cannot be this
+        scene, so it cannot be the evidence that 172 was a `text_dims`
+        reading.
+      * 172 is reachable as an `text_ink_width` — a single over-wide
+        token of exactly that ink, left whole by `wrap_label_text` and
+        chopped to two lines by `client_wrapped_lines`, is built by
+        `_token_of_ink` and put on the very rhombus in question, where
+        the check emits 112. 170 is equally reachable and emits 110.
+        Every integer ink from 91 to 179 is reachable there.
+
+    So the paragraph is CORRECT AS WRITTEN if its label carries 172px of
+    ink and wrong if it carries 170, and it never says which — which is
+    the real defect and is not one a curator can settle. Both facts are
+    pinned instead of the guess: the two figures must imply ONE ink, and
+    the deep figure must be a magnitude the check really emits for that
+    ink. See the last two methods.
 
     PROVEN GREEN FOR ITS OWN REASON, not merely observed green. Restore
     `drawn_h = text_dims(drawn, fs)` in `lint_layout` — the default
@@ -32836,6 +32919,207 @@ class TestTheEmitterProseMeasuresTheSpacingItDescribes(unittest.TestCase):
             "than the widest chord it quotes (%gpx), so both overhangs "
             "would be zero and their agreement says nothing"
             % (implied[0], max(chords.values())))
+
+    def test_the_overhang_implies_a_label_this_rhombus_can_carry(
+            self) -> None:
+        """REACHABILITY, and it is deliberately not a check of the VALUE.
+
+        SAID PLAINLY BECAUSE THE FIRST VERSION OF THIS METHOD LIED. It
+        was written to compare the paragraph's deep overhang against the
+        magnitude `label_overflows_shape` emits for a label of the
+        implied ink — which reads like a value check and is not one, and
+        was measured not to be: rewrite the figure as 110 or 108 and it
+        still passes, because the ink is DERIVED FROM the figure and
+        `over` is `ink - chord` by construction. A pin that speaks on
+        every input and separates none of them is the non-discriminating
+        shape this wave has been catching elsewhere, and shipping it
+        under a name promising more would have added one more.
+
+        WHAT IS LEFT IS REAL BUT SMALL, so it is named for what it does:
+        the implied ink must be one a label on THIS rhombus can actually
+        paint while the client chops it to the deep block. That fires on
+        an overhang whose label could not exist — the property a
+        reviewer alleged this sentence violated on 2026-08-20. Measured:
+        it fails from an overhang of about 120 up, where the implied ink
+        passes what a 90px cap can chop into two lines.
+
+        WHY NO VALUE CHECK EXISTS, which is the finding rather than an
+        apology. The chords follow from the band, so they are derivable
+        from the scene the paragraph names. An overhang is `ink - chord`
+        and the ink is whatever token the author used — and the
+        paragraph never says. Every value from roughly 31 to 119 is
+        consistent with every word of it, which is why a reviewer and
+        this curator can derive 110 and 112 from the same sentence and
+        both be right about the arithmetic. The repair is in the PROSE
+        and belongs to the arm's owner: name the label, or drop the
+        overhang clause and keep the chords, which carry the paragraph's
+        actual argument on their own.
+        """
+        said = _emitter_figure(_EMITTER_BELOW, "below-the-waist claim")
+        scene = _emitter_figure(_EMITTER_SCENE, "scene")
+        chord = _emitter_chord(said["y"], _EMITTER_TWO_LINE, scene["w"],
+                               scene["h"])
+        ink = int(chord + said["over_deep"])
+        self.assertIsNotNone(
+            _token_of_ink(ink, scene["w"]),
+            "the paragraph's deep overhang of %dpx over a %gpx chord "
+            "implies %dpx of ink, and no single token on a %dx%d "
+            "rhombus paints that width while the client chops it to the "
+            "deep block — so the sentence describes a label that cannot "
+            "exist on the scene it names"
+            % (said["over_deep"], chord, ink, scene["w"], scene["h"]))
+
+
+class TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture(
+        unittest.TestCase):
+    """`TestTheInkBandHelperMeasuresTheCheckItQuotes`' live pole, measured.
+
+    THE SAME SHAPE THIS BATCH EXISTS FOR, one class over and found by a
+    reviewer on 2026-08-20. `test_the_check_itself_measures_at_the_
+    labels_own_spacing` is the ungated green that pins WHICH SIDE of the
+    ink-band disagreement is correct — so a repair that dragged the
+    check onto `text_dims`' default would fail there rather than pass.
+    It reproduces the check's block with two inputs the check does not
+    use:
+
+      * it writes `16` where the check reads `t.get("fontSize")`, twice
+        — once as the wrap size and once as the metric size;
+      * it passes `lbl["text"]` whole where the check first
+        replaces every newline in the text with a space.
+
+    It agrees today only because the apex fixture is fontSize 16 with no
+    newline in it. That is the "agreed by luck" the fix's own commit
+    named on the wrap axis — "an agreement nothing enforces is the same
+    defect waiting for a chopped token" — living inside the class that
+    commit flipped.
+
+    MEASURED, so the claim is not an inspection: move the fixture to
+    fontSize 20 and the check's band is 75px deep where that assertion's
+    right-hand side says 60. Put a newline in a short label and the
+    client paints two lines unflattened where the check measures one.
+    Neither is a wrong answer TODAY, because the fixture is neither —
+    the defect is that the pin would go on passing over a check that had
+    broken on either axis.
+
+    NOT REPAIRED HERE. The method belongs to the ink-band class, the
+    repair is to read `lbl["fontSize"]` and flatten as the check does,
+    and a curator writing both the acceptance test and the fix is the
+    pattern this charter exists to refuse. The red below is the
+    handover.
+    """
+
+    def _stage(self, **overrides: object) -> list[dict]:
+        """The apex fixture, with the label's own fields overridden.
+
+        Args:
+            **overrides: Fields merged into the bound label. `text` also
+                sets `originalText`, because the load path treats a
+                label whose two texts disagree as user-edited and this
+                stage is not making that claim.
+
+        Returns:
+            The two-element scene, node then label.
+        """
+        scene = [dict(e) for e in _apex_band_stage()]
+        scene[1].update(overrides)
+        if "text" in overrides:
+            scene[1]["originalText"] = overrides["text"]
+        return scene
+
+    def _pinned_reading(self, scene: list[dict]) -> int:
+        """The block depth that assertion computes, transcribed as it is.
+
+        The literals are deliberate and are the subject: this reproduces
+        the pinned method's right-hand side EXACTLY, hardcoded `16` and
+        unflattened text included, so what fails below is that method's
+        derivation and not a paraphrase of it.
+
+        Args:
+            scene: A two-element `[owner, label]` scene.
+
+        Returns:
+            The block height in px, by the pinned method's arithmetic.
+        """
+        owner, lbl = scene[0], scene[1]
+        return canvas.text_dims("\n".join(canvas.client_wrapped_lines(
+            lbl["text"], int(canvas.client_wrap_width(owner)), 16)),
+            16, canvas.line_height_of(lbl))[1]
+
+    def test_the_fixture_is_the_one_position_the_two_agree_at(
+            self) -> None:
+        """GREEN: on the shipped fixture the pin and the check do agree.
+
+        The live half. It is what says the pinned method is not simply
+        broken — it is right about the scene it is run on — and it is
+        what makes the red below a statement about GENERALITY rather
+        than about arithmetic. It also proves the instrument: a
+        `_check_band_probe` that had stopped reaching the check would
+        fail here instead of hiding under the red.
+        """
+        scene = self._stage()
+        _body, top, bottom = _check_band_probe(scene)
+        self.assertEqual(
+            bottom - top, self._pinned_reading(scene),
+            "the ink-band class's live pole disagrees with the check on "
+            "its OWN fixture (%.0fpx against %.0f), which is a bigger "
+            "finding than the one below and means that pin is failing "
+            "rather than over-fitting"
+            % (bottom - top, self._pinned_reading(scene)))
+
+    @unittest.expectedFailure
+    def test_the_pin_tracks_the_label_when_the_font_size_moves(
+            self) -> None:
+        """RED: at fontSize 20 the check reads 75px and the pin says 60.
+
+        The invariant, not either number: a pin that claims to reproduce
+        the check's block has to reproduce it for the label it is handed,
+        and the font size is the label's, not the fixture's. Asserted
+        over a scene built by CHANGING one field of the shipped fixture,
+        so the day the method reads `lbl["fontSize"]` this flips without
+        anything else moving.
+
+        The DIRECTION is the reason it matters: the pin's reading is the
+        SMALLER one, so a check that had drifted to a shallower block
+        than the client paints would satisfy it — which is precisely the
+        under-report `label_overflows_shape` was fixed for twice.
+        """
+        scene = self._stage(fontSize=20)
+        _body, top, bottom = _check_band_probe(scene)
+        self.assertEqual(
+            bottom - top, self._pinned_reading(scene),
+            "with the label at fontSize %d the check's band is %.0fpx "
+            "deep and the ink-band class's live pole computes %.0f — it "
+            "wrote 16 in where the check reads the element, so it is "
+            "measuring the fixture rather than the label"
+            % (scene[1]["fontSize"], bottom - top,
+               self._pinned_reading(scene)))
+
+    @unittest.expectedFailure
+    def test_the_pin_flattens_the_text_the_way_the_check_does(
+            self) -> None:
+        """RED: a label split by a newline reads as two blocks.
+
+        The second axis, filed separately because it is a different
+        input and a repair could plausibly close one and not the other —
+        reading `lbl["fontSize"]` and flattening the newline are two
+        separate edits, and the class's own history is that a fix took
+        the third of three named candidates rather than the named one.
+
+        The text is chosen to make the divergence a LINE COUNT and not a
+        width: flattened it fits the cap whole, unflattened the client
+        paints the two the stored newline asks for. Any label whose
+        newline survives into the pin's reading has the same problem;
+        this is the smallest one that shows it.
+        """
+        scene = self._stage(text="Send\nfor")
+        _body, top, bottom = _check_band_probe(scene)
+        self.assertEqual(
+            bottom - top, self._pinned_reading(scene),
+            "the check flattens this label's newline and measures a "
+            "%.0fpx block; the ink-band class's live pole keeps the "
+            "newline and computes %.0f. The check's own line is "
+            "`txt.replace(chr(10), ' ')` and the pin does not have it"
+            % (bottom - top, self._pinned_reading(scene)))
 
 
 # ---------------------------------------------------------------------------
