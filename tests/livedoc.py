@@ -1415,6 +1415,48 @@ def _is_distinctive(value: str) -> bool:
     return " " in value.strip() and any(c.isalpha() for c in value)
 
 
+_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+
+
+def _fenced_spans(text: str) -> list[tuple[int, int]]:
+    """Character ranges covered by fenced code blocks, fences included.
+
+    A fenced block is SAMPLE OUTPUT, not prose making a claim, and the
+    two remedies `unmarked_values` offers are both unavailable inside
+    one: an HTML comment renders literally in a fence, so the marker
+    pair would corrupt the sample, and "reword" means falsifying a
+    transcript of what the CLI actually printed. Reporting there is a
+    finding whose advice cannot be taken — the defect this repo keeps
+    naming — so the scan skips fences entirely.
+
+    Inline code spans are deliberately NOT skipped: a marker pair sits
+    around `` `text` `` perfectly well, so the remedy is available and
+    a backticked copy is still an unheld copy.
+
+    Args:
+        text: One file's whole contents.
+
+    Returns:
+        `(start, end)` pairs, in order, one per fenced block. An
+        unclosed fence runs to end of file, which is how a renderer
+        treats it.
+    """
+    spans, opener, start, pos = [], None, 0, 0
+    for line in text.splitlines(keepends=True):
+        hit = _FENCE.match(line)
+        if opener is None:
+            if hit:
+                opener, start = hit.group(1), pos
+        elif hit and hit.group(1)[0] == opener[0] and \
+                len(hit.group(1)) >= len(opener):
+            spans.append((start, pos + len(line)))
+            opener = None
+        pos += len(line)
+    if opener is not None:
+        spans.append((start, len(text)))
+    return spans
+
+
 def unmarked_values(paths: Sequence[Path]) -> list[str]:
     """Derived values sitting in prose as bare literals.
 
@@ -1436,6 +1478,22 @@ def unmarked_values(paths: Sequence[Path]) -> list[str]:
     Rewrite the sentence and delete both, and there is no false claim
     left to catch — which is the correct outcome, not a miss.
 
+    WHAT IT CAN HOLD, said plainly because the paragraph above reads
+    like a whole-module invariant and it is not one. Only DISTINCTIVE
+    values are scanned (`_is_distinctive`): 7 of the 20 calculators
+    today. A one-word value like `1896` or `Twenty-three` is skipped,
+    so a duplicate marker for one of those could still be deleted
+    unseen. That hole needs markers > 1 AND a non-distinctive value,
+    and there are zero such cases — every calculator but
+    `cross_lint_join` has exactly one marker, and for a single-marker
+    calculator `unplaced_calculators` already catches deletion. Re-read
+    this if you ever give a numeric calculator a second marker.
+
+    Marker spans are excluded whatever their NAME, not just the
+    matching one: a shorter derived value sitting inside a longer
+    derived value's marker (`mermaid_er_carries` inside
+    `mermaid_dropped`) is held by that marker and refreshes with it.
+
     Args:
         paths: The files that constitute the whole scan surface.
 
@@ -1450,19 +1508,31 @@ def unmarked_values(paths: Sequence[Path]) -> list[str]:
     problems = []
     for path in paths:
         text = path.read_text(encoding="utf-8")
-        spans = [(m.start, m.end) for m in scan(text, str(path))]
+        skip = [(m.start, m.end) for m in scan(text, str(path))]
+        skip += _fenced_spans(text)
+        hits = []
         for name, value in values.items():
             idx = text.find(value)
             while idx >= 0:
-                if not any(a <= idx < b for a, b in spans):
-                    problems.append(
-                        "%s:%d: the live:%s value is written out here as a "
-                        "literal — wrap it in the marker pair or reword, "
-                        "because a copy outside the marker is exactly the "
-                        "prose that rots silently"
-                        % (path.relative_to(REPO), text[:idx].count("\n") + 1,
-                           name))
+                if not any(a <= idx < b for a, b in skip):
+                    hits.append((idx, idx + len(value), name))
                 idx = text.find(value, idx + 1)
+        # ONE BARE PHRASE IS ONE FINDING. `mermaid_er_carries`' value is a
+        # substring of `mermaid_dropped`'s, so an unmarked copy of the long
+        # one matched both and reported the same words twice under two
+        # names — two messages, one place, one fix. The longer match is the
+        # one that describes what is actually on the page.
+        for start, end, name in sorted(hits, key=lambda h: h[0] - h[1]):
+            if any(a <= start and end <= b for a, b, _ in hits
+                   if (a, b) != (start, end)):
+                continue
+            problems.append(
+                "%s:%d: the live:%s value is written out here as a "
+                "literal — wrap it in the marker pair or reword, "
+                "because a copy outside the marker is exactly the "
+                "prose that rots silently"
+                % (path.relative_to(REPO), text[:start].count("\n") + 1,
+                   name))
     return sorted(problems)
 
 
@@ -1489,7 +1559,40 @@ def main(argv: Sequence[str]) -> int:
         sys.stderr.write(_USAGE)
         return 2
     paths = tracked_prose_files()
-    if argv[0] == "refresh":
+    try:
+        return _run(argv[0], paths)
+    except AssertionError as e:
+        # A DERIVATION REFUSING IS A RESULT, NOT A CRASH. `AssertionError`
+        # is this module's declared "my subject is gone" signal — every
+        # calculator raises it rather than falling through to the stored
+        # value — so it is the one exception that means the tool worked.
+        # Reaching the reader as a traceback made it read as "livedoc is
+        # broken" next to siblings that print `file:line: problem`, and a
+        # check read as flaky is a check about to be ignored. Anything
+        # else still tracebacks: an AttributeError from a typo is a bug in
+        # here and must not be dressed up as a finding.
+        print("a derivation refuses to publish a value:\n  %s" % e)
+        print("\nThis is not drift and `refresh` will not clear it — the "
+              "prose it fills is describing something that no longer "
+              "exists. Fix the sentence or the constant behind it.")
+        return 1
+
+
+def _run(verb: str, paths: Sequence[Path]) -> int:
+    """Do one verb's work, letting a refusing derivation propagate.
+
+    Split from `main` so the `AssertionError` handler wraps `refresh`
+    too — a calculator that refuses must not leave `refresh` writing
+    some values and abandoning others halfway with a traceback.
+
+    Args:
+        verb: `"check"` or `"refresh"`, already validated.
+        paths: The files that constitute the whole scan surface.
+
+    Returns:
+        The process exit code.
+    """
+    if verb == "refresh":
         changed = refresh_files(paths)
         for line in changed:
             print(line)
