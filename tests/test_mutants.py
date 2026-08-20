@@ -22679,6 +22679,38 @@ def coverage_table() -> list[tuple[str, str, str]]:
     ungated and asserted in every commit, which is the whole reason
     doctrine calls them the live half.
 
+    WHAT `proven` DOES NOT MEAN — the limit of the headline number, not
+    of any row. **The unit here is the CHECK; the unit a defect has is
+    the ARM.** `proven` says one catalogue entry was seen to make this
+    check fire correctly. It does not say every disjunct of the check is
+    held down, and it cannot say so: the evidence column keeps ONE
+    mutant id and discards the rest, so no arm is nameable here for any
+    detector. Raised by curator batch `curator-wide-end`, whose
+    `label_adrift_at_the_bands_wide_end` closed a disjunct and moved no
+    row.
+
+    MEASURED AT `d39b43d` RATHER THAN ARGUED, because a limit stated as
+    a worry gets read as a worry. Delete `ink1 <= span[0]` from the
+    `adrift` predicate in `lint_layout` — the mirror of the one arm
+    `label_dragged_clear_of_its_owner` exercises — and: all 1800 tests
+    stay green, this table stays BYTE-IDENTICAL, and a label dragged
+    400px off the LEFT of its diamond is reported as
+    `label_overflows_shape` ("shorten it, widen the node" — advice that
+    cannot work) instead of `label_adrift`. Two rows read `proven` over
+    that defect. Deleting the OTHER arm of the same predicate kills two
+    tests, so the pair is a live arm and a dead one inside one row.
+
+    THE SHAPE OF THE EXPOSURE, since one measured arm is an instance and
+    not a size. 16 of the 31 `proven` rows are witnessed by exactly one
+    catalogue entry, so for those the arm that entry happens to exercise
+    is the only arm the catalogue holds at all. Arm rows are NOT the
+    repair: a hand-kept arm registry rots exactly as a hand-kept count
+    does, and a census keyed on how an arm is spelled is the same
+    disease it would be deployed against. "Is this arm held" is
+    answerable only by deleting the arm and watching a named test fail
+    by assertion — `tests/guard_mutants.py` is that shape for the pin
+    guards, and `tests/mutants_mortality.py` for whole detectors.
+
     Returns:
         One `(detector, status, evidence)` tuple per name currently in
         `DETECTORS`, sorted by name. `status` is one of "proven",
@@ -28764,6 +28796,16 @@ if __name__ == "__main__":
     if "--coverage" in sys.argv:
         for name, status, ev in coverage_table():
             print("%-28s %-12s %s" % (name, status, ev))
+        # The caveat rides the SURFACE and not only the source, because
+        # the reader this table misleads is the one who ran it and did
+        # not open the file. NO COUNT in this line, deliberately: the
+        # totals are stated ONCE, in SESSION-HANDOVER.md's live-value
+        # bullet, and a second number here is one more thing to
+        # transcribe stale.
+        print("\n`proven` is per CHECK, not per ARM: one witnessed "
+              "firing, not every disjunct held. A check can lose an arm "
+              "with this table byte-identical — see coverage_table's "
+              "docstring for the measured case.")
     elif "--sweep" in sys.argv:
         raise SystemExit(run_sweep())
     else:
