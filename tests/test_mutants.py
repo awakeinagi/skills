@@ -25218,6 +25218,14 @@ def _drawn_block(scene: list[dict]) -> int:
     moves this and the check it is compared against together and the
     tests below go on asking the same question.
 
+    The `- 8` is the only transcription left in it, and it is inert here:
+    MEASURED 2026-08-19 against the text-truth stream's `width - 10`, this
+    label wraps to the SAME three lines with the same 172px longest line
+    at either budget, so the block height this returns is identical under
+    both room rules. If a future rule changes the LINE COUNT, this helper
+    is where it will show up, and it should then ask the wrap rather than
+    restate it.
+
     Args:
         scene: A `_line_height_box` scene: node `n1`, bound label `t1`.
 
@@ -25404,26 +25412,51 @@ class TestOneLineHeightHasTwoReaders(unittest.TestCase):
 
     def test_the_fit_check_still_speaks_when_the_box_is_plainly_short(self
                                                                      ) -> None:
-        """The check's live firing pole, ungated, beside the silent red.
+        """The check's live firing pole, ungated, beside the silent one.
 
-        A red that asserts a check should have spoken passes the day the
+        A pin that asserts a check should have spoken passes the day the
         check dies, and cannot tell "silent because the rule is wrong"
         from "silent because nothing runs". This is the same check on the
         same base scene with the container 8px shorter, where it fires
-        correctly at 1.25 — so the red below is about the rule and not
+        correctly at 1.25 — so the pole below is about the rule and not
         about a corpse.
+
+        IT ASSERTED THE WHOLE SENTENCE until 2026-08-19, and two of the
+        four numbers in it belonged to somebody else. The text-truth
+        stream replaced the room rule with the client's own — a
+        measurement that drops `text_dims`' 2px reservation, and
+        `height - 10` where this file had `height - 4` — and the sentence
+        became `needs ~170x60px, the box gives 190x46px` without this
+        check changing its mind about anything. Re-derived here before
+        accepting it: at both 190 and 192 the label wraps to the SAME
+        three lines with the same 172px longest line, so the width move
+        is the reservation alone and not a different wrap, and the
+        longest single word (67px) is nowhere near either room, so the
+        verdict cannot flip to "too wide". Three causes, no fourth.
+
+        So this now asserts what this class OWNS — that it speaks, about
+        `n1`, that the text is too TALL, and that the height it quotes is
+        the block `paint` draws at the element's own multiplier — and
+        stops transcribing the width and the room, which are the wrap
+        rule's business and have their own pins in `TestShapeAwareLabel
+        Room`. A pin that fails for a change it has no opinion about
+        teaches its owner to re-baseline it without reading.
         """
-        lint = canvas.lint_layout(_line_height_box(height=56,
-                                                   line_height=1.25))
+        scene = _line_height_box(height=56, line_height=1.25)
+        fits = [w for w in canvas.lint_layout(scene)["warnings"]
+                if "does not fit" in w]
+        self.assertEqual(len(fits), 1,
+                         "the fit check's firing pole has moved; re-derive "
+                         "the poles in this class before reading their "
+                         "colour: %r" % (fits,))
+        self.assertIn("does not fit n1", fits[0])
+        self.assertIn("(too tall)", fits[0])
         self.assertEqual(
-            [w for w in lint["warnings"] if "does not fit" in w],
-            ["'reconcile every settled position n' does not fit n1 "
-             "('reconcile every settled position nightly against "
-             "custody'): needs ~172x60px, the box gives 192x52px (too "
-             "tall) — widen the box, shorten the text, or move the detail "
-             "to a tooltip"],
-            "the fit check's firing pole has moved; re-derive the two "
-            "reds in this class before reading their colour")
+            [int(m) for m in re.findall(r"needs ~\d+x(\d+)px", fits[0])],
+            [_drawn_block(scene)],
+            "the height the firing pole quotes is no longer the block the "
+            "export paints, which is the one number in this sentence this "
+            "class is about")
 
     def test_the_fit_check_sees_the_ink_leave_the_box(self) -> None:
         """The once-silent pole: 4px of the last line is outside the box.
@@ -25436,29 +25469,60 @@ class TestOneLineHeightHasTwoReaders(unittest.TestCase):
 
         STRENGTHENED past the flip into the differential the red could
         not state: the SAME box, the SAME label, one field apart. At the
-        element's own 1.25 the block ends flush on the container's edge
-        and the check must stay quiet; at 1.35 the ink leaves the box and
-        it must speak, once, about `n1`. A check that read the element
-        and then reported everything would pass the red's "speak" and
-        fail here.
+        element's own 1.25 the block just fits and the check must stay
+        quiet; at 1.35 the ink leaves the box and it must speak, once,
+        about `n1`. A check that read the element and then reported
+        everything would pass the red's "speak" and fail here.
+
+        THE BOX IS FOUND, NOT WRITTEN DOWN, since 2026-08-19. It was 64px
+        — the height at which `height - 4` of room exactly held the 60px
+        block — and the text-truth stream is replacing that rule with the
+        client's `height - 10`, under which 64px holds nothing and the
+        quiet pole speaks for a reason that has nothing to do with line
+        height. So the scene asks the check itself: walk up until it goes
+        quiet at 1.25, and use THAT box. The claim survives any room
+        rule, present or future, because it was never about the number —
+        it is "the box that exactly holds the 1.25 block does not hold
+        the 1.35 one, and the check can tell".
 
         It still does not match the sentence — the number quoted is the
         next test's subject, and asserting it twice would make one repair
         answerable in two places.
         """
-        for lh, expect in ((1.25, 0), (1.35, 1)):
-            scene = _line_height_box(height=64, line_height=lh)
-            fits = [w for w in canvas.lint_layout(scene)["warnings"]
-                    if "does not fit" in w]
-            self.assertEqual(
-                len(fits), expect,
-                "at lineHeight %s the 64px box holds a block %dpx tall and "
-                "the fit check said %r. It reserved height at the default "
-                "while `paint` drew at the element's own multiplier, which "
-                "is how 4px of the last line came to be drawn below the "
-                "container in silence" % (lh, _drawn_block(scene), fits))
-            if expect:
-                self.assertIn("n1", fits[0])
+        def speaks(height: int, lh: float) -> list[str]:
+            """The fit warnings for one box height and one multiplier.
+
+            Args:
+                height: The container's height.
+                lh: The label's `lineHeight`.
+
+            Returns:
+                The `does not fit` warnings, in order.
+            """
+            return [w for w in canvas.lint_layout(
+                _line_height_box(height=height, line_height=lh))["warnings"]
+                if "does not fit" in w]
+
+        snug = next((h for h in range(40, 200) if not speaks(h, 1.25)), None)
+        self.assertIsNotNone(
+            snug, "no box height in 40..200 holds this label at 1.25, so "
+                  "the fit check has stopped being satisfiable and the "
+                  "differential below would be vacuous")
+        snug = snug or 0
+        self.assertEqual(
+            speaks(snug, 1.25), [],
+            "the snuggest box that holds the 1.25 block is being reported")
+        loud = speaks(snug, 1.35)
+        self.assertEqual(
+            len(loud), 1,
+            "the same %dpx box holds a %dpx block at the client's own "
+            "multiplier and the fit check said %r. It reserved height at "
+            "the default while `paint` drew at the element's own, which is "
+            "how 4px of the last line came to be drawn below the container "
+            "in silence"
+            % (snug, _drawn_block(_line_height_box(height=snug,
+                                                   line_height=1.35)), loud))
+        self.assertIn("n1", loud[0])
 
     def test_the_overflow_warning_quotes_the_height_that_is_drawn(self
                                                                   ) -> None:
