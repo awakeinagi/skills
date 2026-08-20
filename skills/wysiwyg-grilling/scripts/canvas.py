@@ -854,19 +854,20 @@ def validate_scene(doc, artifact_id):
     return doc, issues
 
 
-def content_fingerprint(els):
-    """Order-insensitive scene fingerprint for repair attribution (WP2).
+def content_units(els):
+    """The `(id, canonical content)` pairs a content fingerprint hashes.
 
-    ``scene_hash`` hashes elements in list order, but disk order and
-    replayed-history order legitimately differ (z-order normalization),
-    so raw-vs-history comparison needs identity by CONTENT: elements
-    sorted by id, deleted ones dropped, dumped canonically.
+    Factored out so the drift TEST and the drift COUNT cannot disagree:
+    `content_fingerprint` decides *whether* disk diverged from history and
+    `content_drift_count` says *by how much*, and a headline that quotes a
+    number the test did not derive is how the empty-save guard came to
+    print a structural zero (curator batch 39).
 
     Args:
         els: Scene elements (non-dicts tolerated and skipped).
 
     Returns:
-        Hex digest, or None when the scene is too corrupt to fingerprint.
+        `(id, canonical dict)` pairs sorted by id, deleted ones dropped.
     """
     def canon(v):
         # 150 vs 150.0 must fingerprint identically — the same int/float
@@ -882,25 +883,68 @@ def content_fingerprint(els):
             return [canon(x) for x in v]
         return v
 
+    # roundness rides with the derived set: the write path computes it
+    # from point count while replay keeps creation-time values (the
+    # re-stamp never lands in records — customData is deliberately
+    # non-significant), so disk and history disagree about it on every
+    # re-routed arrow, permanently. The system already declares it
+    # non-significant for diffs; drift detection must agree, or every
+    # such project phantoms a reconciliation.
+    skip = set(VOLATILE_ATTRS) | {"boundElements", "roundness"}
+    live = []
+    for e in els:
+        if not isinstance(e, dict) or e.get("isDeleted"):
+            continue
+        live.append((str(e.get("id")),
+                     canon({k: v for k, v in e.items() if k not in skip})))
+    live.sort(key=lambda t: t[0])
+    return live
+
+
+def content_drift_count(before, after):
+    """How many elements differ between two `{artifact: elements}` maps.
+
+    The magnitude behind `content_fingerprint`'s yes/no, over the same
+    canonical units so the two answers agree by construction: whenever the
+    fingerprints of a shared artifact differ, at least one element here
+    differs too. An element counts once whether it was added, removed or
+    edited, and an id carrying more than one element is compared as the
+    last one written, matching what the fingerprint's own `sort` leaves
+    adjacent.
+
+    Args:
+        before: History's scenes, keyed by artifact id.
+        after: Disk's scenes, keyed by artifact id.
+
+    Returns:
+        The number of elements that differ, summed over every artifact on
+        either side.
+    """
+    n = 0
+    for aid in set(before or {}) | set(after or {}):
+        a = dict(content_units((before or {}).get(aid) or []))
+        b = dict(content_units((after or {}).get(aid) or []))
+        n += sum(1 for k in set(a) | set(b) if a.get(k) != b.get(k))
+    return n
+
+
+def content_fingerprint(els):
+    """Order-insensitive scene fingerprint for repair attribution (WP2).
+
+    ``scene_hash`` hashes elements in list order, but disk order and
+    replayed-history order legitimately differ (z-order normalization),
+    so raw-vs-history comparison needs identity by CONTENT: elements
+    sorted by id, deleted ones dropped, dumped canonically.
+
+    Args:
+        els: Scene elements (non-dicts tolerated and skipped).
+
+    Returns:
+        Hex digest, or None when the scene is too corrupt to fingerprint.
+    """
     try:
-        # roundness rides with the derived set: the write path computes
-        # it from point count while replay keeps creation-time values
-        # (the re-stamp never lands in records — customData is
-        # deliberately non-significant), so disk and history disagree
-        # about it on every re-routed arrow, permanently. The system
-        # already declares it non-significant for diffs; drift detection
-        # must agree, or every such project phantoms a reconciliation.
-        skip = set(VOLATILE_ATTRS) | {"boundElements", "roundness"}
-        live = []
-        for e in els:
-            if not isinstance(e, dict) or e.get("isDeleted"):
-                continue
-            live.append((str(e.get("id")),
-                         canon({k: v for k, v in e.items()
-                                if k not in skip})))
-        live.sort(key=lambda t: t[0])
-        blob = json.dumps([d for _, d in live], sort_keys=True,
-                          default=str)
+        blob = json.dumps([d for _, d in content_units(els)],
+                          sort_keys=True, default=str)
         return hashlib.sha1(blob.encode("utf-8")).hexdigest()
     except Exception:  # noqa: BLE001 — corrupt raw scene
         return None
@@ -10201,6 +10245,17 @@ def _tw_names(refs, cap=3):
     return ", ".join(shown)
 
 
+# The one place the empty-save sentence is written down. `headline_for`
+# SAYS it and `Store.catch_up` MATCHES it, to enforce "a committed
+# reconciliation may never claim nothing happened" — a rule joined by
+# string equality across ten thousand lines until curator batch 39 measured
+# what that costs: reword the producer, carry the reword into the tests and
+# docs that quote it as a rewording pass does, and all 1713 tests stay green
+# with the guard silently disarmed. Both sites now read this name, so the
+# coupling is an identifier the interpreter checks rather than a sentence
+# nobody re-greps.
+EMPTY_SAVE_HEADLINE = "saved without changing anything"
+
 SALIENCE = ["user_route_replaced",
             "rewired", "relationship_rewired", "rerouted",
             "actor_reassigned",
@@ -10357,7 +10412,7 @@ def headline_for(fact):
         return "%s %s" % (fact.get("label") or fact["element"],
                           fact.get("spatial"))
     if n == "saved_no_changes":
-        return "saved without changing anything"
+        return EMPTY_SAVE_HEADLINE
     if n == "actor_reassigned":
         return "%s now goes to %s (was %s)" % (
             fact.get("message") or fact["element"],
@@ -20378,12 +20433,26 @@ class Store:
                     "load-time repair: %s — no outside edits" % ", ".join(
                         "%s ×%d" % (c, n) for c, n in sorted(counts.items())))
                 rewrite = True
-            elif "saved without changing anything" in \
+            elif EMPTY_SAVE_HEADLINE in \
                     (record["summary"].get("headline") or ""):
                 # a committed reconciliation may never claim nothing
-                # happened (arm 4's live phantom did exactly that)
-                n_changed = sum(len(p.get("changes") or [])
-                                for p in record["artifacts"].values())
+                # happened (arm 4's live phantom did exactly that). The
+                # sentence is read from the name `headline_for` returns,
+                # not re-typed: this guard is the consumer half of a rule
+                # that was joined by string equality alone, and a reword
+                # of the producer used to disarm it in silence.
+                #
+                # The count comes from the SAME comparison that decided
+                # there was drift at all. It used to be read off the
+                # record's `changes`, which is empty exactly here — an
+                # empty diff is what mints the empty-save fact in the
+                # first place — so the guard traded one sentence claiming
+                # nothing happened for another, and over a genuinely
+                # drifted element it printed `0 change(s)` (curator batch
+                # 39). `content_drift_count` shares `content_fingerprint`'s
+                # canonical units, so it cannot report zero where the
+                # fingerprints of a shared artifact disagreed.
+                n_changed = content_drift_count(exp_scenes, disk)
                 record["summary"]["headline"] = (
                     "out-of-session drift reconciled: %d change(s) differ "
                     "from history" % n_changed)

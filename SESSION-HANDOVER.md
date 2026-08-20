@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**8 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**6 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_

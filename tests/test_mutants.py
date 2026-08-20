@@ -22551,10 +22551,22 @@ def coverage_table() -> list[tuple[str, str, str]]:
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestTheEntityNameClearsItsOwnAttributeRows": 2,
     "TestOneLineHeightHasTwoReaders": 2,
-    "TestTheEmptySaveGuardIsCoupledToItsOwnWording": 2,
     "TestOneComposedPartPredicateHasThreeSites": 2,
 }
 
+# ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
+# `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
+# fold, so the dict lost a LINE and not a number — the tenth time that has
+# been the shape here. The entry below predicted the opposite ("this class
+# will lose a number before it loses its line") on the reasoning that its
+# two reds had different owners; the prediction was wrong for a reason
+# worth keeping. The two repairs really were independent — one named
+# constant, and a count read off `content_fingerprint`'s own units — but
+# both live inside the same eight lines of `catch_up`, and no owner was
+# going to open that arm, fix its wording coupling, and leave the zero it
+# prints sitting three lines below. PROXIMITY BEAT OWNERSHIP. The class
+# stays in the file at five green tests; only the colour moved.
+#
 # TWO JOINED on 2026-08-19 (curator batch 39), and they are the first
 # entries here about a rule written down twice rather than about a picture
 # or a record. `TestOneComposedPartPredicateHasThreeSites` is the SYMMETRIC
@@ -24903,27 +24915,32 @@ class TestTheEmptySaveGuardIsCoupledToItsOwnWording(unittest.TestCase):
     comment states: *a committed reconciliation may never claim nothing
     happened*. The two are joined by string equality and by nothing else.
 
-    THE SILENCE IS THE FINDING. Rewording the producer does not make the
-    guard wrong, it makes the guard absent — the `elif` never matches, the
-    headline is never rewritten, and a reconciliation that committed a
-    revision goes out saying nothing happened. Measured on this tip: the
+    BOTH REDS FLIPPED GREEN on 2026-08-19 by WP4-AND-GUARDS, one day after
+    curator batch 39 filed them, and the class stays at five green tests —
+    the dict above lost a LINE and not a number, which is the shape its own
+    running commentary keeps count of.
+
+    THE SILENCE WAS THE FINDING. Rewording the producer did not make the
+    guard wrong, it made the guard absent — the `elif` never matched, the
+    headline was never rewritten, and a reconciliation that committed a
+    revision went out saying nothing happened. Measured when filed: the
     reword plus the reword of every test and doc that quotes the sentence
-    leaves the whole suite green.
+    left the whole suite green. The repair is the one the red asked for and
+    nothing more: `canvas.EMPTY_SAVE_HEADLINE` at module scope, returned by
+    `headline_for`'s `saved_no_changes` arm and read by the guard, so the
+    coupling is an identifier the interpreter checks. The reword operator
+    still finds exactly one producing site, because a module-level
+    assignment is a non-docstring literal in a non-matching position — the
+    reason the operator was written to locate its site by shape.
 
-    WHO FLIPS THIS: whoever owns `catch_up`'s reconciliation arm. The
-    honest repair is one named constant that `headline_for` returns and
-    the guard reads, so the coupling becomes an identifier the interpreter
-    checks instead of a sentence nobody re-greps. The first red flips on
-    that and asks nothing more of it — it deliberately does not prejudge
-    whether the constant lives at module scope or in a small vocabulary
-    beside `SALIENCE`.
-
-    THE SECOND RED IS A DIFFERENT OWNER and is here because it was found
-    by minimizing the first. The rewrite the guard substitutes quotes a
-    change count taken from the record's `changes`, and this arm is
-    reached exactly when that list is empty — so the guard trades one
-    sentence claiming nothing happened for another one, in the only case
-    it ever runs. A repair to the coupling will not touch it.
+    THE SECOND RED WAS A DIFFERENT OWNER and was here because it was found
+    by minimizing the first. The rewrite the guard substitutes quoted a
+    change count taken from the record's `changes`, and this arm is reached
+    exactly when that list is empty — so the guard traded one sentence
+    claiming nothing happened for another one, in the only case it ever
+    runs. It now counts through `canvas.content_drift_count`, over the same
+    canonical units `content_fingerprint` hashes to decide there was drift
+    at all, so the magnitude and the yes/no cannot disagree.
     """
 
     def setUp(self) -> None:
@@ -24995,10 +25012,14 @@ class TestTheEmptySaveGuardIsCoupledToItsOwnWording(unittest.TestCase):
             "the reword operator touched more than the one literal it is "
             "allowed to touch")
 
-    @unittest.expectedFailure
     def test_the_guard_survives_a_reword_of_the_sentence_it_matches(
             self) -> None:
-        """The red: reword the producer and the rule stops being enforced.
+        """FLIPPED GREEN 2026-08-19: reword the producer, guard still armed.
+
+        Was the red: reword the producer and the rule stopped being
+        enforced. `EMPTY_SAVE_HEADLINE` now carries the sentence, and the
+        reword operator rewrites that one constant — so producer and
+        consumer move together and the guard keeps firing.
 
         ONE MUTATION, at the only site that speaks. The guard is not
         touched — neither its condition, nor its comment, nor the
@@ -25022,23 +25043,21 @@ class TestTheEmptySaveGuardIsCoupledToItsOwnWording(unittest.TestCase):
             "the wording of a sentence ten thousand lines away"
             % (record.get("revn"), record["summary"]["headline"]))
 
-    @unittest.expectedFailure
     def test_the_reconciliation_names_the_drift_it_committed(self) -> None:
-        """The magnitude arm: the guard's own rewrite quotes a zero.
+        """FLIPPED GREEN 2026-08-19: the guard's rewrite quotes a real count.
 
-        The pole a repair to the coupling would not answer. When the
-        guard does fire it substitutes `"... %d change(s) differ from
-        history"`, counting the record's `changes` — and its arm is
-        entered exactly when that list is empty, because an empty diff is
-        what mints the empty-save fact in the first place. So the
-        substitute sentence says nothing happened too, in the only case
-        the guard ever runs, and it can never say anything else.
+        Was the magnitude arm. The substitute sentence counted the
+        record's `changes`, and this arm is entered exactly when that list
+        is empty — an empty diff is what mints the empty-save fact in the
+        first place — so over one genuinely drifted element the headline
+        read `0 change(s) differ from history`, trading one sentence
+        claiming nothing happened for another.
 
-        MEASURED 2026-08-19: one artifact, one element, one field changed
-        on disk; the headline quotes 0. Expected at least the 1 element
-        the operator drifted — the direction is understatement, and the
-        number a reader is given to go looking with is the one number
-        that cannot be right.
+        The count now comes from `content_drift_count(exp_scenes, disk)`,
+        which shares `content_fingerprint`'s canonical units — the same
+        comparison that decided there was drift at all. It reads 1 here,
+        and it cannot read 0 where the fingerprints of a shared artifact
+        disagreed.
         """
         record, drifted = unfacted_drift(canvas, self.root)
         quoted = [int(m) for m in re.findall(
