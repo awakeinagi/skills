@@ -440,10 +440,36 @@ scene, while twenty exports inside a single session were 20/20
 identical. Cold — 12 of 13 sessions — the wrap reads the fallback. This
 is upstream of every text measurement in this tier, mine included. **Not
 mine**; the render tier is not this task's, and the App.tsx half is the
-frontend's. Routed to the coordinator for an owner, with the note that
-the live editor probably self-corrects (`onLoaded` re-lays out text once
-fonts land) while the export path does not wait — flagged, not asserted,
-because driving the live editor to prove it was out of reach.
+frontend's.
+
+**CLOSED — and I logged it as unowned twice after it was already
+routed.** The coordinator handed it to the client stream when I raised
+it. Fixed at **`f1e5bc9`** (source) plus **`4730af0`** (bundle), which
+shut both doors: the agent screenshot path and the user's own export. An
+acceptance pin exists on `curator-fontrace`, **green on arrival with no
+`expectedFailure` marker** — the fix was already on its base, so
+red-by-intent would have been a lie; it proved the red by swapping the
+pre-fix bundle back in instead. That is the same shape as the height
+twin one section down, reached independently, and it is the honest
+handling of a mutant born after its fix.
+
+**A FOURTH INSTRUMENT FAILURE, and the one most worth carrying, because
+it is about a test that was doing everything right.** A neighbouring
+test exists *specifically* to catch this race and names it in its own
+docstring — and it stayed green through every pre-fix run. The reason is
+not laxity: **within a single session the broken bundle is perfectly
+uniform, and uniform on the WRONG value**, because the client measures
+each string once per load and reuses the result. So the test's stability
+check passed, honestly, on a measurement that was wrong every time.
+
+*Repeatability WITHIN a load and repeatability ACROSS loads are
+different properties, and only the second can see a load-time race.* My
+own twenty-exports-in-one-session result said exactly this and I read it
+as reassurance rather than as the finding; it was the same shape as
+reading four faces' identical thresholds as confirmation earlier the
+same day. A determinism check is not a correctness check, and a defect
+that is deterministic per session will pass every determinism check ever
+written for it.
 
 **(ii) `client_wrap_width` rounds the wrong way.** Python's `round` is
 banker's; the client's `Math.round` is half-up. **Mine**, and taken.
@@ -498,6 +524,20 @@ characterisations of this defect were wider than the truth today,
 including two of the coordinator's and one of the curator's own:
 `w = 4k+1` **only**, because banker's and half-up agree whenever
 `floor(w/2)` is odd. 495 of the 1981 integer widths in 20..2000.
+
+**NOTHING EXECUTES A SENTENCE.** All three of those characterisations
+were prose *about an encoding that was itself correct*: the catalogue
+entry's condition said `4k+1` the whole time, while the sentences around
+it said "every odd width", "both arms", "the height arm nobody looked
+at". So the gap this task kept falling into is not between code and
+reality — it is between **code and its description**, and it survives
+every gate in the repo, because ruff, mypy, the suite and the mutants
+all read the code and none of them reads the paragraph next to it. Every
+live-value marker in this repo exists for one instance of this; the
+general case has no guard and probably cannot have one. The only defence
+observed working today was cheap and manual: **re-derive the number from
+the encoding before repeating the sentence.** It caught the padding
+retraction, the `4k+1` count, and the five-sites-not-two correction.
 
 **The near-miss was tried and rejected, not considered.** Measured by
 monkeypatching each candidate on the commit tree:
