@@ -2671,12 +2671,8 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # be read only by kpi and slider, so an input was handed one and
         # silently dropped it — the admin console's schedule field read
         # "Run at" with no time in it, and nothing complained
-        gid = el_id + "-grp"
-        el["groupIds"] = [*(el.get("groupIds") or []), gid]
-        if len(out) > 1 and out[1].get("containerId") == el_id:
-            out[1]["textAlign"] = "left"
         custom["value"] = str(spec["value"])
-        out.append(_compose_input_value(el, custom["value"], existing_ids))
+        _compose_input_slot(out, el, custom["value"], existing_ids)
     if custom.get("kind") == "slider" and etype == "rectangle":
         # slider stand-in (v0.3): track + thumb; customData.value (0–100)
         # positions the thumb, `mod value` moves it
@@ -2984,6 +2980,41 @@ def _compose_input_value(el, value_text, existing_ids):
         containerId=None, autoResize=False, strokeColor="#1e1e1e")
 
 
+def _compose_input_slot(els, el, value_text, existing_ids):
+    """Put a value ON an input control — the row AND the owner's half.
+
+    COMPOSING THE ROW IS TWO THIRDS OF THE JOB, and the missing third is
+    why this is a function rather than four lines at the mint site: the
+    control has to join the row's group, and the caption has to move
+    left to leave room for the answer on the right. Only `add` did those
+    two, because the mint block that does them is gated on the spec
+    carrying a `value` — so an input minted bare and then given one
+    through `mod value` came out with the row alone in `W-grp` while the
+    box and its name sat in no group at all, and the caption still
+    centred across the space the value had just been drawn in. Same
+    defect as the entity label, one door further along, found by the
+    same instrument: build each composed kind both ways and compare the
+    scenes (2026-08-20 sweep).
+
+    Args:
+        els: The list the bound label lives in — `out` during minting,
+            the scene during a `mod`. The value row is appended to it.
+        el: The owner input rectangle. Mutated: joins the group.
+        value_text: The value string, already stringified.
+        existing_ids: Ids already in use, mutated with the row minted.
+    """
+    gid = el["id"] + "-grp"
+    if gid not in (el.get("groupIds") or []):
+        el["groupIds"] = [*(el.get("groupIds") or []), gid]
+    for t in els:
+        if t.get("type") == "text" and t.get("containerId") == el["id"]:
+            t["textAlign"] = "left"
+            break
+    els.append(_compose_input_value(el, value_text, existing_ids))
+    _close_widget_group([el, *[e for e in els
+                               if part_owner_id(e) == el["id"]]])
+
+
 def _recompose_input_value(els, el, value_text):
     """Retext an input's composed value row in place (id stays stable).
 
@@ -3001,8 +3032,11 @@ def _recompose_input_value(els, el, value_text):
             t["width"], t["height"] = vw, vh
             t["x"] = el["x"] + max(el.get("width", 160) - vw - 10, 6)
             return
-    els.append(_compose_input_value(el, value_text,
-                                    {e["id"] for e in els}))
+    # no row yet means this input was never composed — the `add` gate
+    # skips the whole block when the spec carried no `value` — so this
+    # is a FIRST assembly and owes the owner's half too, through the
+    # same function the seeder uses
+    _compose_input_slot(els, el, value_text, {e["id"] for e in els})
 
 
 def _recompose_xbox(els, el):
@@ -3170,6 +3204,60 @@ def _slider_thumb_x(el, value):
     return el["x"] + 10 + (w - 20 - 12) * (float(value) / 100.0)
 
 
+def _honour_ungroup(els, el, ungrouped_by_user):
+    """Close a composite's group — unless the user just opened it.
+
+    DELTA-BASED, NEVER STATE-BASED, for the same reason the check-stroke
+    gesture above is: the two cases are INDISTINGUISHABLE in the new
+    scene alone. A widget the user pulled apart with Ctrl+Shift+G and a
+    widget that was never assembled at all — a paste, a template insert,
+    an agent `add` that ran before the compose blocks existed — both
+    arrive with no shared group and nothing to tell them apart. Only the
+    BASE scene separates them, which is why the rule lives in the one
+    pass that holds both and NOT in `reconcile_composed`: the agent and
+    seed paths call that with no base, and a state-based rule there
+    would emit a phantom "you ungrouped this" on every pasted widget
+    while fighting a real ungroup on every save.
+
+    `semantic_facts` has stated the ungroup half as product law since
+    the gesture existed — "LOUD, AND NEVER REPAIRED... silently
+    re-grouping would be the tool overruling the user's own hands, which
+    is the one thing this product may not do" — and the code repaired it
+    anyway. Measured 2026-08-20: a user who ungrouped a domain entity
+    and saved got it silently re-assembled by `_reset_attribute_rows`
+    AND was told `saved_no_changes`, because the repair put the group
+    back before the differ looked and `widget_ungrouped` tests the
+    scene it is handed. `kind: body` did half of it — five wave lines
+    re-minted into the group with the body left outside, which is a
+    state neither the user nor the composer asked for.
+
+    The other branch is not a belt on that brace. A host with no group
+    in EITHER scene is an unfinished assembly, and closing it silently
+    is what makes a pre-compose insert reach the canvas as one draggable
+    thing; it emits no fact because nothing about it is a user's claim.
+
+    Args:
+        els: The new scene, mutated in place.
+        el: The composed host.
+        ungrouped_by_user: The delta, READ BEFORE THE RECOMPOSITION RAN
+            — the base carried this widget's group and the posted scene
+            did not. It cannot be re-derived here: `_reset_attribute_rows`
+            has already put the entity's group back by the time this is
+            called, so a gate reading the live element would see a
+            grouped widget and close it again. (It did, in the first cut
+            of this function, and the entity case stayed broken while
+            every other kind went green — which is how it got caught.)
+    """
+    gid = el["id"] + "-grp"
+    parts = [e for e in els if part_owner_id(e) == el["id"]]
+    if ungrouped_by_user:
+        for e in [el, *parts]:
+            if gid in (e.get("groupIds") or []):
+                e["groupIds"] = [g for g in e["groupIds"] if g != gid]
+        return
+    _close_widget_group([el, *parts])
+
+
 def _interpret_user_composites(new_els, old_els):
     """Read a user's composite-part edits as STATE, then normalize.
 
@@ -3238,12 +3326,20 @@ def _interpret_user_composites(new_els, old_els):
             continue
         cd = el.get("customData") or {}
         kind = cd.get("kind")
+        # THE DELTA, read off the POSTED scene before anything below
+        # recomposes it — `_reset_attribute_rows` puts an entity's group
+        # back, so this cannot be asked again afterwards
+        gid = el["id"] + "-grp"
+        ungrouped_by_user = \
+            gid in ((old_ix.get(el["id"]) or {}).get("groupIds") or []) and \
+            gid not in (el.get("groupIds") or [])
         if el["id"] not in old_ix:
             # a NEW host (paste, template insert, pre-compose add): parts
             # absent in both scenes → recompose silently, no gesture
             if kind in ("checkbox", "toggle", "slider", "kpi", "input",
                         "image", "entity"):
                 reconcile_composed(new_els, None, None, el)
+                _honour_ungroup(new_els, el, False)
             continue
         if kind == "checkbox":
             had = part_of(old_ix, "chk_of", el["id"]) is not None
@@ -3273,6 +3369,7 @@ def _interpret_user_composites(new_els, old_els):
                 v = round(max(0.0, min(100.0, v)), 1)
                 el["customData"] = dict(cd, value=v)
         reconcile_composed(new_els, None, None, el)
+        _honour_ungroup(new_els, el, ungrouped_by_user)
     # Back into the posted seats. `sort` is stable and every part minted
     # during the pass misses `seats`, so they all score `len(seats)` and
     # keep the relative order the recomposition appended them in — the
@@ -8870,7 +8967,21 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # diagonals and its X overshot into the panel below (R2-10)
             # — sliders, checkboxes, KPI centring, input insets and
             # attribute rows all had the same stale-on-resize hole.
-            if ("width" in attrs or "height" in attrs):
+            #
+            # `label` IS ONE OF THOSE INPUTS on a domain entity, which is
+            # the third door the 2026-08-20 sweep found: the header band
+            # is as deep as the name in it, so a rename is a geometry
+            # change for the rows underneath and nothing re-derived them.
+            # `add`ing "Settlement Instruction Record" with two
+            # attributes drew a 104px box with the name clear at
+            # 106..150; `add`ing it as "T" and then `mod label`ing it to
+            # the same term left the box at 84 and drew the name at
+            # 120..164 straight across BOTH rows — the very defect the
+            # `attributes` door was folded to prevent, reached by the
+            # other verb. Cheap on every other kind: the parts are
+            # derived from a host whose geometry did not move, so they
+            # come back where they were.
+            if ("width" in attrs or "height" in attrs or "label" in attrs):
                 reconcile_composed(els, index, existing, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
@@ -12386,7 +12497,16 @@ def _reset_attribute_rows(els, index, existing, el, rows):
 
 
 def _set_label(els, index, existing, el, value):
-    """Set, replace, or clear (value None/"") an element's bound label."""
+    """Set, replace, or clear (value None/"") an element's bound label.
+
+    Args:
+        els: The scene's element list, mutated in place.
+        index: id -> element, mutated to match.
+        existing: Set of ids in use, mutated when a label is minted.
+        el: The element whose caption this is.
+        value: The new caption. Falsy removes the label (and, on a
+            frame, falls back to the existing name or the id).
+    """
     if el.get("type") == "frame":
         # Frames carry their name natively (make_element parity). The
         # missing branch here was the frame-rename bug: `mod label` on a
@@ -12447,6 +12567,19 @@ def _set_label(els, index, existing, el, value):
             index[lbl_id] = lbl
             el["boundElements"] = list(el.get("boundElements") or [])
             el["boundElements"].append({"id": lbl_id, "type": "text"})
+            # ...and the SAME closing pass the `add` seeder ends with,
+            # because this is a THIRD door onto "every composed part
+            # shares its body's group" and it minted into no group at
+            # all. `_close_widget_group` landed on the mint path, then
+            # on `_reset_attribute_rows`; a widget captioned by `mod
+            # label` instead of by `add label` still shipped the loose
+            # caption the first pass exists to prevent — 8 of the 8
+            # composed kinds, measured by building each one both ways
+            # (2026-08-20 sweep). A plain labelled box carries no
+            # tagged part and the pass returns without touching it,
+            # which is why this is safe on every other element type.
+            _close_widget_group([el, *[e for e in els
+                                       if part_owner_id(e) == el["id"]]])
     elif label_el is not None:
         els.remove(label_el)
         index.pop(label_el["id"], None)
