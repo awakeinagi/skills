@@ -23409,8 +23409,36 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # either literal, which is the same rule the test below enforces. Both
 # flipped classes stayed in the file and kept every test; only the colour
 # moved, for the twelfth and thirteenth time.
+#
+# THREE MORE on 2026-08-20, and they are the same two doors coming BACK
+# — which is the shape this dict exists to make visible. The pair above
+# left on 2026-08-18 having closed C-3's TYPE axis (a bound `line` is now
+# in the population both sentences quote); the independent review of
+# pkg-c3-completion then found the identical mix along the BINDING axis,
+# where `server_routed_connectors` demands two resolved bindings and
+# `fan_attach_points` demands none. A one-end-bound connector is slid,
+# counted and named by a sentence whose denominator excludes it, and
+# `Store.reroute` prints "re-routed 3 of 2".
+#
+# ONE DEFECT CLASS, THREE ENTRIES, and they are not redundant: the
+# reroute door prints the incoherence (N above M), the tidy door hides it
+# (`N <= M` holds by construction, and the connector is then in NEITHER
+# number — the silent direction), and the third is not a denominator at
+# all but the noun over one, `apply_ops` counting `("arrow", "line")`
+# correctly and calling the result "arrow(s)". Different surface,
+# different sign, different owner-decision — so three lines, sharing
+# `_fan_store` for the same reason the 2026-08-18 pair did.
+#
+# THE COUNT WILL NOT DROP EVENLY. The first two flip together on any of
+# the three repairs their section header names; the third flips on a
+# string and is independent of all of them. A reader watching this dict
+# should expect it to lose two lines at once and then one later, not to
+# count down.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestOneComposedPartPredicateHasThreeSites": 2,
+    "TestARerouteCountsThePopulationItQuotes": 1,
+    "TestTidyCoversTheConnectorItMoved": 1,
+    "TestHousekeepingDoesNotCallALineAnArrow": 1,
 }
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
@@ -26821,7 +26849,8 @@ _FAN_NOTE_RE = re.compile(
 # telling a user their two lines are arrows.
 
 
-def _fan_connector(eid: str, etype: str, dst: str) -> dict[str, Any]:
+def _fan_connector(eid: str, etype: str, dst: str,
+                   bind_end: bool = True) -> dict[str, Any]:
     """The 2-point bound connector a client posts for a drawn straight line.
 
     NO `customData.routed` MARK, which is what makes this the client's
@@ -26836,20 +26865,29 @@ def _fan_connector(eid: str, etype: str, dst: str) -> dict[str, Any]:
         eid: The element id.
         etype: `"arrow"` or `"line"` — the ONE field the poles differ by.
         dst: The id of the node the far end binds to.
+        bind_end: Keep the far binding. `False` drops it, which is the
+            ONE field the denominator classes below ablate: the foot is
+            unchanged and `fan_attach_points` still claims the connector
+            (it groups by whichever end IS bound), but
+            `server_routed_connectors` — the population the sentences
+            quote — requires both bindings to resolve and drops it.
 
     Returns:
         The element dict, ready to post in a user save. The foot is A's
         vertical centre, so two of these are drawn on one point.
     """
-    return {"id": eid, "type": etype, "x": 100, "y": 140,
-            "points": [[0, 0], [200, 0]],
-            "startBinding": {"elementId": "A", "focus": 0, "gap": 4},
-            "endBinding": {"elementId": dst, "focus": 0, "gap": 4},
-            "customData": {}}
+    el = {"id": eid, "type": etype, "x": 100, "y": 140,
+          "points": [[0, 0], [200, 0]],
+          "startBinding": {"elementId": "A", "focus": 0, "gap": 4},
+          "endBinding": {"elementId": dst, "focus": 0, "gap": 4},
+          "customData": {}}
+    if not bind_end:
+        el["endBinding"] = None
+    return el
 
 
-def _fan_store(case: unittest.TestCase, etype: str,
-               fossil: bool = False) -> canvas.Store:
+def _fan_store(case: unittest.TestCase, etype: str, fossil: bool = False,
+               half_bound: bool = False) -> canvas.Store:
     """Two boxes and two coincident bound connectors, posted by the client.
 
     THE REAL DOORS, in the order a user reaches them: the agent seeds the
@@ -26868,6 +26906,14 @@ def _fan_store(case: unittest.TestCase, etype: str,
             a scene of straight connectors has none — which is exactly
             why the whole-branch review could only record that path
             LATENT. `Store.tidy` needs none of it.
+        half_bound: Drop `l2`'s far binding. THE SECOND AXIS, added
+            2026-08-20 for the denominator classes below and defaulted
+            off so every pin above measures the scene it was written
+            against. It is the smallest ablation that separates the two
+            populations these sentences mix: the fan groups by whichever
+            end is bound and still slides `l2`, while
+            `server_routed_connectors` requires both and no longer
+            counts it.
 
     Returns:
         The loaded store, artifact `"d"` at the user's posted revision.
@@ -26895,7 +26941,7 @@ def _fan_store(case: unittest.TestCase, etype: str,
                [e["id"] for e in store.scenes["d"]]))
     posted = [dict(e) for e in store.scenes["d"]]
     posted.append(_fan_connector("l1", etype, "B"))
-    posted.append(_fan_connector("l2", etype, "B"))
+    posted.append(_fan_connector("l2", etype, "B", bind_end=not half_bound))
     if fossil:
         crooked = _fan_connector("a1", "arrow", "C")
         crooked.update(x=60, y=180, points=[[0, 0], [40, 120]])
@@ -27480,6 +27526,544 @@ class TestARerouteNamesTheFeetItMoves(unittest.TestCase):
                 "actually moved: %r"
                 % (eid, abs(after[eid] - before[eid]),
                    record["user_note"]))
+
+
+# ---------------------------------------------------------------------------
+# C-3'S SECOND AXIS: BINDING, NOT TYPE. Three reds, 2026-08-20, from the
+# independent review of pkg-c3-completion on tip `bedbc56`. The classes
+# above repaired the TYPE axis — a bound `line` is now in the population
+# both sentences quote — and the same two sentences still mix two
+# populations along the axis one field over.
+#
+# THE SHAPE, in one line: `server_routed_connectors` requires BOTH
+# bindings to resolve; `fan_attach_points` requires NEITHER — it collects
+# any server-owned 2/3-point connector and groups by whichever end IS
+# bound. So a connector bound at one end is slid by the fan, enters
+# `reroute_scene`'s deliberately-loose `changes`, and is counted,
+# named and minted a `rerouted` fact by a sentence whose denominator
+# excludes it. MEASURED at the tip, through Store/commit/reroute:
+# "re-routed 3 of 2 server-routed connector(s)" over three named entries
+# and three facts. That is N above M — the exact failure `Store.reroute`'s
+# own docstring records as fixed ("a fold of the two commits that each
+# fixed half of this printed 're-routed 3 of 1'"), surviving on the other
+# axis.
+#
+# THE COMMENT THAT LICENSES THE LOOSE SCAN IS FALSE AT THE TIP:
+# "Nothing outside that population can move today; this is what makes the
+# sentence survive the day something does" (canvas.py:6380-6382). `l2` is
+# outside the population and moves 13px. Prose asserting a property of an
+# encoding that does not hold, with nothing executing the sentence — this
+# section is what executes it.
+#
+# THE FROZEN CORPUS CANNOT STATE ANY OF THIS, and the zero is classified
+# rather than reported: re-derived 2026-08-20 over all 24 artifacts, 163
+# connectors satisfy `_router_owns`, 153 are bound at both ends, 10 at
+# neither, and **0 at exactly one** — an EMPTY-POPULATION zero, not
+# absence of defect. (The 10 unbound at both ends are not a witness
+# either: with no bound end the fan has no group to put them in, and a
+# `reroute_scene` over every artifact moves nothing outside `M`.) The
+# same scan finds **0** server-routed `line`s, which is why the third
+# class below is also unstateable by the corpus. Both are why these are
+# built in flight.
+#
+# ONE BASE SCENE, THREE DOORS, extending the dedupe argument the section
+# above made: `_fan_store(half_bound=True)` is `_fan_store` with ONE
+# field of `l2` dropped, so the two sections' scenes differ by exactly
+# the ablation under test and a reader can see that the drawing is the
+# same drawing.
+#
+# NO REPAIR IS PRESCRIBED. C-1 has at least three honest fixes — narrow
+# `changes` to the both-ends-bound set, widen `M` to what the fan can
+# actually move, or narrow `fan_attach_points` so a one-end-bound
+# connector is never slid — and the first class asserts only that the
+# numerator, the list, the facts and the denominator describe ONE
+# population, which every one of the three satisfies. The tidy class
+# asserts only that a connector the press moved is covered by some
+# number, which the first and third satisfy and which is the finding the
+# review filed. Whoever owns the fix picks; these say when it has landed.
+# ---------------------------------------------------------------------------
+
+
+def _fan_note_counts(record: dict[str, Any]) -> tuple[int, int]:
+    """The `(N, M)` a save's note carries, as ints.
+
+    Module-level rather than a method, because both denominator classes
+    below read the SAME sentence out of two different doors and a second
+    transcription of the regex is a second thing to keep in step.
+
+    Args:
+        record: A `Store.tidy` or `Store.reroute` save record.
+
+    Returns:
+        `(N, M)` out of "re-routed N of M server-routed connector(s)".
+
+    Raises:
+        AssertionError: If the sentence no longer matches. A reworded
+            note must send a reader back to re-derive these pins rather
+            than let them quietly stop measuring.
+    """
+    found = _FAN_NOTE_RE.search(record.get("user_note") or "")
+    if found is None:
+        raise AssertionError(
+            "the note no longer carries a 're-routed N of M server-routed "
+            "connector(s)' count: %r. Re-derive every pin in this section "
+            "before reading its colour" % record.get("user_note"))
+    return int(found.group(1)), int(found.group(2))
+
+
+class TestARerouteCountsThePopulationItQuotes(unittest.TestCase):
+    """`Store.reroute` prints "3 of 2": N drawn from a wider set than M.
+
+    C-1 OF THE pkg-c3-completion REVIEW, 2026-08-20, reproduced here at
+    the tip that closed C-3's type axis. `examined` is
+    `len(server_routed_connectors(...))` — both bindings must resolve —
+    and `redrew`, the per-element list and the `rerouted` facts are all
+    counted over `changes`, which `reroute_scene` builds over every
+    `("arrow", "line")` the fan touched. `l2` is bound at its start only:
+    the fan groups it by that end, slides it 13px off the foot the user
+    drew it on, and the sentence counts it above a denominator that never
+    admitted it.
+
+    MEASURED, through `apply_batch` + a user `commit` + `reroute`:
+
+        server_routed_connectors -> ['l1', 'a1']
+        NOTE: re-routed 3 of 2 server-routed connector(s); 3 moved or
+              were re-aimed: a1: ... | l1: ... | l2: path moves up to
+              13px; start re-aimed
+        facts: ['a1', 'l1', 'l2']
+
+    MAGNITUDE AND DIRECTION: N is over M by 1, and the overcount is
+    signed — the numerator is ABOVE the denominator, which is the
+    direction that reads as a broken sentence rather than as an
+    undercount. Exactly one element (`l2`) is counted, named and
+    factualised from outside the population `M` quotes.
+
+    THE INVARIANT, NOT A NUMBER, is what the red asserts: the four
+    surfaces this note carries describe ONE population. That is
+    deliberately fix-agnostic — narrowing `changes`, widening
+    `server_routed_connectors`, and narrowing `fan_attach_points` all
+    satisfy it, and picking one here would be this harness deciding a
+    design question that belongs to whoever owns the repair.
+
+    WHAT THIS RED DELIBERATELY DOES NOT SAY, written down so the gap is
+    a decision and not an oversight. Coherence is silent about COVERAGE.
+    A repair that narrows `changes` to the both-ends-bound set makes this
+    green — "2 of 2", `l2` on no surface — and `l2` is still slid 13px
+    off the foot the user drew it on. That is not a new defect; it is
+    `TestTidyCoversTheConnectorItMoved` arriving at THIS door, and that
+    class's argument applies here verbatim. The two claims were kept
+    apart because the review filed them apart and because a coverage
+    assertion here would pick one of the three fixes on this harness's
+    authority. Whoever narrows the numerator owns extending that class's
+    pin to the reroute door in the same change.
+
+    WHO FLIPS THIS: the work package that reconciles `changes` with
+    `server_routed_connectors`. Drop the `expectedFailure` in the same
+    change as the fix.
+    """
+
+    def _rerouted(self, half_bound: bool) -> tuple[
+            dict[str, Any], list[str], canvas.Store]:
+        """Re-route the fossil scene once and read back what it did.
+
+        Args:
+            half_bound: Drop `l2`'s far binding — the ONE ablation.
+
+        Returns:
+            `(record, redrawn_ids, store)`.
+
+        Raises:
+            AssertionError: If the re-route declined. `reroute_noop`
+                answers with a `noop: True` stand-in carrying no
+                `user_note`, and a red measured against a decline is a
+                statement about the fixture.
+        """
+        store = _fan_store(self, "line", fossil=True, half_bound=half_bound)
+        was = [dict(e) for e in store.scenes["d"]]
+        record = store.reroute("d")
+        if record.get("noop"):
+            raise AssertionError(
+                "reroute declined on the half_bound=%r pole (%r): the scene "
+                "stopped being a fossil, so nothing below measures a write"
+                % (half_bound, record["summary"]["headline"]))
+        return record, _fan_redrawn(was, store), store
+
+    def _named(self, record: dict[str, Any]) -> list[str]:
+        """Every element id the note's four surfaces attribute a move to.
+
+        The union of the per-element list and the `rerouted` facts, which
+        is what a reader and a replay respectively take the sentence to
+        be about. Counting them together is what stops a repair reaching
+        one surface and not the other from reading as green.
+
+        Args:
+            record: A reroute save record.
+
+        Returns:
+            The ids, sorted and deduplicated.
+        """
+        facts = {f["element"] for f in record["artifacts"]["d"]["facts"]
+                 if f["fact"] == "rerouted"}
+        listed = {i for i in ("a1", "l1", "l2")
+                  if i + ": path" in (record.get("user_note") or "")}
+        return sorted(facts | listed)
+
+    def test_the_both_ends_bound_pole_is_coherent(self) -> None:
+        """THE NEIGHBOUR, ungated: with `l2` bound the sentence adds up.
+
+        The live half of this class and the reason the red below is about
+        a binding gate rather than about a pipeline that has gone quiet
+        or a fixture that stopped moving. The identical scene with `l2`'s
+        far binding restored reports "3 of 3", names all three, and mints
+        three facts — so the door opens, the fan fires, and every surface
+        speaks. Asserted in every commit.
+        """
+        record, redrawn, _store = self._rerouted(half_bound=False)
+        self.assertEqual(
+            (_fan_note_counts(record), self._named(record), sorted(redrawn)),
+            ((3, 3), ["a1", "l1", "l2"], ["a1", "l1", "l2"]),
+            "the both-ends-bound pole has moved, and the red in this "
+            "class is measured against it — re-derive before reading its "
+            "colour: %r" % record.get("user_note"))
+
+    def test_the_ablation_leaves_the_drawing_alone(self) -> None:
+        """The control: one dropped binding, same ink, same movement.
+
+        What makes the red a NARRATION finding and not a geometry one. If
+        dropping `l2`'s far binding also stopped the fan sliding it, a
+        sentence that omitted it would be closer to honest and the red
+        would be overstating. Both poles pull `l1` and `l2` off the one
+        coincident foot at y=140 onto the same 127 and 153, and
+        `drawn_path_changed` — canvas.py's own predicate, the one
+        `path_changed` is computed with — reports the same three
+        connectors redrawn either way.
+
+        The FEET are asserted rather than merely the redrawn set: a pole
+        whose connectors moved by a different amount would satisfy an id
+        comparison while quietly changing the magnitude the red reports.
+
+        THIS ARM FIRES ON A GEOMETRY REPAIR, AND THAT IS ITS JOB. Of the
+        three fixes named in this section's header, two are narration-
+        only and leave this green; the third — teaching
+        `fan_attach_points` to decline a one-end-bound connector — makes
+        the ablation change the PICTURE, and this arm goes red saying
+        so. Measured under that counterfactual, 2026-08-20: half-bound
+        feet stay at `[140, 140]` while the unablated pole still lands
+        on `[127, 153]`. That is a decision somebody should make on
+        purpose (a connector the user drew stops being fanned), not one
+        that arrives as a side effect of repairing a sentence — so the
+        arm is left to fail rather than taught to accept it.
+        """
+        half = self._rerouted(half_bound=True)
+        whole = self._rerouted(half_bound=False)
+        self.assertEqual(
+            (_fan_feet(half[2]), sorted(half[1])),
+            (_fan_feet(whole[2]), sorted(whole[1])),
+            "the two poles no longer draw the same picture, so the red "
+            "below has stopped isolating the sentence from the geometry")
+
+    @unittest.expectedFailure
+    def test_the_note_counts_the_population_it_names(self) -> None:
+        """RED: N, the list and the facts all outrun M by one element.
+
+        THE FINDING AS AN INVARIANT. Nothing here says what M ought to
+        be — it says the numerator, the per-element list and the
+        `rerouted` facts must all be drawn from the population the
+        denominator quotes, and that N must not exceed M. Every honest
+        repair satisfies both clauses; none is named.
+
+        MEASURED 2026-08-20, red: `M` is `['l1', 'a1']` while N is 3, the
+        list names `l2` with its 13px, and a `rerouted l2` fact is
+        minted. Over by 1, numerator above denominator, one element
+        (`l2`) attributed from outside the set the sentence quotes.
+
+        THE WRONG READINGS THIS REJECTS. `assertLessEqual(n, m)` alone
+        would pass for a repair that widened M to the whole scene while
+        still naming an element the fan never touched; the membership
+        clause is what pins the two to the SAME set. Conversely a
+        membership check alone would pass for a repair that dropped `l2`
+        from the list and left `redrew` at 3 — the count above a shorter
+        list, which is the failure `Store.reroute`'s docstring already
+        records once.
+        """
+        record, _redrawn, store = self._rerouted(half_bound=True)
+        population = set(canvas.server_routed_connectors(store.scenes["d"]))
+        n, m = _fan_note_counts(record)
+        outside = [i for i in self._named(record) if i not in population]
+        self.assertEqual(
+            (outside, max(0, n - m)), ([], 0),
+            "the note says 're-routed %d of %d' and attributes moves to "
+            "%s over a quoted population of %s: %s is counted, named and "
+            "minted a fact by a sentence whose denominator excludes it. "
+            "%r" % (n, m, self._named(record), sorted(population), outside,
+                    record.get("user_note")))
+
+
+class TestTidyCoversTheConnectorItMoved(unittest.TestCase):
+    """One press of tidy slides a bound line 13px and counts it nowhere.
+
+    I-1 OF THE pkg-c3-completion REVIEW, 2026-08-20, and it is the same
+    gap as the class above wearing the opposite sign. `Store.tidy`
+    computes `redrew` by iterating `connectors` — the both-ends-bound
+    set — so `N <= M` holds by construction and the incoherence the
+    reroute door prints out loud cannot appear here. What happens
+    instead is the silent form: the fan slides `l2` anyway, and the
+    connector is then in NEITHER number.
+
+    MEASURED, same fixture minus the fossil arrow:
+
+        population: ['l1']
+        NOTE: tidy: snapped 0 node(s) to grid, re-routed 1 of 1
+              server-routed connector(s), normalized z-order
+        l1  140 -> 127
+        l2  140 -> 153     <- moved 13px, narrated nowhere
+
+    MAGNITUDE AND DIRECTION: under by 1, in the SILENT direction — a
+    press that visibly moved two connectors tells the user it moved one.
+    That is C-3 verbatim (an operation moves an element it never named)
+    inside the door `TestTidyNarratesTheFeetItMoves` is named for, whose
+    own class docstring correctly says "nothing about what MOVES
+    changed": true, and the point is that the narration still does not
+    cover everything that moves.
+
+    NO GRID WORK AND NO FOSSIL, so the press has one moving part: every
+    coordinate is a multiple of 20, `snapped` stays 0, and tidy writes
+    because `normalize_z_order` has work — the same reason the class
+    above it writes.
+
+    THE CLAIM IS COVERAGE, NOT A DENOMINATOR VALUE, so this too names no
+    repair: widening the population covers `l2`, and so does a fan that
+    declines to slide a one-end-bound connector at all. Both are fixes
+    somebody may choose; this says only that a press must not move a
+    connector no number accounts for.
+
+    WHO FLIPS THIS: the same owner as the class above — the review's own
+    disposition is that the two doors must not be allowed to disagree
+    about which end of the gap to close.
+    """
+
+    def _pressed(self, half_bound: bool) -> tuple[
+            dict[str, Any], list[str], canvas.Store]:
+        """Press tidy once on the base scene and read back what it did.
+
+        Args:
+            half_bound: Drop `l2`'s far binding — the ONE ablation.
+
+        Returns:
+            `(record, redrawn_ids, store)`.
+
+        Raises:
+            AssertionError: If tidy declined to write. A `noop` record
+                carries no `user_note` at all, and a red reading `None`
+                for a sentence would be about the fixture.
+        """
+        store = _fan_store(self, "line", half_bound=half_bound)
+        was = [dict(e) for e in store.scenes["d"]]
+        record = store.tidy("d")
+        if record.get("noop"):
+            raise AssertionError(
+                "tidy declined to write on the half_bound=%r pole (%r), so "
+                "this press narrated nothing and every assertion below "
+                "would be about the fixture"
+                % (half_bound, record["summary"]["headline"]))
+        return record, _fan_redrawn(was, store), store
+
+    def test_the_both_ends_bound_pole_counts_both_feet(self) -> None:
+        """THE NEIGHBOUR, ungated: with `l2` bound the press says two.
+
+        The live half. Without it the red passes the day tidy stops
+        fanning anything — a press that moves nothing reports nothing,
+        and a silence covers a silence. This holds the unablated pole's
+        exact numbers: two connectors redrawn, "re-routed 2 of 2", feet
+        26px apart.
+        """
+        record, redrawn, store = self._pressed(half_bound=False)
+        self.assertEqual(
+            (_fan_note_counts(record), sorted(redrawn), _fan_feet(store)),
+            ((2, 2), ["l1", "l2"], [127, 153]),
+            "the both-ends-bound pole has moved; re-derive the red below "
+            "before reading its colour: %r" % record.get("user_note"))
+
+    def test_the_ablation_leaves_the_drawing_alone(self) -> None:
+        """The control: one dropped binding, and the fan still slides two.
+
+        The same argument its reroute sibling makes. `l2` loses its far
+        binding and is pulled to exactly the same 153 — so the ink is
+        identical across the ablation and the whole difference is the
+        sentence. Asserted through `_fan_redrawn`, which is
+        `drawn_path_changed`, so the pin and the code under test cannot
+        drift about what "moved" means.
+
+        IT FIRES ON A GEOMETRY REPAIR BY DESIGN, for the reason its
+        reroute sibling gives in full: a fix that stops the fan sliding
+        a one-end-bound connector at all changes the picture rather than
+        the sentence, and this arm is the thing that says so out loud.
+        """
+        half, whole = self._pressed(True), self._pressed(False)
+        self.assertEqual(
+            (_fan_feet(half[2]), sorted(half[1])),
+            (_fan_feet(whole[2]), sorted(whole[1])),
+            "dropping `l2`'s far binding changed what tidy DRAWS, so the "
+            "red below is no longer isolating the narration")
+
+    @unittest.expectedFailure
+    def test_every_connector_the_press_redrew_is_covered_by_a_number(
+            self) -> None:
+        """RED: two connectors were redrawn and the note accounts for one.
+
+        THE FINDING AS COVERAGE. `drawn_path_changed` says `l1` and `l2`
+        were both drawn somewhere new; the note's numerator is 1 and its
+        denominator is 1, and tidy mints no per-element geometry fact, so
+        the `user_note` is the ONLY surface on which this press describes
+        its own geometry work. `l2` is on none of it.
+
+        MEASURED 2026-08-20, red: N=1 against 2 redrawn. Under by 1, in
+        the direction that tells a user less happened than did — the
+        direction an assessor cannot detect, which is the whole reason
+        this class exists rather than a note in a report.
+
+        THE COMPARISON IS AGAINST `_fan_redrawn` AND NOT A LITERAL, and
+        the first draft of this pin got that wrong — it asserted
+        `(n, len(redrawn)) == (2, 2)`, which pins that TWO connectors
+        must move and so fails a repair that reconciles the two
+        populations by teaching the fan to leave a one-end-bound
+        connector alone. Measured under exactly that counterfactual,
+        2026-08-20: `n` and `len(redrawn)` both fall to 1 and the
+        literal kept the pin red over a drawing with nothing left to
+        narrate. The claim is a RELATION between the two, not either
+        one's value.
+
+        IT CANNOT PASS BY BOTH GOING QUIET.
+        `test_the_both_ends_bound_pole_counts_both_feet` holds the
+        unablated pole's absolute numbers ungated, and `_pressed`
+        refuses a `noop`.
+        """
+        record, redrawn, _store = self._pressed(half_bound=True)
+        n, m = _fan_note_counts(record)
+        self.assertEqual(
+            n, len(redrawn),
+            "tidy redrew %s and its note says 're-routed %d of %d': the "
+            "press moved a connector that is in neither number, and no "
+            "other surface of this record names it — %r"
+            % (sorted(redrawn), n, m, record.get("user_note")))
+
+
+class TestHousekeepingDoesNotCallALineAnArrow(unittest.TestCase):
+    """`apply_ops` counts the right population under the wrong noun.
+
+    I-2 OF THE pkg-c3-completion REVIEW, 2026-08-20, and the one finding
+    in this section that is not about a denominator. `apply_ops`'
+    housekeeping line already counts `("arrow", "line")` —
+    canvas.py:8717-8729, the wide population, correctly — and prints the
+    word "arrow(s)" over it. So the count is right and the sentence is
+    false: a user who drags a node and moves two bound `line`s is told
+    two arrows were re-routed.
+
+    MEASURED, through `apply_batch` on a `mod` the user's two connectors
+    are not named in:
+
+        housekeeping: re-routed 2 arrow(s) no op named (l1, l2) so they
+        still meet the shapes they bind — none of them is pinned
+
+    MAGNITUDE AND DIRECTION: 2 elements introduced as arrows, 0 of which
+    are arrows. The direction is over-claiming — the sentence asserts a
+    type of every element it names, and is wrong about all of them.
+
+    THIS FILE ALREADY ARGUED AGAINST IT, one section up, which is what
+    makes it a miss rather than an open question:
+    `test_the_note_counts_the_connectors_it_handed_the_fan` says "a
+    widened count under the word `arrow(s)` would tell a user two lines
+    are arrows — a second false sentence bought with the repair of the
+    first". It pins that at the tidy door. The third door was cleared on
+    the TYPE-GATE axis by the completion report (correctly — the
+    population here was always wide) and nobody looked at the noun.
+
+    NO WORD IS PRESCRIBED. The red asserts that the sentence does not
+    call a non-arrow an arrow; renaming the noun, splitting the sentence
+    by type and dropping the noun entirely all satisfy it.
+
+    WHO FLIPS THIS: the owner of the C-3 narration doors. The review
+    calls it a two-word fix in one string; that is not this harness's
+    call to make, and the red says nothing about which two words.
+    """
+
+    def _dragged(self, etype: str) -> tuple[list[str], list[str]]:
+        """Move node `B` in a batch that names no connector, and read back.
+
+        THE CONSEQUENCE, NOT THE ACT. The housekeeping line exists for
+        exactly the connector an unrelated op moved — an element the
+        batch itself touched is narrated by its own op's fact — so the
+        batch carries a `mod` on `B` alone and the two connectors bound
+        to it drift behind it.
+
+        Args:
+            etype: `"arrow"` or `"line"`, for `l1` and `l2`.
+
+        Returns:
+            `(housekeeping_lines, ids_named)` — the record's housekeeping
+            sentences, and the connector ids they name.
+
+        Raises:
+            AssertionError: If the batch produced no housekeeping line at
+                all. A noun assertion against an absent sentence is a
+                statement about the fixture, and this is the pole where
+                that would silently pass.
+        """
+        store = _fan_store(self, etype)
+        record, _pin_only = store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "d",
+            "ops": [{"op": "mod", "id": "B", "attrs": {"y": 200}}]})
+        lines = [s for s in (record.get("housekeeping") or [])
+                 if "re-routed" in s]
+        if not lines:
+            raise AssertionError(
+                "dragging B narrated no re-route on the %s pole; the "
+                "housekeeping line this class is about was not written, so "
+                "nothing below measures it (%r)"
+                % (etype, record.get("housekeeping")))
+        named = [i for i in ("l1", "l2")
+                 if any(i in s for s in lines)]
+        return lines, named
+
+    def test_the_arrow_pole_says_a_true_sentence(self) -> None:
+        """THE NEIGHBOUR, ungated: on arrows the same sentence is honest.
+
+        The opposite pole of exactly this check — the housekeeping line
+        fires, counts two, names `l1` and `l2`, and calls them arrows,
+        which they are. That is what proves the red below is about the
+        noun and not about a housekeeping line that has stopped being
+        written or stopped naming its elements.
+        """
+        lines, named = self._dragged("arrow")
+        self.assertEqual(named, ["l1", "l2"])
+        self.assertIn(
+            "re-routed 2 arrow(s)", lines[0],
+            "the arrow pole's housekeeping sentence has moved, and the "
+            "red below is measured against it: %r" % lines)
+
+    @unittest.expectedFailure
+    def test_the_sentence_does_not_call_a_line_an_arrow(self) -> None:
+        """RED: two `line`s are introduced to the user as two arrows.
+
+        THE ELEMENTS THE SENTENCE NAMES ARE LOOKED UP IN THE SCENE
+        rather than assumed, so this asks the question a reader asks: of
+        the things this sentence calls arrows, how many are arrows?
+        Measured 2026-08-20: 2 named, 0 arrows.
+
+        THE WRONG READING THIS REJECTS. Asserting the string
+        `"connector(s)"` would prescribe the repair the review happens
+        to suggest and would fail a fix that split the sentence by type
+        or named the elements without a collective noun. The assertion is
+        that the noun is not falsified by the population under it.
+        """
+        lines, named = self._dragged("line")
+        self.assertEqual(named, ["l1", "l2"])
+        self.assertNotIn(
+            "arrow(s)", lines[0],
+            "this batch moved %s — two `line`s, no arrows — and the "
+            "housekeeping sentence introduces them as arrows: %r. The "
+            "count is over the right population; the noun is not."
+            % (named, lines[0]))
 
 
 # ---------------------------------------------------------------------------
