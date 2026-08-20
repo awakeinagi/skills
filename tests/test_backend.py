@@ -12245,27 +12245,6 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
                          "a label describes a token the filter no longer "
                          "tests")
 
-    def test_the_import_time_check_is_the_forward_half_and_it_fires(self):
-        """The half above leans on that check, so it is proved, not cited.
-
-        Rebuilding the module with an unlabelled token is the only way to
-        watch an import-time guard fire — by the time a test imports
-        `canvas`, the check has already passed. The source is compiled in
-        a throwaway namespace with one token added and no word for it.
-        """
-        src = Path(canvas.__file__).read_text(encoding="utf-8")
-        hacked = src.replace(
-            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")',
-            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image",'
-            ' "embeddable")', 1)
-        self.assertNotEqual(hacked, src,
-                            "MERMAID_DROP_TYPES is no longer spelled the "
-                            "way this guard perturbs it; re-anchor it")
-        with self.assertRaises(RuntimeError) as caught:
-            exec(compile(hacked, canvas.__file__, "exec"),
-                 {"__name__": "canvas_probe"})
-        self.assertIn("embeddable", str(caught.exception))
-
     def test_an_unlabelled_token_refuses_before_the_file_is_written(self):
         """The naming runs BEFORE `write_text`, and the ORDER is the
         assertion. Raising on a token with no label is the design — an
@@ -12379,6 +12358,131 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
                          "the two formats differ by something other than "
                          "the constant that is supposed to be the only "
                          "format-dependent term")
+
+
+class TestTheImportTimeGuards(unittest.TestCase):
+    """The two module-level `raise`s in `canvas.py`, watched firing.
+
+    A MODULE-LEVEL GUARD CANNOT BE MONKEYPATCHED. By the time any test
+    has imported `canvas`, both checks have already run and passed;
+    patching a constant afterwards patches something the guard will never
+    look at again. The only way to see one fire is to compile the source
+    a second time with the constant perturbed, in a throwaway namespace.
+
+    THE COST IS WRITTEN DOWN BECAUSE IT IS THE REASON THESE GET
+    DEFERRED, and it is written down MEASURED rather than estimated: one
+    rebuild is ~0.8s and this class does nine of them (six malformed
+    join shapes, two controls, one unlabelled token), so it runs in
+    ~6.4s against a suite of ~170s. That is the real number; a first
+    draft of this docstring guessed "near two seconds" from a single
+    rebuild and was wrong by threefold, which is the same arithmetic
+    this whole file exists to stop people publishing.
+
+    Both guards shipped unpinned and a reviewer named the cost as the
+    thing that would keep them that way. 4% of the suite is not a reason
+    to leave two `raise` statements unproved, and the shared `rebuilt`
+    helper keeps it to one exec per shape rather than one per assertion.
+
+    Curated during curator batch 40 against `fold-orphans-a568`,
+    2026-08-20.
+    """
+
+    PROBE_NAME = "canvas_import_guard_probe"
+
+    def rebuilt(self, old, new):
+        """Re-execute `canvas.py` with one constant rewritten.
+
+        Args:
+            old: The exact source text to replace — asserted present, so
+                a constant that has been re-spelled fails loudly instead
+                of running an unperturbed module and reporting no raise.
+            new: What to put in its place.
+
+        Returns:
+            The message of the `RuntimeError` the rebuilt module raised.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        hacked = src.replace(old, new, 1)
+        self.assertNotEqual(
+            hacked, src, "this guard perturbs a constant that is no longer "
+                         "spelled %r; re-anchor it rather than deleting it "
+                         "— an edit that no longer edits anything would "
+                         "rebuild a HEALTHY module and read as no raise"
+            % (old,))
+        with self.assertRaises(RuntimeError) as caught:
+            exec(compile(hacked, canvas.__file__, "exec"),
+                 {"__name__": self.PROBE_NAME})
+        return str(caught.exception)
+
+    def test_the_unperturbed_module_rebuilds_without_raising(self):
+        """THE LIVE HALF, and this class is worthless without it.
+
+        Every other test here asserts that a rebuild RAISES. If `exec`
+        of this module raised for some unrelated reason — a missing
+        import under a different `__name__`, a stray side effect — all
+        of them would pass while proving nothing about either guard.
+        The control is the same machinery over unmodified source.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        ns = {"__name__": self.PROBE_NAME}
+        exec(compile(src, canvas.__file__, "exec"), ns)
+        self.assertEqual(ns["CROSS_LINT_JOIN"], canvas.CROSS_LINT_JOIN)
+        self.assertEqual(ns["MERMAID_DROP_LABELS"],
+                         canvas.MERMAID_DROP_LABELS)
+
+    def test_an_unlabelled_drop_token_refuses_at_import(self):
+        """A drop token with no reader-facing word stops the module.
+
+        The export's `NOTE=` sentence is derived from
+        `MERMAID_DROP_LABELS`, and that derivation is only trustworthy
+        while every token has an entry. The failure this guards is a
+        developer adding a token and forgetting its word — an edit that
+        lands HERE, which is why the check is here and not at the call
+        site, where it could never fire from any reachable input.
+        """
+        msg = self.rebuilt(
+            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")',
+            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image",'
+            ' "embeddable")')
+        self.assertIn("embeddable", msg,
+                      "the refusal does not name the token that caused "
+                      "it, so it cannot be acted on: %r" % msg)
+
+    def test_a_malformed_join_refuses_at_import(self):
+        """Every shape that is not a 2-tuple of type names, not just one.
+
+        A guard written as `len(join) > 2` would pass four of these
+        five, and a guard written as `len(join) != 2` would pass the two
+        that are the right length and the wrong contents. The shapes are
+        driven separately so the message says which one slipped.
+        """
+        for bad in ('("wireframe", "flow", "domain")', '("wireframe",)',
+                    '["wireframe", "flow"]', '("wireframe", "")',
+                    '("wireframe", 2)', 'None'):
+            with self.subTest(bad=bad):
+                msg = self.rebuilt('CROSS_LINT_JOIN = ("wireframe", "flow")',
+                                   "CROSS_LINT_JOIN = %s" % bad)
+                self.assertIn("2-tuple", msg,
+                              "the refusal does not say what shape was "
+                              "wanted: %r" % msg)
+
+    def test_the_join_guard_admits_a_legitimately_different_pair(self):
+        """THE SILENT HALF of the test above.
+
+        Without it, a guard that refused EVERY value — including the
+        shipped one — would satisfy all six subtests, and the constant
+        would be unchangeable rather than checked. A different but
+        well-formed pair must rebuild cleanly, because moving the join
+        is a design change this guard is not entitled to veto.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        hacked = src.replace('CROSS_LINT_JOIN = ("wireframe", "flow")',
+                             'CROSS_LINT_JOIN = ("domain", "flow")', 1)
+        self.assertNotEqual(hacked, src, "re-anchor: the constant has "
+                                         "been re-spelled")
+        ns = {"__name__": self.PROBE_NAME}
+        exec(compile(hacked, canvas.__file__, "exec"), ns)
+        self.assertEqual(ns["CROSS_LINT_JOIN"], ("domain", "flow"))
 
 
 class TestLintHygiene(Base):
