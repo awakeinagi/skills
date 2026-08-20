@@ -473,6 +473,77 @@ expectation on a coin-flip oracle would encode a 1-in-5 outcome as
 ground truth. **No mutant is better than a mutant that pins a race** —
 the harness's own purpose turned against the harness.
 
+### 6b.0c The rounding defect — closed, and the zero that nearly waived it
+
+The one defect left standing after the padding, the shape arms and the
+advance table were each measured and cleared. Two curator pairs
+(`6947ea7`, `e87b4e6`), one fix (`4842672`).
+
+**The defect is a transcription, not a model.** `Math.round` is half
+toward +Infinity; Python's `round` is half to even. Every client rule in
+`canvas.py` transcribes a `Math.round`, so `round` was wrong wherever the
+halved extent lands on a tie — and only there. On a 181px rhombus the
+client allows 81px and this file allowed 80.
+
+**Five sites, not the two reported.** I re-read `_s`, `qg` and `yd` from
+the bundle rather than taking the count: two diamond arms, two ellipse
+arms, and `client_grown_extent`'s. The ellipse arms cannot reach a tie —
+irrational for every rational width, zero disagreements — and are changed
+anyway, through one `js_round` helper. **A rule typed at five sites where
+only three can be wrong is how the fourth gets it back.** Both pairs flip
+on that one line.
+
+**Scope, counted rather than characterised** — three separate prose
+characterisations of this defect were wider than the truth today,
+including two of the coordinator's and one of the curator's own:
+`w = 4k+1` **only**, because banker's and half-up agree whenever
+`floor(w/2)` is odd. 495 of the 1981 integer widths in 20..2000.
+
+**The near-miss was tried and rejected, not considered.** Measured by
+monkeypatching each candidate on the commit tree:
+
+| rounding | cap mutant | headroom mutant | neighbours |
+|---|---|---|---|
+| `round` (the defect) | RED | RED | green |
+| `ceil` (the near-miss) | silent | silent | green |
+| `floor(x+0.5)` (the fix) | silent | silent | green |
+
+`ceil` passes both pairs and is wrong. It agrees with `Math.round` on all
+1981 integer widths and parts on 1710 of 3800 fractional ones, so the
+pairs structurally cannot see it — a mutant's magnitude lives at a
+boundary and a boundary cannot also be wide.
+
+**THE ZERO THAT WOULD HAVE WAIVED THE FIX WAS TRUE, AND IRRELEVANT.**
+This is the part that generalises past this fix. "The corpus has no
+fractional container widths" holds — **0 of 291** — and is exactly the
+evidence one would cite to skip the scene. It is the wrong evidence:
+**the corpus is a survey of STORED state, and this defect lives in
+IN-FLIGHT state.** Traced instead of reasoned about: an op carrying
+`width: 180.4` reaches `client_wrap_width` **as 180.4** during
+`apply_batch`, because the fitter runs before `normalize_element` snaps
+the stored value to 180. `Math.round(90.2)` is 90 and `ceil` is 91 — one
+pixel, on the agent's own write path, invisible to any corpus survey.
+
+So the debt is paid rather than passed on:
+`TestShapeAwareLabelRoom.test_the_cap_rounds_a_half_the_way_the_client_
+rounds_it` sweeps tenths across 20.0..400.0 for both the cap and the
+headroom against a hand-transcribed `Math.round`, and **fails on `round`,
+fails on `ceil`, and passes on nothing else.**
+
+**THREE KINDS OF ZERO are now catalogued by this task**, and they are
+different failures wearing one number:
+
+1. a zero over an **empty** population — the corpus carries no instance;
+2. a zero over the **wrong** population — the fractional case above,
+   where the survey measured stored state and the defect lives in flight;
+3. a zero produced by the **default parameter** — the height twin, mute
+   at fontSize 16 because `text_dims` quantizes to `20 * lines` and a
+   one-pixel gap needs an odd height, while being numerically wrong at
+   every other size the corpus uses.
+
+None of the three is a false measurement. Each is a true count over a
+population that is not the one the defect lives in.
+
 ### 6b.3 A NINTH — RETRACTED, see §6b.0. `BOUND_TEXT_PADDING` is wrong
 
 Re-deriving the denominator in the browser, `'compliance'` refused to chop
