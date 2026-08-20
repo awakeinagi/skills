@@ -11352,20 +11352,14 @@ class TestHandoverExport(Base):
         self.assertEqual(pairs["Run"], "one execution of the pipeline.")
 
 
-class TestMermaidExport(Base):
-    """`export --format mermaid|er` — the drawing as portable text (v0.9).
+class MermaidExportDriver:
+    """Drive `cmd_export`'s mermaid arm — shared by the classes below.
 
-    The command exists for two uses and NOT for a third: a diffable text
-    form for a PR, and a seed for another tool. Handover stays the SVG's
-    job, because mermaid cannot carry a tooltip.
-
-    The measured bar these pin, re-run at this head over the 24-fixture
-    corpus through the real converter (server + headless chromium + m2e
-    2.2.2 + dagre): 132/132 nodes, 132/132 labels, 132/132 shapes
-    (including roundness) and 144/144 edges across the 14 flows; 27/27
-    entities and 29/29 relations across the 3 domains. The pre-fix shape
-    map scored 120/132 shapes and 104/132 with roundness on the same run,
-    which is the defect these tests hold shut.
+    A MIXIN AND NOT A SECOND COPY, on the lesson the drop list itself
+    taught: `TestTheDropListIsDerivedNotTranscribed` needs the same
+    seed-and-run gear and a hand-copied `export_args` would drift from
+    this one exactly as SKILL.md's sentence drifted from the filter.
+    Expects `self.tmp` and `self.store` from `Base`.
     """
 
     def export_args(self, **kw):
@@ -11441,6 +11435,23 @@ class TestMermaidExport(Base):
         code, _ = self.run_export(artifact=aid, out=str(out))
         self.assertEqual(code, 0)
         return out.read_text(encoding="utf-8")
+
+
+class TestMermaidExport(MermaidExportDriver, Base):
+    """`export --format mermaid|er` — the drawing as portable text (v0.9).
+
+    The command exists for two uses and NOT for a third: a diffable text
+    form for a PR, and a seed for another tool. Handover stays the SVG's
+    job, because mermaid cannot carry a tooltip.
+
+    The measured bar these pin, re-run at this head over the 24-fixture
+    corpus through the real converter (server + headless chromium + m2e
+    2.2.2 + dagre): 132/132 nodes, 132/132 labels, 132/132 shapes
+    (including roundness) and 144/144 edges across the 14 flows; 27/27
+    entities and 29/29 relations across the 3 domains. The pre-fix shape
+    map scored 120/132 shapes and 104/132 with roundness on the same run,
+    which is the defect these tests hold shut.
+    """
 
     # -- the shape map, both poles ------------------------------------
 
@@ -11820,6 +11831,227 @@ class TestMermaidExport(Base):
         with contextlib.redirect_stdout(buf):
             canvas.cmd_export(self.export_args(artifact="fl", format="svg"))
         self.assertTrue((self.tmp / "project_knowledge" / "fl.svg").exists())
+
+
+class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
+    """`NOTE=` names the drop from the filter's OWN inputs (v0.9).
+
+    THE SENTENCE WAS PROSE AND THE FILTER WAS CODE, and they had parted.
+    Measured on 7170b3d: a flow holding one `type: line` printed
+    `DROPPED=1` under a six-word list — pins, annotations, notes,
+    decorations, frames, freehand — naming no line at all, so the reader
+    goes hunting for a pin they never drew. The same sentence named
+    `decorations` under `--format er`, which is the ONE form that
+    carries them and had counted zero for them, so the two halves of one
+    export contradicted each other two lines apart. `image` was the
+    third: dropped since the type list was written, never named.
+
+    THE COUNT WAS NEVER WRONG, which is what made it expensive. A wrong
+    count reads as a bug in the tool; a wrong NAME reads as a mistake by
+    the reader, who goes looking for the element the tool described.
+
+    Curated during curator batch 40 against `fold-orphans-a568`,
+    2026-08-20. The scenes are the smallest that discriminate: one node
+    plus the one element under test, round coordinates, no incidentals.
+    """
+
+    def drop_report(self, **kw):
+        """The `DROPPED=` count and the categories `NOTE=` names.
+
+        BOTH HALVES ARE ASSERTED PRESENT before either is returned. A
+        report that stopped being printed has to fail this class loudly;
+        read as "no categories", it would satisfy every absence
+        assertion below and nothing else in the tree would notice.
+
+        Args:
+            **kw: Passed to `run_export`.
+
+        Returns:
+            ``(count, names)`` — the integer off the `DROPPED=` line and
+            the phrases inside the `NOTE=` parenthesis, split on commas.
+        """
+        code, out = self.run_export(**kw)
+        self.assertEqual(code, 0, out)
+        count = re.search(r"^DROPPED=(\d+)$", out, re.M)
+        names = re.search(r"no mermaid form \(([^)]*)\)", out)
+        self.assertIsNotNone(count, "no DROPPED= line in: %s" % out)
+        self.assertIsNotNone(names, "no NOTE= drop list in: %s" % out)
+        return int(count.group(1)), [n.strip()
+                                     for n in names.group(1).split(",")]
+
+    NODE: ClassVar[dict] = {"op": "add", "element": {
+        "type": "rectangle", "id": "a", "label": "A", "x": 40, "y": 40,
+        "width": 160, "height": 60, "role": "node"}}
+    LINE: ClassVar[dict] = {"op": "add", "element": {
+        "type": "line", "id": "rule", "x": 40, "y": 200, "width": 200,
+        "height": 0, "points": [[0, 0], [200, 0]], "role": "decoration"}}
+    ENTITY: ClassVar[dict] = {"op": "add", "element": {
+        "type": "rectangle", "id": "user", "label": "User", "x": 40,
+        "y": 40, "width": 160, "height": 100, "role": "entity"}}
+    ATTR_ROW: ClassVar[dict] = {"op": "add", "element": {
+        "type": "text", "id": "row", "label": "id: uuid", "x": 60,
+        "y": 100, "width": 100, "height": 20, "role": "decoration"}}
+
+    # -- the categories the sentence used to skip ------------------------
+
+    def test_a_plain_line_is_named_and_not_only_counted(self):
+        """A `line` is furniture and never a connector, so the export
+        drops it — and said `pins, annotations, notes, decorations,
+        frames, freehand` over the top of it. Both halves are read off
+        the SAME run: a count with no matching name IS the defect, and
+        either half on its own cannot see it."""
+        self.seed(ops=[self.NODE, self.LINE])
+        count, names = self.drop_report(artifact="fl")
+        self.assertEqual(count, 1)
+        self.assertIn("plain lines", names)
+
+    def test_a_flow_with_no_line_drops_nothing(self):
+        """The silent half. The sentence names every category the filter
+        TESTS whatever this scene holds — deliberately, because it
+        describes the filter and not the drawing — so the count is the
+        half that must stay at zero. Without this the test above is
+        satisfied by a NOTE that names everything, always."""
+        self.seed(ops=[self.NODE])
+        count, names = self.drop_report(artifact="fl")
+        self.assertEqual(count, 0)
+        self.assertIn("plain lines", names)
+
+    def test_er_neither_counts_nor_names_the_decoration_it_carries(self):
+        """THE DISCRIMINATING PAIR — one artifact, exported twice.
+
+        `erDiagram` is the one form that carries the attribute rows a
+        domain seeder draws inside an entity, so `--format er` has always
+        counted zero for them while the hand-written sentence named them
+        anyway. A single-format test cannot see that: under `--format
+        mermaid` those same words are correct. Both runs read the same
+        seeded artifact, so the format is the only thing that differs,
+        and both halves — the count and the naming — are asserted at
+        each pole rather than one at each."""
+        self.seed(atype="domain", aid="dm",
+                  ops=[self.ENTITY, self.ATTR_ROW])
+        dec = canvas.MERMAID_DROP_LABELS["decoration"]
+        er_n, er_names = self.drop_report(artifact="dm", format="er")
+        fl_n, fl_names = self.drop_report(artifact="dm", format="mermaid")
+        self.assertEqual((er_n, dec in er_names), (0, False))
+        self.assertEqual((fl_n, dec in fl_names), (1, True))
+
+    # -- the map is total, and it says so before it writes ---------------
+
+    @staticmethod
+    def filter_tokens():
+        """Every role/type token `_export_mermaid`'s drop filter tests.
+
+        AST over `inspect.getsource`, on the event-taxonomy guard's
+        precedent one class along and for the same reason: the tokens
+        arrive as a list literal AND as an `.append` under a format
+        branch, so a line-anchored grep reads whichever of the two it was
+        written against and calls the other one absent.
+
+        Returns:
+            The string literals assigned or appended to `silent`, union
+            `MERMAID_DROP_TYPES`.
+        """
+        out = set(canvas.MERMAID_DROP_TYPES)
+        tree = ast.parse(textwrap.dedent(
+            inspect.getsource(canvas._export_mermaid)))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and any(
+                    isinstance(t, ast.Name) and t.id == "silent"
+                    for t in node.targets):
+                out |= {e.value for e in getattr(node.value, "elts", ())
+                        if isinstance(e, ast.Constant)}
+            fn = getattr(node, "func", None)
+            if isinstance(node, ast.Call) and isinstance(fn, ast.Attribute) \
+                    and fn.attr == "append" and node.args \
+                    and isinstance(fn.value, ast.Name) \
+                    and fn.value.id == "silent" \
+                    and isinstance(node.args[0], ast.Constant):
+                out.add(node.args[0].value)
+        return out
+
+    def test_every_token_the_filter_tests_has_a_label(self):
+        """The map is complete BOTH WAYS, parsed rather than transcribed.
+
+        `_mermaid_dropped_names` raising `KeyError` on an unlabelled
+        token is the loud half, and it needs an export to run before it
+        can say anything. This half fires with no scene at all, so a
+        token added under a format branch nothing exercises still lands
+        on someone. The reverse comparison is what keeps a label whose
+        token is gone from sitting in the sentence forever, describing a
+        drop that can no longer happen."""
+        tested = self.filter_tokens()
+        self.assertIn("decoration", tested,
+                      "the `silent` list is no longer findable inside "
+                      "`_export_mermaid`; re-anchor this guard rather "
+                      "than deleting it")
+        self.assertEqual(tested, set(canvas.MERMAID_DROP_LABELS))
+
+    def test_an_unlabelled_token_refuses_before_the_file_is_written(self):
+        """The naming runs BEFORE `write_text`, and the ORDER is the
+        assertion. Raising on a token with no label is the design — an
+        under-named list is the silence this whole fold exists to end —
+        but raised after the write it hands back a file AND a traceback,
+        and that file is the one artifact of the run that survives to be
+        read and trusted later."""
+        self.seed(ops=[self.NODE, self.LINE])
+        out = self.tmp / "unlabelled.mmd"
+        labels = {k: v for k, v in canvas.MERMAID_DROP_LABELS.items()
+                  if k != "line"}
+        with mock.patch.object(canvas, "MERMAID_DROP_LABELS", labels), \
+                self.assertRaises(KeyError):
+            self.run_export(artifact="fl", out=str(out))
+        self.assertFalse(out.exists(),
+                         "the export wrote a file it could not describe")
+
+    def test_the_same_export_writes_when_every_token_is_labelled(self):
+        """The live half of that pair. Without it the refusal above is
+        satisfied by an export that writes nothing under any labelling,
+        which is the same silence wearing the opposite costume."""
+        self.seed(ops=[self.NODE, self.LINE])
+        out = self.tmp / "labelled.mmd"
+        code, _ = self.run_export(artifact="fl", out=str(out))
+        self.assertEqual(code, 0)
+        self.assertTrue(out.exists())
+
+    # -- the last hand-written copy --------------------------------------
+
+    def test_the_skill_files_drop_list_names_every_label(self):
+        """SKILL.md's drop-list sentence is where the next drift lives.
+
+        Derived-and-compared, on the event-taxonomy guard's precedent and
+        for its reason: the skill file is the copy an agent actually
+        reads, and nothing compared it to the map. Label by label rather
+        than by string equality, because one label is deliberately longer
+        in prose — `decoration` earns its `--format er` caveat in the
+        same breath — so the alias is DECLARED here and asserted to still
+        be needed. An alias nobody uses is drift holding a licence.
+        """
+        skill = (Path(canvas.__file__).parent.parent
+                 / "SKILL.md").read_text(encoding="utf-8")
+        # flattened first: the sentence wraps mid-phrase, and a
+        # line-anchored search would report the whole guard unanchored
+        # over a paragraph that is perfectly intact
+        flat = " ".join(skill.split())
+        said = re.search(r"count of everything with no mermaid form:(.+?)"
+                         r"Say that count out loud", flat)
+        self.assertIsNotNone(said, "SKILL.md's drop-list sentence is not "
+                                   "findable; re-anchor this guard rather "
+                                   "than deleting it")
+        prose, labels = said.group(1), set(canvas.MERMAID_DROP_LABELS.values())
+        aliases = {"the decoration text inside entities":
+                   "the decoration text a domain seeder draws inside an "
+                   "entity"}
+        for label in sorted(labels):
+            self.assertIn(aliases.get(label, label), prose,
+                          "SKILL.md's drop list does not name %r" % label)
+        for label, alias in sorted(aliases.items()):
+            self.assertIn(label, labels,
+                          "alias kept for a label that no longer exists: "
+                          "%r" % label)
+            self.assertNotIn(label, prose,
+                             "SKILL.md now spells %r verbatim — delete the "
+                             "alias rather than keeping a second name for "
+                             "one category alive" % alias)
 
 
 class TestLintHygiene(Base):
@@ -12984,6 +13216,162 @@ class TestPrintStanding(unittest.TestCase):
 
     def test_an_empty_response_prints_nothing(self):
         self.assertEqual(self.lines({}), [])
+
+
+class TestWhoseQuestionItIsRidesOnBothNags(Base):
+    """`PIN_DEBT=` marks the USER's pins, on every printer (v0.9).
+
+    TWO PRINTERS DROPPED ONE FIELD. `Store.pin_debt` has computed
+    `direction` since v0.2 and the browser rail has shown a `yours` /
+    `agent` chip on every pin card for as long, but the two TERMINAL
+    surfaces that restate "answer theirs FIRST" — the apply epilogue and
+    `canvas.py status` — both formatted id/status/age/target-edits and
+    stopped there. The only reader held to the priority rule was the only
+    reader who could not apply it without opening `/api/state`.
+
+    EACH PRINTER IS EXERCISED SEPARATELY AND ON PURPOSE. The defect was
+    two copies of one omission, so a test that runs either copy passes
+    over the whole defect — both copies were wrong the entire time, and
+    reverting either one alone has to turn this class red.
+
+    Curated during curator batch 40 against `fold-orphans-a568`,
+    2026-08-20.
+    """
+
+    DEBT: ClassVar[list] = [
+        {"id": "pin-pay", "artifact": "fl", "status": "open",
+         "direction": "user", "age_rounds": 2, "target_edits": 1},
+        {"id": "pin-vat", "artifact": "fl", "status": "open",
+         "direction": "agent", "age_rounds": 0, "target_edits": 0}]
+
+    def one_nag(self, out):
+        """The single `PIN_DEBT=` line in captured output.
+
+        EXACTLY ONE, asserted. A printer that stopped printing the nag
+        at all must fail these tests rather than satisfy the bare-pin
+        half of each one — the shape 19 instruments in this repo were
+        found failing on this week.
+
+        Args:
+            out: Captured stdout.
+
+        Returns:
+            The line's value, key stripped.
+        """
+        got = [ln[len("PIN_DEBT="):] for ln in out.splitlines()
+               if ln.startswith("PIN_DEBT=")]
+        self.assertEqual(len(got), 1, "no PIN_DEBT= nag in: %s" % out)
+        return got[0]
+
+    def apply_nag(self, debt):
+        """The nag the shared apply epilogue prints.
+
+        Args:
+            debt: A `pin_debt` list, as `/api/state` carries it.
+
+        Returns:
+            The `PIN_DEBT=` value.
+        """
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas._print_standing({"pin_debt": debt})
+        return self.one_nag(buf.getvalue())
+
+    def status_nag(self, debt):
+        """The nag `canvas.py status` prints, against a stub server.
+
+        Args:
+            debt: A `pin_debt` list, as `/api/state` carries it.
+
+        Returns:
+            The `PIN_DEBT=` value.
+        """
+        self.project.state_path.write_text(json.dumps(
+            {"url": "http://127.0.0.1:1/", "port": 1, "pid": 1,
+             "protocol_version": canvas.PROTOCOL_VERSION,
+             "catchup_revn": 0}), encoding="utf-8")
+        buf = io.StringIO()
+        with mock.patch.object(canvas, "server_alive", lambda s: True), \
+                mock.patch.object(canvas, "http_json",
+                                  lambda *a, **kw: {"pin_debt": debt}), \
+                contextlib.redirect_stdout(buf):
+            canvas.cmd_status(argparse.Namespace(project=self.tmp))
+        return self.one_nag(buf.getvalue())
+
+    def test_the_apply_epilogue_marks_theirs_and_leaves_yours_bare(self):
+        """The nag that rides EVERY apply, including a queued one — so
+        this is the copy the priority rule is read against most often.
+        Both poles in one assertion pair: an agent's own pin is the
+        default case and marking it too would buy noise, not a fact."""
+        nag = self.apply_nag(self.DEBT)
+        self.assertIn("pin-pay(user, open, age 2r, target edited 1×)", nag)
+        self.assertIn("pin-vat(open, age 0r, target edited 0×)", nag)
+
+    def test_status_marks_theirs_and_leaves_yours_bare(self):
+        """The second printer, driven on its own account through the
+        real `cmd_status`. Reverting `_print_standing` alone leaves this
+        green and the test above red, and reverting `cmd_status` alone
+        does the reverse — which is the property the pair exists for."""
+        nag = self.status_nag(self.DEBT)
+        self.assertIn("pin-pay(user, open, age 2r, target edited 1×)", nag)
+        self.assertIn("pin-vat(open, age 0r, target edited 0×)", nag)
+
+    def test_a_pin_from_before_direction_existed_prints_unmarked(self):
+        """v0.2-era registries hold pins with no `direction` key at all,
+        and four assessment runs' worth of them are on disk. Unmarked is
+        the right answer — the marker means "theirs", and a pin that
+        never recorded whose it was is not evidence that it was. What is
+        NOT acceptable is a `KeyError` taking down the whole nag, and an
+        exact-equality assertion is what proves the line survived
+        intact rather than merely started with the right id."""
+        old = [{"id": "pin-old", "artifact": "fl", "status": "open",
+                "age_rounds": 3, "target_edits": 0}]
+        want = "pin-old(open, age 3r, target edited 0×)"
+        self.assertEqual(self.apply_nag(old), want)
+        self.assertEqual(self.status_nag(old), want)
+
+    def test_a_directionless_registry_pin_defaults_to_yours(self):
+        """`Store.pin_debt` DEFAULTS the missing field rather than
+        omitting the key, so a v0.2 pin answers `/api/state` in the same
+        shape as a fresh one and the rail's chip has something to read.
+        Asserted on a real registry pin with the field stripped, not on
+        a hand-built dict, so it fails if the default moves."""
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "pin", "target": "payment", "id": "pin-old",
+                     "question": "Card only, or PayPal too?"}]})
+        for p in self.store.registry["pins"]:
+            p.pop("direction", None)
+        entry, = [p for p in self.store.pin_debt() if p["id"] == "pin-old"]
+        self.assertEqual(entry.get("direction"), "agent",
+                         "the wire has narrowed: %r" % (entry,))
+
+    def test_api_state_still_carries_direction_in_full(self):
+        """THE WIRE FORMAT MUST NOT HAVE NARROWED while the printer
+        widened. The browser rail reads `pin_debt[].direction`, and a
+        change that moved the fact onto the terminal line by taking it
+        off the wire would trade one blind reader for another — the
+        exact swap this fold exists to undo, run backwards. Both values
+        are asserted: a payload hard-coding `user` reads as correct
+        against a user pin alone."""
+        self.store.apply_batch(seed_flow_batch())
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "pin", "target": "payment", "id": "pin-mine",
+                     "question": "Card only, or PayPal too?"}]})
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        theirs = canvas._x_user_pin("cart", "does this hold?", 40, 400)
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": [*els, theirs]},
+                          base_revn=self.store.head_revn())
+        debt = {p["id"]: p for p in self.store.public_state()["pin_debt"]}
+        self.assertEqual(
+            {i: debt[i].get("direction") for i in ("pin-mine", theirs["id"])},
+            {"pin-mine": "agent", theirs["id"]: "user"},
+            "the rail's own field is no longer on the wire: %r" % (debt,))
 
 
 class TestArrowLabelAnchor(Base):
