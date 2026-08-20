@@ -23514,6 +23514,38 @@ UNCOVERED: dict[str, str] = {
         "landed 2026-08-20 (TASK-BAND-APEX I-1) with its template; no "
         "CATALOGUE mutant — the pair is a curator's, and what it must "
         "assert is spelled out above this row",
+    # Added 2026-08-20 with the check itself, by the owner of
+    # `TestTheLoadPathNamesABoundLineWhateverItsRole`'s red — the fifth
+    # time this file has taken a template NAMED as unproven from the
+    # hands that wrote it, and for the standing reason: a fix and its
+    # acceptance test from one pair of hands is the run-5 pattern. No
+    # `DETECTORS` row yet, so the name below is a ledger id and a
+    # `Silence` on it would pass vacuously; draining it needs a
+    # `DETECTORS` entry with a `lint_re` over the "binds ... — only
+    # arrows connect shapes" clause, and then a pair. WHAT THE PAIR MUST
+    # ASSERT, so it can be drained without re-deriving it:
+    #   * the MUTANT — a `line` bound at both ends, drawn EXACTLY on its
+    #     nodes, so the arrival check has nothing to say and this check
+    #     is the only voice. That is the whole content of the row: the
+    #     three rejected repairs (unbind the exemption, refuse
+    #     `decoration` on a bound element, strip the role at load) all
+    #     pass a drifted scene and all go silent on this one, so a
+    #     mutant carrying drift would be satisfied by any of them and
+    #     would prove nothing about which check spoke.
+    #   * ROLE-BLINDNESS as a subTest, not a second mutant: the same
+    #     scene at `role: decoration` and at `role: node` must produce
+    #     the identical finding. One field is the whole defect class.
+    #   * the NEIGHBOUR — the same scene with `type: "arrow"`, where the
+    #     silence is TRUE rather than merely absent, and where the
+    #     arrival check is equally quiet because nothing has drifted.
+    # NO MAGNITUDE is owed and none may be pinned: the finding is
+    # geometry-blind by design, and a pair that asserted a pixel figure
+    # would be pinning the arrival check under this name.
+    "bound_line_connector":
+        "landed 2026-08-20 with its template (the load-path half of the "
+        "'only arrows connect shapes' ruling); no DETECTORS row and no "
+        "CATALOGUE mutant — the pair is a curator's, and what it must "
+        "assert is spelled out above this row",
     "half_unbound_endpoint":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unbound_arrow":
@@ -23963,6 +23995,23 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # against four patched canvas modules — so whichever the owner picks, the
 # entry goes at once rather than counting down.
 #
+# AND IT DID, later the same day, leaving the dict EMPTY: the load-path
+# owner took the third candidate and `lint_layout` gained a role-blind,
+# geometry-blind bound-line check. The prediction above was RIGHT and the
+# reasoning under it was worth less than it looks — "all four flip the one
+# red" is true, and it is also why the red alone could not choose. What
+# chose was a cell outside the red's own scene: at `drift=0` three of the
+# four go silent again, because they work by handing the element back to
+# the ARRIVAL check and arrival has nothing to say about a bound line that
+# has not moved yet. A harness that proves every candidate equal has
+# proved the invariant it states, not the repair; the owner still has to
+# go and measure the case the invariant does not reach.
+#
+# AN EMPTY DICT IS NOT SLACK. `test_the_hand_authored_red_classes_are_the_
+# ones_that_exist` reads this file for `@unittest.expectedFailure` outside
+# `TestMutantCatalogue` and fails the moment a plain red is written with no
+# line here — the same standing guard the 2026-08-18 note below describes.
+#
 # THREE JOINED on 2026-08-20 (curator, off the user's group-integrity
 # ruling), and they are the first entries here filed against a RULING
 # rather than against a defect somebody spotted in a drawing. "Every group
@@ -23989,9 +24038,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # so no repair closes one door's line and leaves the other's — whichever
 # the owner picks has to reach both `_tidy_pass` and `apply_ops`, and the
 # mod class's two reds flip together under every scope choice.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheLoadPathNamesABoundLineWhateverItsRole": 1,
-}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
 # `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
@@ -31181,7 +31228,7 @@ class TestOnlyArrowsConnectShapes(unittest.TestCase):
 
 
 class TestTheLoadPathNamesABoundLineWhateverItsRole(unittest.TestCase):
-    """`lint_layout` goes silent on a bound line wearing `role: decoration`.
+    """`lint_layout` went silent on a bound line wearing `role: decoration`.
 
     THE HANDBACK, 2026-08-20, from the implementer of the ruling above,
     who declined to close it — rightly, since the repair is a design
@@ -31206,6 +31253,32 @@ class TestTheLoadPathNamesABoundLineWhateverItsRole(unittest.TestCase):
     four repairs produces the sentence. One of them carries no pixel
     figure at all; asserting 240px here would have failed it, and this
     harness does not get to pick.
+
+    CLOSED 2026-08-20 by the THIRD candidate — a dedicated bound-line
+    check in `lint_layout` that consults neither the role nor the
+    geometry — and the deciding evidence was a cell none of the four
+    descriptions mentioned. Re-measuring the same fixture at `drift=0`,
+    where the bound line still sits neatly on its node:
+
+        repair   drift=240 decoration   drift=0 (either role)
+        R1       arrival sentence       SILENT
+        R2       arrival sentence       SILENT
+        R3       type sentence          type sentence
+        R4       arrival sentence       SILENT
+
+    R1, R2 and R4 all flip this red by putting the element back in front
+    of the ARRIVAL check, which is conditioned on drift; the fossil
+    before its first node-drag is invisible to all three, and the binding
+    is exactly as inert there. So the invariant this class states —
+    "named on load whatever its role" — is honoured by all four, and only
+    R3 also honours the one it could not state without prescribing a
+    mechanism: named on load whatever it LOOKS like.
+
+    WHAT A CURATOR STILL OWES, since R3 landed with its check and its
+    author does not write its own acceptance test: an `UNCOVERED` row
+    names `bound_line_connector` and spells the pair out. The magnitude
+    question does not arise — R3 quotes no pixel figure by design, and
+    the 240px stays where this class put it, on the undecorated control.
     """
 
     def test_the_undecorated_pole_is_named_with_its_magnitude(self) -> None:
@@ -31244,14 +31317,24 @@ class TestTheLoadPathNamesABoundLineWhateverItsRole(unittest.TestCase):
                          "the ablation moved the drawing, so the two poles "
                          "are not comparable")
 
-    @unittest.expectedFailure
     def test_a_bound_line_is_named_on_load_whatever_its_role(self) -> None:
-        """RED: `role: decoration` mutes the load path on a bound line.
+        """`role: decoration` no longer mutes the load path on a bound line.
 
-        Measured 2026-08-20 on the scene both poles share: the connector
-        is a `line`, bound at both ends, drawn 240px clear of the node it
-        claims — and with the role set to `decoration` no error, warning
-        or note in `lint_layout`'s whole report mentions it.
+        FLIPPED 2026-08-20 by the repair the handback below left open,
+        and the one chosen was the third candidate: a dedicated check
+        that reads only the TYPE and the BINDINGS, never the role and
+        never the geometry. The other three all restore the ARRIVAL
+        sentence, which is conditioned on drift — measured on this
+        fixture at drift=0, all three go silent again while the binding
+        is just as inert. Read `lint_layout`'s bound-line check for the
+        rest of the reasoning.
+
+        THE WORLD IT WAS RED IN, kept so this can be re-run rather than
+        trusted: on the scene both poles share the connector is a `line`,
+        bound at both ends, drawn 240px clear of the node it claims — and
+        at `e7ccca7` (this class's parent), with the role set to
+        `decoration`, no error, warning or note in `lint_layout`'s whole
+        report mentioned it.
 
         ASSERTED OVER ALL THREE TIERS, not just errors. A repair may
         reasonably decide this is a warning rather than an error, and a
@@ -32327,13 +32410,47 @@ class TestCoverage(unittest.TestCase):
         This pin is what made that bookkeeping impossible to skip: the
         append landed, the count moved, and the ledger had to be
         re-enumerated before anything went green again.
+
+        70 -> 71 on 2026-08-20: `bound_line_connector`, the load-path
+        half of the "only arrows connect shapes" ruling — a `line`
+        carrying either binding, named on TYPE alone. It takes the
+        `widget_group_incomplete` shape: an `UNCOVERED` row and no
+        `DETECTORS` entry, because registering a detector obliges a
+        proving mutant and a fix's author does not write its acceptance
+        test. That row spells the pair out.
+
+        A NEW CHECK, not a widened population, and the 66 -> 67
+        distinction is the one to test it against. That row took a site
+        without a row because it printed an EXISTING check's sentence
+        over more elements. This prints a sentence no existing template
+        can: every other connector finding in this function is a claim
+        about where ink landed, and this one is a claim about the
+        element's TYPE, which is why it quotes no pixel figure at all.
+        Three of the four candidate repairs would have taken no site
+        here — they work by putting the element back in front of the
+        arrival check — and all three go silent on a bound line that has
+        not drifted yet, which is what chose this shape.
+
+        ONE SITE for a two-ended fault, which is 49 -> 50's judgement:
+        a line bound at both ends has one defect and one repair, so the
+        sentence names both targets and files once.
+
+        THE CORPUS CANNOT EXERCISE IT, re-derived here rather than
+        inherited: across the 24 frozen artifacts and 976 elements there
+        are 20 lines, 0 of them bound, and 75 decorations, 0 of them
+        bound; 153 server-routed connectors, 0 of them lines. So this
+        site adds ZERO findings to every shipped drawing — measured, not
+        assumed. That zero is an EMPTY population and not an unreachable
+        one: the op path minted exactly this element until the ruling
+        landed, which is why the proving scene has to be built in flight
+        through `apply_batch` plus a real user `commit`.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 70,
+        self.assertEqual(sites, 71,
                          "canvas.py lint_layout append-site count changed "
-                         "(70 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(71 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

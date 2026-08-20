@@ -8841,8 +8841,17 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
         # the load path would lock the user out of their own artifact,
         # which is the one way this rule could do real harm. The gate
         # belongs here, where the author is an agent that can simply
-        # type `arrow` instead. `lint_layout` remains the load-path
-        # answer, and already names such a scene precisely.
+        # type `arrow` instead. `lint_layout` carries the load path.
+        #
+        # THAT LAST CLAIM WAS WRONG WHEN IT WAS FIRST WRITTEN and is
+        # worth keeping as a correction rather than an edit. It said the
+        # lint "already names such a scene precisely" — true only of a
+        # line the arrival check can see, and that check walks `arrows`,
+        # which filters `role: decoration` out first. Every line in the
+        # corpus carries that role, so the net the silence above leans on
+        # had a hole shaped like the whole population. `lint_layout` now
+        # has a role-blind, geometry-blind check for a bound line; read
+        # it there for why neither blindness is optional.
         if el.get("type") != "line":
             return False
         errors.append(
@@ -16293,6 +16302,67 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 "onto distinct waypoints"
                 % (connector_noun(a), a["id"], "; ".join(faults),
                    connector_noun(a)))
+
+    # ---- ERROR: a line that binds (2026-08-20, the ruling's load net) --
+    # ONLY ARROWS CONNECT SHAPES, and this is the LOAD-PATH half of that
+    # rule. `refuses_binding` makes a bound line a hard error where the
+    # author is an agent; `Store.commit` deliberately stays quiet so a
+    # legacy artifact already holding one keeps saving rather than
+    # locking its owner out of their own file. That silence is only safe
+    # if the load path names the fossil — and it did not. The arrival
+    # check below walks `arrows`, which drops `role: decoration` first,
+    # so ONE `customData` field took the whole load path silent. All 20
+    # lines in the 24 frozen artifacts carry that role (0 of them bound),
+    # so the net had a hole shaped exactly like the population that
+    # exists: an EMPTY population, not an unreachable one — the op path
+    # minted precisely this element until the ruling landed.
+    #
+    # ROLE-BLIND, walking `els` rather than `arrows`. The decoration
+    # exemption itself is right and is left alone: furniture is not a
+    # connector and has no business in a routing check. What it swallowed
+    # is an element that is furniture AND a connector, which the ruling
+    # has just declared cannot exist — so the answer is a check that
+    # never consults the role, not a narrower exemption.
+    #
+    # GEOMETRY-BLIND, and this is the half the arrival check cannot
+    # cover. The binding is INERT: the editor's own predicate is
+    # arrow-only, and the geometry passes MOVE a bound line while the
+    # routing pass never re-routes it. So a bound line still sitting
+    # neatly on its node is the same defect one node-drag before it
+    # shows, and a repair that only reinstated this element in `arrows`
+    # would stay silent until the drawing had already gone wrong.
+    # Measured on a scene built through `apply_batch` plus a real user
+    # `commit`: at zero drift the arrival check says nothing in any
+    # tier, whatever the role. The drift is the symptom and the binding
+    # is the cause, so NO PIXEL FIGURE belongs in this sentence — the
+    # arrival check quotes the gap once there is a gap to quote.
+    #
+    # ERROR, matching the op path's tier for the same defect: the same
+    # fossil must not read as more serious because an agent typed it
+    # than because a user opened it. The tier's usual objection — that
+    # errors turn legacy projects red on open with advice the loader is
+    # forbidden to take — does not reach here: the repair is an ordinary
+    # op an agent can issue, and 0 of the 976 corpus elements trip it.
+    # The noun is the literal "line" rather than `connector_noun`, which
+    # can only ever return "line" on this branch; the sentence's whole
+    # work is contrasting that word with `arrow`.
+    for e in els:
+        if e.get("type") != "line":
+            continue
+        bound = [b["elementId"] for b in (e.get("startBinding") or {},
+                                          e.get("endBinding") or {})
+                 if b.get("elementId")]
+        if not bound:
+            continue
+        errors.append(
+            "line %s binds %s — only arrows connect shapes, and a bound "
+            "line is routed but never RE-routed, so it drifts off the "
+            "node it claims the first time that node moves (tidy reports "
+            'nothing to change). Give it "type": "arrow" if it is a '
+            "connector, or drop the bindings and leave it as decoration "
+            "(widget furniture: tick strokes, slider tracks, X-box "
+            "crosses, lifelines, backdrops)."
+            % (e["id"], " -> ".join(name(t) for t in bound)))
 
     # ---- ERROR: detached endpoints (server-routed) --------------------
     # An arrow that LOOKS like a relationship but binds nothing (v0.8,
