@@ -139,13 +139,13 @@ The router now avoids foreign boxes itself: it scores straight lines,
 both L-elbow orientations, and bounded Z-detours, and picks the cleanest
 (fewest crossings, then fewest bends). When it still can't find a clean
 path, the lint flags it — repair by hand with `mod points` (waypoints
-relative to the arrow's x,y; axis-aligned paths render as sharp elbows,
-the route is re-stamped as server-owned, and the change narrates as a
-`rerouted` fact whenever the drawn path actually moved — a re-route that
-only re-aims a binding is recorded but not narrated, because the word is
-a claim about ink). For N parallel edges between two clusters, one thick
-low-opacity `role: decoration` backdrop line with the real arrows offset
-±10px along it.
+relative to the connector's own x,y; axis-aligned paths render as sharp
+elbows, the route is re-stamped as server-owned, and the change narrates
+as a `rerouted` fact whenever the drawn path actually moved — a re-route
+that only re-aims a binding is recorded but not narrated, because the
+word is a claim about ink). For N parallel edges between two clusters,
+one thick low-opacity `role: decoration` backdrop line with the real
+arrows offset ±10px along it.
 
 **Z-order** (now ENFORCED by a normalization pass on every apply):
 frames → backdrops → arrows/lines → nodes → composed parts → bound

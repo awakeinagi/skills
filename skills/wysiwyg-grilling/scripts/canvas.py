@@ -739,7 +739,8 @@ def validate_scene(doc, artifact_id):
                 "%s — merged into it" % (artifact_id, el["id"], cont["id"]),
                 "Text elements cannot contain bound labels (the client "
                 "renders them one character wide). Use `text` on text "
-                "elements; `label` is for shapes, arrows, and frames.",
+                "elements; `label` is for shapes, arrows, lines, and "
+                "frames.",
                 True))
     if t_in_t:
         kept = [e for e in kept if e["id"] not in t_in_t]
@@ -999,11 +1000,18 @@ def referential_findings(raw_scenes, registry, artifact_ids=None,
                     tgt = (b or {}).get("elementId")
                     if tgt and tgt not in ids:
                         side = "start" if battr == "startBinding" else "end"
+                        # ONE SENTENCE, TWO SITES — `lint_layout` states
+                        # this same finding verbatim, and until
+                        # 2026-08-18 both of them called a `line` an
+                        # arrow. Fixing one and not the other is the
+                        # defect this wave keeps meeting; they now read
+                        # the same authority.
                         add(aid, "errors",
-                            "arrow %s binds %s at its %s point and that "
+                            "%s %s binds %s at its %s point and that "
                             "element no longer exists — re-target the "
-                            "binding, or delete the arrow with it"
-                            % (e.get("id"), tgt, side))
+                            "binding, or delete the %s with it"
+                            % (connector_noun(e), e.get("id"), tgt, side,
+                               connector_noun(e)))
             cd = e.get("customData") or {}
             anchor = cd.get("annotates")
             if anchor and anchor not in ids:
@@ -8013,12 +8021,12 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
         except Exception as e:  # noqa: BLE001 — totality backstop
             where = "op %d" % opi if opi is not None else "post-pass"
             errors.append(
-                "%s: internal routing error on arrow %r (%s -> %s) — "
+                "%s: internal routing error on %s %r (%s -> %s) — "
                 "%s: %s. The batch was rejected whole; file this, and "
                 "work around it by placing the endpoints apart before "
                 "connecting them."
-                % (where, arrow.get("id"), src.get("id"), dst.get("id"),
-                   type(e).__name__, e))
+                % (where, connector_noun(arrow), arrow.get("id"),
+                   src.get("id"), dst.get("id"), type(e).__name__, e))
 
     for i, op in enumerate(ops):
         kind = op.get("op")
@@ -8039,8 +8047,13 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                 src_id, dst_id = op.get("from") or spec.get("from"), \
                     op.get("to") or spec.get("to")
                 if src_id or dst_id:
-                    src = resolve(src_id, i, "arrow from") if src_id else None
-                    dst = resolve(dst_id, i, "arrow to") if dst_id else None
+                    # the verb names the element the op is about, and
+                    # this arm accepts lines as well as arrows
+                    verb = connector_noun(arrow)
+                    src = resolve(src_id, i, verb + " from") \
+                        if src_id else None
+                    dst = resolve(dst_id, i, verb + " to") \
+                        if dst_id else None
                     if src is not None and dst is not None:
                         route_ctx(arrow, src, dst, opi=i)
                         recenter_label(els, arrow)
@@ -8216,8 +8229,8 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                                   for p in value)):
                         errors.append(
                             "op %d (mod %s): `points` must be ≥2 [x,y] "
-                            "pairs, relative to the arrow's x,y"
-                            % (i, op.get("id")))
+                            "pairs, relative to the %s's x,y"
+                            % (i, op.get("id"), connector_noun(el)))
                     else:
                         el["points"] = [[p[0], p[1]] for p in value]
                         # axis-aligned hand paths render as SHARP elbows
@@ -8263,14 +8276,14 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                     # the router re-deriving it.
                     errors.append(
                         "op %d (mod %s): `roundness` on a server-routed "
-                        "arrow is derived from the route, not authored — "
+                        "%s is derived from the route, not authored — "
                         "the router re-derives it on this save and again "
                         "at load, so setting it here would change "
                         "nothing. Author the path with `points` to make "
                         "the geometry yours, or drop the attribute "
                         "(references/ops-reference.md documents "
                         "`roundness` for rounded rectangles)"
-                        % (i, op.get("id")))
+                        % (i, op.get("id"), connector_noun(el)))
                 elif attr not in MOD_ATTRS:
                     errors.append(
                         "op %d (mod %s): unknown attribute %r — allowed: "
@@ -8332,8 +8345,16 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             rewire = {k: attrs[k] for k in ("from", "to") if k in attrs}
             if rewire:
                 if el.get("type") not in ("arrow", "line"):
-                    errors.append("op %d: 'from'/'to' only apply to arrows"
-                                  % i)
+                    # NO CONNECTOR IN HAND HERE — `el` is the element
+                    # that is NOT one — so this names the accepted set
+                    # as a literal rather than asking `connector_noun`
+                    # about the wrong element. The set it states was
+                    # narrower than the set the branch above accepts: a
+                    # line binds through `from`/`to` exactly as an arrow
+                    # does, so an agent told "only arrows" was being
+                    # taught a rule this code does not enforce.
+                    errors.append("op %d: 'from'/'to' only apply to "
+                                  "arrows and lines" % i)
                 else:
                     src = index.get((el.get("startBinding") or {})
                                     .get("elementId"))
@@ -8362,14 +8383,15 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                         missing = "start (`from`)" if src is None \
                             else "end (`to`)"
                         errors.append(
-                            "op %d (mod %s %s): cannot rewire — the arrow's "
+                            "op %d (mod %s %s): cannot rewire — the %s's "
                             "%s endpoint is unbound; set both `from` and "
                             "`to` in one mod, or delete and re-add the "
-                            "arrow with from/to"
+                            "%s with from/to"
                             % (i, op.get("id"),
                                ", ".join("%s=%s" % kv
                                          for kv in sorted(rewire.items())),
-                               missing))
+                               connector_noun(el), missing,
+                               connector_noun(el)))
         elif kind == "del":
             el = resolve(op.get("id"), i, "del")
             if el is None:
@@ -10402,8 +10424,11 @@ def headline_for(fact):
         return "renamed %r → %r" % (fact.get("from"), fact.get("to"))
     # WP2 reference-impact facts: a deletion names what it broke
     if n == "arrow_orphaned":
-        return "arrow %s lost its %s target %s — it points at nothing" \
-            % (fact["element"], fact.get("side"), fact.get("target"))
+        # the writer recorded the noun (see the emitter in `commit`);
+        # "arrow" is the default for records written before it did
+        return "%s %s lost its %s target %s — it points at nothing" \
+            % (fact.get("noun") or "arrow", fact["element"],
+               fact.get("side"), fact.get("target"))
     if n == "mapping_dangling":
         return "mapping %r lost member %s" \
             % (fact.get("concept"), fact.get("ref"))
@@ -10573,6 +10598,12 @@ def consequence_lines(record):
     covered = set()   # arrows already narrated via their rewired fact
     for aid, part in (record.get("artifacts") or {}).items():
         for f in part.get("facts") or []:
+            # "the arrow" is correct here and correct BY A FILTER, not
+            # by luck: the producer of `rewired` skips anything whose
+            # type is not `arrow`, so no line ever reaches this
+            # sentence. (That the producer is silent about a rewired
+            # LINE is a separate question about what it observes, not
+            # about what this says — filed, not fixed here.)
             if f.get("fact") == "rewired" and f.get("consequence_of"):
                 covered.add(f.get("arrow"))
                 out.append(
@@ -10586,9 +10617,10 @@ def consequence_lines(record):
             if kind == "arrow_orphaned" and \
                     f.get("element") not in covered:
                 out.append(
-                    "arrow %s lost its %s binding — %s is gone; "
+                    "%s %s lost its %s binding — %s is gone; "
                     "re-target it or delete it"
-                    % (f.get("element"), f.get("side"), f.get("target")))
+                    % (f.get("noun") or "arrow", f.get("element"),
+                       f.get("side"), f.get("target")))
             if kind == "note_orphaned":
                 out.append(
                     "note %s annotates %s, which is gone — an orphaned "
@@ -12155,6 +12187,47 @@ def arrowhead_of(e: dict[str, Any], at_end: bool) -> str | None:
         else e.get("startArrowhead")
 
 
+def connector_noun(*els: dict[str, Any]) -> str:
+    """The word a finding calls one connector, or a pair of them.
+
+    `lint_layout` binds `arrows = [... type in ("arrow", "line") ...]`
+    and every check walking that list judged a `line` in a sentence that
+    opened "arrow" — twenty-odd messages of it, and the messages are
+    read by an AGENT that acts on them, so a wrong noun invites a repair
+    aimed at the wrong element. A `line` is bindable through shipped ops
+    (`add type: line from/to` routes and binds exactly as an arrow
+    does), so this is reachable and not theoretical, even though the 24
+    frozen artifacts carry no instance: their 20 lines are all
+    `role: decoration`, which `arrows` filters out, so the corpus is
+    silent on the whole family rather than evidence for it.
+
+    ONE SITE FOR THE CHOICE, because the wave's headline defect was one
+    rule typed at two places and fixed at one. Callers spell the plural
+    in their own template (`"%ss %s and %s ..."`) — that is grammar, not
+    the rule.
+
+    NOT `noun_of` inside `lint_layout`, which answers a different
+    question: it picks among text / connector / frame / shape so a
+    legibility finding and an unreadable-colour finding open the same
+    way about ANY element, and it deliberately says "connector" for both
+    types because contrast has no stake in which one it is. This one is
+    for the checks whose subject is the connector itself.
+
+    Args:
+        *els: One element, or the two an alignment finding names. Each
+            is loose Excalidraw JSON; a missing `type` reads as neither.
+
+    Returns:
+        `"arrow"` when every element given is an arrow, `"line"` when
+        every one is a line, and `"connector"` for a mixed pair — the
+        neutral word `noun_of` already uses, so the two surfaces stay
+        readable side by side.
+    """
+    kinds = {e.get("type") for e in els}
+    return ("arrow" if kinds == {"arrow"}
+            else "line" if kinds == {"line"} else "connector")
+
+
 def _svg_arrowhead(e: dict[str, Any], abs_pts: Sequence[tuple[float, float]],
                    at_end: bool, stroke: str, brk: str) -> str:
     """The filled mark at ONE end of an arrow, as SVG markup.
@@ -13220,19 +13293,29 @@ def intent_echo(ops, els):
         if el.get("type") in ("arrow", "line"):
             s = (el.get("startBinding") or {}).get("elementId")
             d = (el.get("endBinding") or {}).get("elementId")
+            # THE BRANCH IS ABOUT BINDING, THE NOUN IS ABOUT TYPE, and
+            # this conflated them in both directions. The furniture arm
+            # printed "line" for an unbound DECORATION ARROW, and the
+            # binding arm printed "arrow" for a `line` — which binds
+            # through `from`/`to` exactly as an arrow does, so the echo
+            # an agent reads every turn named the wrong element on the
+            # one surface that exists to confirm what it just drew.
+            # `connector_noun` decides the word on both arms; the
+            # branch keeps deciding only the SENTENCE.
             if not s and not d and (
                     el.get("type") == "line" or
                     (el.get("customData") or {}).get("role") ==
                     "decoration"):
-                return "line %s at (%d,%d), %d points" % (
-                    eid, el.get("x", 0), el.get("y", 0),
-                    len(el.get("points") or []))
+                return "%s %s at (%d,%d), %d points" % (
+                    connector_noun(el), eid, el.get("x", 0),
+                    el.get("y", 0), len(el.get("points") or []))
             # the port clause is APPENDED — "binds A → B" stays the head
             # of the sentence, and is silent about any end whose approach
             # forbids naming a face (`port_phrase`)
-            return "arrow %s binds %s → %s%s" % (eid, s or "∅ (unbound)",
-                                                 d or "∅ (unbound)",
-                                                 port_phrase(el, ix))
+            return "%s %s binds %s → %s%s" % (connector_noun(el), eid,
+                                              s or "∅ (unbound)",
+                                              d or "∅ (unbound)",
+                                              port_phrase(el, ix))
         lbl = labels.get(eid)
         return "%s%s at (%d,%d) %dx%d" % (
             eid, " (%r)" % lbl if lbl else "",
@@ -14781,9 +14864,21 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                for p in (a.get("points") or [])
                if isinstance(p, (list, tuple)) and len(p) >= 2]
         faults = []
+        # WHAT THE CLIENT WOULD PAINT AT EACH END, not what the type
+        # suggests: three of this block's fault sentences described an
+        # arrowhead, and `arrows` holds LINES, which the bundle never
+        # paints a head for at either end. `arrowhead_of` is the
+        # authority (it also answers None for an arrow whose heads are
+        # explicitly null, so the sentences follow the mark rather than
+        # the type). The TRIGGERS are untouched — a path that stores one
+        # point is malformed with or without a head — this only stops the
+        # description naming ink that is not there.
+        head_end = arrowhead_of(a, True) is not None
+        head_any = head_end or arrowhead_of(a, False) is not None
         if len(seq) < 2:
-            faults.append("it stores %d point(s), so there is no segment "
-                          "to draw a head along" % len(seq))
+            faults.append("it stores %d point(s), so there is %s"
+                          % (len(seq), "no segment to draw a head along"
+                             if head_any else "nothing to draw"))
         else:
             dups = [i + 1 for i, (p, q) in enumerate(zip(seq, seq[1:]))
                     if pt_gap(p, q) < SAME_PT]
@@ -14803,8 +14898,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             if SAME_PT <= fin < HEAD_SEG:
                 faults.append(
                     "its final segment is %.1fpx long, below the %dpx at "
-                    "which whole-pixel rounding leaves the head's "
-                    "direction uncertain by 14 degrees" % (fin, HEAD_SEG))
+                    "which whole-pixel rounding leaves %s uncertain by 14 "
+                    "degrees"
+                    % (fin, HEAD_SEG, "the head's direction" if head_end
+                       else "the direction its final leg reads as"))
             if len(seq) > 2 and pt_gap(seq[0], seq[-1]) < SAME_PT:
                 # The magnitude is the ink: a closed path is not "no
                 # arrow", it is this many px of stroke that arrives back
@@ -14853,9 +14950,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     and span[1] < seg - 1 \
                     and min(span[1], seg) > max(span[0], 0.0):
                 faults.append(
-                    "its head sits %dpx past %s's far outline, having "
+                    "its %s sits %dpx past %s's far outline, having "
                     "crossed the whole node"
-                    % (round(seg - span[1]), name(tgt["id"])))
+                    % ("head" if head_end else "far end",
+                       round(seg - span[1]), name(tgt["id"])))
         if faults:
             # WARNING and not ERROR, on the same reasoning the on-border
             # run below records: what is wrong is the stored path, the
@@ -14864,12 +14962,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # revision. An error tier would turn legacy projects red on
             # open with advice the loader is forbidden to take.
             warnings.append(
-                "arrow %s has degenerate geometry — %s. Every check that "
+                "%s %s has degenerate geometry — %s. Every check that "
                 "reads this path (attachment, interior run, direction) "
                 "measures the malformed version, so repair this before "
-                "reading the rest: re-issue the arrow, or `mod points` it "
+                "reading the rest: re-issue the %s, or `mod points` it "
                 "onto distinct waypoints"
-                % (a["id"], "; ".join(faults)))
+                % (connector_noun(a), a["id"], "; ".join(faults),
+                   connector_noun(a)))
 
     # ---- ERROR: detached endpoints (server-routed) --------------------
     # An arrow that LOOKS like a relationship but binds nothing (v0.8,
@@ -14892,22 +14991,24 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # half-bound state itself is the evidence.
             lost = "end" if sb else "start"
             warnings.append(
-                "arrow %s%s lost its %s endpoint — it still binds %s "
+                "%s %s%s lost its %s endpoint — it still binds %s "
                 "but points at nothing on the other side (deleting a "
                 "bound node leaves this behind). Re-target it with mod "
                 "from/to, or delete it"
-                % (a["id"], (" (%r)" % a_lbl.get("text", "")[:24])
+                % (connector_noun(a),
+                   a["id"], (" (%r)" % a_lbl.get("text", "")[:24])
                    if a_lbl is not None else "", lost,
                    name(sb or eb)))
             continue
         if a_lbl is None and artifact_type != "domain":
             continue  # an unlabeled sketch arrow outside a domain view
         warnings.append(
-            "arrow %s%s binds nothing — it reads as a relationship but "
+            "%s %s%s binds nothing — it reads as a relationship but "
             "will not follow either endpoint when they move. Bind it "
             "with from/to (self-loops route automatically), or mark it "
             "role: decoration if it is only furniture"
-            % (a["id"], (" (%r)" % a_lbl.get("text", "")[:24])
+            % (connector_noun(a),
+               a["id"], (" (%r)" % a_lbl.get("text", "")[:24])
                if a_lbl is not None else ""))
 
     TOL = 14  # binding gap (6) + slack
@@ -14926,9 +15027,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # user's geometry is the worse bug — but the silence goes.
             if b and b.get("elementId") and b["elementId"] not in ix:
                 errors.append(
-                    "arrow %s binds %s at its %s point and that element no "
+                    "%s %s binds %s at its %s point and that element no "
                     "longer exists — re-target the binding, or delete the "
-                    "arrow with it" % (a["id"], b["elementId"], side))
+                    "%s with it" % (connector_noun(a), a["id"],
+                                    b["elementId"], side,
+                                    connector_noun(a)))
                 continue
             tgt = ix.get((b or {}).get("elementId"))
             if tgt is None:
@@ -15085,20 +15188,21 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # ends it first, and the review could not construct a
                 # mixed case.
                 if run:
-                    msg = ("arrow %s enters %s and runs %dpx inside it "
+                    msg = ("%s %s enters %s and runs %dpx inside it "
                            "before stopping (%s point) — it reads as "
                            "crossing through the box; pull the endpoint "
                            "back to the border"
-                           % (a["id"], name(tgt["id"]),
+                           % (connector_noun(a), a["id"], name(tgt["id"]),
                               round(run + on_border), side))
                 else:
-                    msg = ("arrow %s runs %dpx along %s's own border "
-                           "(%s point) — arrow and outline are drawn on "
+                    msg = ("%s %s runs %dpx along %s's own border "
+                           "(%s point) — %s and outline are drawn on "
                            "the same pixels, so the two read as one line "
-                           "through the box; give the arrow an exit that "
+                           "through the box; give the %s an exit that "
                            "steps off the edge"
-                           % (a["id"], round(on_border), name(tgt["id"]),
-                              side))
+                           % (connector_noun(a), a["id"], round(on_border),
+                              name(tgt["id"]), side, connector_noun(a),
+                              connector_noun(a)))
                 # An on-border run rides the WARNING tier even when the
                 # server owns the path, and the reason is not politeness.
                 # The endpoint is legally attached — it is on the border,
@@ -15123,12 +15227,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     warnings.append(msg)
                 continue
             if max(outside, inside) > tol:
-                msg = ("arrow %s claims to bind %s but its %s point ends "
+                msg = ("%s %s claims to bind %s but its %s point ends "
                        "%dpx %s — re-route it (mod x/y on the node "
-                       "re-routes 2-point arrows automatically)"
-                       % (a["id"], name(tgt["id"]), side,
+                       "re-routes 2-point %ss automatically)"
+                       % (connector_noun(a), a["id"], name(tgt["id"]), side,
                           round(outside or inside) or round(tol),
-                          "away" if outside else "inside the shape"))
+                          "away" if outside else "inside the shape",
+                          connector_noun(a)))
                 if not server_owns_geometry(a):
                     warnings.append(
                         "user-shaped " + msg +
@@ -15336,9 +15441,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                           "the stroke reads as part of that outline "
                           "rather than an attachment"))
             warnings.append(
-                "arrow %s %s %s's %s edge %d degrees off square "
+                "%s %s %s %s's %s edge %d degrees off square "
                 "(%s point) — %s. Meant to graze? %s"
-                % (a["id"], END_VERB[key], name(tgt["id"]), foot_side,
+                % (connector_noun(a), a["id"], END_VERB[key],
+                   name(tgt["id"]), foot_side,
                    round(off), side, msg, waive_hint(key_w)))
 
     # ---- ERROR: flow-kind structural invariants ----------------------
@@ -15361,10 +15467,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 inbound[d] += 1
             if kinds.get(s) == "source" and kinds.get(d) == "sink":
                 errors.append(
-                    "arrow %s connects a source directly to a sink — "
+                    "%s %s connects a source directly to a sink — "
                     "nothing transforms in between; route through the "
                     "step that does the work, or the diagram claims "
-                    "there isn't one" % a["id"])
+                    "there isn't one" % (connector_noun(a), a["id"]))
         for eid, k in kinds.items():
             if k not in FLOW_KINDS:
                 continue
@@ -15434,6 +15540,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
 
     # ---- ERROR/NOTE: sequence invariants (gated on party/lifeline kinds)
     if any(kind_of(e) in SEQUENCE_PARTY_KINDS for e in els):
+        # ARROWS ONLY, and the filter is what makes the wording below
+        # correct rather than lucky: a sequence message asserts a
+        # direction in time, which is the arrowhead, and `arrows` holds
+        # lines. "not a back-arrow" and "travels UP the page" are both
+        # claims about a headed stroke, so the population is narrowed
+        # here instead of the sentences being hedged.
         msgs = [a for a in arrows if a.get("type") == "arrow"]
         for a in msgs:
             pts = a.get("points") or []
@@ -15764,9 +15876,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         if lbl is not None and not self_loop and \
                 run < lbl.get("width", 0) + 24:
             warnings.append(
-                "label %r is wider than its arrow's %dpx run (%s) — "
+                "label %r is wider than its %s's %dpx run (%s) — "
                 "spread the endpoints or shorten the label"
-                % (lbl.get("text", "")[:30], int(run), e["id"]))
+                % (lbl.get("text", "")[:30], connector_noun(e), int(run),
+                   e["id"]))
         # THROUGH `arrowhead_of`, not off the raw keys, since 2026-08-18.
         # This read `e.get("startArrowhead") and e.get("endArrowhead")`,
         # and an absent key is falsy in Python where it is a HEAD in the
@@ -15798,11 +15911,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             ddx = abs(e["points"][-1][0])
             ddy = abs(e["points"][-1][1])
             warnings.append(
-                "arrow %s runs diagonally (%dx%dpx) — off-axis "
+                "%s %s runs diagonally (%dx%dpx) — off-axis "
                 "connections read better as two-segment elbows; "
                 "re-route via mod from/to, or leave it if the "
-                "diagonal is deliberate" % (e["id"], int(ddx),
-                                            int(ddy)))
+                "diagonal is deliberate" % (connector_noun(e), e["id"],
+                                            int(ddx), int(ddy)))
         # through-node crossing: test each real segment, never the
         # first-to-last chord — a correctly-routed elbow's chord crosses
         # boxes its actual path misses (v0.1 acceptance false positive)
@@ -15845,9 +15958,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             if any(_seg_hits_rect(sx1, sy1, sx2, sy2, n)
                    for sx1, sy1, sx2, sy2 in segs):
                 warnings.append(
-                    "arrow %s passes through %s, which is neither its "
+                    "%s %s passes through %s, which is neither its "
                     "source nor destination — route around it"
-                    % (e["id"], name(n["id"])))
+                    % (connector_noun(e), e["id"], name(n["id"])))
                 continue
             # THE SAME READING, ABOUT THE OTHER HALF OF THE SCENE. The
             # on-border run — arrow and outline drawn on the same pixels
@@ -15904,12 +16017,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     onb += _clipped_len(n, p0x, p0y, ddx, ddy, seg, 0)
             if onb > BORDER_RUN_TOL:
                 warnings.append(
-                    "arrow %s runs %dpx along %s's own border, and %s is "
-                    "neither its source nor destination — arrow and "
+                    "%s %s runs %dpx along %s's own border, and %s is "
+                    "neither its source nor destination — %s and "
                     "outline are drawn on the same pixels, so the two "
                     "read as one line through the box; route it clear "
                     "of that edge"
-                    % (e["id"], round(onb), name(n["id"]), n["id"]))
+                    % (connector_noun(e), e["id"], round(onb),
+                       name(n["id"]), n["id"], connector_noun(e)))
     for i, a in enumerate(shapes):
         for b in shapes[i + 1:]:
             # declared containment (customData.parent) is nesting, not
@@ -16186,10 +16300,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     if min(ax2, nx2) - max(ax1, n["x"]) > 8
                     and min(ay2, ny2) - max(ay1, n["y"]) > 4)):
                 warnings.append(
-                    "arrow label %r lands on %s, which is neither end of "
-                    "its arrow — the label reads as that box's caption. "
-                    "Re-route the arrow or shorten the label"
-                    % ((la.get("text") or "")[:24], name(n["id"])))
+                    "%s label %r lands on %s, which is neither end of "
+                    "its %s — the label reads as that box's caption. "
+                    "Re-route the %s or shorten the label"
+                    % (connector_noun(cont), (la.get("text") or "")[:24],
+                       name(n["id"]), connector_noun(cont),
+                       connector_noun(cont)))
                 break
     # ROLE-BLIND as of v0.9 WP4. This loop used to walk `annos` alone —
     # texts explicitly roled "annotation" — while `role_of` itself
@@ -16620,10 +16736,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                                        "moves 2- and 3-point paths)"
                                        % (who, npts))
                     warnings.append(
-                        "arrows %s and %s share an attach point on %s — "
+                        "%ss %s and %s share an attach point on %s — "
                         "%s. Author waypoints via `mod points`, simplify "
                         "the path, or move the nodes apart"
-                        % (id1, id2, name(tgt),
+                        % (connector_noun(ix.get(id1) or {},
+                                          ix.get(id2) or {}),
+                           id1, id2, name(tgt),
                            "the auto-fan could not move them: "
                            + "; ".join(why) if why else
                            "the auto-fan ran and left them together"))
@@ -16807,29 +16925,48 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     # ACROSS — the bare node between the two feet.
                     if f_head or g_head or bare < 1:
                         continue
+                    # THE REPAIR HAS TO BE ONE THE ELEMENT CAN TAKE. This
+                    # arm fires exactly on strokes the client paints no
+                    # head at, which is the configuration a `line` is
+                    # ALWAYS in — the bundle draws heads inside
+                    # `if (e.type === "arrow")` (see `arrowhead_of`), so
+                    # `mod endArrowhead` on a line stores a value nothing
+                    # reads and the agent's repair silently does nothing.
+                    # `type` is not in `MOD_ATTRS`, so re-adding is the
+                    # only route to a head, and the line arm says so. A
+                    # MIXED pair keeps the head advice: one terminated
+                    # foot is enough to end the reading, and the arrow of
+                    # the two can take it.
+                    pair = (ix.get(fid) or {}, ix.get(gid) or {})
                     warnings.append(
-                        "arrows %s and %s read as one stroke through %s — "
+                        "%ss %s and %s read as one stroke through %s — "
                         "they share a line and neither is terminated at "
                         "the node, so %dpx of it is completed across by "
                         "eye: nothing tells the reader the path ends "
                         "here, and the pair reads as one relation "
                         "straight from %s's predecessor to its successor. "
-                        "Give the strokes an arrowhead where they meet "
                         "%s, fan the feet onto opposite borders, or "
                         "offset one line"
-                        % (fid, gid, name(tgt_id), round(bare),
-                           name(tgt_id), name(tgt_id)))
+                        % (connector_noun(*pair), fid, gid, name(tgt_id),
+                           round(bare), name(tgt_id),
+                           "A line never carries an arrowhead, so re-add "
+                           "the pair as arrows bound with `from`/`to`"
+                           if connector_noun(*pair) == "line" else
+                           "Give the strokes an arrowhead where they "
+                           "meet %s" % name(tgt_id)))
                     continue
+                pair = (ix.get(fid) or {}, ix.get(gid) or {})
                 warnings.append(
-                    "arrows %s and %s read as one stroke through %s — "
+                    "%ss %s and %s read as one stroke through %s — "
                     "they share a line and leave %dpx of the node's %dpx "
-                    "bare, so %dpx of it has arrow drawn over it instead "
+                    "bare, so %dpx of it has %s drawn over it instead "
                     "of a border on each side. The pair reads as a direct "
                     "relation and the node stops being a step in the "
                     "flow: fan the feet onto opposite borders, or offset "
                     "one line"
-                    % (fid, gid, name(tgt_id), round(bare), round(across),
-                       round(covered)))
+                    % (connector_noun(*pair), fid, gid, name(tgt_id),
+                       round(bare), round(across), round(covered),
+                       connector_noun(*pair)))
 
     # ---- WARNING: two runs in one lane (v0.9 TASK-LINTPROMOTE) -------
     # The corridor reading, promoted out of `tests/instruments` and into
@@ -17000,8 +17137,29 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                        "merged stroke reads as one relation and that "
                        "node stops being a step" % name(shared))
             elif rel == "swapped":
+                # THE BORROWED PREMISE, taken with the check it came
+                # from. "Reads as one bidirectional edge" is the
+                # bidirectional lint's claim, and that claim is carried
+                # by the arrowheads — the merged stroke stands for both
+                # directions only if a reader can see a direction at
+                # each end. `_pair_kind` answers "swapped" off the
+                # BINDINGS, which stay swapped whether or not anything
+                # is painted, so the first half is true of any pair and
+                # only the reading clause needed the head.
+                #
+                # THE FINDING IS UNMOVED and so is this block's
+                # population: two strokes inside `LANE_TOL` of each
+                # other are one thick line either way. That is the
+                # whole reason this arm gets a second sentence instead
+                # of the gate its sibling took.
                 why = ("each is the other's reverse, so the pair reads "
-                       "as one bidirectional edge")
+                       "as one bidirectional edge"
+                       if all(arrowhead_of(e, True) is not None
+                              or arrowhead_of(e, False) is not None
+                              for e in (la, lb))
+                       else "each is the other's reverse, and neither "
+                            "carries a head, so the merged stroke says "
+                            "nothing about which way either one runs")
             else:
                 why = "they share no node, so nothing explains the run"
             # THE ADVICE HAS TO BE FOLLOWABLE IN BOTH REGIMES, and the
@@ -17018,7 +17176,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # sentence covering both regimes is cheaper than re-deriving
             # the fan's arithmetic here, and it is honest in both.
             warnings.append(
-                "arrows %s and %s run together for %dpx, %dpx apart on "
+                "%ss %s and %s run together for %dpx, %dpx apart on "
                 "the same %s line — inside the %dpx that reads as one "
                 "stroke, so the drawing has one thick line where the "
                 "model has two edges and neither can be followed through "
@@ -17027,7 +17185,8 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 "already spent what it had: move an edge to another "
                 "border, grow the node, or offset one run with "
                 "`mod points`. Deliberate? %s"
-                % (la["id"], lb["id"], round(best[0]), round(best[1]),
+                % (connector_noun(la, lb),
+                   la["id"], lb["id"], round(best[0]), round(best[1]),
                    "horizontal" if best[2] == "h" else "vertical",
                    int(LANE_TOL), why, int(FAN_LANE_PITCH),
                    waive_hint(key)))
@@ -17097,6 +17256,42 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             rel = _pair_kind(la, lb)
             if rel in ("fan", "converge"):
                 continue        # the alignment is the layout doing its job
+            # THE PREMISE IS THE ARROWHEAD, so that is what is measured.
+            # This check's own claim is "the visual signature of two
+            # ONE-WAY ARROWS a reader merges into one bidirectional
+            # relation", and its repair is "draw it as one arrow with
+            # two heads" — both rest on marks the reader can see. It
+            # never asked whether they exist. Two `line`s (which
+            # `arrows` holds, and which the bundle never paints a head
+            # for) were told to become one arrow with two heads: a
+            # repair the element cannot take, on a reading no reader
+            # could have had, since without a head there is no
+            # one-wayness on screen to merge.
+            #
+            # TYPE WAS NEVER THE GATE, only a proxy that correlated: an
+            # ARROW with both heads explicitly `null` sits in exactly
+            # the same position and fired identically (measured, v0.9
+            # TASK-LINENAMING). `arrowhead_of` is the axis the finding
+            # actually turns on, and it answers None for every line by
+            # type and for a bare arrow by value.
+            #
+            # EITHER END, not the terminating one. What the premise
+            # needs is that each stroke is READABLE AS ONE-WAY, and a
+            # head at the start says that as plainly as a head at the
+            # end. Requiring it at the end would additionally silence
+            # start-headed arrows — a bigger move, about which this
+            # pass has no evidence.
+            #
+            # WHAT THIS DOES NOT TOUCH: the lane check above still
+            # reports this pair. Two strokes drawn on top of each other
+            # are one thick line whether or not they carry heads —
+            # that finding is about ink, not direction, and it is the
+            # one that survives here. So the scene is not silenced, it
+            # is reported by the check whose claim is true of it.
+            if not all(arrowhead_of(e, True) is not None
+                       or arrowhead_of(e, False) is not None
+                       for e in (la, lb)):
+                continue
             sa, sb = finals[i], finals[j]
             for idx in (0, 1):
                 if not (_reads_as_line(sa, idx)
@@ -17292,8 +17487,9 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             if (a.get("startBinding") or {}).get("elementId") == d["id"] \
                     and not any(t.get("containerId") == a["id"]
                                 for t in els if t.get("type") == "text"):
-                notes.append("arrow %s leaves decision %s unlabeled — "
-                             "name the branch" % (a["id"], name(d["id"])))
+                notes.append("%s %s leaves decision %s unlabeled — "
+                             "name the branch"
+                             % (connector_noun(a), a["id"], name(d["id"])))
     # wireframe scenes (nodes living inside screen frames) connect by
     # geometry, not arrows — the unconnected note is flow vocabulary and
     # fired on every block by construction (v0.1 acceptance false
@@ -17336,6 +17532,12 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         notes.append("%d %s (budget: %d) — split the view rather than "
                      "shrink the font"
                      % (len(nodes), node_unit, node_budget))
+    # ARROWS ONLY, which is why this note and the budget echo at the top
+    # of the function both say "arrows" and mean it. The budget is about
+    # how many RELATIONS a reader can hold, and a line is furniture or a
+    # connector nobody counts against that ceiling; the filter is the
+    # guard that keeps the word honest while `arrows` next to it holds
+    # both types.
     real_arrows = [a for a in arrows if a.get("type") == "arrow"]
     if len(real_arrows) > arrow_budget:
         notes.append("%d arrows (budget: %d) — the arrow budget is the "
@@ -17433,11 +17635,12 @@ def lint_glossary(els, avoid_map=None, has_context_map=True):
             if s in frame_ids and t in frame_ids and s != t \
                     and not (labels.get(a["id"]) or "").strip():
                 notes.append(
-                    "arrow %s connects context frames %s and %s with no "
-                    "relationship label — the arrow between two contexts "
+                    "%s %s connects context frames %s and %s with no "
+                    "relationship label — the %s between two contexts "
                     "is itself a model (customer/supplier, conformist, "
                     "anticorruption layer, shared kernel…)"
-                    % (a["id"], s, t))
+                    % (connector_noun(a), a["id"], s, t,
+                       connector_noun(a)))
     return {"errors": errors, "warnings": warnings, "notes": notes}
 
 
@@ -18532,9 +18735,21 @@ class Store:
                             now = ((e.get(battr) or {}).get("elementId"))
                             if was in deleted and \
                                     (now is None or now in deleted):
+                                # THE NOUN IS RECORDED WHERE THE ELEMENT
+                                # IS, and this gate accepts lines. The
+                                # two surfaces that read this fact
+                                # (`headline_for`, `consequence_lines`)
+                                # get a bare dict and no scene, so they
+                                # could only have guessed — and both
+                                # guessed "arrow". A fact carries what
+                                # its writer knew; the readers default
+                                # to "arrow" so records already on disk,
+                                # written before this key existed, still
+                                # narrate exactly as they did.
                                 part["facts"].append(
                                     {"fact": "arrow_orphaned",
                                      "element": e["id"], "target": was,
+                                     "noun": connector_noun(e),
                                      "side": "start" if battr ==
                                              "startBinding" else "end"})
                     anchor = (e.get("customData") or {}).get("annotates")

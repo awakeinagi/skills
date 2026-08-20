@@ -14759,6 +14759,548 @@ class TestTheBidirectionalFindingReadsTheClientsDefaults(unittest.TestCase):
                          "a plain one-way arrow reports as bidirectional")
 
 
+class TestLintCallsALineALine(unittest.TestCase):
+    """Every `lint_layout` message that may judge a `line` names one.
+
+    `arrows = [... type in ("arrow", "line") ...]`, so twenty-odd
+    findings opened "arrow" about an element the client draws as a bare
+    stroke — and these messages are read by an AGENT that acts on them,
+    so a wrong noun sends a repair at the wrong element and an
+    arrow-only repair (a head, a direction) cannot be applied at all.
+
+    THE CORPUS CANNOT DEFEND THIS AND SAYS SO. Over the 24 frozen
+    artifacts the whole lint output is byte-identical across the change:
+    0 errors, 38 warnings, 20 notes before and after. The denominator is
+    why that is not evidence — 0 of the 174 connectors in the lint
+    population are lines, because all 20 lines the corpus carries are
+    `role: decoration`, which `arrows` filters out before any check
+    runs. So the poles are CONSTRUCTED, and the reachability is
+    demonstrated rather than assumed: `add type: line from/to` routes
+    and binds a line through the shipped op path exactly as it does an
+    arrow (`apply_ops`'s rewire arm accepts both types).
+
+    THROUGH `lint_layout`, never through `connector_noun`, for the
+    reason the class above records: what a revert would undo is a CALL
+    SITE, and a pin that asked the helper again would stay green through
+    it.
+    """
+
+    @staticmethod
+    def _conn(etype, eid, x, y, pts, src=None, dst=None, **kw):
+        """One connector of `etype`, bound as asked.
+
+        Args:
+            etype: `arrow` or `line`.
+            eid: The element id.
+            x: Element origin x.
+            y: Element origin y.
+            pts: `points`, relative to the origin.
+            src: `startBinding` target id, or None.
+            dst: `endBinding` target id, or None.
+            **kw: Field overrides, `endArrowhead` among them.
+
+        Returns:
+            One loose element dict.
+        """
+        e = {"id": eid, "type": etype, "x": float(x), "y": float(y),
+             "width": 0.0, "height": 0.0, "points": pts, "opacity": 100,
+             "strokeColor": "#1e1e1e", "backgroundColor": "transparent",
+             "customData": {"role": "edge"},
+             "endArrowhead": "arrow" if etype == "arrow" else None}
+        if src:
+            e["startBinding"] = {"elementId": src, "focus": 0, "gap": 6}
+        if dst:
+            e["endBinding"] = {"elementId": dst, "focus": 0, "gap": 6}
+        e.update(kw)
+        return e
+
+    @staticmethod
+    def _node(eid, x, y=0.0):
+        """A 120x60 node at `(x, y)`.
+
+        Args:
+            eid: The element id.
+            x: Origin x.
+            y: Origin y.
+
+        Returns:
+            One loose element dict.
+        """
+        return {"id": eid, "type": "rectangle", "x": float(x),
+                "y": float(y), "width": 120.0, "height": 60.0,
+                "opacity": 100, "strokeColor": "#1e1e1e",
+                "backgroundColor": "transparent",
+                "customData": {"role": "node"}}
+
+    @staticmethod
+    def _said(els):
+        """Every channel of a lint run, flattened.
+
+        Args:
+            els: The scene.
+
+        Returns:
+            Errors, warnings and notes in one list.
+        """
+        r = canvas.lint_layout(els)
+        return r["errors"] + r["warnings"] + r["notes"]
+
+    def _one(self, els, needle):
+        """The single finding containing `needle`.
+
+        Args:
+            els: The scene.
+            needle: A substring identifying the check under test.
+
+        Returns:
+            That finding.
+        """
+        got = [m for m in self._said(els) if needle in m]
+        self.assertEqual(len(got), 1, "expected exactly one %r finding, "
+                                      "got %r" % (needle, got))
+        return got[0]
+
+    def _detached(self, etype):
+        """A half-bound connector: the `lost its ... endpoint` scene.
+
+        Args:
+            etype: `arrow` or `line`.
+
+        Returns:
+            The scene.
+        """
+        return [self._node("n1", 0), self._node("n2", 400),
+                self._conn(etype, "c1", 126, 30, [[0, 0], [268, 0]], "n1")]
+
+    def test_the_endpoint_finding_follows_the_type(self):
+        """The plainest arm of the family, both directions at once.
+
+        One scene, one check, two types — the arrow wording has to be
+        byte-for-byte what it was (the mutant detectors in
+        `tests/test_mutants.py` read these templates literally) and the
+        line wording has to say line.
+        """
+        self.assertTrue(self._one(self._detached("arrow"),
+                                  "lost its end endpoint")
+                        .startswith("arrow c1 "),
+                        "the arrow wording moved; the detector regexes "
+                        "read these templates literally")
+        self.assertTrue(self._one(self._detached("line"),
+                                  "lost its end endpoint")
+                        .startswith("line c1 "),
+                        "a line was reported as an arrow")
+
+    def test_the_repair_a_line_is_offered_is_one_it_can_take(self):
+        """The (c) case: a repair only an arrow has.
+
+        Two unterminated strokes meeting one node read as a stroke
+        THROUGH it, and the shipped advice was "give the strokes an
+        arrowhead where they meet N". A line never carries one — the
+        bundle draws heads inside `if (e.type === "arrow")` — and `type`
+        is not in `MOD_ATTRS`, so an agent told to add a head to a line
+        would spend a round storing a field nothing reads. The finding
+        is the same finding; only the repair differs.
+        """
+        def scene(etype):
+            return [self._node("n1", 0), self._node("n2", 300),
+                    self._node("n3", 600),
+                    self._conn(etype, "c1", 126, 30, [[0, 0], [168, 0]],
+                               "n1", "n2", endArrowhead=None),
+                    self._conn(etype, "c2", 426, 30, [[0, 0], [168, 0]],
+                               "n2", "n3", endArrowhead=None)]
+        arrow = self._one(scene("arrow"), "read as one stroke through")
+        self.assertIn("Give the strokes an arrowhead where they meet",
+                      arrow, "a headless ARROW can still be given a head, "
+                             "and that advice was dropped")
+        line = self._one(scene("line"), "read as one stroke through")
+        self.assertTrue(line.startswith("lines c1 and c2 "), line)
+        self.assertNotIn("Give the strokes an arrowhead", line,
+                         "a line was told to grow an arrowhead — the "
+                         "client draws none on a line under any "
+                         "circumstances, so the round is spent for "
+                         "nothing")
+        self.assertIn("re-add the pair as arrows", line,
+                      "the line arm has to leave a repair that works")
+
+    def test_a_mixed_pair_keeps_the_head_advice_and_the_neutral_noun(self):
+        """One arrow and one line: neither type's word is true of both.
+
+        `connector` is the word `noun_of` already uses next door, so the
+        two surfaces stay readable side by side. The head advice STAYS,
+        because one terminated foot is enough to end the reading and the
+        arrow of the two can take it.
+        """
+        got = self._one([self._node("n1", 0), self._node("n2", 300),
+                         self._node("n3", 600),
+                         self._conn("arrow", "c1", 126, 30,
+                                    [[0, 0], [168, 0]], "n1", "n2",
+                                    endArrowhead=None),
+                         self._conn("line", "c2", 426, 30,
+                                    [[0, 0], [168, 0]], "n2", "n3")],
+                        "read as one stroke through")
+        self.assertTrue(got.startswith("connectors c1 and c2 "), got)
+        self.assertIn("Give the strokes an arrowhead where they meet", got)
+
+    def test_the_degenerate_faults_describe_the_mark_not_the_type(self):
+        """The other (c) case, and it follows the HEAD, not the type.
+
+        Three fault sentences in the degenerate-geometry block named an
+        arrowhead. `arrowhead_of` is the authority, so an arrow whose
+        end head is explicitly `null` takes the bare wording too — the
+        same rule the graze arm and the attachment cue already read.
+        """
+        def scene(etype, **kw):
+            return [self._node("n2", 400),
+                    self._conn(etype, "c1", 126, 30, [[0, 0]], None, "n2",
+                               **kw)]
+        self.assertIn("no segment to draw a head along",
+                      self._one(scene("arrow"), "degenerate geometry"))
+        self.assertIn("so there is nothing to draw",
+                      self._one(scene("line"), "degenerate geometry"))
+        self.assertIn("so there is nothing to draw",
+                      self._one(scene("arrow", endArrowhead=None),
+                                "degenerate geometry"),
+                      "the sentence followed the TYPE, not the mark: an "
+                      "arrow with both heads nulled is drawn bare and "
+                      "was still told about its head")
+
+    def test_the_budget_note_means_arrows_and_says_so(self):
+        """The (a) case: a word that is right because of a filter.
+
+        The arrow budget counts `real_arrows`, so the note and the
+        budget-override echo at the top of the function both say
+        "arrows" correctly. Pinned because the guard is one line and its
+        removal would be invisible: 13 lines would report as "13 arrows"
+        with no arrow among them.
+        """
+        els = [self._node("n%d" % i, i * 200) for i in range(2)]
+        els += [self._conn("line", "c%d" % i, 126, 30 + i,
+                           [[0, 0], [68, 0]], "n0", "n1")
+                for i in range(13)]
+        self.assertEqual([m for m in self._said(els) if "budget" in m
+                          and "arrows" in m], [],
+                         "13 LINES were counted against the arrow budget")
+
+    def test_the_grazing_arrival_names_the_element_it_is_about(self):
+        """The half of the graze arm THIS task contributed, pinned.
+
+        The squareness warning was rebuilt from two sides: `8fccae1`
+        made its two body sentences ask `arrowhead_of` instead of
+        asserting a head, and this pass made its OPENER ask
+        `connector_noun` instead of saying "arrow". The rebase collided
+        there and was resolved by taking both — and then only the
+        inherited half was pinned, so reverting the opener to the
+        literal passed all 1597 tests (whole-branch review, MAJOR-1).
+
+        Shipping an unpinned second instance of a rule that lives at two
+        sites is this wave's own headline defect, on the very statement
+        where the wave had just met it. Both halves are asserted here,
+        the inherited one included, because what makes the pair
+        dangerous is that either can be reverted alone.
+        """
+        def scene(etype):
+            return [self._node("n1", 0, 300), self._node("n2", 400),
+                    self._conn(etype, "c1", 60, 300,
+                               [[0, 0], [0, -240], [340, -240],
+                                [345, -239]], "n1", "n2")]
+        arrow = self._one(scene("arrow"), "degrees off square")
+        self.assertTrue(arrow.startswith("arrow c1 arrives at "), arrow)
+        self.assertIn("the arrowhead reads as a corner", arrow)
+        line = self._one(scene("line"), "degrees off square")
+        self.assertTrue(line.startswith("line c1 arrives at "),
+                        "the opener still calls a line an arrow — the "
+                        "half of this statement this task contributed")
+        self.assertIn("the stroke reads as part of that outline", line,
+                      "the inherited `arrowhead_of` half went with it")
+
+    def test_the_lane_reading_stops_asserting_a_direction_nothing_draws(
+            self):
+        """The ruling's other half, and it was unpinned too.
+
+        Narrowing the bidirectional lint took its borrowed clause out of
+        the lane check's `swapped` arm with it: "reads as one
+        bidirectional edge" is a claim about marks a reader can see, and
+        `_pair_kind` answers "swapped" off the BINDINGS, which stay
+        swapped whether or not anything is painted. Reverting that arm
+        to the unconditional sentence passed all 1597 tests
+        (whole-branch review, MAJOR-1).
+
+        THE POPULATION IS NOT THE POINT AND MUST NOT MOVE: the lane
+        finding itself is about ink, so it fires on all three poles.
+        Only the reading clause follows the head — which is why this is
+        an ordinary wording pin and not the bidi check's acceptance
+        test, and why it is safe for me to write.
+        """
+        def scene(etype, heads):
+            a = self._conn(etype, "c1", 126, 24, [[0, 0], [268, 0]],
+                           "n1", "n2")
+            b = self._conn(etype, "c2", 394, 30, [[0, 0], [-268, 0]],
+                           "n2", "n1")
+            for e in (a, b):
+                e["endArrowhead"] = "arrow" if heads else None
+            return [self._node("n1", 0), self._node("n2", 400), a, b]
+        headed = self._one(scene("arrow", True), "run together for")
+        self.assertIn("so the pair reads as one bidirectional edge",
+                      headed)
+        for etype, heads in (("arrow", False), ("line", False)):
+            bare = self._one(scene(etype, heads), "run together for")
+            with self.subTest(etype=etype):
+                self.assertIn("neither carries a head", bare,
+                              "a headless pair was told it reads as one "
+                              "bidirectional edge — the direction is the "
+                              "arrowhead, and there is none")
+                self.assertNotIn("reads as one bidirectional edge", bare)
+
+    def test_the_corpus_carries_no_line_in_the_lint_population(self):
+        """The denominator behind this class's constructed poles.
+
+        A zero carries its denominator and its stage or it is not
+        evidence. The frozen corpus's 20 lines are all
+        `role: decoration`, so `arrows` never sees one and the whole
+        family is silent there — which is exactly why the poles above
+        are hand-built. If a fixture ever gains a live line this fails,
+        and the right response is to re-measure the census rather than
+        to relax the assertion.
+        """
+        root = Path(__file__).resolve().parent / "fixtures"
+        seen, live = 0, []
+        for path in sorted(root.glob("*/artifacts/*.excalidraw")):
+            doc, _ = canvas.validate_scene(json.loads(path.read_text()),
+                                           path.stem)
+            for e in canvas.normalize_scene_doc(doc)["elements"]:
+                if e.get("type") != "line":
+                    continue
+                seen += 1
+                if e.get("points") and canvas.role_of(e) != "decoration":
+                    live.append((path.stem, e["id"]))
+        self.assertEqual(seen, 20, "the corpus's line count moved; the "
+                                   "census in this class's docstring is "
+                                   "stale")
+        self.assertEqual(live, [], "a corpus line now reaches the lint "
+                                   "population — re-measure the census "
+                                   "before trusting any zero from it")
+
+
+class TestTheOpAndEchoSurfacesCallALineALine(Base):
+    """The same family, outside `lint_layout`.
+
+    Surveyed rather than noticed: an AST sweep of every non-docstring
+    string constant in `canvas.py` that mentions arrow-ness, once
+    identifiers (`"startArrowhead"`, `"arrow_orphaned"`) are excluded,
+    found 28 prose strings outside the lint, in 16 functions. TEN of
+    those 28 could be handed a `line` and are fixed here; the 17 that
+    remain (in 12 functions) are arrow-only because a filter upstream
+    says so, and they keep the word. The two counts measure different
+    things — 28/16 is the population before, 17/12 the residue after —
+    and an earlier draft of this docstring ran them together.
+
+    THE ONE THAT MATTERS MOST is `referential_findings`, which states
+    the dangling-binding finding VERBATIM as `lint_layout` does. Two
+    copies of one sentence, and this pass fixed one of them first —
+    which is the wave's headline defect exactly, so it is pinned here
+    against the lint's own wording rather than against a literal.
+
+    `intent_echo` is the second: it is the surface an agent reads every
+    turn to confirm what it just drew, and it was wrong in BOTH
+    directions — a bound `line` echoed as an arrow, and an unbound
+    decoration ARROW echoed as a line, because the branch that chooses
+    the sentence (bound vs furniture) was also choosing the noun.
+    """
+
+    @staticmethod
+    def _two_nodes_and_a(etype, extra=()):
+        """Two bound nodes joined by a connector of `etype`.
+
+        Built through `apply_ops`, so the bindings are the ones the
+        shipped op path really writes.
+
+        Args:
+            etype: `arrow` or `line`.
+            extra: Further ops appended after the connector.
+
+        Returns:
+            `(elements, errors)`.
+        """
+        errs: list = []
+        els = canvas.apply_ops([], [
+            {"op": "add", "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+             "width": 120, "height": 60, "role": "node", "label": "A"},
+            {"op": "add", "id": "n2", "type": "rectangle", "x": 400,
+             "y": 0, "width": 120, "height": 60, "role": "node",
+             "label": "B"},
+            {"op": "add", "id": "c1", "type": etype, "from": "n1",
+             "to": "n2"}, *extra], errs)
+        return els, errs
+
+    def _mod_errors(self, etype, attrs):
+        """The errors one `mod` on the connector produces.
+
+        Args:
+            etype: `arrow` or `line`.
+            attrs: The `mod` op's `attrs`.
+
+        Returns:
+            The error list.
+        """
+        els, _ = self._two_nodes_and_a(etype)
+        errs: list = []
+        canvas.apply_ops(els, [{"op": "mod", "id": "c1", "attrs": attrs}],
+                         errs)
+        return errs
+
+    def test_a_line_binds_through_from_to_at_all(self):
+        """The reachability every other pole in both classes rests on.
+
+        If `add type: line from/to` did not bind, the whole family would
+        be theoretical and the corpus's silence would be the end of it.
+        It binds: same routing call, same `startBinding`/`endBinding`.
+        """
+        els, errs = self._two_nodes_and_a("line")
+        self.assertEqual(errs, [])
+        conn = next(e for e in els if e["id"] == "c1")
+        self.assertEqual(conn["type"], "line")
+        self.assertEqual((conn["startBinding"] or {}).get("elementId"),
+                         "n1")
+        self.assertEqual((conn["endBinding"] or {}).get("elementId"), "n2")
+
+    def test_the_dangling_binding_finding_matches_the_lints_own(self):
+        """Two copies of one sentence, held to each other.
+
+        `referential_findings` runs on the raw on-disk scene at load and
+        `lint_layout` on the repaired one, so an agent can meet either
+        first. Asserted as EQUAL wording rather than against a literal:
+        that is the property that was broken, and a literal here would
+        let the two drift apart again as long as both kept matching
+        their own copy.
+        """
+        for etype in ("arrow", "line"):
+            els, _ = self._two_nodes_and_a(etype)
+            orphaned = [e for e in els if e["id"] != "n2"]
+            loader = (canvas.referential_findings({"a1": orphaned}, {})
+                      .get("a1") or {}).get("errors") or []
+            lint = [m for m in canvas.lint_layout(orphaned)["errors"]
+                    if "no longer exists" in m]
+            with self.subTest(etype=etype):
+                self.assertEqual(len(loader), 1, loader)
+                self.assertEqual(loader, lint,
+                                 "the loader and the lint state one "
+                                 "finding in two different sentences")
+                self.assertTrue(loader[0].startswith("%s c1 " % etype),
+                                loader[0])
+
+    def test_the_echo_names_the_element_on_both_of_its_arms(self):
+        """`intent_echo`, wrong in both directions before this pass.
+
+        The furniture arm printed "line" for anything UNBOUND that was
+        either a line or a decoration — so an unbound decoration arrow
+        was called a line — and the binding arm printed "arrow" for
+        anything bound, including a line. One branch was answering two
+        questions; it now answers only "which sentence".
+        """
+        for etype in ("arrow", "line"):
+            els, _ = self._two_nodes_and_a(etype)
+            bound = canvas.intent_echo(
+                [{"op": "mod", "id": "c1", "attrs": {"x": 1}}], els)
+            with self.subTest(etype=etype, arm="bound"):
+                self.assertIn("%s c1 binds n1 → n2" % etype, bound[0])
+            errs: list = []
+            deco = canvas.apply_ops([], [
+                {"op": "add", "id": "d1", "type": etype, "x": 0, "y": 0,
+                 "width": 90, "height": 0, "role": "decoration"}], errs)
+            said = canvas.intent_echo(
+                [{"op": "mod", "id": "d1", "attrs": {"x": 1}}], deco)
+            with self.subTest(etype=etype, arm="furniture"):
+                self.assertIn("%s d1 at (" % etype, said[0])
+
+    def test_the_op_errors_name_the_element_they_refuse(self):
+        """Three `apply_ops` refusals, each reached with either type.
+
+        A validation error is the one message an agent is certain to
+        read, because its batch was rejected whole and it has to fix
+        exactly this.
+        """
+        for etype in ("arrow", "line"):
+            with self.subTest(etype=etype):
+                self.assertIn(
+                    "relative to the %s's x,y" % etype,
+                    " ".join(self._mod_errors(etype,
+                                              {"points": [[0, 0]]})))
+                self.assertIn(
+                    "on a server-routed %s is derived" % etype,
+                    " ".join(self._mod_errors(etype,
+                                              {"roundness": {"type": 2}})))
+                els, _ = self._two_nodes_and_a(etype)
+                for e in els:
+                    if e["id"] == "c1":
+                        e["startBinding"] = None
+                errs: list = []
+                canvas.apply_ops(els, [{"op": "mod", "id": "c1",
+                                        "attrs": {"to": "n2"}}], errs)
+                self.assertIn("the %s's start" % etype, " ".join(errs))
+
+    def test_the_rewire_guard_states_the_set_it_enforces(self):
+        """No connector in hand, so the set is named as a literal.
+
+        The branch fires on the element that is NOT a connector, so
+        there is nothing to ask `connector_noun` about — and the set it
+        was stating was narrower than the one the code accepts, which
+        teaches an agent a rule that does not exist.
+        """
+        errs: list = []
+        canvas.apply_ops(
+            [canvas.make_element({"id": "b1", "type": "rectangle",
+                                  "x": 0, "y": 0, "width": 10,
+                                  "height": 10}, set(), [], 0)[0]],
+            [{"op": "mod", "id": "b1", "attrs": {"from": "x", "to": "y"}}],
+            errs)
+        self.assertIn("'from'/'to' only apply to arrows and lines",
+                      " ".join(errs))
+
+    def test_the_orphan_fact_carries_the_noun_its_readers_cannot_derive(
+            self):
+        """The narration surface, through a real commit.
+
+        `headline_for` and `consequence_lines` are handed a bare fact
+        dict and no scene, so they could only guess — and both guessed
+        "arrow". The emitter knows, so the emitter records it. The
+        default keeps records ALREADY ON DISK, written before the key
+        existed, narrating exactly as they always did.
+        """
+        for etype in ("arrow", "line"):
+            self.store.apply_batch({
+                "base_revn": self.store.head_revn(),
+                "create": {"id": "orph-%s" % etype, "type": "flow",
+                           "name": "O", "concept": "c"},
+                "ops": [
+                    {"op": "add", "id": "n1", "type": "rectangle", "x": 0,
+                     "y": 0, "width": 120, "height": 60, "role": "node",
+                     "label": "A"},
+                    {"op": "add", "id": "n2", "type": "rectangle",
+                     "x": 400, "y": 0, "width": 120, "height": 60,
+                     "role": "node", "label": "B"},
+                    {"op": "add", "id": "c1", "type": etype,
+                     "from": "n1", "to": "n2"}]})
+            rec, _ = self.store.apply_batch({
+                "base_revn": self.store.head_revn(),
+                "artifact": "orph-%s" % etype,
+                "ops": [{"op": "del", "id": "n2"}]})
+            facts = [f for part in (rec.get("artifacts") or {}).values()
+                     for f in (part.get("facts") or [])
+                     if f.get("fact") == "arrow_orphaned"]
+            with self.subTest(etype=etype):
+                self.assertEqual(len(facts), 1, facts)
+                self.assertEqual(facts[0].get("noun"), etype)
+                self.assertTrue(
+                    canvas.headline_for(facts[0]).startswith(
+                        "%s c1 lost its" % etype),
+                    canvas.headline_for(facts[0]))
+                legacy = {k: v for k, v in facts[0].items() if k != "noun"}
+                self.assertTrue(
+                    canvas.headline_for(legacy).startswith("arrow c1 "),
+                    "a record written before the key existed must "
+                    "narrate as it always did")
+
+
 class TestNoOpRewireIsNotASequenceChange(Base):
     """Dropping an endpoint back on its own node is not a re-sequence.
 

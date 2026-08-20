@@ -1143,6 +1143,38 @@ def ablation_findings(elements: list[dict],
 # crashes a renderer that has to hold a real app, and the virtual-time budget
 # because chromium given `--screenshot` otherwise shoots and exits before the
 # app's effect has serviced anything.
+#
+# NO `--user-data-dir`, DELIBERATELY, AND IT MAY NOT BE ADDED HERE. Every
+# session this tuple launches therefore shares the machine's default chromium
+# profile and one on-disk cache, which is a real property and not an oversight
+# — the fold review filed it as an instrument that gets weaker the more it is
+# run (`docs/design/folding-a-parallel-wave.md` §9 item 4). Two reasons it is
+# still the right tuple, both measured on this branch:
+#
+# 1. A THROWAWAY PROFILE PATH IS UNIQUE PER RUN AND THIS TUPLE IS HASHED.
+#    `_client_cache_key` joins it into the content address, so a `mkdtemp`
+#    path in here re-keys every client render on every run — a permanent,
+#    total cache miss, not a one-time invalidation. Measured over the eight
+#    real-browser client tests: 11.5s warm, 39.6s and 38.8s on two
+#    consecutive runs with the profile flags spliced in, with the cache
+#    accruing dead entries each time.
+# 2. IT WOULD BUY NOTHING, because the cache and cold-profile isolation are
+#    mutually exclusive by construction: a warm `_client_shots` call starts
+#    no browser at all, so no flag on it can put a fetch back on the network.
+#    Only a helper that bypasses the cache can force a cold load, which is
+#    what `_cold_font_session` is.
+#
+# So a test whose SUBJECT is a first load — a webfont, an image, a stylesheet
+# — goes through `_cold_font_session`, never through `_client_shots`. As of
+# f1e5bc9 exactly one test in this file has such a subject and it does
+# (`test_a_label_wraps_the_same_way_in_every_cold_session`); the vendored-face
+# probe reaches the same place by its own route, with its own profile and an
+# explicit `document.fonts.load`. Measured for the rest: cold profile and
+# shared profile render this file's scenes to IDENTICAL BYTES, including the
+# label deliberately parked on the wrap boundary, because the export now
+# awaits `fontsSettled` before it paints. `--disable-remote-fonts` moves three
+# of those same four scenes, so the comparison saying "no difference" is one
+# that can say otherwise.
 CLIENT_FLAGS = (*CHROME_FLAGS, "--disable-dev-shm-usage",
                 "--virtual-time-budget=60000")
 
@@ -1706,6 +1738,18 @@ def _client_shots(variants: dict[str, list[dict]]) -> dict[str, bytes]:
     are built into a session. A fully warm call starts no server and no
     browser, which is the same promise `_rasterize` makes for tier 2 and
     matters more here: the session, not the render, is what costs.
+
+    IT MIXES SESSIONS INSIDE ONE CALL, and every caller that compares two
+    of its shots is resting on that. A partial hit renders only the
+    misses, so a `full` served from disk and an `abl-*` rendered now come
+    from different browser lifetimes — which is safe exactly as far as the
+    client's render is repeatable ACROSS page loads, and no further.
+    `test_one_scene_rendered_three_times_comes_back_byte_identical` does
+    not license this: it measures three artifacts inside ONE browser, and
+    the font race was uniform within a load and a coin between loads. What
+    licenses it is `test_a_label_wraps_the_same_way_in_every_cold_session`,
+    which is the tier's only across-load claim. If that pin ever goes red,
+    every comparison this function feeds is noise until it is green again.
 
     Args:
         variants: Name to scene, as `_client_session` takes them.
@@ -2867,9 +2911,14 @@ class TestRenderMutants(AblationLiveness, unittest.TestCase):
 # THE SHARED PROFILE IS A WEAKNESS OF `_client_session` ITSELF, not just of
 # this pin — any client-tier test whose subject is a network-fetched resource
 # is measuring a warm cache after the first run of the day. Left alone here
-# on purpose: widening `CLIENT_FLAGS` for the whole tier would re-time 107
-# tests and is the owning WP's call, not a curator's. Named so it is not
-# re-discovered.
+# on purpose, and the owning WP has now counted the population and agreed:
+# see `CLIENT_FLAGS`. Of this file's 110 tests, 12 load a page that fetches
+# anything at all (the 9 real-browser client tests plus the three-test
+# vendored-face probe) and ONE has a first load as its subject — this one.
+# The tier's other scenes render to identical bytes cold and warm, because
+# the export awaits `fontsSettled`, so the profile is inert for them and
+# cannot be put in `CLIENT_FLAGS` anyway without re-keying the cache on
+# every run. Named so it is not re-discovered.
 #
 # TWO RULES FOR WHOEVER TOUCHES THIS NEXT.
 #
@@ -3032,9 +3081,15 @@ def _cold_font_session(variants: dict[str, list[dict]]) -> dict[str, bytes]:
     the fallback EVERY time instead of most of the time. Determinism is
     the point; the speed cost is a font fetch.
 
-    Scoped to this call rather than widened into `CLIENT_FLAGS`: the flag
-    tuple is a render input for the whole tier, and re-timing 107 tests to
-    fix one is not a change this pin gets to make on its own.
+    Scoped to this call rather than widened into `CLIENT_FLAGS`, and that
+    scoping is now permanent rather than provisional. The flag tuple is
+    hashed into `_client_cache_key`, so a `mkdtemp` path inside it would
+    re-key every client render on every run — measured on the eight
+    real-browser client tests as 11.5s warm against 38.8s, forever, not
+    once. And it would buy nothing: a warm `_client_shots` call starts no
+    browser, so only a helper that bypasses the cache can force a cold
+    load. This is that helper. Anything whose subject is a first load
+    calls it; everything else stays on the cache.
 
     Args:
         variants: Name to scene, as `_client_session` takes them.
