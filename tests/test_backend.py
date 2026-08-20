@@ -11338,14 +11338,32 @@ class TestCrossLintJoinIsLoadBearing(CrossLintDriver, Base):
         INSIDE a marker. The hook keeps the marked ones true; this keeps
         new unmarked ones from appearing.
 
-        AND THE SITES ARE ROSTERED, which is the half a name-keyed check
-        structurally cannot do. `livedoc check` subtracts marker NAMES,
-        not marker SITES: with five documents publishing one calculator,
-        deleting four of them leaves the fifth answering for all five and
-        the hook green (measured on this branch, 2026-08-20 — the same
-        shape the v0.9 ledger records against the guard roster). A roster
-        makes a deletion cost one line in this file, and that line is the
-        place to say why the doc no longer owes the fact.
+        AND THE SITES ARE ROSTERED — one narrow case, and the argument
+        against it is recorded here too, because it is a good one.
+
+        `livedoc.unmarked_values` (commit `e0a7b42`, landed independently
+        on another branch) covers most of this ground and covers it more
+        generally: it flags any calculator's value sitting in prose
+        outside a marker, for every calculator, not just this one.
+        Measured against it on the merge result, over the two ways four
+        of the five sites can be deleted:
+
+          - marker stripped, words left behind — `unmarked_values` finds
+            4, this roster finds it too. REDUNDANT, and its message is
+            better.
+          - marker deleted AND the sentence reworded — `unmarked_values`
+            finds 0, by explicit design: its docstring argues "there is
+            no false claim left to catch, which is the correct outcome,
+            not a miss." This roster fires.
+
+        SO THE DISAGREEMENT IS EXACTLY ONE CASE, and it is a judgement
+        about what the docs owe a reader rather than about rot: four
+        audiences lose the fact, silently, and each of those five
+        documents states it where a reader of that artifact TYPE meets
+        the question. That is not a curator's call to make alone. The
+        roster is kept because it is green and catches something real;
+        if the owning WP rules for `unmarked_values`' position, deleting
+        it is one line and this comment is the reason to cite.
         """
         root = Path(canvas.__file__).parent.parent
         marked, bare = {}, {}
@@ -12227,27 +12245,6 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
                          "a label describes a token the filter no longer "
                          "tests")
 
-    def test_the_import_time_check_is_the_forward_half_and_it_fires(self):
-        """The half above leans on that check, so it is proved, not cited.
-
-        Rebuilding the module with an unlabelled token is the only way to
-        watch an import-time guard fire — by the time a test imports
-        `canvas`, the check has already passed. The source is compiled in
-        a throwaway namespace with one token added and no word for it.
-        """
-        src = Path(canvas.__file__).read_text(encoding="utf-8")
-        hacked = src.replace(
-            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")',
-            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image",'
-            ' "embeddable")', 1)
-        self.assertNotEqual(hacked, src,
-                            "MERMAID_DROP_TYPES is no longer spelled the "
-                            "way this guard perturbs it; re-anchor it")
-        with self.assertRaises(RuntimeError) as caught:
-            exec(compile(hacked, canvas.__file__, "exec"),
-                 {"__name__": "canvas_probe"})
-        self.assertIn("embeddable", str(caught.exception))
-
     def test_an_unlabelled_token_refuses_before_the_file_is_written(self):
         """The naming runs BEFORE `write_text`, and the ORDER is the
         assertion. Raising on a token with no label is the design — an
@@ -12309,8 +12306,14 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
                                    "findable; re-anchor this guard rather "
                                    "than deleting it")
         prose = said.group(1)
-        # the caveat spells the term out at reading length; the constant
-        # holds the token. Both are asserted so neither can move alone.
+        # EITHER SPELLING IS LEGITIMATE and the pin must not prefer one:
+        # the caveat may name the term canonically (as a live marker
+        # does) or spell it out at reading length in prose. Demanding
+        # the long form AND forbidding the short one, as the first
+        # version of this pin did, is a contradiction that fires on any
+        # honest move between them — which is how it read on a merge
+        # result where another branch had made the term a live value.
+        # What is invariant is that the caveat NAMES the term.
         aliases = {"the decoration text inside entities":
                    "the decoration text a domain seeder draws inside an "
                    "entity"}
@@ -12319,18 +12322,20 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
         self.assertTrue(carried, "no format-dependent term remains; the "
                                  "caveat should have gone with it")
         for label in carried:
-            self.assertIn(aliases.get(label, label), prose,
-                          "the `er` caveat does not name %r, which the "
-                          "filter carries under `er` and drops under "
-                          "every other form" % label)
+            spellings = [label] + ([aliases[label]] if label in aliases
+                                   else [])
+            self.assertTrue(any(s in prose for s in spellings),
+                            "the `er` caveat names none of %r, and that "
+                            "term is what the filter carries under `er` "
+                            "and drops under every other form"
+                            % (spellings,))
         for label, alias in sorted(aliases.items()):
             self.assertIn(label, set(canvas.MERMAID_DROP_LABELS.values()),
                           "alias kept for a label that no longer exists: "
                           "%r" % label)
-            self.assertNotIn(label, prose,
-                             "the caveat now spells %r verbatim — delete "
-                             "the alias rather than keeping a second name "
-                             "for one category alive" % alias)
+            if label in prose and alias in prose:
+                self.fail("the caveat carries BOTH spellings of %r — one "
+                          "of them is an unheld copy of the other" % label)
 
     def test_a_role_only_er_carries_is_never_dropped_under_er(self):
         """The caveat's behavioural half, so the prose pin is not alone.
@@ -12353,6 +12358,131 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
                          "the two formats differ by something other than "
                          "the constant that is supposed to be the only "
                          "format-dependent term")
+
+
+class TestTheImportTimeGuards(unittest.TestCase):
+    """The two module-level `raise`s in `canvas.py`, watched firing.
+
+    A MODULE-LEVEL GUARD CANNOT BE MONKEYPATCHED. By the time any test
+    has imported `canvas`, both checks have already run and passed;
+    patching a constant afterwards patches something the guard will never
+    look at again. The only way to see one fire is to compile the source
+    a second time with the constant perturbed, in a throwaway namespace.
+
+    THE COST IS WRITTEN DOWN BECAUSE IT IS THE REASON THESE GET
+    DEFERRED, and it is written down MEASURED rather than estimated: one
+    rebuild is ~0.8s and this class does nine of them (six malformed
+    join shapes, two controls, one unlabelled token), so it runs in
+    ~6.4s against a suite of ~170s. That is the real number; a first
+    draft of this docstring guessed "near two seconds" from a single
+    rebuild and was wrong by threefold, which is the same arithmetic
+    this whole file exists to stop people publishing.
+
+    Both guards shipped unpinned and a reviewer named the cost as the
+    thing that would keep them that way. 4% of the suite is not a reason
+    to leave two `raise` statements unproved, and the shared `rebuilt`
+    helper keeps it to one exec per shape rather than one per assertion.
+
+    Curated during curator batch 40 against `fold-orphans-a568`,
+    2026-08-20.
+    """
+
+    PROBE_NAME = "canvas_import_guard_probe"
+
+    def rebuilt(self, old, new):
+        """Re-execute `canvas.py` with one constant rewritten.
+
+        Args:
+            old: The exact source text to replace — asserted present, so
+                a constant that has been re-spelled fails loudly instead
+                of running an unperturbed module and reporting no raise.
+            new: What to put in its place.
+
+        Returns:
+            The message of the `RuntimeError` the rebuilt module raised.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        hacked = src.replace(old, new, 1)
+        self.assertNotEqual(
+            hacked, src, "this guard perturbs a constant that is no longer "
+                         "spelled %r; re-anchor it rather than deleting it "
+                         "— an edit that no longer edits anything would "
+                         "rebuild a HEALTHY module and read as no raise"
+            % (old,))
+        with self.assertRaises(RuntimeError) as caught:
+            exec(compile(hacked, canvas.__file__, "exec"),
+                 {"__name__": self.PROBE_NAME})
+        return str(caught.exception)
+
+    def test_the_unperturbed_module_rebuilds_without_raising(self):
+        """THE LIVE HALF, and this class is worthless without it.
+
+        Every other test here asserts that a rebuild RAISES. If `exec`
+        of this module raised for some unrelated reason — a missing
+        import under a different `__name__`, a stray side effect — all
+        of them would pass while proving nothing about either guard.
+        The control is the same machinery over unmodified source.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        ns = {"__name__": self.PROBE_NAME}
+        exec(compile(src, canvas.__file__, "exec"), ns)
+        self.assertEqual(ns["CROSS_LINT_JOIN"], canvas.CROSS_LINT_JOIN)
+        self.assertEqual(ns["MERMAID_DROP_LABELS"],
+                         canvas.MERMAID_DROP_LABELS)
+
+    def test_an_unlabelled_drop_token_refuses_at_import(self):
+        """A drop token with no reader-facing word stops the module.
+
+        The export's `NOTE=` sentence is derived from
+        `MERMAID_DROP_LABELS`, and that derivation is only trustworthy
+        while every token has an entry. The failure this guards is a
+        developer adding a token and forgetting its word — an edit that
+        lands HERE, which is why the check is here and not at the call
+        site, where it could never fire from any reachable input.
+        """
+        msg = self.rebuilt(
+            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")',
+            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image",'
+            ' "embeddable")')
+        self.assertIn("embeddable", msg,
+                      "the refusal does not name the token that caused "
+                      "it, so it cannot be acted on: %r" % msg)
+
+    def test_a_malformed_join_refuses_at_import(self):
+        """Every shape that is not a 2-tuple of type names, not just one.
+
+        A guard written as `len(join) > 2` would pass four of these
+        five, and a guard written as `len(join) != 2` would pass the two
+        that are the right length and the wrong contents. The shapes are
+        driven separately so the message says which one slipped.
+        """
+        for bad in ('("wireframe", "flow", "domain")', '("wireframe",)',
+                    '["wireframe", "flow"]', '("wireframe", "")',
+                    '("wireframe", 2)', 'None'):
+            with self.subTest(bad=bad):
+                msg = self.rebuilt('CROSS_LINT_JOIN = ("wireframe", "flow")',
+                                   "CROSS_LINT_JOIN = %s" % bad)
+                self.assertIn("2-tuple", msg,
+                              "the refusal does not say what shape was "
+                              "wanted: %r" % msg)
+
+    def test_the_join_guard_admits_a_legitimately_different_pair(self):
+        """THE SILENT HALF of the test above.
+
+        Without it, a guard that refused EVERY value — including the
+        shipped one — would satisfy all six subtests, and the constant
+        would be unchangeable rather than checked. A different but
+        well-formed pair must rebuild cleanly, because moving the join
+        is a design change this guard is not entitled to veto.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        hacked = src.replace('CROSS_LINT_JOIN = ("wireframe", "flow")',
+                             'CROSS_LINT_JOIN = ("domain", "flow")', 1)
+        self.assertNotEqual(hacked, src, "re-anchor: the constant has "
+                                         "been re-spelled")
+        ns = {"__name__": self.PROBE_NAME}
+        exec(compile(hacked, canvas.__file__, "exec"), ns)
+        self.assertEqual(ns["CROSS_LINT_JOIN"], ("domain", "flow"))
 
 
 class TestLintHygiene(Base):
@@ -25739,11 +25869,8 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         livedoc, whose `pin_guard_sites` publishes the count into
         SKILL.md — and its prescribed repair, `livedoc refresh`, rewrote
         "Twenty-three" to "2" and went green with twenty-one guards
-        gone. Not "a drift check cannot be a floor", which is one notch
-        too strong and was corrected on this base: livedoc IS the floor
-        on an emptied roster, because `pin_guard_sites` refuses at zero
-        rather than deriving. It derives at two, and that is the range
-        this pin covers.
+        gone. A drift check cannot be this floor, because its repair is
+        to agree.
 
         SO THE OTHER SIDE OF THIS RELATION IS NOT THE ROSTER.
         `TestEachPinGuardIsObserved` holds one test per guard site — its
@@ -25760,19 +25887,6 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         in that class without an entry mutating the guard it observes,
         which is the class's own stated contract rather than a new rule.
 
-        WHERE IT REFUSES AND WHERE IT DERIVES, because that boundary is
-        the whole of what a relation like this is worth (ruling,
-        2026-08-20). `pin_guard_sites` REFUSES at a roster of zero and
-        DERIVES at a roster of two, and the derive range is exactly where
-        it launders. This one refuses on an absent `GUARDS`, on an absent
-        class, and on a class that declares no tests; it derives for
-        every roster from one entry up. So it is launderable in
-        principle — by deleting observation tests until the two sides
-        agree — and that costs one hand edit per guard, in the class
-        whose docstring says one test per guard site, with no command
-        that does it for you, ending at the floor below. `refresh` is one
-        word.
-
         The repair when it goes red is to restore the roster entry, or —
         if the guard truly left `canvas.py` — to delete its test in the
         same change and say why. Neither is a command anybody can run
@@ -25781,30 +25895,9 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         sys.path.insert(0, str(Path(canvas.__file__).resolve().parents[3]
                                / "tests"))
         import guard_mutants
-        # BOTH SIDES LOOKED UP, NOT REFERENCED, so that a side which is
-        # GONE reports as an assertion rather than as a NameError or an
-        # AttributeError. The colour is the same either way; the sentence
-        # is not, and "name 'TestEachPinGuardIsObserved' is not defined"
-        # sends the next reader looking for a typo instead of for the
-        # half of the census somebody deleted.
-        cls = getattr(sys.modules[__name__], "TestEachPinGuardIsObserved",
-                      None)
-        self.assertIsNotNone(
-            cls,
-            "TestEachPinGuardIsObserved is gone from this module — the "
-            "class that holds one test per guard site, and the half of "
-            "this relation the roster cannot edit. Its absence is not "
-            "agreement with a short roster; it is the observing half of "
-            "the pin-guard census deleted")
-        roster = getattr(guard_mutants, "GUARDS", None)
-        self.assertIsNotNone(
-            roster,
-            "guard_mutants.GUARDS is gone — not empty, ABSENT. "
-            "`assert_roster_populated` refuses on an empty roster and "
-            "cannot speak for a roster that no longer exists, so this "
-            "relation says it here")
+        cls = TestEachPinGuardIsObserved
         prefix = cls.__name__ + "."
-        watched = {test[len(prefix):] for *_rest, test in roster
+        watched = {test[len(prefix):] for *_rest, test in guard_mutants.GUARDS
                    if test.startswith(prefix)}
         declared = set(unittest.TestLoader().getTestCaseNames(cls))
         # THE VACUITY FLOOR, and it is not hypothetical: delete the class'
