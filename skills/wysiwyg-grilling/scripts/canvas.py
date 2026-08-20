@@ -8739,11 +8739,15 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
     # Copied, not aliased: `_validate_batch` hands in the very set it uses
     # to refuse an explicit colliding id, and minting must not grow it.
     pin_ids = set(known_pins or ())
-    # Composed parts a group carry declined to move because they are
-    # pinned. Collected across the whole batch and narrated once: the
-    # widget's owner moved and a part of it did not, which the reader
+    # Group members a carry declined to move because they are pinned.
+    # Collected across the whole batch and narrated once: the element an
+    # op named moved and a member of its group did not, which the reader
     # cannot see in a diff and would otherwise meet as a torn widget.
     held_parts = set()
+    # Group members a carry DID move — nobody's op named them, so the
+    # post-passes below cannot find them any other way. Folded into
+    # `moved` so their bound arrows are re-routed with everyone else's.
+    carried = set()
 
     def resolve(eid, opi, verb):
         el = index.get(eid)
@@ -9052,9 +9056,9 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                     el[attr] = value
                     if attr in ("x", "y", "width", "height"):
                         recenter_label(els, el)
-            # composite integrity: grouped decorations (X-box strokes,
-            # attribute rows) travel with their element on x/y mods —
-            # and EVERY part kind is re-derived on width/height mods
+            # group integrity: EVERY group member travels with the
+            # element an x/y mod names — and EVERY part kind is
+            # re-derived on width/height mods
             # (WP3). Until v0.8 only the X-box re-derived: an image
             # placeholder shrunk from 116 to 72 high kept 116-high
             # diagonals and its X overshot into the panel below (R2-10)
@@ -9081,33 +9085,67 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             dy = (el.get("y", 0) - old_y) if isinstance(old_y, (int, float)) \
                 else 0
             if (dx or dy) and el.get("groupIds"):
-                gset = set(el["groupIds"])
+                # EVERY GROUP MEMBER, NOT ONLY THE DECORATIONS. This loop
+                # used to carry a sibling only where its `role` was
+                # `decoration`, so a hand-made Ctrl+G group of three
+                # plain nodes let `mod x` walk ONE of them 300px out of
+                # its own group with the other two standing still —
+                # measured, and the same tear `_tidy_pass` was fixed for.
+                # The unit is `_group_components`', which is the whole
+                # transitive closure of shared membership: see that
+                # function for why the answer is a component and not the
+                # outermost `groupIds` entry. Recomputed per moving mod
+                # rather than hoisted, because an `add` or a `mod
+                # groupIds` earlier in THIS batch can have changed who is
+                # in the group since the last op read it.
+                unit = _group_components(els).get(el["id"]) or frozenset()
                 for other in els:
-                    if other is el:
+                    if other is el or other["id"] not in unit:
                         continue
-                    if set(other.get("groupIds") or []) & gset and \
-                            (other.get("customData") or {}).get("role") == \
-                            "decoration":
-                        # A PIN IS A PIN WHICHEVER END OF THE GROUP IT
-                        # SITS ON — the rule `_tidy_pass`' twin of this
-                        # loop already stated and this one did not obey.
-                        # The gate above normally holds a batch that
-                        # moves a pinned element's group sibling, but it
-                        # judges the PRE-batch scene, so an `add` (or a
-                        # `mod groupIds`) that joined the group inside
-                        # this same batch reached here unguarded and
-                        # moved a locked decoration 600x400px while the
-                        # response said "left 1 pinned element where it
-                        # is". The gate learned about mid-batch joins in
-                        # the same change; this check is the one that
-                        # does not depend on the gate having predicted
-                        # the door.
-                        if pinned_to_canvas(other):
-                            if housekeeping is not None:
-                                held_parts.add(other["id"])
-                            continue
-                        other["x"] = other.get("x", 0) + dx
-                        other["y"] = other.get("y", 0) + dy
+                    # A BOUND CAPTION IS NOT CARRIED, IT IS RE-DERIVED.
+                    # `recenter_label` is the single writer of bound-label
+                    # position and it writes an ABSOLUTE point, so adding
+                    # the delta here as well moved the caption twice: an
+                    # entity dragged 140px down wore its own name 146px
+                    # below its header band instead of 6. Reachable the
+                    # moment the carry stopped being limited to
+                    # `role: decoration`, because a bound label is a
+                    # group member and a decoration is not.
+                    if other.get("type") == "text" and \
+                            other.get("containerId") in unit:
+                        continue
+                    # A PIN IS A PIN WHICHEVER END OF THE GROUP IT
+                    # SITS ON — the rule `_tidy_pass`' twin of this
+                    # loop already stated and this one did not obey.
+                    # The gate above normally holds a batch that
+                    # moves a pinned element's group sibling, but it
+                    # judges the PRE-batch scene, so an `add` (or a
+                    # `mod groupIds`) that joined the group inside
+                    # this same batch reached here unguarded and
+                    # moved a locked decoration 600x400px while the
+                    # response said "left 1 pinned element where it
+                    # is". The gate learned about mid-batch joins in
+                    # the same change; this check is the one that
+                    # does not depend on the gate having predicted
+                    # the door.
+                    if pinned_to_canvas(other):
+                        if housekeeping is not None:
+                            held_parts.add(other["id"])
+                        continue
+                    other["x"] = other.get("x", 0) + dx
+                    other["y"] = other.get("y", 0) + dy
+                    # THE CARRIED MEMBER IS A MOVED NODE LIKE ANY OTHER,
+                    # and the two passes that clean up after a move both
+                    # keyed off op ids alone. Its bound caption is
+                    # recentred here; its bound arrows are re-routed by
+                    # the F1 post-pass, which is why `carried` is
+                    # collected and folded into `moved` below. Without
+                    # that, moving a hand-made group left every arrow
+                    # bound to a carried member hanging in mid-air —
+                    # exactly the defect the F1 post-pass exists to stop,
+                    # reintroduced through a door it could not see.
+                    recenter_label(els, other)
+                    carried.add(other["id"])
             # rewires, processed jointly so one mod may set from AND to.
             # A rewire that cannot bind is a hard validation error — the
             # v0 behavior (silently accept, route nothing) burned rounds:
@@ -9425,6 +9463,14 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
         if op.get("op") == "mod" and \
                 {"x", "y", "width", "height"} & set(op.get("attrs") or {}):
             moved.add(op.get("id"))
+    # ...AND THE ELEMENTS NO OP NAMED. A group member carried by a
+    # sibling's `mod x` moved just as far as the element the op named,
+    # and this set was built from op ids alone — so an arrow bound to a
+    # carried member was never handed back to the router and stayed
+    # pointing at where the node used to be. Reachable only since the
+    # carry stopped being limited to `role: decoration`, which is why it
+    # arrives in the same change.
+    moved |= carried
     if moved:
         index = {e["id"]: e for e in els}
         for e in els:
@@ -9670,64 +9716,175 @@ def part_owner_id(el):
     return None
 
 
-def _group_owners(els):
-    """Split each group into its one owner and the parts it carries.
+GRID_SNAP_TYPES = ("rectangle", "diamond", "ellipse", "frame")
 
-    A GROUP WITH NO UNIQUE OWNER IS LEFT ALONE, and that fallback is
-    load-bearing rather than defensive. Excalidraw users make their own
-    groups — select three boxes, Ctrl+G — and those have no owner by
-    construction: every member is an ordinary node. Treating one of them
-    as the body and dragging the other two behind it under tidy would be
-    a new and unasked-for behaviour, and a wrong one. So a group resolves
-    to an owner only when exactly one member is not a composed part,
-    which is precisely the shape `make_element` mints and precisely not
-    the shape a hand-made group has.
+
+def _grid_snappable(el):
+    """Whether `_tidy_pass`' grid snap would move this element on its own.
+
+    Spelled once because TWO sites now ask it and they must not drift:
+    the snap loop itself, and `_move_units`, which can only nominate a
+    leader the snap loop will actually reach. A leader the loop skips is
+    a unit that silently never moves — the failure mode is a no-op, and a
+    no-op is exactly what this file's review history says is hardest to
+    see.
+
+    Args:
+        el: Any element dict.
+
+    Returns:
+        True for a shape the grid snap owns — never a bound label, never
+        a pin glyph, never a connector (an arrow's position is its
+        route's, and the router owns that).
+    """
+    return el.get("type") in GRID_SNAP_TYPES and \
+        role_of(el) not in ("label", "pin")
+
+
+def _group_components(els):
+    """Every grouped element's MOVE UNIT: all the elements it travels with.
+
+    EVERY GROUP MOVES AS A UNIT — the user's ruling, and this function is
+    where it is decided. The previous position, that a hand-made Ctrl+G
+    group has no owner and is therefore left alone, is retired: tidy tore
+    three hand-grouped boxes into three deltas 3px apart and a `mod x`
+    moved one member 300px out of its own group. Both are the same defect
+    the composed-widget fix already named, arriving through a door the
+    fix declined to open.
+
+    NESTING IS RESOLVED BY CONNECTED COMPONENT, NOT BY PICKING A LEVEL.
+    `groupIds` is a list, outermost last, so an element may sit in a
+    nested group AND in the group that contains it. Taking the outermost
+    id is right for well-formed nesting and wrong the moment two groups
+    merely OVERLAP — the user selects a slider's thumb plus an unrelated
+    box and presses Ctrl+G, and now no single id names everything that
+    has to move together. So the unit is the transitive closure of "share
+    any group id", which equals the outermost group whenever the data is
+    properly nested and is the only answer that stays coherent when it is
+    not. It also makes double-carry impossible by construction rather
+    than by tie-break: an element belongs to exactly one component, so
+    exactly one delta can ever reach it — the v0.9 curator F1 defect
+    (a thumb taking (2,-2) where its siblings took (1,-1)) cannot be
+    expressed in this shape.
 
     Args:
         els: An element list.
 
     Returns:
-        `(owners, parts)` — `owners` maps an owner id to the set of part
-        ids that travel with it; `parts` is every id that appears in any
-        of those sets, so a caller can ask "is this carried by someone
-        else" in one lookup.
+        `{element_id: frozenset(member_ids)}` — every id in at least one
+        group, mapped to its whole unit INCLUDING ITSELF. Ungrouped
+        elements are absent, so `.get(eid)` answering None means "this
+        one travels alone".
     """
-    # DEDUPED PER GROUP. `groupIds` is a list and nothing on the write
+    # DEDUPED PER ELEMENT. `groupIds` is a list and nothing on the write
     # path makes it a set — `Store.commit` stores what the client posts,
-    # verbatim — so `["gA", "gA"]` reaches here and appended the SAME
-    # element twice. Two copies of the owner meant `len(cands) != 1`, the
-    # group resolved to no owner at all, and one duplicated id restored
-    # the pre-fix tearing whole: a slider came apart again
-    # again (v0.9 curator F2). Membership is a set question and is now
-    # asked as one.
-    by_group = {}
+    # verbatim — so `["gA", "gA"]` reaches here (v0.9 curator F2, where a
+    # duplicated id restored the pre-fix tearing whole). Union-find does
+    # not care about a repeat, but the dedupe is kept because the reader
+    # would otherwise have to prove that, and the cost is one dict.
+    parent, first = {}, {}
+
+    def find(x):
+        """The representative of `x`'s component, path-compressing.
+
+        Args:
+            x: An element id already present in `parent`.
+
+        Returns:
+            The component's root id.
+        """
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
     for e in els:
-        for g in dict.fromkeys(e.get("groupIds") or []):
-            by_group.setdefault(g, {})[e["id"]] = e
-    owners, parts = {}, set()
-    for members in by_group.values():
-        cands = [m for m in members.values() if not part_owner_id(m)]
-        if len(cands) != 1:
+        gids = list(dict.fromkeys(e.get("groupIds") or []))
+        if not gids:
             continue
-        own = cands[0]["id"]
-        # A PART TRAVELS WITH ITS OWN BODY AND NOTHING ELSE. An element
-        # may be in several groups — the user selects a slider's thumb
-        # plus an unrelated box and presses Ctrl+G, and now the thumb is
-        # in `sl-grp` AND in theirs. Both groups resolve to an owner, so
-        # `_tidy_pass` carried the thumb twice and it took (2,-2) where
-        # its siblings took (1,-1): the widget tore because the part
-        # moved too FAR, which no amount of grouping could have caused
-        # before this table existed (v0.9 curator F1, a regression this
-        # work introduced). The `*_of` backlink is the tie-break, and it
-        # is the one thing that can be: it names which body this is a
-        # part OF, which is exactly the question, and it is why the
-        # backlinks were kept when the groups became real.
-        kin = {i for i, m in members.items()
-               if i != own and part_owner_id(m) == own}
-        if kin:
-            owners.setdefault(own, set()).update(kin)
-            parts |= kin
-    return owners, parts
+        eid = e["id"]
+        parent.setdefault(eid, eid)
+        for g in gids:
+            if g in first:
+                ra, rb = find(first[g]), find(eid)
+                if ra != rb:
+                    parent[rb] = ra
+            else:
+                first[g] = eid
+    comps = {}
+    for eid in parent:
+        comps.setdefault(find(eid), set()).add(eid)
+    return {eid: frozenset(m) for m in comps.values() for eid in m}
+
+
+def _move_units(els):
+    """Split each move unit into the one member that LEADS it and the rest.
+
+    WHERE A UNIT'S DELTA COMES FROM, which a hand-made group cannot
+    answer the way a composed widget does. A widget has an owner —
+    exactly one member that is not a composed part — and the snap of that
+    owner is the widget's delta, unchanged here and deliberately so: the
+    corpus's 45 composed groups all resolve this way and their measured
+    45-of-45 "moves as one unit" is a control this change must not
+    disturb. A user group has no owner by construction, every member
+    being an ordinary node, so the delta comes from its TOP-LEFT-MOST
+    snappable member (min x, then y, then id) — the element that sits on
+    the unit's bounding-box left edge.
+
+    THAT CHOICE IS STABLE, which is the property that matters and not an
+    aesthetic one. A unit's internal geometry never changes (every member
+    takes the same delta), so the leader is the same element on every
+    pass; and once its own x/y are on the grid the next pass computes a
+    zero delta. Snapping a group twice therefore moves it exactly once —
+    verified, not assumed. Choosing by lowest id instead would be equally
+    idempotent but would hand the anchor to a rename.
+
+    A UNIT WITH NO SNAPPABLE MEMBER DOES NOT MOVE AT ALL. "Together or
+    not at all" cuts both ways: rather than let the snap loop reach the
+    members one at a time, every member is returned as a follower so the
+    loop skips all of them.
+
+    Args:
+        els: An element list.
+
+    Returns:
+        `(leaders, followers)` — `leaders` maps a leader id to the set of
+        ids that travel behind it; `followers` is every id that appears
+        in any of those sets plus every member of a unit that cannot
+        move, so a caller can ask "is this one carried by someone else"
+        in a single lookup.
+    """
+    comps = _group_components(els)
+    index = {e["id"]: e for e in els}
+    leaders, followers, seen = {}, set(), set()
+    for member_ids in comps.values():
+        if member_ids in seen:
+            continue
+        seen.add(member_ids)
+        members = [index[i] for i in sorted(member_ids) if i in index]
+        if len(members) < 2:
+            continue
+        cands = [m for m in members if not part_owner_id(m)]
+        if len(cands) == 1:
+            # THE COMPOSED PATH, UNTOUCHED. One member that is not a part
+            # is the widget's body, and the body's own snap is the
+            # widget's delta exactly as before this function grew a
+            # second arm. Note there is no snappability fallback here: a
+            # widget whose body the snap loop skips still does not move,
+            # which is the behaviour the 45 corpus composites were
+            # measured under.
+            lead = cands[0]
+        else:
+            snappable = [m for m in members if _grid_snappable(m)]
+            if not snappable:
+                followers |= {m["id"] for m in members}
+                continue
+            lead = min(snappable, key=lambda m: (m.get("x", 0),
+                                                 m.get("y", 0), m["id"]))
+        rest = {m["id"] for m in members if m["id"] != lead["id"]}
+        leaders[lead["id"]] = rest
+        followers |= rest
+    return leaders, followers
 
 
 def composed_group_gaps(els):
@@ -10660,8 +10817,8 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
     # ---- the user pulled a composed widget apart (their Ctrl+Shift+G) ----
     # LOUD, AND NEVER REPAIRED. Ungrouping is a deliberate act with a
     # keyboard shortcut on it, so the tool's job is to say what it cost
-    # and then believe them: `_group_owners` stops resolving an owner
-    # the moment the shared group is gone, so tidy stops moving the
+    # and then believe them: `_move_units` stops seeing one unit the
+    # moment the shared group is gone, so tidy stops moving the
     # parts as one thing from this save onward with no further code.
     # Silently re-grouping would be the tool overruling the user's own
     # hands, which is the one thing this product may not do.
@@ -22486,18 +22643,28 @@ class Store:
         index = {e["id"]: e for e in els}
         snapped = 0
         pinned = set()
-        # Parts follow their owner; they are never snapped on their own
-        # account. An element is a PART when it shares a group with an
-        # owner, which after `_close_widget_group` includes the bound label.
-        owners, parts = _group_owners(els)
+        # Followers travel with their unit's leader; they are never
+        # snapped on their own account. A unit is a whole group — a
+        # composed widget, whose leader is its body, or a hand-made Ctrl+G
+        # selection, whose leader is its top-left-most member.
+        leaders, followers = _move_units(els)
         for e in els:
-            if e["id"] in parts:
+            if e["id"] in followers:
                 continue
-            if e.get("type") in ("rectangle", "diamond", "ellipse",
-                                 "frame") and \
-                    role_of(e) not in ("label", "pin"):
-                if pinned_to_canvas(e):
-                    pinned.add(e["id"])
+            if _grid_snappable(e):
+                unit = [e] + [index[i]
+                              for i in sorted(leaders.get(e["id"], ()))
+                              if i in index and index[i] is not e]
+                # A PIN HOLDS THE WHOLE UNIT, WHICHEVER END IT SITS ON.
+                # The old rule left the pinned part where it was and
+                # moved the rest — which is a tear, the exact thing the
+                # ruling forbids, dressed as a pin being honoured. Held
+                # together or moved together; and `pinned` still names
+                # only the elements actually pinned, so the note's count
+                # is of pins and not of the elements they held back.
+                held = {m["id"] for m in unit if pinned_to_canvas(m)}
+                if held:
+                    pinned |= held
                     continue
                 nx = int(round(e.get("x", 0) / 4.0)) * 4
                 ny = int(round(e.get("y", 0) / 4.0)) * 4
@@ -22505,19 +22672,29 @@ class Store:
                     dx, dy = nx - e.get("x", 0), ny - e.get("y", 0)
                     e["x"], e["y"] = nx, ny
                     snapped += 1
-                    # THE WIDGET TRAVELS WITH ITS BODY. A part that is
-                    # itself pinned still does not move — a pin is a
-                    # pin whichever end of the group it sits on.
-                    for pid in owners.get(e["id"], ()):
-                        p = index.get(pid)
-                        if p is None or p is e:
-                            continue
-                        if pinned_to_canvas(p):
-                            pinned.add(pid)
+                    ids = {m["id"] for m in unit}
+                    for p in unit[1:]:
+                        # A BOUND CAPTION IS NOT CARRIED, IT IS
+                        # RE-DERIVED — see the twin of this loop in
+                        # `apply_ops`. Skipped here for a second reason
+                        # too: `recenter_label` below writes an absolute
+                        # point, so whether a caption came out right
+                        # would otherwise depend on where in `unit` it
+                        # happened to sit.
+                        if p.get("type") == "text" and \
+                                p.get("containerId") in ids:
                             continue
                         p["x"] = p.get("x", 0) + dx
                         p["y"] = p.get("y", 0) + dy
-                    recenter_label(els, e)
+                    # EVERY MEMBER'S OWN CAPTION TRAVELS, not just the
+                    # leader's. A hand-made group holds ordinary nodes,
+                    # and an ordinary node's bound label is NOT in the
+                    # group — Excalidraw's Ctrl+G does not add bound text
+                    # to `groupIds` — so recentring only the leader's
+                    # caption left every other member's text standing
+                    # over empty canvas.
+                    for p in unit:
+                        recenter_label(els, p)
         obstacles = hard_obstacles(els)
         # `routable_arrows`, not this loop's own spelling of the same
         # rule: `M` in tidy's note and `M` in `Store.reroute`'s are one
