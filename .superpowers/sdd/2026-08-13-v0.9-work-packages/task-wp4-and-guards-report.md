@@ -370,7 +370,110 @@ Commits: `aec24f5` (the curator's red, alone and still red, verified red
 fix, in that order, deliberately — a mutant that shares a commit with its
 fix is born green and proves nothing.
 
-### 6b.3 A NINTH: `BOUND_TEXT_PADDING` is wrong, and how it was caught
+### 6b.0 RETRACTED — read this before §6b.3
+
+**§6b.3 below is WRONG and is kept only so the dead end is not re-walked.
+`BOUND_TEXT_PADDING = 5` is CORRECT.** Two curators, with instruments
+neither derived from the other nor from mine, put the total padding at
+**10.000 exactly**: one fitted token length at fixed size (five lengths,
+zero residual, intercept 10.000); the other swept three font sizes, where
+the intercept is `2p` and — the clever part — *does not depend on which
+face does the measuring* (three words, three exact hits, zero misses).
+Both also confirm the three shape arms. My own table-free fit agrees:
+`w*(N) = 8.0000N + 10.0000`, zero residual.
+
+**My root cause is refuted too.** I wrote that `Yn = 5` (byte 248725) and
+`_s` (byte 555675) were "300KB apart, almost certainly different module
+scopes". There is exactly **one** `Yn=` in the 1.4MB bundle, and `_s`
+references `$O` and `zO` from the *same declaration cluster*, 5 and 11
+bytes from it. Verified myself. **The transcription was faithful.** The
+"distant offsets" rule I proposed does not follow from anything and
+should not be written down; the existing rule about minified identifiers
+stands untouched and is unrelated.
+
+**What was actually happening:** the render tier decides wraps in
+**Times New Roman** — chromium's default serif — because nothing awaits
+`document.fonts.ready`, and paints in the real face once it lands. My own
+letter-based advances confirm the face independently of the curators'
+digit-based ones: worst deviation from Times **0.0032 em (0.05px)**,
+from Nunito **0.1587 em (2.54px)**, a 50× separation. The server's table
+is not implicated and is fine.
+
+**THE CHECK THAT WOULD HAVE KILLED THIS IN ONE MINUTE, and the most
+useful thing in this report:** *before changing a parameter, ask whether
+the parameter can even reach the symptom.* `'Weekday 06:00'` measures
+116px and the ellipse arm at w=160 yields **113 before any subtraction**.
+The server predicts a re-wrap at `2p=10`, at `2p=2` and at `2p=0`. **One
+of my own six counterexamples was unexplainable by every value of the
+constant I was proposing to change** — no browser, no font theory, and I
+never asked. Re-verified here; note that only ONE of the six is
+unreachable, because the 230px row is at fontSize 14, not the 16 I
+assumed on first re-check. That assumption would have published a second
+wrong number, in the same week and by the same mechanism as the first.
+
+**Numbers withdrawn:** "8 of 291" AND "14 of 14". Both are single-session
+reads off an oracle now known to flip per session (5 fresh sessions gave
+1, 2, 1, 1, 1 painted lines for one scene; 20 exports *inside* a session
+were 20/20 identical). The six I called false positives are precisely the
+labels nearest the cap, which is exactly the population a per-session
+metric flip moves. Neither number is usable until the tier awaits fonts.
+
+**The table is confirmed correct from the PAINT, which does not race**
+(curator-boundpad): fitting inked span against token length cancels the
+bearings, and Nunito paints at **9.113 px/char against the table's
+9.152 — 0.4%**. And the wrap is face-**blind**: the same threshold, 84,
+for four families whose painted spans are 78 / 92 / 80 / 86. A wrap that
+gives four visibly different faces one answer is not measuring any of
+them, which is why my 8.000 px/char (0.5 em exactly) reads as synthetic
+fallback metrics rather than as any shipped face.
+
+### 6b.0b The two defects that are actually here, and who has them
+
+**(i) Neither the render tier nor the product's export path awaits
+`document.fonts.ready`.** `frontends/wysiwyg-grilling/src/App.tsx`
+~1062-1115 calls `exportToBlob` directly on `restoreForRender(els)` —
+and `restoreForRender` is what performs the re-wrap, so **the wrap and
+the paint can resolve in different faces**. The client measures a string
+once per page load and reuses it, so **each session freezes a coin
+flip**: five fresh sessions gave 1, 2, 1, 1, 1 painted lines for one
+scene, while twenty exports inside a single session were 20/20
+identical. Cold — 12 of 13 sessions — the wrap reads the fallback. This
+is upstream of every text measurement in this tier, mine included. **Not
+mine**; the render tier is not this task's, and the App.tsx half is the
+frontend's. Routed to the coordinator for an owner, with the note that
+the live editor probably self-corrects (`onLoaded` re-lays out text once
+fonts land) while the export path does not wait — flagged, not asserted,
+because driving the live editor to prove it was out of reach.
+
+**(ii) `client_wrap_width` rounds the wrong way.** Python's `round` is
+banker's; the client's `Math.round` is half-up. **Mine**, and taken.
+Counted rather than characterised, because the characterisation that
+reached me was wider than the truth:
+
+* the diamond arm disagrees on **495 of the 1981 integer widths in
+  20..2000** — and they are exactly `w ≡ 1 (mod 4)`, **not** "every odd
+  width". Banker's and half-up agree whenever `floor(w/2)` is odd, so
+  half of the odd widths are unaffected;
+* **the ellipse arm has ZERO disagreements** over that whole range,
+  because `w/2*sqrt(2)` essentially never lands on a half. The relayed
+  "and on the ellipse arm wherever the term lands on a half" is true in
+  principle and empty in practice;
+* **no corpus container is affected**: of the widths in play today
+  (60, 90, 100, 110, 130, 160, 200, 230, 240) not one is `4k+1`.
+
+So it is real, deterministic, browser-free and currently unreachable
+from the corpus — which is precisely why the mutant must pick an
+affected width deliberately (e.g. **165**: the client gives 73, this
+file gives 72). Red first from the curator, flip second, same shape as
+`chopped_token_reads_as_one_line`.
+
+**A judgement worth recording because it cost a deliverable:** a curator
+declined to write the fonts mutant at all, on the grounds that a silence
+expectation on a coin-flip oracle would encode a 1-in-5 outcome as
+ground truth. **No mutant is better than a mutant that pins a race** —
+the harness's own purpose turned against the harness.
+
+### 6b.3 A NINTH — RETRACTED, see §6b.0. `BOUND_TEXT_PADDING` is wrong
 
 Re-deriving the denominator in the browser, `'compliance'` refused to chop
 at a cap my code computes as 75 while chromium paints it at 81px of ink.
