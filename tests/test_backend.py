@@ -15339,7 +15339,12 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
         carrying two real bindings.
 
         The inverse pole — that the op path now REFUSES to mint one —
-        is a separate concern and is not asserted here.
+        is a separate concern and is not asserted here. It IS asserted:
+        `test_mutants.TestOnlyArrowsConnectShapes` carries the ruling's
+        four pins, including the refusal on both op arms and the pin
+        that keeps this fixture's population savable. A reader who
+        arrives here asking "so what stops one being made?" should go
+        there rather than conclude nothing does.
         """
         els, errs = self._two_nodes_and_a("line")
         self.assertEqual(errs, [])

@@ -23770,11 +23770,31 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # string and is independent of all of them. A reader watching this dict
 # should expect it to lose two lines at once and then one later, not to
 # count down.
+#
+# ONE MORE on 2026-08-20, and it is the first entry here filed against a
+# SAFETY NET rather than against the thing the net was strung under.
+# `TestTheLoadPathNamesABoundLineWhateverItsRole` came from the implementer
+# of the same day's "only arrows connect shapes" ruling, handed back rather
+# than fixed because its repair is a design choice with four honest
+# candidates. The ruling deliberately keeps the bound-line error OUT of
+# `Store.commit` so a legacy scene stays savable, and names `lint_layout`
+# as the load-path answer that makes that silence safe — and `lint_layout`
+# filters `role: decoration` out before the arrival check, so the net has a
+# hole shaped exactly like the population that exists (all 20 corpus lines
+# are decoration; 0 are bound, which is an EMPTY-population zero, not an
+# unreachable one — the op path minted them until that commit).
+#
+# WHAT TO EXPECT OF THIS LINE: it leaves as a LINE and not as a number. Its
+# class carries one red over two green control poles, and all four
+# candidate repairs flip that one red — verified by running the method
+# against four patched canvas modules — so whichever the owner picks, the
+# entry goes at once rather than counting down.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestOneComposedPartPredicateHasThreeSites": 2,
     "TestARerouteCountsThePopulationItQuotes": 1,
     "TestTidyCoversTheConnectorItMoved": 1,
     "TestHousekeepingDoesNotCallALineAnArrow": 1,
+    "TestTheLoadPathNamesABoundLineWhateverItsRole": 1,
 }
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
@@ -29880,6 +29900,526 @@ class TestABandTouchingTheApexIsNotAMiss(unittest.TestCase):
             "width, which is what the check reports when it believes the "
             "band misses the body altogether. Quoted: %r"
             % (width, quoted))
+
+
+# ---------------------------------------------------------------------------
+# ONLY ARROWS CONNECT SHAPES (2026-08-20) — the user's ruling, its four
+# pins, and the hole in the net the ruling leans on.
+#
+# THE RULING: an arrow connects shapes; a line is decoration and widget
+# furniture (tick strokes, slider tracks, X-box crosses, lifelines, the
+# low-opacity backdrop behind a bundle of parallel arrows) and never a
+# connector. A bound `line` is now a hard ERROR on the AGENT OP PATH, and
+# deliberately NOT in `Store.commit`.
+#
+# THE ASYMMETRY IS THE WHOLE DESIGN, and it is what these pins protect.
+# Two independent readings of vendored Excalidraw 0.18.1 agree the editor
+# cannot mint one — `isBindingElement` reduces to `type === "arrow"` and
+# `bindLinearElement` opens `if (!isBindingElement(e)) return;` — so the
+# agent was the only producer, and a bound line on disk is therefore a
+# FOSSIL of an older op path rather than something a user drew. Refusing
+# it at the save door would not stop anyone minting one; it would only
+# lock the owner of a legacy artifact out of their own file. Hence: error
+# where the author is an agent that can type `arrow` instead, silence
+# where the author is a user with a scene already in hand, and
+# `lint_layout` carrying the load path.
+#
+# FOUR PINS, and each is proven RED in the world it forbids, because the
+# fix is already on this base and a naive assertion here is born green and
+# worth nothing (doctrine §"SURVIVING GUARDS", above). Recorded so a
+# reader can re-run the demonstration rather than trust it:
+#
+#   (a) both op arms refuse   — RED at the fix's PARENT `4c0af7f`, whose
+#       `canvas.py` accepts `add type: line from/to` with real bindings
+#       (`refused=False bound=True`) and accepts the `mod` rewire as a
+#       SILENT NO-OP (`refused=False`, both bindings left `null`, the
+#       `routed` stamp written anyway) — success reported for nothing done.
+#   (b) a legacy scene still SAVES — green at the parent too, because the
+#       save door never changed. Its counterfactual is not the past but a
+#       FUTURE refactor: migrate the guard into `Store.commit` and the save
+#       raises `BatchError`. That world is CONSTRUCTED HERE rather than
+#       described, by `canvas_with_the_guard_in_the_save_path`, so the pin
+#       is executed evidence that it still discriminates and not a green
+#       tick that outlived its mechanism.
+#   (c) `lint_layout` still names it — also green at the parent; the lint
+#       was untouched. Its counterfactual is the refactor that reads the
+#       new ruling and concludes lines need no longer be linted: narrowing
+#       the lint's `arrows` comprehension from `("arrow", "line")` to
+#       `"arrow"` leaves every other pin here green and takes the load
+#       path silent. Measured: `named-with-240px` True -> False.
+#   (d) the message says "arrows" — RED at the parent, which said
+#       `from`/`to` "only apply to arrows and lines": prose restating an
+#       encoding the ruling reverses.
+#
+# THE HOLE, and it is in the net (b) and (c) lean on. `lint_layout` filters
+# `role: "decoration"` out of `arrows` before the arrival check ever runs,
+# so a bound line WEARING THAT ROLE is named by nothing on load. One field
+# of `customData` and the load-path answer goes silent — on a scene where
+# the connector's drawn end sits 240px off the node it claims.
+#
+# WRONG TWICE OVER, which is why the red is worded the way it is. Under the
+# ruling such an element is a line that binds AND a decoration that binds,
+# and there is more than one honest repair: drop the exemption for BOUND
+# elements, refuse to call a bound connector decoration, add a dedicated
+# geometry-blind type finding, or strip the role at load. All four were
+# built as throwaway patched modules and ALL FOUR flip this red; the third
+# carries no pixel magnitude at all. So the red asserts the INVARIANT — a
+# bound line is named on load whatever its role — and the magnitude and
+# direction (240px, the end AWAY from the node, outside it) are pinned on
+# the undecorated control, which differs by exactly that one field.
+# Choosing among the four is not this harness's call.
+#
+# THE DENOMINATOR, re-derived 2026-08-20 over all 24 fixture artifacts and
+# 976 elements: 20 `type: line`, of which 0 are bound and 20 carry
+# `role: decoration`; 75 decorations in all, 0 bound; 163 connectors the
+# router owns, 153 `server_routed_connectors`, and 0 of any of them a
+# line. So the population that can reach the decoration-exemption path is
+# ZERO — and it is an EMPTY-POPULATION zero, not an unreachable one: the
+# op path minted exactly this element until the commit above, which is
+# demonstrated rather than asserted by (a)'s parent-world reading. The
+# corpus cannot state the defect, so the scene is built in flight.
+#
+# WHO FLIPS THIS: the work package that owns the load-path lint's
+# treatment of a bound decoration. Drop the `expectedFailure` in the same
+# change as the repair.
+# ---------------------------------------------------------------------------
+_BOUND_LINE_NODES: tuple[dict[str, Any], ...] = (
+    {"op": "add", "id": "n1", "type": "rectangle", "x": 0, "y": 0,
+     "width": 120, "height": 60, "role": "node", "label": "A"},
+    {"op": "add", "id": "n2", "type": "rectangle", "x": 400, "y": 0,
+     "width": 120, "height": 60, "role": "node", "label": "B"})
+
+# The guard's predicate, transplanted verbatim onto the FIRST statement of
+# `Store.commit` — the counterfactual (b) exists to forbid. Anchored on
+# `_refuse_unstorable`'s call rather than on `def commit`, because that
+# call is already the save door's field gate and is where a refactor
+# consolidating "everything the store refuses" would naturally put it.
+_COMMIT_DOOR = "        self._refuse_unstorable(new_scenes)"
+_GUARD_IN_THE_SAVE_PATH = _COMMIT_DOOR + '''
+        _bound_lines = [e["id"] for _els in (new_scenes or {}).values()
+                        for e in _els if isinstance(e, dict)
+                        and e.get("type") == "line"
+                        and ((e.get("startBinding") or {}).get("elementId")
+                             or (e.get("endBinding") or {}).get("elementId"))]
+        if _bound_lines:
+            raise BatchError(["line %s cannot bind — only arrows connect "
+                              "shapes" % i for i in _bound_lines])'''
+
+
+def _bound_line_store(case: unittest.TestCase, role: str = "node",
+                      drift: int = 240) -> canvas.Store:
+    """A legacy bound line whose far node has been dragged off it.
+
+    THE REAL DOORS, in the order the fossil reached disk. The agent seeds
+    two nodes and an ARROW through `apply_batch`, so the bindings are the
+    ones the shipped op path really writes; the connector is then retyped
+    `line` and posted in a USER save, which is the only way a bound line
+    can still enter a scene now that the op path refuses to mint one.
+    Building the element by hand would prove something about a dict.
+
+    THE DRAG IS IN THE SAME SAVE, and it is what gives the load path
+    something to say: a bound line that still sits on its node is
+    geometrically innocent and `lint_layout` is rightly quiet about it,
+    so a scene without the drift cannot tell the exemption from the
+    absence of a finding.
+
+    Args:
+        case: The test owning the tree; its `addCleanup` removes it.
+        role: The connector's `customData.role`. `"node"` is what the op
+            path writes and is the control; `"decoration"` is the ONE
+            ablation under test.
+        drift: How far `n2` is dragged right, leaving the connector's
+            drawn end behind. Read back by `_drawn_gap` rather than
+            trusted, so a routing change re-derives instead of going
+            quietly wrong.
+
+    Returns:
+        The loaded store, artifact `"d"` at the user's posted revision.
+
+    Raises:
+        EngineError: If the seeding batch refused, or the posted scene
+            did not come back holding a `line` bound at both ends. A pin
+            measured against a fixture that failed to build is a
+            statement about the fixture.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-boundline-"))
+    case.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+    project = canvas.Project(tmp)
+    project.ensure_tree()
+    store = canvas.Store(project)
+    store.apply_batch({
+        "base_revn": 0, "artifact": "d",
+        "create": {"id": "d", "name": "D", "type": "flow"},
+        "ops": [*(dict(n) for n in _BOUND_LINE_NODES),
+                {"op": "add", "id": "c1", "type": "arrow", "from": "n1",
+                 "to": "n2"}]})
+    posted = [dict(e) for e in store.scenes["d"]]
+    for element in posted:
+        if element["id"] == "c1":
+            element["type"] = "line"
+            element.pop("startArrowhead", None)
+            element.pop("endArrowhead", None)
+            element["customData"] = {**(element.get("customData") or {}),
+                                     "role": role}
+        elif element["id"] == "n2":
+            element["x"] = element.get("x", 0) + drift
+    store.commit(author="user", new_scenes={"d": posted})
+    saved = next((e for e in store.scenes["d"] if e["id"] == "c1"), None)
+    if saved is None or saved.get("type") != "line" or not (
+            (saved.get("startBinding") or {}).get("elementId")
+            and (saved.get("endBinding") or {}).get("elementId")):
+        raise EngineError(
+            "the fossil did not survive the save: c1 came back as %r. Every "
+            "pin below is about a bound line and there is not one here"
+            % (saved and {k: saved.get(k) for k in
+                          ("type", "startBinding", "endBinding")}))
+    return store
+
+
+def _drawn_gap(store: canvas.Store) -> float:
+    """How far `c1`'s drawn end stops short of the node it claims.
+
+    DERIVED FROM THE STORED SCENE, not transcribed from `drift`: the
+    connector is a horizontal 2-point path, so its drawn end is
+    `x + points[-1][0]` and `n2`'s near edge is its `x`. Positive means
+    the end stops SHORT of the node — outside it, on empty canvas, which
+    is the direction the reader's eye follows down the connector and the
+    one the lint's own sentence reports.
+
+    Args:
+        store: The store holding artifact `"d"`.
+
+    Returns:
+        `n2.x - (c1.x + c1.points[-1][0])`, in px.
+    """
+    index = {e["id"]: e for e in store.scenes["d"]}
+    connector, node = index["c1"], index["n2"]
+    return node["x"] - (connector.get("x", 0) + connector["points"][-1][0])
+
+
+def canvas_with_the_guard_in_the_save_path(into: Path) -> Any:
+    """Import a canvas whose bound-line guard ALSO stands in `Store.commit`.
+
+    ONE MUTATION, and it is the refactor pin (b) exists to forbid rather
+    than a hypothetical: the op path's rule is consolidated onto the save
+    door's field gate, which is where "everything the store refuses"
+    would naturally be collected by someone who had not read why this one
+    was left out.
+
+    Args:
+        into: A directory the mutated source may be written into.
+
+    Returns:
+        The imported module, whose `Store.commit` raises `BatchError` on
+        any scene carrying a bound `line`.
+
+    Raises:
+        EngineError: If the anchor is not present exactly once. An
+            operator that silently no-ops is the same silence in a new
+            costume, and a pin proven against an unmutated module has
+            been proven against nothing.
+    """
+    source = _CANVAS_SRC.read_text(encoding="utf-8")
+    if source.count(_COMMIT_DOOR) != 1:
+        raise EngineError(
+            "`Store.commit`'s field-gate anchor appears %d times, not 1 — "
+            "the save-path operator cannot say where the guard would go. "
+            "Re-derive it before reading pin (b)'s colour"
+            % source.count(_COMMIT_DOOR))
+    destination = into / "canvas_guard_in_the_save_path.py"
+    destination.write_text(
+        source.replace(_COMMIT_DOOR, _GUARD_IN_THE_SAVE_PATH),
+        encoding="utf-8")
+    spec = importlib.util.spec_from_file_location(destination.stem,
+                                                  destination)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestOnlyArrowsConnectShapes(unittest.TestCase):
+    """The ruling's four pins, green by intent, each red in its own world.
+
+    GREEN AND NOT RED because the fix landed on this base; the section
+    header above records which world made each one red and what it read
+    there. Pin (b) does not take that on trust — it builds its
+    counterfactual and executes it.
+    """
+
+    def _refused(self, ops: list[dict[str, Any]]) -> tuple[str, bool]:
+        """Post `ops` to a seeded store and report how the door answered.
+
+        Through `apply_batch` rather than `apply_ops`, because the door an
+        agent actually knocks on refuses the batch WHOLE and restores the
+        pre-image; an error appended to a list is only half of that.
+
+        Args:
+            ops: The ops to post after the two nodes are laid down.
+
+        Returns:
+            `(message, scene_unchanged)` — the `BatchError`'s text, or
+            `""` if the batch was accepted.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-boundline-op-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        project = canvas.Project(tmp)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "d",
+            "create": {"id": "d", "name": "D", "type": "flow"},
+            "ops": [dict(n) for n in _BOUND_LINE_NODES]})
+        before = canvas.scene_hash(store.scenes["d"])
+        message = ""
+        try:
+            store.apply_batch({"base_revn": 1, "artifact": "d", "ops": ops})
+        except canvas.BatchError as refusal:
+            message = str(refusal)
+        return message, canvas.scene_hash(store.scenes["d"]) == before
+
+    def test_the_add_arm_refuses_a_line_that_binds(self) -> None:
+        """(a), first door: `add` a `line` carrying `from`/`to`.
+
+        At the fix's parent this batch was ACCEPTED and wrote two real
+        bindings, which is the only way a bound line ever reached disk.
+        The refusal has to name the element, because a batch is rejected
+        whole and the agent's next move is to fix exactly this one op.
+        """
+        message, unchanged = self._refused(
+            [{"op": "add", "id": "L1", "type": "line", "x": 130, "y": 30,
+              "width": 260, "height": 0, "from": "n1", "to": "n2"}])
+        self.assertIn("L1", message,
+                      "the add arm accepted a bound line, or refused it "
+                      "without naming it: %r" % message)
+        self.assertIn("only arrows connect shapes", message, message)
+        self.assertTrue(unchanged,
+                        "the batch was refused but the scene moved — a "
+                        "rejected batch must restore its pre-image")
+
+    def test_the_mod_rewire_arm_refuses_a_line_that_binds(self) -> None:
+        """(a), second door: `mod` a decoration line with `from`/`to`.
+
+        THE ARM THAT FAILED QUIETEST. At the parent this rewire was
+        accepted with no error and did nothing at all — both bindings
+        left `null`, the path untouched, and a `routed` stamp written
+        over it. The agent was told its rewire landed; nothing was bound.
+        Both roles are exercised because the refusal must not depend on
+        the very field the red below shows is load-bearing elsewhere.
+        """
+        for role in ("node", "decoration"):
+            with self.subTest(role=role):
+                message, unchanged = self._refused([
+                    {"op": "add", "id": "L1", "type": "line", "x": 130,
+                     "y": 30, "width": 260, "height": 0, "role": role,
+                     "points": [[0, 0], [260, 0]]},
+                    {"op": "mod", "id": "L1",
+                     "attrs": {"from": "n1", "to": "n2"}}])
+                self.assertIn(
+                    "L1", message,
+                    "the rewire arm accepted `from`/`to` on a line, or "
+                    "refused it without naming it: %r" % message)
+                self.assertIn("only arrows connect shapes", message, message)
+                self.assertTrue(unchanged, "the refused batch moved the scene")
+
+    def test_a_legacy_scene_holding_a_bound_line_still_saves(self) -> None:
+        """(b), THE LOAD-BEARING POLE: the fossil's owner is not locked out.
+
+        A bound line predates the ruling and sits on somebody's disk. It
+        must survive a real user save unaltered — saved AND intact, since
+        a save that silently strips the binding takes the drawing away
+        just as surely as one that refuses, only without saying so.
+
+        `_bound_line_store` performs the save; reaching its `return` at
+        all is half the assertion, and the round trip below is the rest.
+        """
+        store = _bound_line_store(self)
+        connector = next(e for e in store.scenes["d"] if e["id"] == "c1")
+        self.assertEqual(
+            (connector["type"],
+             (connector.get("startBinding") or {}).get("elementId"),
+             (connector.get("endBinding") or {}).get("elementId")),
+            ("line", "n1", "n2"),
+            "the save changed the fossil rather than storing it: %r"
+            % {k: connector.get(k) for k in
+               ("type", "startBinding", "endBinding")})
+        reloaded = canvas.Store(store.p)
+        survivor = next(e for e in reloaded.scenes["d"] if e["id"] == "c1")
+        self.assertEqual(survivor["type"], "line",
+                         "the bound line did not survive the round trip "
+                         "back off disk: %r" % survivor.get("type"))
+
+    def test_the_save_pin_above_still_discriminates(self) -> None:
+        """(b)'s live half: the pin fails the day the guard moves to `commit`.
+
+        A green test is not evidence it still discriminates — the repo's
+        own banked lesson, from a guard that went on passing after the
+        mechanism it existed to exercise was deleted. Pin (b) forbids one
+        specific future change, so that change is BUILT and run: with the
+        op path's predicate transplanted onto `Store.commit`, saving the
+        identical fossil must raise. If this ever goes quiet, pin (b) has
+        stopped protecting anything and both must be re-derived.
+        """
+        tmp = Path(tempfile.mkdtemp(prefix="mutants-savepath-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        migrated = canvas_with_the_guard_in_the_save_path(tmp)
+        project = migrated.Project(tmp / "proj")
+        project.ensure_tree()
+        store = migrated.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "d",
+            "create": {"id": "d", "name": "D", "type": "flow"},
+            "ops": [*(dict(n) for n in _BOUND_LINE_NODES),
+                    {"op": "add", "id": "c1", "type": "arrow",
+                     "from": "n1", "to": "n2"}]})
+        posted = [dict(e) for e in store.scenes["d"]]
+        for element in posted:
+            if element["id"] == "c1":
+                element["type"] = "line"
+        with self.assertRaises(migrated.BatchError) as refusal:
+            store.commit(author="user", new_scenes={"d": posted})
+        self.assertIn("c1", str(refusal.exception))
+
+    def test_the_load_path_still_names_a_bound_line(self) -> None:
+        """(c): `lint_layout` is the net the save door's silence relies on.
+
+        Asserted with the MAGNITUDE re-derived from the stored geometry,
+        not transcribed: the finding must quote the gap the drawing
+        actually shows, and a lint that names the element while quoting
+        the wrong number is the failure this harness was built for. The
+        counterfactual is in the section header — narrowing the lint's
+        comprehension to arrows takes this from True to False and leaves
+        every other pin in the class green.
+        """
+        store = _bound_line_store(self)
+        gap = _drawn_gap(store)
+        self.assertGreater(gap, 0, "the fixture's end is not short of the "
+                                   "node, so there is nothing to name")
+        named = [m for m in canvas.lint_layout(store.scenes["d"])["errors"]
+                 if "c1" in m]
+        self.assertTrue(named, "the load path says nothing about a bound "
+                               "line drawn %dpx off its node" % gap)
+        # ANY of the findings about c1, not the first: a repair is free to
+        # add a second sentence about this element, and a pin that read
+        # `named[0]` would fail one of the four candidate repairs for
+        # ordering rather than for substance.
+        self.assertTrue(
+            any("ends %dpx away" % gap in m for m in named),
+            "the lint names c1 but no finding quotes the %dpx of empty "
+            "canvas between its end and n2: %r" % (gap, named))
+
+    def test_the_refusal_names_arrows_and_not_lines(self) -> None:
+        """(d): the sentence the ruling reverses, executed.
+
+        The rewire guard once said `from`/`to` "only apply to arrows and
+        lines" — true of the encoding for one version and false the
+        moment the ruling landed. Both halves are asserted: prose that
+        merely stops saying "lines" while never saying "arrows" would
+        pass a one-sided check and teach nothing.
+        """
+        message, _ = self._refused([
+            {"op": "add", "id": "R1", "type": "rectangle", "x": 0,
+             "y": 300, "width": 80, "height": 40},
+            {"op": "mod", "id": "R1", "attrs": {"from": "n1", "to": "n2"}}])
+        self.assertIn("arrows", message,
+                      "the rewire guard no longer names the set it "
+                      "enforces: %r" % message)
+        self.assertNotIn(
+            "and lines", message,
+            "the guard still offers `from`/`to` to lines — only arrows "
+            "connect shapes, and this sentence is what an agent reads "
+            "instead of the ruling: %r" % message)
+
+
+class TestTheLoadPathNamesABoundLineWhateverItsRole(unittest.TestCase):
+    """`lint_layout` goes silent on a bound line wearing `role: decoration`.
+
+    THE HANDBACK, 2026-08-20, from the implementer of the ruling above,
+    who declined to close it — rightly, since the repair is a design
+    choice with four honest candidates. The exemption itself is not the
+    defect and is not what this asserts: furniture is not a connector and
+    has no business in the arrival check. What the exemption swallowed is
+    an element that is furniture AND a connector, which the ruling has
+    just declared cannot exist.
+
+    THE COST, and it lands on exactly the reasoning the ruling rests on.
+    The bound-line error was kept out of `Store.commit` so a legacy scene
+    stays savable, with `lint_layout` named as the load-path answer that
+    makes that silence safe. This is a legacy scene the load path cannot
+    see: one `customData` field, and the net has a hole shaped like the
+    only population that exists — all 20 lines in the corpus are
+    decoration.
+
+    MAGNITUDE AND DIRECTION live on the control, deliberately. The
+    undecorated pole quotes 240px with the end OUTSIDE the node, and the
+    two scenes differ by one field, so the red can state the invariant
+    ("named on load whatever its role") without prescribing which of the
+    four repairs produces the sentence. One of them carries no pixel
+    figure at all; asserting 240px here would have failed it, and this
+    harness does not get to pick.
+    """
+
+    def test_the_undecorated_pole_is_named_with_its_magnitude(self) -> None:
+        """The control, ungated: the check is alive and says the right thing.
+
+        The live half of the pair. Without it a repair that broke the
+        arrival check outright — or a fixture that stopped drifting —
+        would read as progress from inside the red's mask.
+        """
+        store = _bound_line_store(self, role="node")
+        gap = _drawn_gap(store)
+        named = [m for m in canvas.lint_layout(store.scenes["d"])["errors"]
+                 if "c1" in m]
+        self.assertTrue(named, "the control pole is silent too, so the red "
+                               "below is not about the decoration role")
+        # ANY finding, for the reason pin (c) gives: one of the four
+        # candidate repairs adds a sentence ahead of this one.
+        self.assertTrue(any("ends %dpx away" % gap in m for m in named),
+                        "no finding about c1 quotes the %dpx it is drawn "
+                        "off n2: %r" % (gap, named))
+
+    def test_the_ablation_leaves_the_drawing_alone(self) -> None:
+        """One field apart, and not one pixel apart.
+
+        The role is metadata; it moves no ink. Pinned so nobody can read
+        the red below as "the decorated scene is a different drawing" —
+        the two scenes are the same picture, and only the reading of it
+        changes.
+        """
+        geometry = []
+        for role in ("node", "decoration"):
+            store = _bound_line_store(self, role=role)
+            geometry.append([(e["id"], e.get("x"), e.get("y"),
+                              e.get("points")) for e in store.scenes["d"]])
+        self.assertEqual(geometry[0], geometry[1],
+                         "the ablation moved the drawing, so the two poles "
+                         "are not comparable")
+
+    @unittest.expectedFailure
+    def test_a_bound_line_is_named_on_load_whatever_its_role(self) -> None:
+        """RED: `role: decoration` mutes the load path on a bound line.
+
+        Measured 2026-08-20 on the scene both poles share: the connector
+        is a `line`, bound at both ends, drawn 240px clear of the node it
+        claims — and with the role set to `decoration` no error, warning
+        or note in `lint_layout`'s whole report mentions it.
+
+        ASSERTED OVER ALL THREE TIERS, not just errors. A repair may
+        reasonably decide this is a warning rather than an error, and a
+        red that demanded a tier would be prescribing severity as well as
+        mechanism.
+        """
+        store = _bound_line_store(self, role="decoration")
+        gap = _drawn_gap(store)
+        report = canvas.lint_layout(store.scenes["d"])
+        named = [(tier, m) for tier in ("errors", "warnings", "notes")
+                 for m in report[tier] if "c1" in m]
+        self.assertTrue(
+            named,
+            "c1 is a `line` bound n1 -> n2 and drawn %dpx off n2, and the "
+            "load path names it in no tier — the same element without "
+            "`role: decoration` is an error. The lint is the net the save "
+            "door's deliberate silence relies on, and the role that holes "
+            "it is the role every line in the corpus carries." % gap)
 
 
 class TestCoverage(unittest.TestCase):
