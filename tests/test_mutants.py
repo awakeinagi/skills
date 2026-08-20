@@ -11,10 +11,13 @@ never take down a run — they surface as `detector-error` findings.
 from __future__ import annotations
 
 import argparse
+import ast
+import builtins
 import contextlib
 import copy
 import datetime
 import hashlib
+import importlib.util
 import inspect
 import io
 import json
@@ -4996,25 +4999,34 @@ class TestStoreIntegrity(unittest.TestCase):
         was checked against the new number deliberately rather than
         assumed past it: a 400px label in a 120px box trips any rule
         either constant could express, so the flip below stayed earned.
+
+        TASK-TEXT-TRUTH moved the resize itself, 136 -> 90, and the same
+        care was taken. The scene still trips the loader's guard by a
+        mile, so ART-011 still fires and the pin below is still earned;
+        what changed is what the refit LEAVES, and it changed because
+        both halves of the arithmetic became the client's. The label
+        wraps at the client's cap (120 - 10 = 110) instead of this file's
+        old `width - 24` = 96, so the text takes 4 lines rather than 6 —
+        80px instead of 120 — and the box grows by the client's own rule
+        (+10 on a rectangle) rather than the +16 written here. 80 + 10.
         """
         st = self._load({"a": _OVERSIZED_LABEL_ARTIFACT},
                         {"0001-x": _GOOD_SAVE})
         self.assertIn("ART-011", {i.get("code") for i in st.issues})
         n1 = next(e for e in st.scenes["a"] if e["id"] == "n1")
-        # the grown box is the refitted label's band plus the fitter's
-        # 16px, DERIVED because the band follows the spacing the client
-        # paints at — and the spacing is the one the LOAD PATH STAMPED,
-        # which for this fixture is what the client infers from the 20px
-        # box its label arrives in rather than this file's font default.
-        # The wrap is width-driven and unchanged, so the LINE COUNT is
-        # what is written here.
-        self.assertEqual(
-            n1["height"],
-            canvas.text_dims(
-                "\n".join(["x"] * 6), 16,
-                canvas.detected_line_height(
-                    {"height": 20, "fontSize": 16,
-                     "text": _OVERSIZED_LABEL_TEXT}) or 1.25)[1] + 16)
+        # the grown box is the refitted label's band plus the CLIENT's own
+        # grow, and the band follows the spacing the client paints at —
+        # which is the one the LOAD PATH STAMPED, for this fixture what
+        # the client infers from the 20px box its label arrives in rather
+        # than this file's font default. Both terms are asserted, the
+        # second as a RELATION rather than a transcription, so that a
+        # change to `client_grown_extent` moves this pin with it.
+        t1 = next(e for e in st.scenes["a"] if e["id"] == "t1")
+        self.assertEqual(t1["height"], 80)          # 4 lines at the 1.25
+        self.assertEqual(n1["height"],              # the stamp detected
+                         canvas.client_grown_extent(t1["height"],
+                                                    "rectangle"))
+        self.assertEqual(n1["height"], 90)          # 80 + 10
 
     # -- Two CLASS pins from the v0.9 Task-18 cycle (2026-08-14), written
     # from third hands. The instances are fixed and covered by the tests
@@ -5063,11 +5075,10 @@ class TestStoreIntegrity(unittest.TestCase):
         no-op path is caught the day it is added.
 
         The scene is a DECLINED refit, per the Task-18 disclosure that
-        the claim must be entirely fictional: an 86px label on a 90x60
-        diamond is wide enough that the loader calls the fitter, and the
-        fitter then finds no wrap that sits better than the label as
-        written and returns having changed nothing. A repair filed there
-        could point at no changed byte.
+        the claim must be entirely fictional: a label wide enough that
+        the loader calls the fitter, where the loader then puts
+        everything back and files nothing. A repair filed there could
+        point at no changed byte.
 
         Getting that scene took measuring rather than reasoning. My
         first attempt used a label that comfortably fits, which never
@@ -5075,26 +5086,45 @@ class TestStoreIntegrity(unittest.TestCase):
         max(60, cont.width - 16)` — so no mutation of the repair guard
         could have made it fire, and the test would have been green
         forever while proving nothing. The pin below is therefore
-        asserted with its own premise: the fitter was reached, and it
-        declined.
+        asserted with its own premise: the fitter was reached, and the
+        loader declined.
+
+        THE SCENE MOVED IN TASK-TEXT-TRUTH AND THE RULE DID NOT, which
+        is the distinction worth reading before assuming this was
+        weakened. What "declined" MEANS changed: it used to be "the
+        fitter compared wraps and found none better than the label as
+        written", and the client-aware fitter has nothing to compare —
+        the client wraps to one width and that is the answer, so it
+        always re-measures. The decline now lives in the loader, whose
+        rule is that it may only act when the BOX has to change.
+
+        So the old scene stopped declining, for a reason that is
+        correct rather than convenient: on a 90px-wide diamond the
+        client caps bound text at `round(90/2) - 10` = 35px, and
+        'to compose' cannot reach that on one line at any wrap, so the
+        box genuinely does have to grow and the refit is real. The
+        replacement is the tearsheet's own shape — a 153px label in a
+        160x64 rectangle, cap 150, which wraps to one 120px line inside
+        a box already deep enough — so the fitter is still reached and
+        the loader still has nothing to persist.
         """
         body = json.dumps({"type": "excalidraw", "version": 2, "elements": [
-            {"id": "n1", "type": "diamond", "x": 0, "y": 0, "width": 90,
-             "height": 60, "customData": {"role": "node"},
+            {"id": "n1", "type": "rectangle", "x": 0, "y": 0, "width": 160,
+             "height": 64, "customData": {"role": "node"},
              "boundElements": [{"id": "t1", "type": "text"}]},
-            {"id": "t1", "type": "text", "x": 2, "y": 20, "width": 86,
-             "height": 20, "text": "to compose",
-             "originalText": "to compose", "fontSize": 16,
+            {"id": "t1", "type": "text", "x": 2, "y": 20, "width": 153,
+             "height": 20, "text": "Pull market data",
+             "originalText": "Pull market data", "fontSize": 16,
              "containerId": "n1", "textAlign": "center"}]})
         st = self._load({"a": body}, {"0001-x": _GOOD_SAVE})
         node = next(e for e in st.scenes["a"] if e["id"] == "n1")
         label = next(e for e in st.scenes["a"] if e["id"] == "t1")
         self.assertGreater(
-            86, max(60, node["width"] - 16),
+            153, max(60, node["width"] - 16),
             "the loader's own guard did not admit this label, so the "
             "fitter was never reached and this scene proves nothing")
-        self.assertEqual((node["width"], node["height"]), (90, 60))
-        self.assertEqual((label["width"], label["height"]), (86, 20))
+        self.assertEqual((node["width"], node["height"]), (160, 64))
+        self.assertEqual((label["width"], label["height"]), (153, 20))
         self.assertEqual(
             [(i["code"], i.get("repaired")) for i in st.issues], [],
             "the fitter declined and changed nothing, and a repair was "
@@ -16128,6 +16158,118 @@ def _line_height_box(height: int, line_height: float) -> list[dict]:
     return scene
 
 
+def _over_wide_token(height: int) -> list[dict]:
+    """A box narrower than the ONE word its bound label carries.
+
+    `_boxed_label` next door is the arm where server and client agree
+    on how a phrase breaks and disagree only about the room. This is
+    the arm where they disagree about the LINE COUNT itself, because
+    only one of them can break a word. `wrap_label_text` (canvas.py) is
+    `split()` plus a greedy join, so a token that fits nowhere is
+    emitted whole on a line of its own and counted as one; the shipped
+    client chops it — `$$` hands a token that overflows an empty line
+    to `z$`, which walks it character by character and closes a chunk
+    the moment the next glyph would overrun the cap. Confirmed in
+    chromium through the client tier, not transcribed: `'Acknowledged'`
+    in this box paints as `'Acknowledge'` over `'d'`, two lines.
+
+    100px wide is the whole construction: `client_wrap_width` gives 90
+    against the 110px the word paints, so the single token overflows
+    and there is no second word to absorb the difference. Nothing else
+    about the scene is unusual — this is a node a user could shrink by
+    hand, which is why the base is FORGED rather than relabelled
+    through the write path. A `relabel` would re-mint the container
+    through `fit_label_in`, and a chop-aware `fit_label_in` would then
+    grow the box to hold the two lines and take the defect away with
+    it; this mutant is about what the CHECK makes of a box it did not
+    mint.
+
+    Args:
+        height: The container's height. `client_text_headroom` is this
+            minus 10, so 40 gives 30px of room — enough for the one
+            line the server counts, 10px short of the two the browser
+            paints — and 200 gives 190, which holds either reading.
+
+    Returns:
+        The two-element scene: node `n1`, then its bound label `t1`.
+    """
+    text = "Acknowledged"
+    return [el(id="n1", type="rectangle", x=0, y=0, width=100,
+               height=height, customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=5, y=5, width=110, height=20,
+               text=text, fontSize=16, textAlign="center",
+               verticalAlign="middle", containerId="n1",
+               originalText=text)]
+
+
+def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
+                        font_size: int = 16) -> list[dict]:
+    """A rhombus whose cap lands on a HALF PIXEL, carrying `text`.
+
+    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `_s`
+    (index-DpKP4sIE.js @555833, read verbatim) is `Math.round(n/2) -
+    Yn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
+    as `round(w / 2) - pad`. `Math.round` is half-UP — confirmed in a JS
+    engine, not assumed, and `floor(x + 0.5)` reproduces it on every
+    `w / 2` from 2 to 4000 — while Python's `round` is half-to-EVEN. So
+    they part exactly where `w / 2` is a tie AND its floor is even,
+    which is **w = 4k+1 and nothing else**: 495 of the 1981 integer
+    widths in 20..2000, half the odd ones. At 181 the client allows
+    **81px** and this file allows **80**.
+
+    A LATENT DIVERGENCE, NOT A LIVE SYMPTOM, and a reader should not go
+    looking for the corpus instance: the frozen corpus holds exactly one
+    distinct diamond, 200x80, and neither number is 4k+1. Every affected
+    width has to be chosen on purpose, which is why 181 is written here
+    rather than lifted from a fixture.
+
+    The ellipse arm carries the identical `round` and is UNREACHABLE:
+    `w / 2 * sqrt(2)` is irrational, lands on a tie for no integer width
+    in that range, and disagrees **0** times. There is no ellipse scene
+    to build, and a pin asserting one would be asserting nothing.
+
+    The label paints exactly the boundary pixel because nothing coarser
+    can see this: anything wider fails under both readings, anything
+    narrower passes under both. The tolerance bands the rest of the
+    catalogue leans on cannot resolve one pixel, so the SCENE has to
+    place it.
+
+    Poles built from this share a container and move only the TEXT.
+    Moving the width instead would move the rounding with it, and the
+    neighbour would then prove the check fires at some other cap rather
+    than at the half-pixel cap under test.
+
+    Args:
+        text: The bound label's content.
+        width: The rhombus's width. 181 is `4k+1`, so the wrap cap is
+            split; the height-arm poles pass an even width instead, to
+            keep that arm quiet while the other one is measured.
+        height: The rhombus's height. 200 halves cleanly, so the
+            headroom carries none of the defect; 69 is `4k+1` and
+            splits it the same way the width does.
+        font_size: The label's size. 16 leaves the HEIGHT arm mute
+            whatever the text does — `text_dims` returns
+            `int(lines * fs * 1.25)`, which at 16 is `20 * lines` and
+            always even, while a visible one-pixel headroom gap needs an
+            odd height. That is why the height arm has never been seen,
+            and why its pole is set at 20.
+
+    Returns:
+        The two-element scene: node `n1`, then its bound label `t1`.
+    """
+    ink = canvas.text_ink_width(text, font_size)
+    box_h = canvas.text_dims(text, font_size)[1]
+    return [el(id="n1", type="diamond", x=0, y=0, width=width,
+               height=height, customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=(width - ink) // 2,
+               y=(height - box_h) // 2, width=ink, height=box_h, text=text,
+               fontSize=font_size, fontFamily=canvas.FONT_LEGIBLE,
+               textAlign="center", verticalAlign="middle",
+               containerId="n1", originalText=text)]
+
+
 def _foreign_corner_stage() -> list[dict]:
     """The diamond stage plus an arrow threading its empty bbox corner.
 
@@ -18485,6 +18627,205 @@ _register(Mutant(
                        magnitude=(172, 0.10), direction="tall"),
     neighbour=Neighbour(lambda: _boxed_label(height=120),
                         Silence("text_overflow"))))
+
+# The THIRD arm of the same check, and the first of the three that is RED.
+# The drawing says the label is one line 20px tall; the browser paints two
+# lines 40px tall in 30px of room, because it breaks a word this file cannot
+# break. `text_overflow` is NOT silent about it — `over_w` is `longest >
+# room_w`, which is exactly the condition under which the client chops, so
+# the check speaks on every instance of this class. It says the wrong thing:
+# `too wide` where the picture is too wide AND too tall, off a height
+# measured on `wrap_label_text`'s un-chopped block. The fix that flips this
+# is a height term measured on the lines the CLIENT will paint; the width
+# term is already right and is pinned below so a fix cannot quietly trade
+# one for the other.
+#
+# Origin: routed by v0.9 WP4-AND-GUARDS on 2026-08-19 while closing four
+# label-fitting pins, one level below the wrap width TASK-TEXT-TRUTH had
+# just fixed — that stream settled WHERE the client breaks a line, this is
+# HOW it breaks a token that fits nowhere.
+#
+# THE DENOMINATOR, because an absence needs one: over the frozen corpus, 291
+# bound labels reach a shape or frame container and 0 of them carry a token
+# wider than their container's cap. This is a structural zero today, not a
+# live miscount — but the tightest margin in that population is 16px (a
+# 200px diamond, cap 90, whose widest token paints 74), and a plain
+# ten-character word is chopped on any diamond up to 182px wide. The corpus
+# is one longer word away from the class, which is why it is worth a mutant
+# and not a comment.
+_register(Mutant(
+    "chopped_token_reads_as_one_line",
+    build=lambda: _over_wide_token(height=40),
+    op="unchanged", args={},
+    # MAGNITUDE: 110px, the ink of the token that will not fit — which is
+    # also the number a reader can act on ("widen the box to 110"), and NOT
+    # the width of the widest chunk the client actually paints, which is
+    # under the 90px cap by construction. A fix reporting the chopped width
+    # would be telling the reader to widen a 90px box to something under
+    # 90. The ±10% band excludes 90 (room_w), 30 (room_h), the
+    # 20px height reported today and the 40px a fixed check would report.
+    # DIRECTION is where the red lives: `both`, against today's `wide`.
+    expect=FindingSpec("text_overflow", element="n1",
+                       magnitude=(110, 0.10), direction="both"),
+    # A FIRING neighbour, not the `Silence` this shape usually takes, and
+    # the reason is the defect's own poles: they are "the chopped block
+    # outruns the headroom" and "it does not", and only a scene that still
+    # carries the over-wide token can hold the second. Silencing it would
+    # mean deleting the construction under test, and would leave the `wide`
+    # arm — the arm that is RIGHT today — unpinned, so a fix could switch it
+    # off unnoticed. Height is the only thing that moves between the poles:
+    # same word, same box width, same 90px cap, 40 -> 200.
+    # Honest caveat, since it cannot be asserted: this neighbour's message
+    # also prints a needed height of 20 where the browser paints 40.
+    # `_TEXT_OVERFLOW_RE` captures the width alone, so no spec here can see
+    # that number, and it does not become right by going unwatched — the
+    # same fix corrects it on both poles.
+    neighbour=Neighbour(lambda: _over_wide_token(height=200),
+                        FindingSpec("text_overflow", element="n1",
+                                    magnitude=(110, 0.10),
+                                    direction="wide"))))
+
+# The FOURTH arm, and a transcription defect rather than a modelling one:
+# `client_wrap_width` computes the client's own rule in a language that
+# rounds halves differently. `Math.round` is half-UP; Python's `round` is
+# half-to-EVEN. On a 181px rhombus the client allows 81px and this file
+# allows 80, so a label painting exactly 81 is called `too wide` about a
+# picture that fits. Silent everywhere else, which is what makes it worth a
+# scene rather than a comment: measured against a real JS engine over
+# 20..2000, the two part on **495 of 1981 widths, every one of them 4k+1**
+# and no others — not on every odd width, which is the looser claim this
+# entry was first written with and which the count refuted.
+#
+# THE FIX THAT FLIPS THIS is `math.floor(x + 0.5)`, and it belongs at all
+# FIVE transcribed `Math.round` sites and not at the two that can currently
+# bite — the two diamond arms, the two ellipse arms, and
+# `client_grown_extent`'s. (This entry first said "the two `round(w / 2)`
+# sites"; that was counted wrong, and the count is the whole argument: a rule
+# typed at five places where only three can be wrong is how the fourth gets
+# it back.)
+#
+# `math.ceil(w / 2)` also flips this pair and is WRONG: it agrees with
+# `Math.round` on every one of the 1981 integer widths and parts from it on
+# 1710 of 3800 fractional ones (`Math.round(90.2)` is 90, `ceil` is 91),
+# which Excalidraw produces every time a user drags a corner. This pair
+# cannot see that — a mutant's magnitude lives at the boundary and a boundary
+# cannot also be wide — so it was written down here as a debt rather than
+# left as false coverage. THE DEBT IS PAID, not inherited:
+# `TestShapeAwareLabelRoom.test_the_cap_rounds_a_half_the_way_the_client_
+# rounds_it` (test_backend.py) sweeps tenths across 20.0..400.0 for both the
+# wrap cap and the headroom, and fails on `round`, fails on `ceil`, and
+# passes only on `floor(x + 0.5)`. The fractional case is genuinely
+# reachable, traced rather than assumed: an agent op carrying `width: 180.4`
+# reaches `client_wrap_width` AS 180.4 during `apply_batch`, because the
+# fitter runs before `normalize_element` snaps the stored value.
+#
+# THE OTHER `round` SITES, counted rather than characterised, because a
+# set of wrong CAPS is not a set of reachable FINDINGS:
+#   * the ELLIPSE arms of both functions are numerically identical and
+#     disagree **0** times over 20..2000 — `w / 2 * sqrt(2)` is irrational
+#     and lands on no tie — so there is no scene to build and a pin
+#     asserting one would assert nothing. `client_grown_extent`'s ellipse
+#     arm is irrational for the same reason.
+#   * the HEIGHT arm (`client_text_headroom`) disagrees on exactly the same
+#     495 values, and IS reachable — but only where `text_dims` returns an
+#     odd height, and at fontSize 16 it returns `20 * lines`, always even.
+#     That is why nobody has seen it. `rhombus_half_pixel_headroom` below
+#     is that arm, and it is the reason this pair is two mutants and not one.
+#
+# Origin: found during the bound-text padding investigation (curator, routed
+# by v0.9 WP4-AND-GUARDS), 2026-08-19 — the one defect left standing after
+# the padding, the shape arms and the advance table were each measured and
+# cleared. `_s` was read verbatim from the shipped bundle rather than
+# recalled, which is how the rounding was noticed at all.
+_register(Mutant(
+    "rhombus_half_pixel_cap",
+    build=lambda: _half_pixel_rhombus("acceptance"),
+    op="unchanged", args={},
+    # SILENCE, because the client's own arithmetic gives this label the
+    # pixel it needs. No magnitude to assert on an over-fire; the number is
+    # asserted on the neighbour, which shares the container and so pins the
+    # very same rounded cap.
+    expect=Silence("text_overflow"),
+    # A FIRING neighbour: same rhombus, same half-pixel cap, a word far
+    # enough over it that both roundings agree. 121px against a cap of 80
+    # or 81 — the ±10% band is [108.9, 133.1], which excludes 80 and 81
+    # (room_w under either reading), 90 (room_h) and 40 (the needed
+    # height), so a check that reported the allowance instead of the need,
+    # or transposed the axes, fails this spec. It also pins the HALVING:
+    # drop it and the cap becomes 171, over 121, and this goes silent.
+    neighbour=Neighbour(lambda: _half_pixel_rhombus("decommissioned"),
+                        FindingSpec("text_overflow", element="n1",
+                                    magnitude=(121, 0.10),
+                                    direction="wide"))))
+
+# A THIRD KIND OF ZERO, and the sentence worth keeping when the pin is
+# gone. This wave has now catalogued three: a zero over an EMPTY
+# population, a zero over the WRONG population, and this one — a zero
+# produced by the DEFAULT PARAMETER, where the defect is live at every
+# other value of it. A survey run at the default finds nothing and is
+# not wrong, merely blind.
+#
+# ONE ARM AT A TIME is the method and not an accident of this scene: the
+# dimension under test takes a `4k+1` value so its rounding splits, and
+# the OTHER takes an even one so its arm stays quiet. Let both split and
+# the message reads `too wide and too tall`, at which point neither
+# number is attributable to either site.
+#
+# THE HEIGHT TWIN of the entry above, and the arm the coordinator asked to be
+# counted rather than assumed. `client_text_headroom` carries the same
+# `round(h / 2)` and disagrees on the same 495 values — but a wrong CAP is
+# only a finding where something can land in the one-pixel gap, and `over_h`
+# is `th > room_h` where `th` is `text_dims`' quantized `int(lines * fs *
+# 1.25)`. Firing here needs `th == room_h + 1` exactly, which needs `th` ODD,
+# and at fontSize **16 it is always even** (`20 * lines`) for every line count
+# there is. So the arm is numerically wrong on 495 heights and MUTE on all of
+# them at the default size — which is the whole reason it has gone unseen,
+# and why "the height arm nobody has looked at" was worth a count instead of
+# a shrug.
+#
+# It is reachable: exhaustively, 19 (fontSize, line count) combinations
+# produce an odd `th`, and 10 of them use a size the frozen corpus actually
+# carries — the corpus runs 12, 14, 16, 20 and 24, of which 12, 14 and 20
+# reach it and 16 and 24 cannot. This scene takes the smallest honest one:
+# fontSize 20, one line, `th = 25`, in a rhombus 69px tall (`4k+1`), where
+# the client allows **25px** of headroom and this file allows **24**.
+#
+# The width is 400 — EVEN, so the wrap cap halves cleanly and that arm carries
+# none of the defect. One arm at a time, or the message says `too wide and
+# too tall` and neither number is attributable.
+_register(Mutant(
+    "rhombus_half_pixel_headroom",
+    build=lambda: _half_pixel_rhombus("Escalate to desk", width=400,
+                                      height=73, font_size=20),
+    op="unchanged", args={},
+    # SILENCE: 27px of text in the 27px the client actually grants it.
+    #
+    # RE-DERIVED FROM height=69 IN THE WP4 FOLD (2026-08-20), because the
+    # spacing underneath it moved and the geometry had to follow or this
+    # would have stopped pinning what it is named for. It was 25px of text
+    # in 25px of headroom while a line was `fontSize * 1.25`;
+    # TASK-ENTITY-LINEHEIGHT measures Nunito at its own 1.35, so one 20px
+    # line paints 27 and the old 69px rhombus (headroom 25) overflowed —
+    # the mutant would have gone red for the SPACING rather than for the
+    # rounding it exists to watch. 73 keeps every property that makes this
+    # a mutant: 36.5 is still a half pixel, Python's banker's `round`
+    # still says 36 where the client's `Math.round` says 37, so headroom
+    # is still 26 under the bug and 27 under the fix, and the text still
+    # needs exactly the fixed number. Only the calibration moved.
+    expect=Silence("text_overflow"),
+    # A FIRING neighbour in the SAME container: a phrase that wraps to two
+    # lines, 54px against 26 or 27, over the headroom under either reading.
+    # The magnitude is the wrapped block's width, 149px — band [134.1,
+    # 163.9], which excludes 190 (room_w), 54 (the needed height), and both
+    # 26 and 27 (room_h under either reading). Every word is under 190, so
+    # `over_w` stays quiet and the DIRECTION is `tall` — the opposite axis
+    # to the entry above, which is what makes this a second mutant rather
+    # than a second width.
+    neighbour=Neighbour(
+        lambda: _half_pixel_rhombus("route to the risk desk for sign-off",
+                                    width=400, height=73, font_size=20),
+        FindingSpec("text_overflow", element="n1", magnitude=(149, 0.10),
+                    direction="tall"))))
 
 _register(Mutant(
     "stale_label_width_hides_collision",
@@ -22019,6 +22360,50 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same label in a 120px box has room, and the check is quiet."""
         self._run_neighbour("wrapped_label_overflows_its_box")
 
+    def test_mutant_chopped_token_reads_as_one_line(self) -> None:
+        """A word the browser breaks in two, no longer called one line."""
+        # FLIPPED GREEN 2026-08-19 by v0.9 WP4-AND-GUARDS, one train-stop
+        # after it was filed. `text_overflow` now measures its HEIGHT on
+        # `client_wrapped_lines` — the block the client paints, chopped
+        # word and all — while its WIDTH stays on `wrap_label_text`'s
+        # un-chopped block, which is the number a reader can act on. The
+        # neighbour is what holds the two apart.
+        self._run("chopped_token_reads_as_one_line")
+
+    def test_neighbour_chopped_token_reads_as_one_line(self) -> None:
+        """The same unbreakable word in a 200px box is wide and no more."""
+        self._run_neighbour("chopped_token_reads_as_one_line")
+
+    def test_mutant_rhombus_half_pixel_cap(self) -> None:
+        """A label the client gives 81px is no longer called too wide."""
+        # FLIPPED GREEN 2026-08-19 by v0.9 WP4-AND-GUARDS. `canvas.js_round`
+        # is now the rounding at all FIVE sites that transcribe a
+        # `Math.round` out of the bundle — including the two ellipse arms
+        # that cannot currently reach a half, because a rule typed five
+        # times where only three can be wrong is how the fourth gets it
+        # back.
+        # THE `ceil` NEAR-MISS THIS PAIR CANNOT SEE is watched by
+        # `TestShapeAwareLabelRoom.test_the_cap_rounds_a_half_the_way_the_
+        # client_rounds_it` in test_backend.py, which sweeps FRACTIONAL
+        # widths — the debt this entry recorded, paid rather than passed on.
+        self._run("rhombus_half_pixel_cap")
+
+    def test_neighbour_rhombus_half_pixel_cap(self) -> None:
+        """A 121px word in the SAME rhombus is over the cap either way."""
+        self._run_neighbour("rhombus_half_pixel_cap")
+
+    def test_mutant_rhombus_half_pixel_headroom(self) -> None:
+        """A label the client gives 25px of room is no longer too tall."""
+        # FLIPPED GREEN 2026-08-19 by v0.9 WP4-AND-GUARDS, in the same
+        # change and by the same one-line helper as its width twin — which
+        # is the whole argument for `js_round` existing rather than the
+        # rounding being corrected at the site that happened to bite.
+        self._run("rhombus_half_pixel_headroom")
+
+    def test_neighbour_rhombus_half_pixel_headroom(self) -> None:
+        """Two lines in the SAME 69px rhombus overrun it either way."""
+        self._run_neighbour("rhombus_half_pixel_headroom")
+
     def test_mutant_straddle_reads_the_worse_of_two_grounds(self) -> None:
         """Half a white word on cream paper reads 1.06:1, not 14.22:1."""
         # Green: the arm fires and is right to. What had never been
@@ -22813,8 +23198,51 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # waiting on, and both classes stayed, kept every test, and grew their
 # assertions past what the reds could state. The dict lost two LINES and not
 # two numbers, for the tenth and eleventh time.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# FOUR LEFT AND TWO STAYED on 2026-08-20, in the WP4-AND-GUARDS fold, and
+# the arithmetic is the reason this line is written down. The folded branch
+# forked before TASK-ENTITY-LINEHEIGHT landed, so it still declared six
+# reds across three classes; four of them —
+# `TestTheEntityNameClearsItsOwnAttributeRows`' two and
+# `TestOneLineHeightHasTwoReaders`' two — had ALREADY been flipped by that
+# stream on the trunk it merged into. Neither side's dict was the answer:
+# the branch's three entries were stale and the trunk's empty dict predated
+# curator batch 39. The value below is DERIVED from
+# `red_bearing_classes()` over the merged file rather than taken from
+# either literal, which is the same rule the test below enforces. Both
+# flipped classes stayed in the file and kept every test; only the colour
+# moved, for the twelfth and thirteenth time.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestOneComposedPartPredicateHasThreeSites": 2,
+}
 
+# ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
+# `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
+# fold, so the dict lost a LINE and not a number — the tenth time that has
+# been the shape here. The entry below predicted the opposite ("this class
+# will lose a number before it loses its line") on the reasoning that its
+# two reds had different owners; the prediction was wrong for a reason
+# worth keeping. The two repairs really were independent — one named
+# constant, and a count read off `content_fingerprint`'s own units — but
+# both live inside the same eight lines of `catch_up`, and no owner was
+# going to open that arm, fix its wording coupling, and leave the zero it
+# prints sitting three lines below. PROXIMITY BEAT OWNERSHIP. The class
+# stays in the file at five green tests; only the colour moved.
+#
+# TWO JOINED on 2026-08-19 (curator batch 39), and they are the first
+# entries here about a rule written down twice rather than about a picture
+# or a record. `TestOneComposedPartPredicateHasThreeSites` is the SYMMETRIC
+# case and joins `TestOneLineHeightHasTwoReaders`' family directly — one
+# predicate, three sites, copies that agree today.
+# `TestTheEmptySaveGuardIsCoupledToItsOwnWording` is the ASYMMETRIC one and
+# opens a family: one site EMITS a sentence and one site MATCHES it, so the
+# failure mode is not disagreement but silent disarmament, and neither
+# author would recognise the other's line as a copy of theirs. Its two reds
+# have DIFFERENT owners on purpose — the coupling and the change count the
+# guard quotes are separate repairs — so this class will lose a number
+# before it loses its line, which is the shape the entry above warned about
+# and got right.
+#
 # EMPTY on 2026-08-18 (the v0.9 FINAL FIX ROUND) for the first time since
 # this dict was written. `TestAFreedrawKeepsTheGeometryItWasGiven` left it
 # the day after curator batch 33 filed it, with both of its reds flipped by
@@ -23260,6 +23688,73 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
 CATALOGUE_RED_IDS: set[str] = set()
+# BOTH LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one commit after the pair
+# arrived, flipped together by a single helper: `canvas.js_round`,
+# `math.floor(x + 0.5)`, now the rounding at all FIVE sites transcribing a
+# `Math.round` out of the shipped bundle — two diamond arms, two ellipse
+# arms and `client_grown_extent`'s. The ellipse arms cannot currently reach
+# a half (`w/2*sqrt(2)` is irrational for every rational `w`) and were
+# changed anyway: a rule typed at five sites where only three can be wrong
+# is how the fourth gets it back. Both pairs flip on that one line, which
+# is the argument for the helper over a correction at the site that bit.
+# THE DEBT THE ENTRY BELOW RECORDED IS PAID, not passed on. `math.ceil`
+# also flips both mutants and is WRONG, and the pair structurally cannot
+# see it — ceil and `Math.round` agree on all 1981 integer widths in
+# 20..2000 and part on 1710 of 3800 fractional ones.
+# `TestShapeAwareLabelRoom.test_the_cap_rounds_a_half_the_way_the_client_
+# rounds_it` (test_backend.py) sweeps tenths across 20.0..400.0, for the
+# wrap cap AND the headroom, against a hand-transcribed `Math.round`. It
+# fails on `round`, fails on `ceil`, and passes on nothing else —
+# established by monkeypatching all three, not by reading it.
+# AND THE FRACTIONAL CASE IS REACHABLE, which is why the sweep was owed
+# rather than waived. "The corpus has no fractional container widths" is
+# TRUE — 0 of 291 — and would have been the wrong reason to skip it: the
+# corpus surveys STORED state and this defect lives IN FLIGHT. Traced
+# instead: an op carrying `width: 180.4` reaches `client_wrap_width` AS
+# 180.4 during `apply_batch`, because the fitter runs before
+# `normalize_element` snaps the stored value to 180. `Math.round(90.2)` is
+# 90 and `ceil` is 91 — one pixel, on the agent's own write path.
+# `rhombus_half_pixel_cap` ARRIVED on 2026-08-19 (curator, routed by v0.9
+# WP4-AND-GUARDS), and like the entry below it is NOT red by absence:
+# `text_overflow` is `proven`, speaks on this scene, and says `too wide`
+# about a label the client gives the pixel it needs. It is red for a
+# narrower reason than anything else this set has held — a TRANSCRIPTION
+# defect, `Math.round` being half-up where Python's `round` is half-to-even,
+# so the two arms agree at every width except the ones where `w / 2` lands
+# on a half. One pixel, and no tolerance band in this file can see one
+# pixel; only a scene placed on the boundary can, which is why 181 is
+# load-bearing and why the neighbour shares the container rather than
+# moving the width.
+# WHAT WILL EMPTY THIS AGAIN is `math.floor(x + 0.5)` at the two
+# `round(w / 2)` sites in canvas.py — `client_wrap_width` and
+# `client_text_headroom`. It belongs to whoever owns those, not here. The
+# entry records the `math.ceil` near-miss that would also flip this mutant
+# while staying wrong on fractional widths; a fix that takes that route
+# owes the fractional case its own scene.
+# WHAT IT IS NOT: this is the residue of an investigation that cleared
+# everything around it. The padding constant, the three shape arms and
+# `NUNITO_ADVANCE` were each measured and each found correct — the two
+# convergent padding measurements and the painted-advance fit are in that
+# task's report. Nothing else in this area is red, and this one pixel is
+# the whole of what survived.
+#
+# `chopped_token_reads_as_one_line` ARRIVED AND LEFT on 2026-08-19 (filed by
+# a curator, routed by v0.9 WP4-AND-GUARDS, flipped by the same task one
+# commit later), and it is the only id this set has ever held that was NOT
+# red by absence: `text_overflow` existed, was `proven`, and SPOKE on every
+# scene in its class — it said `too wide` about a picture that was also too
+# tall, because its height term was measured on a block `wrap_label_text`
+# never breaks and the browser does. The nearest precedent is the pair two
+# paragraphs down (`runs_on_node`, `shared_attach_point`): a detector can be
+# proven and still be wrong about a neighbouring magnitude, and the coverage
+# table cannot say so.
+# WHAT FLIPPED IT was a second wrap, not a corrected one: `text_overflow`
+# now reads its HEIGHT off `client_wrapped_lines`, which chops a word the
+# way the client does, while its WIDTH stays on `wrap_label_text`'s
+# un-chopped block so the magnitude remains a number a reader can act on.
+# The mutant's own neighbour is what makes trading one for the other fail,
+# and the base was FORGED rather than relabelled precisely so that a
+# chop-aware `fit_label_in` could not flip it by growing the box instead.
 # `grazing_arrival_reads_as_square` left on 2026-08-17 (v0.9
 # TASK-ARRIVALLINT), the last of the three the spike program put here and
 # the only red-by-absence among them. `arrival_through_side` became a
@@ -27213,6 +27708,743 @@ class TestABoundArrowLabelCannotBeDraggedOffItsArrow(unittest.TestCase):
             "position from its arrow, so a stored displacement may now "
             "survive a render — the first test in this class becomes a "
             "red if it does")
+
+
+# ---------------------------------------------------------------------------
+# CURATOR BATCH 39 (2026-08-19). A GUARD COUPLED TO A SENTENCE, AND A RULE
+# TYPED AT THREE SITES. Found while prototyping a detector for this wave's
+# signature failure; handed over rather than fixed, per the curator charter.
+#
+# WHY THESE TWO SIT TOGETHER AND WHY THEY ARE STILL TWO CLASSES. Both are
+# one rule written down more than once, and the family they belong to is
+# `TestOneLineHeightHasTwoReaders` above. They are NOT the same defect
+# shape, and the difference is the whole reason the first one shipped:
+#
+#   * `lineHeight`, and the composed-part predicate below, are SYMMETRIC.
+#     Two readers of one field, or one predicate typed at three sites; the
+#     copies are the same KIND of thing, so an author looking at either
+#     would recognise the other as a duplicate of theirs, and the failure
+#     mode is that the copies disagree — which something eventually sees.
+#   * The empty-save sentence is ASYMMETRIC. One site EMITS it and one
+#     site MATCHES it. Neither author is writing what the other wrote:
+#     one is output, one is a predicate. The failure mode is not
+#     disagreement, it is SILENT DISARMAMENT — reword the producer and
+#     the guard stops enforcing its rule with nothing to notice.
+#
+# MEASURED, 2026-08-19, on this tip: rewording the sentence at the producer
+# and carrying the reword into the tests and docs that quote it — which is
+# exactly what a rewording wave does — leaves all 1713 tests GREEN with the
+# guard dead. That is the number that makes this worth a red rather than a
+# comment.
+#
+# THE MUTANT MUST NOT BE COUPLED TO THE STRING IT IS ABOUT, which would be
+# the defect committed inside the pin for it. Nothing below writes the
+# sentence down. It is asked of the module (`empty_save_sentence`), the
+# site that PRODUCES it is located by shape rather than by spelling
+# (`produced_sentence_nodes`), and the assertions compare against whatever
+# the mutated module then says. That is also what lets one red span a fix
+# whose shape is not yet decided: a producer that becomes a module-level
+# constant is still the one non-matching literal, so the operator finds it
+# without being retaught.
+# ---------------------------------------------------------------------------
+_EMPTY_SAVE_FACT: dict[str, Any] = {"fact": "saved_no_changes",
+                                    "element": None}
+_CANVAS_SRC = (Path(__file__).resolve().parents[1] / "skills" /
+               "wysiwyg-grilling" / "scripts" / "canvas.py")
+# Plain ASCII and not a substring of anything the guard's own replacement
+# says, so "the guard stayed silent" cannot be confused with "the guard
+# fired and its output happens to contain this".
+_REWORDED_EMPTY_SAVE = "this revision holds no change I can name"
+
+
+def empty_save_sentence(mod: Any) -> str:
+    """Ask a canvas module what its empty-save headline says.
+
+    Args:
+        mod: A canvas module — the imported one, or a reworded copy.
+
+    Returns:
+        The sentence its `saved_no_changes` arm renders.
+    """
+    return mod.headline_for(dict(_EMPTY_SAVE_FACT))
+
+
+def produced_sentence_nodes(source: str, sentence: str) -> list[ast.Constant]:
+    """Every literal that EMITS `sentence`, as against ones that match it.
+
+    The producer is wherever the sentence is written down in order to be
+    said. Today that is a `return` inside `headline_for`; after a repair
+    that gives both sites one constant it is a module-level assignment.
+    Locating it by SHAPE rather than by position is what lets the reword
+    operator survive the fix it is asking for: docstrings drop out by
+    position, matching-position literals drop out by their parent
+    `Compare`, and whatever is left is the thing that speaks.
+
+    Args:
+        source: canvas.py's text.
+        sentence: The sentence, derived from the module rather than
+            written down here.
+
+    Returns:
+        The producing constant nodes, in walk order.
+    """
+    tree = ast.parse(source)
+    skip: set[int] = set()
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                             ast.AsyncFunctionDef)) and body:
+            first = body[0]
+            if isinstance(first, ast.Expr) and \
+                    isinstance(first.value, ast.Constant):
+                skip.add(id(first.value))
+        if isinstance(node, ast.Compare):
+            for side in [node.left, *node.comparators]:
+                if isinstance(side, ast.Constant):
+                    skip.add(id(side))
+    return [n for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and id(n) not in skip
+            and isinstance(n.value, str) and n.value == sentence]
+
+
+def reword_one_literal(source: str, node: ast.Constant, new: str) -> str:
+    """Replace one string literal in `source`, by its own source span.
+
+    Splices through UTF-8 bytes because `col_offset` counts bytes and
+    canvas.py's prose is not ASCII — a character-offset splice lands
+    mid-sentence on any line carrying an em dash.
+
+    Args:
+        source: The file text.
+        node: The literal to replace, with its span.
+        new: The replacement string's VALUE (rendered with `repr`).
+
+    Returns:
+        The file text with that one literal replaced.
+    """
+    lines = source.splitlines(keepends=True)
+    start, end = node.lineno - 1, node.end_lineno - 1
+    head = lines[start].encode("utf-8")[:node.col_offset].decode("utf-8")
+    tail = lines[end].encode("utf-8")[node.end_col_offset:].decode("utf-8")
+    return "".join([*lines[:start], head + repr(new) + tail,
+                    *lines[end + 1:]])
+
+
+def canvas_with_a_reworded_empty_save(into: Path) -> Any:
+    """Import a canvas whose empty-save sentence is reworded, and only that.
+
+    ONE MUTATION. The single producing literal changes; the guard, its
+    comment, every test and every doc stay exactly as they are — which is
+    the point, since a rewording wave updates the sentence's quoters and
+    has no reason to look at a predicate it does not know exists.
+
+    Args:
+        into: A directory the mutated source may be written into.
+
+    Returns:
+        The imported module, whose `headline_for` now says
+        `_REWORDED_EMPTY_SAVE` for an empty save.
+
+    Raises:
+        EngineError: If the sentence is not produced at exactly one site,
+            or the reworded module does not in fact say the new sentence.
+            Either means the operator did not land, and an operator that
+            silently no-ops is the same silence in a new costume.
+    """
+    source = _CANVAS_SRC.read_text(encoding="utf-8")
+    found = produced_sentence_nodes(source, empty_save_sentence(canvas))
+    if len(found) != 1:
+        raise EngineError(
+            "the empty-save sentence is produced at %d sites, not 1 — the "
+            "reword operator cannot say which one speaks. Re-derive "
+            "`produced_sentence_nodes` before reading any colour below"
+            % len(found))
+    dst = into / "canvas_reworded_empty_save.py"
+    dst.write_text(reword_one_literal(source, found[0], _REWORDED_EMPTY_SAVE),
+                   encoding="utf-8")
+    spec = importlib.util.spec_from_file_location(dst.stem, dst)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if empty_save_sentence(mod) != _REWORDED_EMPTY_SAVE:
+        raise EngineError(
+            "the reworded canvas still says %r for an empty save, so the "
+            "mutation did not land" % empty_save_sentence(mod))
+    return mod
+
+
+def unfacted_drift(mod: Any, root: Path) -> tuple[dict, list[str]]:
+    """Reconcile a project whose only on-disk drift produces no facts.
+
+    THE SMALLEST SCENE THAT REACHES THE GUARD, and its shape is forced.
+    The guard's arm is entered exactly when the diff yields no facts at
+    all, so the drift has to be a field `content_fingerprint` reads and
+    the differ does not. `verticalAlign` is one: `content_units` skips
+    only `VOLATILE_ATTRS`, `boundElements`, `roundness` and `lineHeight`,
+    and `DEFAULT_SIGNIFICANT_ATTRS` has no entry for it — so a text
+    element that has been through another editor's round trip diverges
+    with nothing to narrate. One artifact, one element, one changed
+    field.
+
+    THIS WAS `lineHeight` UNTIL THE WP4 FOLD (2026-08-20), and the swap
+    is worth reading rather than skipping. TASK-ENTITY-LINEHEIGHT added
+    `lineHeight` to the skip set for a reason this class has no quarrel
+    with: the loader now STAMPS the spacing the client would resolve, and
+    a fingerprint that read it minted an empty reconciliation on every
+    load of every project carrying a load repair — which is this guard's
+    own subject, arriving as a live bug rather than as a fixture. So the
+    field that used to demonstrate the gap became the field that closed
+    it, and the vehicle moved on. Nothing about what this class TESTS
+    changed: it needs any field with the read-but-not-narrated property,
+    not that specific one.
+
+    Args:
+        mod: The canvas module to run the whole path through, so a
+            reworded copy is exercised end to end rather than patched.
+        root: An empty directory to build the project in.
+
+    Returns:
+        `(record, drifted)` — the reconciliation `catch_up` committed,
+        and the ids this operator wrote a change into.
+    """
+    project = mod.Project(root)
+    project.ensure_tree()
+    mod.Store(project).apply_batch({
+        "base_revn": 0,
+        "create": {"id": "f", "type": "flow", "concept": "c", "name": "F"},
+        "ops": [{"op": "add", "element": {
+            "id": "n1", "type": "text", "x": 0, "y": 0, "width": 100,
+            "height": 20, "text": "A", "originalText": "A"}}]})
+    path = root / "project_knowledge" / "artifacts" / "f.excalidraw"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    drifted = []
+    for e in doc["elements"]:
+        if e["id"] == "n1":
+            # 'top' is what the store writes, so the drift has to be the
+            # other value or this operator is a no-op and the scene never
+            # reaches the guard at all
+            e["verticalAlign"] = "middle"
+            drifted.append(e["id"])
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    return mod.Store(project).catch_up(), drifted
+
+
+class TestTheEmptySaveGuardIsCoupledToItsOwnWording(unittest.TestCase):
+    """`headline_for` says a sentence; `catch_up` matches it as a substring.
+
+    One arm of the fact renderer produces the empty-save headline. Some
+    ten thousand lines away, `catch_up` tests a committed reconciliation's
+    headline for that same sentence in order to enforce a rule its own
+    comment states: *a committed reconciliation may never claim nothing
+    happened*. The two are joined by string equality and by nothing else.
+
+    BOTH REDS FLIPPED GREEN on 2026-08-19 by WP4-AND-GUARDS, one day after
+    curator batch 39 filed them, and the class stays at five green tests —
+    the dict above lost a LINE and not a number, which is the shape its own
+    running commentary keeps count of.
+
+    THE SILENCE WAS THE FINDING. Rewording the producer did not make the
+    guard wrong, it made the guard absent — the `elif` never matched, the
+    headline was never rewritten, and a reconciliation that committed a
+    revision went out saying nothing happened. Measured when filed: the
+    reword plus the reword of every test and doc that quotes the sentence
+    left the whole suite green. The repair is the one the red asked for and
+    nothing more: `canvas.EMPTY_SAVE_HEADLINE` at module scope, returned by
+    `headline_for`'s `saved_no_changes` arm and read by the guard, so the
+    coupling is an identifier the interpreter checks. The reword operator
+    still finds exactly one producing site, because a module-level
+    assignment is a non-docstring literal in a non-matching position — the
+    reason the operator was written to locate its site by shape.
+
+    THE SECOND RED WAS A DIFFERENT OWNER and was here because it was found
+    by minimizing the first. The rewrite the guard substitutes quoted a
+    change count taken from the record's `changes`, and this arm is reached
+    exactly when that list is empty — so the guard traded one sentence
+    claiming nothing happened for another one, in the only case it ever
+    runs. It now counts through `canvas.content_drift_count`, over the same
+    canonical units `content_fingerprint` hashes to decide there was drift
+    at all, so the magnitude and the yes/no cannot disagree.
+    """
+
+    def setUp(self) -> None:
+        """Give each test its own project root and its own module copy."""
+        self.root = Path(tempfile.mkdtemp(prefix="c39-empty-save-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def test_the_drift_scene_reaches_the_guard_with_nothing_to_narrate(
+            self) -> None:
+        """The referee: this scene really does arrive with no facts.
+
+        Both reds below say something about what the guard does on a
+        fact-empty reconciliation, and both would pass vacuously the day
+        `lineHeight` becomes significant to the differ, or the loader
+        starts repairing it away, or `catch_up` stops reconciling at all.
+        This asserts the premise instead of assuming it, so a scene that
+        stopped reaching the arm fails HERE with a name for why.
+        """
+        record, drifted = unfacted_drift(canvas, self.root)
+        self.assertIsNotNone(
+            record, "the drifted scene no longer reconciles at all, so "
+                    "nothing below reaches the guard")
+        self.assertEqual(drifted, ["n1"])
+        self.assertTrue(record.get("reconciliation"))
+        self.assertEqual(record["author"], "out-of-session")
+        self.assertEqual(
+            [f["fact"] for part in record["artifacts"].values()
+             for f in part["facts"]], ["saved_no_changes"],
+            "the drift now produces facts, so the empty-save sentence is "
+            "not the headline and the guard's arm is never entered")
+
+    def test_a_committed_reconciliation_refuses_to_claim_nothing_happened(
+            self) -> None:
+        """The live pole, ungated: on this tip the guard does its job.
+
+        The neighbour the reds need. A red that says "the guard went
+        silent" passes the day the guard is deleted, and cannot tell that
+        from the coupling it is about. This runs the same scene through
+        the untouched module and asserts the rule holds — so the red
+        below is about the WORDING and not about a corpse.
+        """
+        record, _ = unfacted_drift(canvas, self.root)
+        self.assertNotIn(
+            empty_save_sentence(canvas), record["summary"]["headline"],
+            "a committed reconciliation is claiming nothing happened on "
+            "the untouched module, so the guard is already gone and the "
+            "red below is measuring the wrong thing")
+
+    def test_the_reword_operator_changes_exactly_one_producing_site(
+            self) -> None:
+        """The anti-error-red referee, run outside the mask.
+
+        `@unittest.expectedFailure` swallows errors as well as failures,
+        so a reword that found no site, found three, or produced a module
+        that will not import would read as a healthy red. Everything that
+        can raise inside the operator raises `EngineError` with a reason;
+        this calls it here, ungated, and adds the one thing the operator
+        cannot check about itself — that it changed the file by exactly
+        one line.
+        """
+        mod = canvas_with_a_reworded_empty_save(self.root)
+        self.assertEqual(empty_save_sentence(mod), _REWORDED_EMPTY_SAVE)
+        before = _CANVAS_SRC.read_text(encoding="utf-8").splitlines()
+        after = (self.root / "canvas_reworded_empty_save.py").read_text(
+            encoding="utf-8").splitlines()
+        self.assertEqual(len(before), len(after))
+        self.assertEqual(
+            sum(1 for a, b in zip(before, after) if a != b), 1,
+            "the reword operator touched more than the one literal it is "
+            "allowed to touch")
+
+    def test_the_guard_survives_a_reword_of_the_sentence_it_matches(
+            self) -> None:
+        """FLIPPED GREEN 2026-08-19: reword the producer, guard still armed.
+
+        Was the red: reword the producer and the rule stopped being
+        enforced. `EMPTY_SAVE_HEADLINE` now carries the sentence, and the
+        reword operator rewrites that one constant — so producer and
+        consumer move together and the guard keeps firing.
+
+        ONE MUTATION, at the only site that speaks. The guard is not
+        touched — neither its condition, nor its comment, nor the
+        substring it tests for. It simply stops matching, and a
+        reconciliation that committed a revision headlines that nothing
+        happened.
+
+        Asserted against what the MUTATED module says rather than against
+        a literal, so the pin keeps asking the same question whatever the
+        sentence becomes, and flips the day producer and consumer read
+        one name instead of two copies of one string.
+        """
+        mod = canvas_with_a_reworded_empty_save(self.root)
+        record, _ = unfacted_drift(mod, self.root / "project")
+        self.assertNotIn(
+            empty_save_sentence(mod), record["summary"]["headline"],
+            "the reconciliation committed revision %s and headlined %r — "
+            "the rule `catch_up` states in its own comment, that a "
+            "committed reconciliation may never claim nothing happened, "
+            "is no longer enforced, and the only thing that changed was "
+            "the wording of a sentence ten thousand lines away"
+            % (record.get("revn"), record["summary"]["headline"]))
+
+    def test_the_reconciliation_names_the_drift_it_committed(self) -> None:
+        """FLIPPED GREEN 2026-08-19: the guard's rewrite quotes a real count.
+
+        Was the magnitude arm. The substitute sentence counted the
+        record's `changes`, and this arm is entered exactly when that list
+        is empty — an empty diff is what mints the empty-save fact in the
+        first place — so over one genuinely drifted element the headline
+        read `0 change(s) differ from history`, trading one sentence
+        claiming nothing happened for another.
+
+        The count now comes from `content_drift_count(exp_scenes, disk)`,
+        which shares `content_fingerprint`'s canonical units — the same
+        comparison that decided there was drift at all. It reads 1 here,
+        and it cannot read 0 where the fingerprints of a shared artifact
+        disagreed.
+        """
+        record, drifted = unfacted_drift(canvas, self.root)
+        quoted = [int(m) for m in re.findall(
+            r"(\d+) change\(s\) differ", record["summary"]["headline"])]
+        self.assertEqual(
+            quoted, [len(drifted)],
+            "the reconciliation headlined %r over %d drifted element(s): "
+            "the guard replaced one sentence claiming nothing happened "
+            "with another one" % (record["summary"]["headline"],
+                                  len(drifted)))
+
+
+# ---------------------------------------------------------------------------
+# ONE COMPOSED-PART PREDICATE, THREE SITES, AND NO AUTHOR. Handed over by
+# the v0.9 coordinator, 2026-08-19: `_composed_part` was extracted by one
+# stream specifically to be the single reader of "does this element carry a
+# composed-part tag", while two other functions open-code the same test
+# inline. The merge that put them in one file created the copies; neither
+# author could see the other's branch.
+#
+# THE EQUIVALENCE IS DERIVED HERE AND NOT TAKEN ON ANYONE'S READING, which
+# was the condition the handover attached to the item: if the copies differ
+# from the reader on any input then they are not duplicates and the right
+# outcome is a comment recording the distinction, not a merge. The census
+# below reads the copies OUT OF THE SOURCE and evaluates them, so it cannot
+# go stale against a copy someone edits, and it answers 0 sites once they
+# are gone.
+#
+# THE MUTANT IS BEHAVIOURAL, not a grep for the expression. Neutralise the
+# single reader and every site that claims to ask its question must change
+# its answer; a site that open-codes the predicate does not notice, and
+# that is the finding. A source-level "this expression appears once" check
+# would be evaded by re-inlining it with different whitespace, and would
+# say nothing about whether the copy still agrees.
+# ---------------------------------------------------------------------------
+_PART_TAG_VALUES: tuple[Any, ...] = (None, "", 0, False, [], {}, "sl", 1,
+                                     True, {"a": 1}, 0.0)
+
+
+def open_coded_part_predicates() -> list[tuple[str, str]]:
+    """Every open-coded copy of the composed-part predicate, from source.
+
+    A copy is a comprehension over `COMPOSED_PART_KEYS` that reaches for
+    `customData` itself — which is what separates a copy of
+    `_composed_part` (asked about an element) from the reader's own body
+    (asked about a `customData` mapping already in hand) and from
+    `part_owner_id`, which asks a different question with a statement
+    loop.
+
+    Returns:
+        `[(enclosing_def, expression_source)]`, sorted, empty once every
+        site calls the single reader.
+    """
+    tree = ast.parse(_CANVAS_SRC.read_text(encoding="utf-8"))
+    owner: dict[int, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for child in ast.walk(node):
+                owner.setdefault(id(child), node.name)
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.GeneratorExp, ast.ListComp,
+                                 ast.SetComp)):
+            continue
+        iters = {ast.unparse(g.iter) for g in node.generators}
+        if "COMPOSED_PART_KEYS" not in iters:
+            continue
+        src = ast.unparse(node.elt)
+        if "customData" not in src:
+            continue
+        out.append((owner.get(id(node), "<module>"),
+                    "any(%s)" % ast.unparse(node)))
+    return sorted(out)
+
+
+def part_tag_shapes() -> list[dict[str, Any] | None]:
+    """Every `customData` shape that can reach the predicate, enumerated.
+
+    Falsy tag values, unrelated keys, a missing mapping and two tags at
+    once — the inputs on which a copy and its original could plausibly
+    disagree, which is what the handover asked to be measured rather than
+    read.
+
+    Returns:
+        The shapes, `None` meaning the element carries no `customData`.
+    """
+    shapes: list[dict[str, Any] | None] = [None, {}, {"unrelated": "x"}]
+    for key in canvas.COMPOSED_PART_KEYS:
+        for value in _PART_TAG_VALUES:
+            shapes.append({key: value})
+            shapes.append({key: value, "unrelated": "x"})
+    first, last = canvas.COMPOSED_PART_KEYS[0], canvas.COMPOSED_PART_KEYS[-1]
+    shapes.append({first: "x", last: None})
+    shapes.append({first: None, last: "x"})
+    return shapes
+
+
+def element_name_in(expression: str) -> str:
+    """Which local an open-coded copy calls the element it is asked about.
+
+    Derived rather than assumed: the two copies both happen to say `e`
+    today, and a mutant that hardcoded that would break on a site written
+    with any other variable name — which is the same coupling this batch
+    exists to stop. The subject is the one loaded name that is neither a
+    builtin, nor `COMPOSED_PART_KEYS`, nor a comprehension target.
+
+    Args:
+        expression: An `any(... for k in COMPOSED_PART_KEYS)` source.
+
+    Returns:
+        The name bound to the element under evaluation.
+
+    Raises:
+        EngineError: If the expression does not have exactly one such
+            name, which means it is not the shape this census assumes.
+    """
+    tree = ast.parse(expression)
+    bound = {t.id for node in ast.walk(tree)
+             if isinstance(node, ast.comprehension)
+             for t in ast.walk(node.target) if isinstance(t, ast.Name)}
+    free = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)
+            and n.id not in bound and n.id != "COMPOSED_PART_KEYS"
+            and not hasattr(builtins, n.id)}
+    if len(free) != 1:
+        raise EngineError(
+            "the open-coded predicate %r reads %d free names, not 1, so "
+            "the census cannot say which one is the element" % (expression,
+                                                                len(free)))
+    return free.pop()
+
+
+def _tagged_part(part_of: str | None = "sl") -> dict[str, Any]:
+    """A composed decoration whose geometry a host owns.
+
+    Args:
+        part_of: The owner id the backlink names, or None for no tag.
+
+    Returns:
+        One element carrying `role: decoration` and, unless `part_of` is
+        None, the `track_of` backlink that makes it a PART rather than a
+        standalone backdrop.
+    """
+    data: dict[str, Any] = {"role": "decoration"}
+    if part_of is not None:
+        data["track_of"] = part_of
+    return {"id": "trk", "type": "rectangle", "x": 0, "y": 0,
+            "width": 100, "height": 8, "customData": data}
+
+
+def _slider_and_part() -> list[dict]:
+    """A widget body and its backlinked part, sharing no group.
+
+    Returns:
+        Two elements: the body `sl` and the decoration `trk` that names
+        it. No shared `groupIds`, which is the state every site below
+        has an opinion about.
+    """
+    return [{"id": "sl", "type": "rectangle", "x": 0, "y": 0, "width": 160,
+             "height": 44, "customData": {"role": "widget"}}, _tagged_part()]
+
+
+def _label_beside_a_tagged_part() -> list[dict]:
+    """The scene on which the two predicates give different answers.
+
+    A plain labelled box and a backlinked part, and NEITHER owner carries
+    a group. That last clause is the whole scene: `composed_group_gaps`
+    reports on `tagged or theirs`, so an owner that IS grouped reports its
+    stray label through `theirs` whatever the predicate answers, and a
+    scene built that way is green under every spelling — it looks like it
+    discriminates and does not. Ungrouped owners take `theirs` out of the
+    sentence and leave the predicate as the only thing deciding.
+
+    Returns:
+        Four elements: `box` with its bound label `box-t`, and `sl` with
+        its `track_of`-tagged part `trk`.
+    """
+    return [
+        {"id": "box", "type": "rectangle", "x": 0, "y": 0, "width": 100,
+         "height": 40},
+        {"id": "box-t", "type": "text", "x": 0, "y": 0, "width": 80,
+         "height": 20, "text": "A", "containerId": "box"},
+        {"id": "sl", "type": "rectangle", "x": 0, "y": 100, "width": 160,
+         "height": 44},
+        {"id": "trk", "type": "rectangle", "x": 0, "y": 100, "width": 100,
+         "height": 8, "customData": {"track_of": "sl"}},
+    ]
+
+
+class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
+    """`_composed_part` is the single reader; two functions type it again.
+
+    `normalize_z_order` and `_geometry_derived` call it — a part is banded
+    above its owner and its geometry is the host's, a standalone backdrop
+    is banded beneath everything and its geometry is the author's own.
+    `_close_widget_group` and `composed_group_gaps` ask the same question
+    with the same expression written out inline, and so they are blind to
+    any change in the answer.
+
+    THE COPIES ARE EQUIVALENT TODAY, derived below over 237 `customData`
+    shapes rather than read off the page — so this is duplication and not
+    a distinction, and the merge is safe. That check was the handover's
+    own precondition on the item and it is kept as a standing green
+    rather than spent once.
+
+    WHO FLIPS THESE: `impl-pin-backend`, which authors the sites that
+    should change. Each red names one surviving site, so a repair that
+    routes one of them leaves the other red instead of reporting the
+    class done. The mutation is one thing — neutralise the reader — and
+    the reds differ only in where they look for the consequence.
+
+    THE DANGEROUS EDIT IS NOT THE ONE THE REDS CATCH, and the last green
+    here is the reason this class outlives them. Re-inlining the copy is
+    the harmless revert; the edit that costs something is the next
+    person's tidy-up pointing `_composed_part` at `part_owner_id`, which
+    reads like the same question and passes every test that existed
+    before this class. It is not the same question. Derived over 1350
+    element shapes on 2026-08-19, the two disagree on exactly one class —
+    a bound label, which answers `containerId` there and False here — and
+    `composed_group_gaps` turns on precisely that gap: a tagged part is a
+    gap always, a label only when its owner is grouped. One class and no
+    wider, so the invariant is pinned exactly that wide.
+    """
+
+    def test_the_open_coded_copies_answer_exactly_as_the_single_reader(
+            self) -> None:
+        """The handover's precondition, measured rather than read.
+
+        Each copy is lifted out of canvas.py and evaluated, so a copy
+        someone edits is re-measured instead of compared against a
+        transcription that went stale. A disagreement on any shape would
+        mean the two are not duplicates at all and the reds below are
+        asking for the wrong repair.
+
+        This stays green through the fix — with no copies left there is
+        nothing to disagree — and that is deliberate: it records WHY the
+        merge was allowed, which is a fact a later reader needs and the
+        reds do not carry.
+        """
+        copies = open_coded_part_predicates()
+        shapes = part_tag_shapes()
+        for where, expression in copies:
+            subject = element_name_in(expression)
+            for shape in shapes:
+                element: dict[str, Any] = {"id": "e"}
+                if shape is not None:
+                    element["customData"] = shape
+                # ONE namespace, not globals-plus-locals: the copy is a
+                # generator expression, and a genexp's body runs in its
+                # own frame that sees the enclosing GLOBALS only — split
+                # them and the element name is unresolvable inside it.
+                # `eval` of THIS REPO'S OWN SOURCE, read out of the file
+                # under test: the alternative is transcribing the copy
+                # here, and a transcription goes stale against the copy
+                # silently — which is the defect class this batch is
+                # about, committed inside the pin for it.
+                copied = bool(eval(
+                    expression,
+                    {"COMPOSED_PART_KEYS": canvas.COMPOSED_PART_KEYS,
+                     subject: element}))
+                reader = bool(canvas._composed_part(
+                    element.get("customData") or {}))
+                self.assertEqual(
+                    copied, reader,
+                    "the copy in %s disagrees with `_composed_part` on "
+                    "customData=%r (copy says %r, reader says %r), so "
+                    "these are not duplicates and the reds below are "
+                    "asking for the wrong repair — record the distinction "
+                    "instead" % (where, shape, copied, reader))
+
+    def test_neutralising_the_single_reader_is_visible_where_it_is_called(
+            self) -> None:
+        """The live pole, ungated: the operator lands and is observable.
+
+        Without this, a red saying "site X did not notice" passes the day
+        the mutation stops working, and cannot tell that from the copy it
+        is about. Both real callers are asserted here on the same
+        elements the reds use: the decoration drops out of the parts band
+        into the backdrop band, and its geometry stops being derived.
+        """
+        pristine = [e["id"] for e in
+                    canvas.normalize_z_order(copy.deepcopy(_slider_and_part()))]
+        self.assertEqual(pristine, ["sl", "trk"])
+        self.assertTrue(canvas._geometry_derived(_tagged_part()))
+        with mock.patch.object(canvas, "_composed_part", lambda cd: False):
+            neutral = [e["id"] for e in canvas.normalize_z_order(
+                copy.deepcopy(_slider_and_part()))]
+            self.assertEqual(
+                neutral, ["trk", "sl"],
+                "`normalize_z_order` no longer reads `_composed_part`, so "
+                "the mutation below is not observable anywhere and the "
+                "reds are measuring nothing")
+            self.assertFalse(
+                canvas._geometry_derived(_tagged_part()),
+                "`_geometry_derived` no longer reads `_composed_part`")
+
+    @unittest.expectedFailure
+    def test_the_gap_report_asks_the_single_reader(self) -> None:
+        """The red: `composed_group_gaps` types the predicate itself.
+
+        Its `tagged` local is the extracted expression written out again.
+        With the reader neutralised the report should have nothing tagged
+        left to find on a part whose owner carries no group of its own —
+        the one case its own docstring says the tag decides — and it
+        answers exactly as before.
+        """
+        with mock.patch.object(canvas, "_composed_part", lambda cd: False):
+            gaps = canvas.composed_group_gaps(copy.deepcopy(_slider_and_part()))
+        self.assertEqual(
+            gaps, [],
+            "`composed_group_gaps` still reports %r with the single reader "
+            "neutralised: it open-codes `_composed_part` rather than "
+            "calling it, so the extraction that exists to keep this "
+            "question in one place does not reach it" % (gaps,))
+
+    @unittest.expectedFailure
+    def test_the_group_closer_asks_the_single_reader(self) -> None:
+        """The red: `_close_widget_group` types the predicate too.
+
+        The site the handover did not name, found by re-deriving the
+        family rather than taking the list. Same expression, same keys,
+        same blindness: with the reader neutralised nothing in the scene
+        is a composed part, so there is no composite to close a group
+        around, and it groups them anyway.
+        """
+        with mock.patch.object(canvas, "_composed_part", lambda cd: False):
+            out = copy.deepcopy(_slider_and_part())
+            canvas._close_widget_group(out)
+        self.assertEqual(
+            sorted(g for e in out for g in (e.get("groupIds") or [])), [],
+            "`_close_widget_group` still minted a group with the single "
+            "reader neutralised: it open-codes `_composed_part`, so it is "
+            "the third site of a rule the extraction put in one place")
+
+    def test_a_bound_label_is_not_a_part_the_way_a_tagged_one_is(self) -> None:
+        """The standing green: the distinction a de-duplication would eat.
+
+        `part_owner_id` is the near neighbour — same keys, same file, one
+        function apart — and pointing the single reader at it is the tidy
+        the reds above would wave through, because a revert and a
+        simplification look identical from a census of who calls what.
+        This is the behavioural difference between them, on the one scene
+        where the predicate is the only thing deciding.
+
+        NEITHER OWNER IS GROUPED, and that is not incidental. The
+        obvious construction — a label whose owner IS grouped — reads as
+        the discriminating case and is not one: the report fires on
+        `tagged or theirs`, so a grouped owner reports its stray label
+        through `theirs` under every spelling of the predicate, and the
+        assertion would be green against the very edit it was written to
+        catch. Measured both ways on 2026-08-19 before this was written.
+
+        A revert to the open-coded form keeps this green — that failure
+        has its own reds above. This one goes red only when the two
+        questions are merged into one.
+        """
+        gaps = canvas.composed_group_gaps(
+            copy.deepcopy(_label_beside_a_tagged_part()))
+        self.assertEqual(
+            gaps, [("trk", "sl")],
+            "the gap report no longer separates a bound label from a "
+            "tagged part on ungrouped owners: it answered %r where only "
+            "the tagged part is a gap. If `_composed_part` has been "
+            "pointed at `part_owner_id`, that is the merge this pins "
+            "against — the two agree on every element shape but this "
+            "one, and this one is what the report turns on" % (gaps,))
 
 
 class TestCoverage(unittest.TestCase):

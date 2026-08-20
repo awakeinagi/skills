@@ -805,17 +805,27 @@ def validate_scene(doc, artifact_id):
     # because fit_label_in leaves width <= inner)
     #
     # The trigger is `width - 16` — the padding BOTH note creators write
-    # (the client's addStickyNote and `_x_user_note`) — not the `- 24`
-    # the fitter budgets. A label inset 8px a side is drawn whole, and a
+    # (the client's addStickyNote and `_x_user_note`) — not the budget
+    # the fitter aims at. A label inset 8px a side is drawn whole, and a
     # rule stricter than the geometry the client itself posts repaired
     # every note anybody had ever made on its first load: all 7 load
     # repairs standing across the four recorded sessions were this 8px
     # disagreement, and each one minted an out-of-session reconciliation
     # the user never caused (r5-13). Re-padding the creators would have
-    # fixed none of them — those notes are already on disk. The two
-    # numbers stay apart deliberately: the rule fires on what CLIPS, the
-    # fitter aims at the tighter budget, so a refit lands well clear of
-    # the trigger and cannot oscillate across loads.
+    # fixed none of them — those notes are already on disk.
+    #
+    # DELIBERATELY NOT WIDENED TO `client_wrap_width`, though the fitter
+    # below now aims there and the symmetry is tempting. Tried and
+    # measured: firing this rule at the client's own halved cap repairs
+    # four of the five fixture projects on load, and WP4's ruling on
+    # precisely that — recorded in the docstring of
+    # `test_replays_and_converges_without_reconciliation` — is that a
+    # load-time refit of a project already on disk is the r5-13 harm and
+    # that "the remaining honest report is `lint_layout`'s: the remedy
+    # for a label that will not wrap is a wider node". So the loader
+    # keeps its hands off geometry the user already has, the newly
+    # client-aware `text_overflow` says what is wrong with it, and only
+    # what this session AUTHORS is fitted to the client's rule.
     for el in kept:
         cid = el.get("containerId")
         cont = by_id.get(cid) if cid else None
@@ -826,22 +836,34 @@ def validate_scene(doc, artifact_id):
         if el.get("width", 0) > max(60, cont.get("width", 160) - 16):
             was = (el.get("width"), el.get("height"),
                    cont.get("width", 0), cont.get("height", 0))
+            snapshot = dict(el), dict(cont)
             fit_label_in(cont, el)
-            if was == (el.get("width"), el.get("height"),
-                       cont.get("width", 0), cont.get("height", 0)):
-                # the fitter declined: no wrap of this label sits any
-                # better in this shape than the label as written, and
-                # the honest remedy is a wider node — which is what
-                # `lint_layout` already asks for. Filing a repair here
-                # claimed work that left nothing to persist, so five
-                # labels across three recorded projects re-reported the
-                # same repair on every load, forever.
-                #
-                # The `continue` also skips the re-centering below, and
-                # that is the point rather than a side effect: geometry
-                # nobody needed to move is geometry the loader has no
-                # business moving. A declined refit leaves the label
-                # exactly where it was drawn.
+            # THE LOADER ACTS ONLY WHEN THE BOX HAS TO CHANGE. The old
+            # test was "did the fitter change anything", and it worked
+            # only because the old fitter could DECLINE — it compared
+            # wraps and returned untouched when none beat the label as
+            # written. The client-aware fitter has nothing to decline
+            # between: the client wraps to one width and that is the
+            # answer, so it always re-measures, and a loader keyed on
+            # "did anything change" would rewrite the geometry of every
+            # project on disk whose labels predate that rule. Measured:
+            # four of the five fixture projects, on every load, minting
+            # an out-of-session reconciliation nobody caused — r5-13,
+            # for the third time.
+            #
+            # So the question is the one WP4 already answered for this
+            # path: is the node too small, or merely differently
+            # measured? Only the first is the loader's business ("the
+            # remedy for a label that will not wrap is a wider node" —
+            # `test_replays_and_converges_without_reconciliation`). If
+            # the container still holds the wrap, the client will draw
+            # it correctly whatever we stored, `lint_layout` says so if
+            # it does not, and the loader puts everything back.
+            if (cont.get("width", 0), cont.get("height", 0)) == was[2:]:
+                el.clear()
+                el.update(snapshot[0])
+                cont.clear()
+                cont.update(snapshot[1])
                 continue
             # THROUGH THE GUARDED WRITER, NOT AROUND IT. This arm retyped
             # `recenter_label`'s centring arithmetic inline, which made it
@@ -882,19 +904,20 @@ def validate_scene(doc, artifact_id):
     return doc, issues
 
 
-def content_fingerprint(els):
-    """Order-insensitive scene fingerprint for repair attribution (WP2).
+def content_units(els):
+    """The `(id, canonical content)` pairs a content fingerprint hashes.
 
-    ``scene_hash`` hashes elements in list order, but disk order and
-    replayed-history order legitimately differ (z-order normalization),
-    so raw-vs-history comparison needs identity by CONTENT: elements
-    sorted by id, deleted ones dropped, dumped canonically.
+    Factored out so the drift TEST and the drift COUNT cannot disagree:
+    `content_fingerprint` decides *whether* disk diverged from history and
+    `content_drift_count` says *by how much*, and a headline that quotes a
+    number the test did not derive is how the empty-save guard came to
+    print a structural zero (curator batch 39).
 
     Args:
         els: Scene elements (non-dicts tolerated and skipped).
 
     Returns:
-        Hex digest, or None when the scene is too corrupt to fingerprint.
+        `(id, canonical dict)` pairs sorted by id, deleted ones dropped.
     """
     def canon(v):
         # 150 vs 150.0 must fingerprint identically — the same int/float
@@ -910,38 +933,81 @@ def content_fingerprint(els):
             return [canon(x) for x in v]
         return v
 
+    # roundness rides with the derived set: the write path computes it
+    # from point count while replay keeps creation-time values (the
+    # re-stamp never lands in records — customData is deliberately
+    # non-significant), so disk and history disagree about it on every
+    # re-routed arrow, permanently. The system already declares it
+    # non-significant for diffs; drift detection must agree, or every
+    # such project phantoms a reconciliation.
+    #
+    # `lineHeight` joins them on 2026-08-19 for the identical reason, one
+    # field later: the loader now stamps the spacing the client would
+    # resolve onto any text that arrived without it, and that field is
+    # NOT in `DEFAULT_SIGNIFICANT_ATTRS` — so the differ reports nothing
+    # while this hash reported a difference, and the pair minted an empty
+    # "0 changes differ from history" record on EVERY load of any project
+    # carrying a load repair. Measured: a re-routed arrow's project
+    # reconciled on loads 2, 3, 4 and 5, which is the r5-13 hazard
+    # exactly. Drift detection has to agree with the differ about what
+    # counts, and the differ's answer here is "nothing" — the stamp
+    # writes the value the client was already using.
+    skip = set(VOLATILE_ATTRS) | {"boundElements", "roundness",
+                                  "lineHeight"}
+    live = []
+    for e in els:
+        if not isinstance(e, dict) or e.get("isDeleted"):
+            continue
+        live.append((str(e.get("id")),
+                     canon({k: v for k, v in e.items() if k not in skip})))
+    live.sort(key=lambda t: t[0])
+    return live
+
+
+def content_drift_count(before, after):
+    """How many elements differ between two `{artifact: elements}` maps.
+
+    The magnitude behind `content_fingerprint`'s yes/no, over the same
+    canonical units so the two answers agree by construction: whenever the
+    fingerprints of a shared artifact differ, at least one element here
+    differs too. An element counts once whether it was added, removed or
+    edited, and an id carrying more than one element is compared as the
+    last one written, matching what the fingerprint's own `sort` leaves
+    adjacent.
+
+    Args:
+        before: History's scenes, keyed by artifact id.
+        after: Disk's scenes, keyed by artifact id.
+
+    Returns:
+        The number of elements that differ, summed over every artifact on
+        either side.
+    """
+    n = 0
+    for aid in set(before or {}) | set(after or {}):
+        a = dict(content_units((before or {}).get(aid) or []))
+        b = dict(content_units((after or {}).get(aid) or []))
+        n += sum(1 for k in set(a) | set(b) if a.get(k) != b.get(k))
+    return n
+
+
+def content_fingerprint(els):
+    """Order-insensitive scene fingerprint for repair attribution (WP2).
+
+    ``scene_hash`` hashes elements in list order, but disk order and
+    replayed-history order legitimately differ (z-order normalization),
+    so raw-vs-history comparison needs identity by CONTENT: elements
+    sorted by id, deleted ones dropped, dumped canonically.
+
+    Args:
+        els: Scene elements (non-dicts tolerated and skipped).
+
+    Returns:
+        Hex digest, or None when the scene is too corrupt to fingerprint.
+    """
     try:
-        # roundness rides with the derived set: the write path computes
-        # it from point count while replay keeps creation-time values
-        # (the re-stamp never lands in records — customData is
-        # deliberately non-significant), so disk and history disagree
-        # about it on every re-routed arrow, permanently. The system
-        # already declares it non-significant for diffs; drift detection
-        # must agree, or every such project phantoms a reconciliation.
-        # `lineHeight` joins them on 2026-08-19 for the identical reason,
-        # one field later: the loader now stamps the spacing the client
-        # would resolve onto any text that arrived without it, and that
-        # field is NOT in `DEFAULT_SIGNIFICANT_ATTRS` — so the differ
-        # reports nothing while this hash reported a difference, and the
-        # pair minted an empty "0 changes differ from history" record on
-        # EVERY load of any project carrying a load repair. Measured: a
-        # re-routed arrow's project reconciled on loads 2, 3, 4 and 5,
-        # which is the r5-13 hazard exactly. Drift detection has to agree
-        # with the differ about what counts, and the differ's answer here
-        # is "nothing" — the stamp writes the value the client was
-        # already using.
-        skip = set(VOLATILE_ATTRS) | {"boundElements", "roundness",
-                                      "lineHeight"}
-        live = []
-        for e in els:
-            if not isinstance(e, dict) or e.get("isDeleted"):
-                continue
-            live.append((str(e.get("id")),
-                         canon({k: v for k, v in e.items()
-                                if k not in skip})))
-        live.sort(key=lambda t: t[0])
-        blob = json.dumps([d for _, d in live], sort_keys=True,
-                          default=str)
+        blob = json.dumps([d for _, d in content_units(els)],
+                          sort_keys=True, default=str)
         return hashlib.sha1(blob.encode("utf-8")).hexdigest()
     except Exception:  # noqa: BLE001 — corrupt raw scene
         return None
@@ -1925,18 +1991,64 @@ def text_dims(text: str | None, font_size: float,
     return (max(width_px, 10), max(math.ceil(height), line_box))
 
 
+def text_ink_width(text: str | None, font_size: float) -> int:
+    """Width the glyphs actually cover — no reservation, no floor.
+
+    `text_dims`' width is a RESERVATION: it adds 2px so that a box sized
+    from it cannot be overrun by kerning it could not read. That is the
+    right answer for "how much room shall I set aside" and the wrong one
+    for "will this line fit", and asking `text_dims` the second question
+    is a live defect rather than a tidiness point.
+
+    Measured: `'In by cutoff?'` at fontSize 16 paints **88.78px** and
+    reserves **91**. Against the 90px a 200px-wide diamond gives its
+    bound text, the reservation wraps it and the browser does not — so
+    a fit check reading `text_dims` reported a two-line block, and a
+    2px pad invented a warning about a label that fits.
+
+    Use this wherever the question is what the BROWSER will do — wrap
+    points, fit checks, drawn ink. Use `text_dims` wherever the question
+    is what to STORE.
+
+    Args:
+        text: The string to measure. `None` and `""` measure as 0.
+        font_size: The size the string is set at, in px.
+
+    Returns:
+        The painted width of the widest line, in whole px, rounded up.
+    """
+    lines = (text or "").split("\n")
+    return int(math.ceil(max((_display_width(ln) for ln in lines), default=0.0)
+                         * font_size - 1e-9))
+
+
 def wrap_label_text(text, inner, fs):
-    """Greedy word-wrap to an inner pixel width (text_dims estimate)."""
+    """Greedy word-wrap to an inner pixel width.
+
+    Breaks on `text_ink_width` and not on `text_dims`, because a wrap
+    point is a question about the painted line: `text_dims`' 2px
+    reservation, carried into the comparison, wraps lines the browser
+    keeps whole and puts our drawing a word behind the user's. See
+    `text_ink_width` for the case that caught it.
+
+    Args:
+        text: The string to wrap.
+        inner: The width to wrap to, in px.
+        fs: Font size in px.
+
+    Returns:
+        The text with newlines inserted at the wrap points.
+    """
     words = (text or "").split()
     if not words:
         return text or ""
     lines, cur = [], words[0]
     for word in words[1:]:
         cand = cur + " " + word
-        # WIDTH only, so the line height cannot reach this answer: a
-        # wrap is decided by advance, and `text_dims`' `[0]` does not
-        # read its third argument at all
-        if text_dims(cand, fs)[0] <= inner:
+        # WIDTH only, so the line height cannot reach this answer: a wrap
+        # is decided by advance, which is why this asks `text_ink_width`
+        # — a function that has no line-height argument to get wrong
+        if text_ink_width(cand, fs) <= inner:
             cur = cand
         else:
             lines.append(cur)
@@ -1945,85 +2057,229 @@ def wrap_label_text(text, inner, fs):
     return "\n".join(lines)
 
 
+def _client_chop(token, inner, fs):
+    """One token too wide for any line, split the way `z$` splits it.
+
+    The shipped client breaks a word this file cannot. `z$`
+    (index-DpKP4sIE.js @274820, reached from `$$`) walks the token
+    CHARACTER BY CHARACTER accumulating per-glyph advances, and closes a
+    chunk the moment the next glyph would overrun the cap — so it never
+    hyphenates and never gives up, and a single glyph wider than the cap
+    takes a line of its own.
+
+    Per-character advances and not a re-measure of the accumulated
+    string, because that is what `z$` does: its sibling `$$` re-measures
+    a whole line, this arm sums `Wp.calculate` per glyph. The two are not
+    the same number and using the wrong one moves the break.
+
+    Args:
+        token: The word to break. Must contain no whitespace.
+        inner: The wrap width in px.
+        fs: Font size in px.
+
+    Returns:
+        The chunks, in order. Never empty.
+    """
+    out, cur, w = [], "", 0.0
+    for ch in token:
+        adv = _display_width(ch) * fs
+        if cur and w + adv > inner:
+            out.append(cur)
+            cur, w = ch, adv
+        else:
+            cur, w = cur + ch, w + adv
+    if cur:
+        out.append(cur)
+    return out or [token]
+
+
+def _client_wrap_paragraph(para, inner, fs):
+    """One hard-break-free paragraph, wrapped the way `$$` wraps it.
+
+    Args:
+        para: The paragraph, containing no newline.
+        inner: The wrap width in px.
+        fs: Font size in px.
+
+    Returns:
+        The painted lines.
+    """
+    segs = re.findall(r"\s+|\S+", para)
+    out, cur, i = [], "", 0
+    while i < len(segs):
+        seg = segs[i]
+        cand = cur + seg
+        # whitespace never forces a break, and the fit test re-measures
+        # the WHOLE candidate line — `$$` calls `md(u, t)`, not a running
+        # sum, which is the opposite of what `_client_chop` above does
+        if seg.isspace() or text_ink_width(cand, fs) <= inner:
+            cur, i = cand, i + 1
+            continue
+        if cur:
+            # flush and retry the SAME segment on a fresh line; `$$` does
+            # not advance its iterator here, and advancing would drop the
+            # word that did not fit
+            out.append(cur.rstrip())
+            cur = ""
+            continue
+        chunks = _client_chop(seg, inner, fs)
+        out.extend(chunks[:-1])
+        cur, i = chunks[-1], i + 1
+    if cur:
+        out.append(cur.rstrip())
+    return out
+
+
+def client_wrapped_lines(text, inner, fs):
+    """The lines the CLIENT paints for this text at this wrap width.
+
+    `wrap_label_text` next door answers a different question and must
+    keep answering it: it breaks on whitespace only, so a token that fits
+    nowhere comes back whole, and its widest line is the number a reader
+    can act on ("widen the box to 110"). This answers what the browser
+    DRAWS, which is not the same picture whenever a single word overruns
+    the cap — the client chops it and the block gains lines we never
+    counted.
+
+    Measured through the shipped client rather than argued (2026-08-19,
+    v0.9 WP4-AND-GUARDS): `'Acknowledged'` in a 100px box, whose cap is
+    90, paints as `'Acknowledge'` over `'d'` — two lines, 40px, in 30px
+    of headroom, with the drawing storing one line of 20. That is the
+    scene `chopped_token_reads_as_one_line` forges.
+
+    A PARAGRAPH THAT FITS IS RETURNED WHOLE and never re-wrapped, which
+    is `Id`'s own shape (`if (md(a,t) <= n) { r.push(a); continue }`) and
+    is what keeps hard line breaks the user typed.
+
+    THE SERVER'S TABLE READS WIDE, so this chops slightly EARLIER than
+    chromium does: measured on a diamond sweep, `'compliance'` is chopped
+    by the browser up to a 166px-wide rhombus and by this function up to
+    182px. The error is one of magnitude, not of direction, and it is the
+    safe direction here — it over-reserves height rather than under-
+    reserving it. It is also not new: the same table already decides the
+    width arm of every check that calls `text_ink_width`.
+
+    Args:
+        text: The string as stored, hard breaks included.
+        inner: The wrap width in px — `client_wrap_width(container)` for
+            a bound label.
+        fs: Font size in px.
+
+    Returns:
+        The painted lines, in order.
+    """
+    out = []
+    for para in (text or "").split("\n"):
+        if text_ink_width(para, fs) <= inner:
+            out.append(para)
+        else:
+            out.extend(_client_wrap_paragraph(para, inner, fs))
+    return out
+
+
 def fit_label_in(container, lbl):
-    """A bound label wider than its container gets clipped at the
-    container's bounds by the client (live finding: 'Labels: sparse,
-    months late' spilling out both sides of its box). The client wraps
-    bound text to the width we allot — so keep `text` UNWRAPPED (wrapped
-    text would poison originalText, facts, and replay), size the label
-    box to the wrapped line count, and grow the container's height.
+    """Store the box the CLIENT will draw this bound label in.
+
+    A bound label wider than its container gets wrapped by the client
+    (live finding: 'Labels: sparse, months late' spilling out both sides
+    of its box). `text` stays UNWRAPPED — wrapped text would poison
+    originalText, facts and replay — and what this writes is the extent
+    the wrap produces, plus whatever growth the container needs.
+
+    THIS USED TO CHOOSE THE WRAP WIDTH AND IT NEVER HAD THAT CHOICE.
+    The old docstring said "the client wraps bound text to the width we
+    allot", and the code walked a descending fixpoint of shape-aware
+    budgets looking for the wrap that overhung a rhombus least, then set
+    `autoResize: False` to "keep the client wrapping inside this box".
+    Read against the shipped bundle, every step of that is a fiction:
+    `ai` wraps a bound label to `_s(container)` and never reads the
+    label's stored `width` (see `client_wrap_width`). The walk was
+    optimising a variable the client does not consult, the `keep` arm
+    declined wraps the client performs anyway, and `autoResize: False`
+    bought nothing on this path.
+
+    Measured cost of the fiction over the frozen corpus: 14 bound labels
+    whose stored box says one line and whose drawn picture has two or
+    more — including on the AGENT'S OWN snapshot, which is the only view
+    it has of its drawing.
+
+    So there is no walk any more, because there is no choice to make.
+    The client's wrap width is a function of the container's width
+    alone; growing the container's HEIGHT (which is all the growth below
+    does) cannot change it, so one pass is exact rather than merely
+    cheap.
+
+    Where the wrapped block is still too tall, the container grows by
+    the CLIENT'S OWN rule (`client_grown_extent`) rather than the flat
+    `+16` this used: on a rhombus the client doubles, so the two
+    disagreed by 44px on a 200x80 diamond and the drawing the agent saw
+    was not the drawing the user got.
+
     Shapes and frames only; arrow labels ride midpoints and are covered
     by the clear-run lint instead.
 
-    Measured at the LABEL'S OWN `lineHeight`, which is the height the
-    client will paint it at: this walk buys width by spending height, so
-    reading the spacing wrong prices every candidate wrong and grows the
-    container to a band the text then overflows (curator batch 34
-    miss 2)."""
+    The height is stored at the LABEL'S OWN `lineHeight`, which is what
+    the client will paint it at (curator batch 34 miss 2). The walk that
+    lesson was first written against is gone, but the lesson is not: this
+    function still decides how deep a band the text occupies and still
+    grows the container to hold it, so reading the spacing wrong grows it
+    to a band the text then overflows.
+
+    Args:
+        container: The container element, mutated in place when the
+            label needs it taller.
+        lbl: The bound label element, mutated in place.
+    """
     if container.get("type") not in ("rectangle", "diamond", "ellipse",
                                      "frame"):
         return
     fs = lbl.get("fontSize", 16)
     lh = line_height_of(lbl)
     text = lbl.get("originalText") or lbl.get("text") or ""
-    tw = text_dims(text, fs, lh)[0]
-    # Once the container is not a box, room and height define each other:
-    # the budget depends on how deep a band the label occupies, and the
-    # band depends on how many lines that budget forces. So walk the
-    # budgets — the label as written first, then each one the descending
-    # fixpoint visits — and keep the candidate that hangs LEAST far
-    # outside the drawn body, not the last one reached.
+    inner = client_wrap_width(container)
+    # THE WIDTH STORED IS THE INK, not `text_dims`' reservation, and the
+    # difference is load-bearing rather than tidy. The client stores what
+    # it measured (`ai`: `a.width = Zr(text, font, lineHeight).width`),
+    # so a reservation here is a divergence from the client on every
+    # label we mint — and, worse, it is 2px WIDER than the cap the wrap
+    # was just fitted to, so the load repair's own trigger fires on this
+    # function's output. Measured with `text_dims` here: four fixture
+    # projects re-reported the same ART-011 on loads 1 through 5 and
+    # would have gone on forever, which is r5-13's shape.
     #
-    # Taking the last is what a box makes look safe, and it is wrong
-    # here: wrapping buys width by spending HEIGHT, and height is
-    # precisely what a rhombus charges for. Past a point a narrower wrap
-    # overhangs further than the wrap before it, and on a 240x80 diamond
-    # the 171px label that fits unwrapped is made worse by every wrap
-    # available to it. Where nothing wrapping can do fits, the widest
-    # candidate wins and the label is left alone for `lint_layout` to
-    # report — the honest remedy there is a wider node, which is what
-    # the warning asks for.
-    #
-    # A rectangle takes the first candidate that fits and never sees the
-    # rest, so box containers keep the exact behavior they had. The walk
-    # settles in at most one pass per line, because a pass that adds no
-    # line hands back the budget it was given.
-    #
-    # `box` — the `width - 24` this replaces — is always one of the
-    # candidates, and the descent is not allowed to step over it. That
-    # is what makes "never worse than the rule it replaces" true by
-    # construction rather than by measurement: on a narrow rhombus the
-    # first shape-aware step lands on the 60px floor and skips straight
-    # past a budget that was better than either end (a 90x100 diamond
-    # went from a 30px overhang to 42px this way).
-    box = max(60, container.get("width", 160) - 24)
-    inner, best, keep = tw, None, True
-    while True:
-        cand_w = min(tw, inner)
-        cand_h = text_dims(wrap_label_text(text, inner, fs), fs, lh)[1]
-        # against the container this candidate would LEAVE behind, not
-        # the one it found: the grow below is part of the same fit, and
-        # scoring a tall candidate against the ungrown box reads its
-        # band as leaving the shape entirely — which on a rectangle
-        # scored every wrap at zero room and drove the walk to the floor
-        probe = dict(container,
-                     height=max(container.get("height", 0), cand_h + 16))
-        over = cand_w - label_room(probe, cand_h)
-        if best is None or over < best[0]:
-            best, keep = (over, cand_w, cand_h), inner == tw
-        nxt = label_budget(probe, cand_h)
-        if nxt < box < inner:
-            nxt = box
-        if nxt >= inner:
-            break
-        inner = nxt
-    if keep:
-        return          # the label as written is the best it can get
-    lbl["width"], lbl["height"] = best[1], best[2]
-    lbl["autoResize"] = False  # keep the client wrapping inside this box
-    if container.get("height", 0) < lbl["height"] + 16:
-        grown = lbl["height"] + 16 - container.get("height", 0)
-        container["height"] = lbl["height"] + 16
+    # The HEIGHT stays `text_dims`', which has no such pad — it is line
+    # count times the line box — and takes its own line-height default,
+    # exactly as the walk this replaces did, because this is a MINTING
+    # site and the label is about to carry that default.
+    # PER LINE, so a hard break the user typed survives. `wrap_label_text`
+    # splits on whitespace, which includes `\n`, so wrapping the whole
+    # string at once silently joins "aaa\nbbb\nccc" into one line — and
+    # the old code only escaped that by returning early whenever the
+    # label as written fitted. The client keeps hard breaks (`Id` wraps
+    # each line of `originalText` separately), so this must too;
+    # `TestStoredHeightMatchesThePaintedLineHeight` is what caught it,
+    # reading a stored height of 20 where the paint draws 96.
+    wrapped = "\n".join(wrap_label_text(ln, inner, fs)
+                        for ln in text.split("\n"))
+    lbl["width"] = text_ink_width(wrapped, fs)
+    # THE ELEMENT'S OWN SPACING, via `line_height_of` — the one accessor
+    # for the client's `lineHeight || getLineHeight(fontFamily)` rule, so
+    # that a label in any family is reserved at ITS spacing rather than
+    # at this file's own font's. This function used to escape the question by returning
+    # early whenever the label as written fitted; now that it always
+    # writes the height, reserving at the default would under-measure a
+    # double-spaced label by a third (a 3-line label at `lineHeight: 2.0`
+    # paints 96px and read 60).
+    lbl["height"] = text_dims(wrapped, fs, lh)[1]
+    # `autoResize` is left ALONE. On a bound label the client ignores it
+    # for the wrap and reads it only to decide whether to copy the
+    # measured width back onto the element — which is what we just
+    # stored — so writing it here would be a field with no consequence,
+    # and it used to be written as though it had one.
+    if lbl["height"] > client_text_headroom(container):
+        want = client_grown_extent(lbl["height"], container.get("type"))
+        grown = want - container.get("height", 0)
+        container["height"] = want
         # growth can shove the box into a sibling below; nothing reflows
         # (that would need a constraint solver), so the overlap lint drops
         # its size threshold for auto-grown boxes and warns instead
@@ -10690,6 +10946,17 @@ def _tw_names(refs, cap=3):
     return ", ".join(shown)
 
 
+# The one place the empty-save sentence is written down. `headline_for`
+# SAYS it and `Store.catch_up` MATCHES it, to enforce "a committed
+# reconciliation may never claim nothing happened" — a rule joined by
+# string equality across ten thousand lines until curator batch 39 measured
+# what that costs: reword the producer, carry the reword into the tests and
+# docs that quote it as a rewording pass does, and all 1713 tests stay green
+# with the guard silently disarmed. Both sites now read this name, so the
+# coupling is an identifier the interpreter checks rather than a sentence
+# nobody re-greps.
+EMPTY_SAVE_HEADLINE = "saved without changing anything"
+
 SALIENCE = ["user_route_replaced",
             "rewired", "relationship_rewired", "rerouted",
             "actor_reassigned",
@@ -10849,7 +11116,7 @@ def headline_for(fact):
         return "%s %s" % (fact.get("label") or fact["element"],
                           fact.get("spatial"))
     if n == "saved_no_changes":
-        return "saved without changing anything"
+        return EMPTY_SAVE_HEADLINE
     if n == "actor_reassigned":
         return "%s now goes to %s (was %s)" % (
             fact.get("message") or fact["element"],
@@ -11526,46 +11793,159 @@ def shape_band_width(el, y0, y1):
     return nearest if abs(room - nearest) < 1e-9 else room
 
 
-def label_room(container, height):
-    """Body width a bound label of a given height has to sit in.
+# `label_room` AND `label_budget` WERE DELETED HERE on 2026-08-19. They
+# were the shape-aware budget WP4 built to replace `width - 24`: the band
+# a vertically-centred label of a given height occupies, and that band
+# less 24 with a 60px floor. Both computed a real geometric quantity and
+# neither was the one that decides the wrap — the client wraps to
+# `client_wrap_width` below and never asks how deep the label is. Once
+# TASK-TEXT-TRUTH moved the fitter and both fit checks onto the client's
+# rule, `label_budget`'s only remaining caller in the tree was the pin
+# asserting it still returned `width - 24`, and `label_room`'s only caller
+# was `label_budget`. Deleting just the one would have moved the dead body
+# one frame up. `shape_band_width` STAYS: it is the geometric primitive
+# `diamond_label_overflows_shape`'s catalogue entry quotes its derivations
+# from, and `TestShapeAwareLabelRoom` still pins those four numbers.
 
-    A bound label is centred vertically, so a label `height` tall
-    occupies the band `height` deep around the container's centre line —
-    and on a rhombus or an ellipse that band is narrower than the box
-    (v0.9 WP4). This is the raw room, before any padding: what a check
-    compares a drawn label against.
+
+# THE CLIENT'S BOUND-TEXT PADDING. `Yn = 5` in the shipped bundle
+# (index-DpKP4sIE.js), applied on BOTH sides of every rule below.
+BOUND_TEXT_PADDING = 5
+
+
+def js_round(x):
+    """`Math.round`, which Python's `round` is not.
+
+    ECMA-262 rounds a half toward POSITIVE INFINITY; Python rounds a
+    half to EVEN. They agree everywhere except on an exact `.5`, and
+    every rule below transcribes a `Math.round` out of the shipped
+    bundle — so `round` was the wrong function at five sites and wrong
+    only at the boundary, which is the hardest place for anything to
+    notice (`rhombus_half_pixel_cap`, curator, 2026-08-19).
+
+    Measured: on a 181px rhombus the client allows 81px and `round`
+    allowed 80, so a label painting exactly 81 was called too wide about
+    a picture that fits. The diamond arms disagree on `w = 4k+1` — 495
+    of the 1981 integer widths in 20..2000, half the odd ones, because
+    the two roundings agree whenever `floor(w/2)` is odd.
+
+    ONE HELPER AT EVERY SITE RATHER THAN A FIX AT THE ONE THAT BIT.
+    The ellipse arms cannot reach a half — `w/2*sqrt(2)` is irrational
+    for every rational `w`, since `w*sqrt(2) = 2k+1` would make `sqrt(2)`
+    a ratio of integers — so they are unreachable today and changed
+    anyway. A rule transcribed at five sites where only three can
+    currently be wrong is exactly how the third site gets it back.
+
+    Args:
+        x: The value to round.
+
+    Returns:
+        The half-up rounding, as an `int`.
+    """
+    return math.floor(x + 0.5)
+
+
+def client_wrap_width(container):
+    """Width the CLIENT will wrap a bound label to, whatever we store.
+
+    THE SERVER DOES NOT GET A VOTE, and believing otherwise is the
+    defect this function exists to remove. `fit_label_in`'s docstring
+    said "the client wraps bound text to the width we allot" and set
+    `autoResize: False` to make that stick. The shipped bundle says
+    otherwise — `ai`, the redraw that runs whenever a container or its
+    text changes (index-DpKP4sIE.js @553053):
+
+        i = t ? _s(t, e) : e.width
+        a.text = Id(e.originalText, Wt(e), i)
+
+    `t` is the CONTAINER. When there is one, the wrap width is
+    `_s(container)` and the label's own stored `width` is not read at
+    all; `e.width` is reached only by an UNBOUND text. So a bound label
+    is re-wrapped to this number on load, and the picture the user sees
+    has the line count this returns — not the one we stored.
+
+    `_s` itself (@555833), with `Yn = 5`:
+
+        ellipse -> round(w / 2 * sqrt(2)) - 10
+        diamond -> round(w / 2)           - 10
+        else    -> w - 10
+
+    The halving is the point and it is where the old rule went wrong:
+    on a 200px diamond the client allows **90px**, while
+    `label_budget` credited 126 and `text_overflow` credited 192. Both
+    were reading a rhombus's geometric band, which is a real quantity
+    and is not the one that decides the wrap.
+
+    Measured over the frozen corpus before this landed: 14 bound
+    single-line labels are re-wrapped by the client on load, and in all
+    14 the server's own estimate already exceeded this cap — so no
+    improvement to `text_dims` could have closed any of them.
+
+    Args:
+        container: The container element the label is bound to.
+
+    Returns:
+        The wrap width in px, floored at 0.
+    """
+    w = float(container.get("width") or 0)
+    pad = BOUND_TEXT_PADDING * 2
+    kind = container.get("type")
+    if kind == "ellipse":
+        return max(0.0, js_round(w / 2 * math.sqrt(2)) - pad)
+    if kind == "diamond":
+        return max(0.0, js_round(w / 2) - pad)
+    return max(0.0, w - pad)
+
+
+def client_text_headroom(container):
+    """Height a bound label may reach before the CLIENT grows the box.
+
+    `qg` in the shipped bundle (index-DpKP4sIE.js @555997), the height
+    twin of `client_wrap_width` and shaped identically — a rhombus
+    gives its bound text half its box in BOTH directions, not just
+    across.
 
     Args:
         container: The container element.
-        height: The label's height in px.
 
     Returns:
-        The body width available across that band, in px.
+        The available height in px, floored at 0.
     """
-    cy = container.get("y", 0) + container.get("height", 0) / 2.0
-    return shape_band_width(container, cy - height / 2.0,
-                            cy + height / 2.0)
+    h = float(container.get("height") or 0)
+    pad = BOUND_TEXT_PADDING * 2
+    kind = container.get("type")
+    if kind == "ellipse":
+        return max(0.0, js_round(h / 2 * math.sqrt(2)) - pad)
+    if kind == "diamond":
+        return max(0.0, js_round(h / 2) - pad)
+    return max(0.0, h - pad)
 
 
-def label_budget(container, height):
-    """Width a bound label of a given height may be WRAPPED to.
+def client_grown_extent(extent, kind):
+    """Extent the CLIENT grows a container to when its label outruns it.
 
-    The shape-aware replacement for `width - 24`, which credited a
-    rhombus and an ellipse with room their drawn bodies do not have
-    (v0.9 WP4). The 60px floor and the 24px side padding are unchanged
-    from the box-only rule, so a rectangle gets exactly the budget it
-    always got.
+    `yd` (index-DpKP4sIE.js @555571). It is the inverse of
+    `client_text_headroom` and it is NOT the `+16` this file used to
+    grow by: on a diamond the client doubles, so a 40px two-line label
+    takes a 200x80 rhombus to **100px** tall where we made it 56 and
+    then drew a picture the browser did not.
 
     Args:
-        container: The container element.
-        height: The label's height in px — taller labels reach further
-            into the corners a rhombus or an ellipse does not fill, and
-            so get LESS width, not the same.
+        extent: The label extent that has to fit, in px.
+        kind: The container's `type`.
 
     Returns:
-        The usable width in px, never below 60.
+        The container extent the client would grow to, in px.
     """
-    return max(60, label_room(container, height) - 24)
+    e = math.ceil(extent)
+    pad = BOUND_TEXT_PADDING * 2
+    if kind == "ellipse":
+        return js_round((e + pad) / math.sqrt(2) * 2)
+    if kind == "arrow":
+        return e + pad * 8
+    if kind == "diamond":
+        return 2 * (e + pad)
+    return e + pad
 
 
 HEAD_SECANT_T = 0.7
@@ -16828,13 +17208,55 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         pad = 16 if single_line else 8
         room_w = int(owner.get("width") or 0) - pad
         room_h = int(owner.get("height") or 0) - 4
+        # A BOUND label is not wrapped by this rule and never was. The
+        # client wraps it to `client_wrap_width(owner)` — half the box
+        # across on a rhombus — so wrapping it here at `width - 8` reads
+        # one line where the user is shown two, and then compares that
+        # phantom height against the box and says nothing. Measured over
+        # the frozen corpus: 14 labels re-wrapped by the client, every
+        # one of them silent here. Composed rows and sticky notes keep
+        # the box rule, because nothing re-wraps THEM on load.
+        if t.get("containerId"):
+            room_w = int(client_wrap_width(owner))
+            room_h = int(client_text_headroom(owner))
+        # `text_ink_width` and not `text_dims` on both arms: this asks
+        # whether the BROWSER's glyphs fit a box, and `text_dims` answers
+        # with a 2px reservation on top of them. On a rhombus, whose cap
+        # is half the box, that pad was the whole margin — it invented a
+        # two-line warning for `'In by cutoff?'`, which paints 88.78px
+        # against a 90px cap and reserves 91.
         if single_line:
-            tw, th = text_dims(txt, fs, lh)
+            tw, th = text_ink_width(txt, fs), text_dims(txt, fs, lh)[1]
             over_w, over_h = tw > room_w, False
         else:
-            wrapped = wrap_label_text(txt.replace("\n", " "), room_w, fs)
-            tw, th = text_dims(wrapped, fs, lh)
-            longest = max((text_dims(w, fs, lh)[0] for w in txt.split()),
+            flat = txt.replace("\n", " ")
+            # TWO DIFFERENT WRAPS OF ONE LABEL, ON PURPOSE. The width is
+            # measured on the block THIS FILE wraps, which breaks on
+            # whitespace only and so leaves an over-wide word whole; the
+            # height is measured on the block the CLIENT PAINTS, which
+            # chops that word into chunks and gains lines from it.
+            #
+            # Collapsing them would trade one wrong answer for another.
+            # Measure the width on the chopped block and the magnitude
+            # becomes the widest CHUNK — under the cap by construction —
+            # so the check would tell a reader to widen a 90px box to
+            # something under 90. Measure the height on the un-chopped
+            # block and you get what this check did until 2026-08-19:
+            # `'Acknowledged'` in a 100x40 box reported one line of 20px
+            # against 30px of headroom and called the scene merely too
+            # WIDE, while chromium painted `'Acknowledge'` over `'d'` —
+            # two lines, 40px, 10px past the bottom. The check was never
+            # silent on this class (`over_w` is exactly the condition
+            # under which the client chops); it was wrong about the
+            # direction, which is worse, because a direction is what a
+            # reader acts on. `chopped_token_reads_as_one_line` is the
+            # pin, and it pins BOTH halves so a fix cannot quietly trade
+            # one for the other.
+            wrapped = wrap_label_text(flat, room_w, fs)
+            tw = text_ink_width(wrapped, fs)
+            th = text_dims("\n".join(client_wrapped_lines(flat, room_w, fs)),
+                           fs, lh)[1]
+            longest = max((text_ink_width(w, fs) for w in txt.split()),
                           default=0)
             over_w, over_h = longest > room_w, th > room_h
         if over_w or over_h:
@@ -16887,18 +17309,26 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # applies there and only there: take the larger of stored and
         # estimated, because a stored extent is an estimate the client
         # re-derives and real glyph advance overhangs it.
-        #
-        # Both branches measure at the text's own `lineHeight` — the band
-        # this check reads the shape's width AT is the label's drawn
-        # height, so a block measured at the wrong spacing is scored
-        # against the wrong chord of the rhombus.
-        lh = line_height_of(t)
-        if t.get("autoResize") is False and box_w > 0:
-            drawn_w, drawn_h = text_dims(
-                wrap_label_text(txt.replace("\n", " "), box_w, fs), fs, lh)
-        else:
-            tw, th = text_dims(txt, fs, lh)
-            drawn_w, drawn_h = max(tw, box_w), max(th, box_h)
+        # THE BRANCH ON `autoResize` IS GONE, and it was reading the
+        # wrong number on both sides. The wrapping arm wrapped to
+        # `box_w` — the frame we stored — on the strength of
+        # `fit_label_in`'s claim to have chosen it; the other arm took
+        # the unwrapped string. The client does neither: it wraps every
+        # bound label to `client_wrap_width(owner)` and ignores the
+        # stored box entirely, so THAT is the ink, on both branches, and
+        # `autoResize` has nothing to say about it. `max(.., box_w)` is
+        # kept as a floor for the same reason it was there — a stored
+        # extent the client re-derives can be overhung by real glyph
+        # advance — but it can no longer make a 136px frame with 85px of
+        # text in it read as 136px of ink (v0.9 WP4 review, F1).
+        drawn = wrap_label_text(txt.replace("\n", " "),
+                                int(client_wrap_width(owner)), fs)
+        drawn_w = text_ink_width(drawn, fs)
+        # measured at the text's own `lineHeight`: the band this check
+        # reads the shape's width AT is the label's drawn height, so a
+        # block measured at the wrong spacing is scored against the wrong
+        # chord of the rhombus
+        drawn_h = text_dims(drawn, fs, line_height_of(t))[1]
         # the ink is centred in whatever box holds it, so the band it
         # occupies is its own height about that box's middle
         cy = t.get("y", 0) + max(box_h, drawn_h) / 2.0
@@ -21195,12 +21625,26 @@ class Store:
                     "load-time repair: %s — no outside edits" % ", ".join(
                         "%s ×%d" % (c, n) for c, n in sorted(counts.items())))
                 rewrite = True
-            elif "saved without changing anything" in \
+            elif EMPTY_SAVE_HEADLINE in \
                     (record["summary"].get("headline") or ""):
                 # a committed reconciliation may never claim nothing
-                # happened (arm 4's live phantom did exactly that)
-                n_changed = sum(len(p.get("changes") or [])
-                                for p in record["artifacts"].values())
+                # happened (arm 4's live phantom did exactly that). The
+                # sentence is read from the name `headline_for` returns,
+                # not re-typed: this guard is the consumer half of a rule
+                # that was joined by string equality alone, and a reword
+                # of the producer used to disarm it in silence.
+                #
+                # The count comes from the SAME comparison that decided
+                # there was drift at all. It used to be read off the
+                # record's `changes`, which is empty exactly here — an
+                # empty diff is what mints the empty-save fact in the
+                # first place — so the guard traded one sentence claiming
+                # nothing happened for another, and over a genuinely
+                # drifted element it printed `0 change(s)` (curator batch
+                # 39). `content_drift_count` shares `content_fingerprint`'s
+                # canonical units, so it cannot report zero where the
+                # fingerprints of a shared artifact disagreed.
+                n_changed = content_drift_count(exp_scenes, disk)
                 record["summary"]["headline"] = (
                     "out-of-session drift reconciled: %d change(s) differ "
                     "from history" % n_changed)

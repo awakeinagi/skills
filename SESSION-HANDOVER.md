@@ -335,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | *none* — TASK-ARRIVALLINT (2026-08-17) removed the grazing-arrival pin from this row by promoting that reading to a live lint, and TASK-COLORPARSE removed the css-keyword one the same day. Any id listed here is a live red owned by its own fix task. This row states what is red, never how many drains it has seen — the count is derived below and the narrative is not, so a claim about the row's *history* is one nothing checks. (No backticked id in this row while it is empty, deliberately: the guard below harvests every backticked id in the row, so an id mentioned as history rather than as a live red would read as a live red) |
+| model (default suite) | *none* — the half-pixel pair (spelled out rather than backticked, for the reason at the end of this row) was filed by a curator on 2026-08-19 and drained by v0.9 WP4-AND-GUARDS one commit later. canvas.py computed the client's own bound-text cap and headroom with Python's round, which breaks halves to EVEN, where Math.round in the shipped bundle breaks them UP; they part only where the halved extent is a tie AND its floor is even, which is w = 4k+1 and nothing else. Flipped by floor(x + 0.5) at all five transcribed Math.round sites, not the two first reported. The chopped-token red before them was filed and drained the same day by the same task. Any id listed here is a live red owned by its own fix task. This row states what is red, never how many drains it has seen — the count is derived below and the narrative is not, so a claim about the row's *history* is one nothing checks. (Backtick an id here ONLY as a live red: the guard below harvests every backticked token in the row, so a backticked function name reads as a live red id) |
 | render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
 | other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and only the model row is guarded, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold) |
 
@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**0 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**2 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
