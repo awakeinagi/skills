@@ -484,6 +484,12 @@ first complex batch of a session):
   silence, so a domain↔flow link buys you narration and tripwires, not
   strict linting. (That sentence is derived from `CROSS_LINT_JOIN` in
   `canvas.py`, not typed — if the join widens, it rewrites itself.)
+  **One cross-artifact check is not type-scoped at all**: the
+  unmapped-KPI note counts a wireframe KPI tile as mapped when it appears
+  in **any** mapping, whatever that mapping joins it to — so a
+  domain↔wireframe mapping over a KPI tile silences the nag whose whole
+  reason for existing is that an unmapped tile is a drift detector nobody
+  armed. Declaring a mapping is never inert.
 - **Tripwires are type-blind, and that is the ruling, not an oversight**
   (user, 2026-08-20): every mapping you declare arms "you changed one
   side and not the other" regardless of what types it joins.

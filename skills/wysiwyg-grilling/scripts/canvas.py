@@ -19693,7 +19693,26 @@ def flow_reachable(els, cap=200):
 # for). See docs/todo for the invariants a future version should build
 # instead. `tests/livedoc.py:cross_lint_join` publishes this tuple into
 # the prose, so a change here rewrites the sentences or fails the hook.
+#
+# THIS CONSTANT IS NOT THE WIDENING POINT, and reading it as one is the
+# mistake it is shaped to catch. The collector below unpacks it into
+# exactly two buckets, so a third type here does not add a join — it
+# breaks the unpack. Widening means designing new checks (the premises of
+# 3.2.4 and 3.3.7 are wireframe/flow-specific), then teaching the
+# collector, then editing this. The check below makes that refusal say so
+# in words, at import, instead of surfacing as a ValueError several
+# frames deep in a lint run with no mention of the prose it also breaks.
 CROSS_LINT_JOIN = ("wireframe", "flow")
+
+if not (isinstance(CROSS_LINT_JOIN, tuple) and len(CROSS_LINT_JOIN) == 2
+        and all(isinstance(t, str) and t for t in CROSS_LINT_JOIN)):
+    raise RuntimeError(
+        "CROSS_LINT_JOIN must be a 2-tuple of artifact-type names; got "
+        "%r. The mapped-element checks join exactly one pair and the "
+        "collector unpacks two buckets, so widening the join is a design "
+        "change (new checks, new collector), not an edit here — and the "
+        "skill prose that names this pair is derived from it"
+        % (CROSS_LINT_JOIN,))
 
 
 def cross_lint(scenes, artifact_types, registry, glossary_terms=None):

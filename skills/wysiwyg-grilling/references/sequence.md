@@ -98,14 +98,18 @@ lands, narrate guards from the annotation texts.
 - sequence↔flow: message ↔ transition, actor ↔ the steps it owns. Link
   eagerly as you draw. Flow stays the hub; sequence is a spoke. The link
   earns narration and tripwires and **no strict lint** — 3.2.4 and 3.3.7
-  join wireframe × flow only, and a sequence member is skipped in silence
-  (3.3.7 reads `frameId` and `kind: input`, which a sequence has no
-  analogue for).
+  join
+  <!-- live:cross_lint_join -->wireframe × flow<!-- /live:cross_lint_join -->
+  only (derived from `CROSS_LINT_JOIN`, not typed here), and a sequence
+  member is skipped in silence (3.3.7 reads `frameId` and `kind: input`,
+  which a sequence has no analogue for).
 - sequence↔wireframe/domain: **inference only by convention, not by
   enforcement.** `add_mapping` type-checks nothing and tripwires are
   type-blind by ruling (user, 2026-08-20), so a declared mapping is
-  accepted and nags on one-sided edits — it just never reaches a strict
-  check.
+  accepted and nags on one-sided edits — it just never reaches a
+  *strict* check (3.2.4/3.3.7). It is not inert, though: **any** mapping
+  counts toward the unmapped-KPI note, so a mapping naming a wireframe
+  KPI tile silences that nag whatever else it joins.
 
 ## Seed archetypes
 
