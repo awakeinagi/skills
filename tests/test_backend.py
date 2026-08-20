@@ -25036,6 +25036,69 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
             "the guard roster names functions that no longer exist in "
             "canvas.py")
 
+    def test_every_observation_test_is_claimed_by_a_roster_entry(self):
+        """TRUNCATION — the half the empty-roster refusal does not reach.
+
+        `assert_roster_populated` closed `GUARDS = []`. It says nothing
+        about a roster that loses twenty-one of twenty-three entries,
+        which is the likelier shape: a merge drops a hunk, not a list.
+        Everything else that reads this roster then agrees with whatever
+        it finds — measured 2026-08-20 on a roster cut to two entries:
+        `--check` printed "2 mutants, every anchor applies and every
+        named test resolves" and exited 0, and the whole suite passed,
+        1850 tests, nothing red. The one instrument that spoke was
+        livedoc, whose `pin_guard_sites` publishes the count into
+        SKILL.md — and its prescribed repair, `livedoc refresh`, rewrote
+        "Twenty-three" to "2" and went green with twenty-one guards
+        gone. A drift check cannot be this floor, because its repair is
+        to agree.
+
+        SO THE OTHER SIDE OF THIS RELATION IS NOT THE ROSTER.
+        `TestEachPinGuardIsObserved` holds one test per guard site — its
+        docstring says so, and it is the class nine entries name — so
+        those nine tests and those nine entries are the same facts
+        written down twice, independently. Truncation moves one side and
+        leaves a test that no entry claims.
+
+        NOT A COUNT, deliberately: `len(GUARDS) == 23` goes red the day
+        somebody adds a twenty-fourth guard, on correct work. A real
+        addition arrives as an entry AND its observation test, so both
+        sides move together; an addition whose test belongs in another
+        class moves neither. The one thing this forbids is a test living
+        in that class without an entry mutating the guard it observes,
+        which is the class's own stated contract rather than a new rule.
+
+        The repair when it goes red is to restore the roster entry, or —
+        if the guard truly left `canvas.py` — to delete its test in the
+        same change and say why. Neither is a command anybody can run
+        without reading, which is the whole difference from `refresh`.
+        """
+        sys.path.insert(0, str(Path(canvas.__file__).resolve().parents[3]
+                               / "tests"))
+        import guard_mutants
+        cls = TestEachPinGuardIsObserved
+        prefix = cls.__name__ + "."
+        watched = {test[len(prefix):] for *_rest, test in guard_mutants.GUARDS
+                   if test.startswith(prefix)}
+        declared = set(unittest.TestLoader().getTestCaseNames(cls))
+        # THE VACUITY FLOOR, and it is not hypothetical: delete the class'
+        # tests and the entries naming them and both sides are empty,
+        # which compares equal and reports health over an instrument with
+        # no subjects left. Two empty sets are not an agreement.
+        self.assertTrue(
+            declared,
+            "%s declares no tests at all — the guard sites it exists to "
+            "observe are gone, and an empty set agreeing with an empty "
+            "roster proves nothing" % cls.__name__)
+        self.assertEqual(
+            declared, watched,
+            "the roster and %s no longer describe the same guard sites. "
+            "A test here that no GUARDS entry names is a guard the sweep "
+            "would never mutate — the truncation shape, and the one this "
+            "exists to catch; an entry naming a test that is not here is "
+            "an entry pointing at nothing. Restore the missing side; do "
+            "not delete the other to make them agree." % cls.__name__)
+
 
 class TestPinnedSurvivesTheBackDoors(Base):
     """The doors the gate could not see, found by a verifier (v0.9 D1–D5).
