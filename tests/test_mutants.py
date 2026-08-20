@@ -23393,8 +23393,14 @@ UNCOVERED: dict[str, str] = {
     #     `Silence("label_spills_past_body")` is TRUE rather than merely
     #     absent, and `label_overflows_shape` is the correct reading.
     # The arms are distinguishable and both live: over a 4,320-scene
-    # sweep of this check, 745 scenes print the spill sentence, 1,998 the
-    # adrift one and 701 the overhang one.
+    # sweep of this check, 674 scenes print the spill sentence, 2,159 the
+    # adrift one and 823 the overhang one. (Re-derived on the merged tree
+    # at the WP4-AND-GUARDS rebase — 745/1,998/701 before it. That stream
+    # made the band's depth come from the element's own `lineHeight`, so
+    # the split between the arms moves with it even though every pinned
+    # MAGNITUDE in this family holds: these fixtures are `fontFamily` 1,
+    # which resolves to 1.25, and the 1.35 the fold re-derived for is
+    # family 6.)
     "label_spills_past_body":
         "landed 2026-08-20 (TASK-BAND-APEX I-1) with its template; no "
         "CATALOGUE mutant — the pair is a curator's, and what it must "
@@ -29664,6 +29670,20 @@ class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
 # this wave keeps re-learning from the other side: the encoding changed and
 # the prose did not, and here the prose was a sentence the fix inherited
 # rather than wrote.
+#
+# THIS CLASS ALSO CLOSED TWO FAILURES IT DID NOT KNOW ABOUT, found on the
+# WP4-AND-GUARDS rebase (2026-08-20). That stream carried two RED tests on
+# its own trunk — `test_mutant_diamond_label_overflows_shape` and
+# `test_neighbour_label_dragged_clear_of_its_owner` — and the second failed
+# with `label t1 is drawn 62px clear of d1`, which is this class's red
+# verbatim: the ink's own width printed as a clearance about a label drawn
+# squarely on its node. THE TWO STREAMS WERE NOT TWO REPAIRS OF ONE BUG,
+# which was the live worry at the fold. That stream never touched
+# `shape_band_span`, and its one edit in this area — `drawn_h` measured at
+# the element's own `lineHeight` — is not a repair at all: it makes the
+# band TALLER, so it reaches the apex on more scenes and makes this defect
+# MORE reachable. It is the occasion, exactly as the room rule was. So
+# there is one repair here and one site for it, not two.
 # ---------------------------------------------------------------------------
 
 
