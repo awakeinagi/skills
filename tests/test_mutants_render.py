@@ -2814,10 +2814,276 @@ class TestRenderMutants(AblationLiveness, unittest.TestCase):
                          [("ablation_continuity", "a1", 2.0)])
 
 
+# --------------------------------------------------------------------------
+# THE FONT RACE, pinned across SESSIONS rather than inside one.
+#
+# `restoreForRender` is the step that MEASURES: `refreshDimensions` reaches
+# `refreshTextDimensions`, which calls `wrapText(text, getFontString(el),
+# maxWidth)`. Asked before the webfont has arrived it is told the FALLBACK's
+# advance and the export then paints in the real face — one picture, wrapped
+# in one font and drawn in another. The wrap decision is a whole line, not a
+# subpixel: a label that fits on one line cold occupies two warm.
+#
+# The client measures each string ONCE per page load and caches it, so every
+# export inside a session agrees with every other. That is what makes this
+# defect invisible to the obvious test: `test_one_scene_rendered_three_times_
+# comes_back_byte_identical` below renders one scene three times in ONE
+# browser, and it passed on the racing bundle — six names in one session read
+# 1, 1, 1, 1, 1, 1, uniformly and at the WRONG value.
+#
+# A FRESH `_client_session` IS NOT A COLD BROWSER, and this is the part that
+# cost a rewrite. `CLIENT_FLAGS` names no `--user-data-dir`, so every session
+# on a machine shares chromium's DEFAULT profile and with it one disk cache.
+# The webfont is fetched once and served from that cache forever after, which
+# closes the very race the session was started to observe. The defect
+# therefore gets QUIETER the more the tier is run — doctrine §1's failure
+# shape exactly, and it was silently eating this pin's power:
+#
+#   pre-fix, shared profile, early in the day   1 2 1 2 1 1 1 2   (3/8 warm)
+#   pre-fix, shared profile, later the same day 1 1 2 1 2 2 1 2 2 2 (6/10)
+#   pre-fix, shared profile, later still        2 2 2 2 2 2  <- FALSE GREEN
+#
+# That last row is this pin passing against a bundle with no font-readiness
+# code in it at all. Sampling a coin whose bias drifts toward "pass" is not
+# an instrument. So the race is not sampled any more, it is FORCED: every
+# session below gets a throwaway `--user-data-dir` and `--disk-cache-size=1`,
+# which puts the webfont back on the network path instead of on chromium's
+# disk. Measured against a1c80ae, cold-profiled:
+#
+#   pre-fix bundle, cold profile   10 sessions    1 x10
+#   fixed bundle,   cold profile   10 sessions    2 x10  (control 1 x10)
+#
+# STATED PRECISELY, because the tempting overclaim is false: the cold
+# profile does not make every session in a run cold. The OS still has the
+# woff2 in its page cache, and three consecutive red runs read
+# (1,1,1), (1,2,2) and (1,1,1) — the FIRST session of a run is reliably
+# cold, later ones can still warm up. That costs no power, because the pin
+# fails on ANY session that reads the fallback rather than needing all of
+# them to. What the cold profile buys is that the first reading is not a
+# coin, which is exactly what the shared profile had taken away.
+#
+# Curator, 2026-08-19/20, by bundle swap against a1c80ae.
+#
+# THE SHARED PROFILE IS A WEAKNESS OF `_client_session` ITSELF, not just of
+# this pin — any client-tier test whose subject is a network-fetched resource
+# is measuring a warm cache after the first run of the day. Left alone here
+# on purpose: widening `CLIENT_FLAGS` for the whole tier would re-time 107
+# tests and is the owning WP's call, not a curator's. Named so it is not
+# re-discovered.
+#
+# TWO RULES FOR WHOEVER TOUCHES THIS NEXT.
+#
+# `_client_shots` is FORBIDDEN here. Its cache returns the first call's bytes
+# for every later call with the same key, so a stability assertion through it
+# is vacuous by construction — it would prove a dict lookup is deterministic.
+# Every reading below comes from `_client_session`, which owns a full
+# lifecycle per call, and N calls are N genuinely fresh browsers.
+#
+# `document.fonts.status` is NOT a readiness signal and must never be used as
+# one by anything here or in the app. Reported measured: "loaded" at 213ms,
+# before anything had requested a face at all, and "loading" at 982ms once
+# the app asked. A guard on it sails straight past the race and looks
+# correct. `fonts.ready` alone is also insufficient — it waits only on the
+# faces registered SO FAR — which is why `App.tsx`'s `fontsSettled` `load()`s
+# everything still unloaded before awaiting it.
+#
+# Curator: acceptance pin for f1e5bc9, written after the fix landed. It is
+# GREEN on arrival, and the red above is what a revert must trip.
+# --------------------------------------------------------------------------
+
+# The wrap budget the client gives a bound label is `Math.round(width/2) -
+# BOUND_TEXT_PADDING*2` on a diamond, and `BOUND_TEXT_PADDING` is 5. Both
+# read out of the shipped bundle rather than remembered — the minified
+# expression is `e.type==="diamond"?Math.round(n/2)-Yn*2:n-Yn*2` with `Yn=5`.
+_BOUND_TEXT_PAD = 5
+
+# The probe label and the two container widths, DERIVED rather than chosen.
+# At 16px the real Nunito advances in `canvas.NUNITO_ADVANCE` put "Order
+# Queue" at 93.12px and its widest word at 47.20px. A 200px diamond budgets
+# 90px, so the whole label overhangs by 3.12px (3.5%) and wraps — while any
+# face a few percent narrower fits it on one line, which is the flip. A 300px
+# diamond budgets 140px, where both faces fit and the count cannot move; that
+# is the control pole, and it is what stops the reading below from being a
+# constant. `test_the_label_scene_sits_on_the_wrap_boundary` asserts all of
+# this arithmetic so an edit here fails loudly instead of going vacuous.
+_FONTRACE_LABEL = "Order Queue"
+_FONTRACE_FONT_SIZE = 16
+_FONTRACE_WRAPS = 200
+_FONTRACE_FITS = 300
+
+# How far past its budget the label may reach and still be ON the boundary.
+# The overhang has to be small enough that the fallback face clears it: the
+# pre-fix bundle demonstrably wrapped this scene both ways, so the fallback
+# is at least 3.5% narrower for this string. 5% is the band that keeps a
+# future edit inside the gap actually measured. The fallback's own advance
+# is NOT settled here — two parties report 0.5em and 0.42em for it and
+# nothing in this pin needs the number, only the sign of the difference.
+_FONTRACE_OVERHANG = 0.05
+
+# Cold sessions paid per run, at ~5s each.
+#
+# THIS NUMBER IS NOT A CONFIDENCE LEVEL, and the first draft of this pin had
+# it wrong in a way worth recording. That draft asked for six ordinary
+# sessions and justified them as p = 0.375**6 — the odds a coin-flipping
+# bundle lands "warm" six times running. The arithmetic was sound and the
+# instrument was not: p is a property of how warm the machine's font cache
+# is, it drifted from 0.375 to 1.0 over one day, and at p = 1.0 no number of
+# repetitions is enough. See the section comment.
+#
+# With the cold profile the reading is deterministic, so a SINGLE session
+# would already catch a revert and the count is no longer buying power.
+# Three are kept because the claim being made is about agreement ACROSS page
+# loads, and a claim about repetition that never repeats is not evidence of
+# it. Trim to one and the assertion silently narrows to "one cold export is
+# correct", which is a different and weaker statement.
+_FONTRACE_SESSIONS = 3
+
+
+def _bound_text_budget(width: int) -> int:
+    """Pixel width the client wraps a diamond's bound label to.
+
+    Written out rather than imported because there is nothing to import:
+    `canvas.label_budget` is the SERVER's rule and a different one (a
+    shape-band reading minus 24), so borrowing it would measure the wrong
+    wrap. The client's rule is quoted verbatim in `_BOUND_TEXT_PAD`'s
+    comment, and `math.floor(x + 0.5)` is used instead of `round` because
+    JavaScript's `Math.round` is half-up where Python's is half-even.
+
+    Args:
+        width: The diamond's stored width in scene px.
+
+    Returns:
+        The budget in px.
+    """
+    return math.floor(width / 2 + 0.5) - _BOUND_TEXT_PAD * 2
+
+
+def _warm_line_count(width: int) -> int:
+    """Lines the label takes in the REAL face, derived independently.
+
+    The expectation this pin asserts must not be read back out of the
+    code it polices, or it would ratify a fix that consistently measures
+    the wrong font. It comes instead from `canvas.wrap_label_text` over
+    `canvas.NUNITO_ADVANCE` — per-character advances measured off the
+    vendored Nunito subset with the client's own engine, in a module the
+    export path does not touch. Two witnesses to the same face, and only
+    one of them is under test.
+
+    Args:
+        width: The diamond's stored width in scene px.
+
+    Returns:
+        The painted line count the warm face produces.
+    """
+    wrapped = canvas.wrap_label_text(_FONTRACE_LABEL,
+                                     _bound_text_budget(width),
+                                     _FONTRACE_FONT_SIZE)
+    return wrapped.count("\n") + 1
+
+
+def _label_only_diamond(width: int) -> list[dict]:
+    """A bound label and a container that draws nothing at all.
+
+    `opacity=0` on the diamond is the whole design: the container still
+    sets the wrap budget and still frames the export, but it lays down no
+    ink, so every inked row in the picture belongs to the label and a
+    row-run count IS a painted-line count with no outline to subtract.
+    Nothing else is in the scene for the same reason.
+
+    `fontFamily` is `FONT_LEGIBLE` and not the hand-drawn default: that
+    is the one family this repo actually draws with, and the measurement
+    behind the fix found it is also the only one of the four that arrives
+    late — the other three report the fallback's advance warm and cold
+    alike, so a scene built on them would race invisibly.
+
+    Args:
+        width: The diamond's stored width in scene px, which is what
+            decides whether the label wraps.
+
+    Returns:
+        The two-element scene: container `d1`, then its label `t1`.
+    """
+    dia = el(id="d1", type="diamond", x=0, y=0, width=width, height=120,
+             opacity=0, customData={"role": "node"})
+    dia["boundElements"] = [{"id": "t1", "type": "text"}]
+    lbl = el(id="t1", type="text", x=10, y=50, width=width - 20, height=20,
+             text=_FONTRACE_LABEL, originalText=_FONTRACE_LABEL,
+             fontSize=_FONTRACE_FONT_SIZE, fontFamily=canvas.FONT_LEGIBLE,
+             textAlign="center", verticalAlign="middle", containerId="d1",
+             strokeColor="#1e1e1e")
+    return [dia, lbl]
+
+
+def _cold_font_session(variants: dict[str, list[dict]]) -> dict[str, bytes]:
+    """One `_client_session` in a browser that has never fetched anything.
+
+    `_client_session` alone gives a fresh SERVER, a fresh project and a
+    fresh browser PROCESS — but not a fresh browser CACHE, because
+    `CLIENT_FLAGS` names no profile and chromium then shares the default
+    one across every session on the machine. The webfont this pin is
+    about is fetched over HTTP, so from the second session onward it
+    arrives from disk fast enough to win the race that is under test, and
+    the pin quietly stops being able to fail. Measured: a racing bundle
+    read the correct answer 3 times in 8 early in a day and 6 in 6 later
+    the same day.
+
+    A throwaway profile plus a disk cache floored at one byte puts every
+    session back on the network path, which makes the racing bundle read
+    the fallback EVERY time instead of most of the time. Determinism is
+    the point; the speed cost is a font fetch.
+
+    Scoped to this call rather than widened into `CLIENT_FLAGS`: the flag
+    tuple is a render input for the whole tier, and re-timing 107 tests to
+    fix one is not a change this pin gets to make on its own.
+
+    Args:
+        variants: Name to scene, as `_client_session` takes them.
+
+    Returns:
+        Variant name to PNG bytes. Propagates `_client_session`'s
+        `RuntimeError` — a session that did not render has not measured
+        anything, and a cold one is no different.
+    """
+    profile = tempfile.mkdtemp(prefix="mutants-coldfont-")
+    cold = (*CLIENT_FLAGS, "--user-data-dir=%s" % profile,
+            "--disk-cache-size=1")
+    try:
+        with mock.patch.object(sys.modules[__name__], "CLIENT_FLAGS", cold):
+            return _client_session(variants)
+    finally:
+        shutil.rmtree(profile, ignore_errors=True)
+
+
+def _inked_row_runs(shot: bytes) -> int:
+    """Maximal runs of consecutive inked rows in a raster.
+
+    The oracle is deliberately NOT pixel equality. Two exports of one
+    scene can differ by a hinting pixel without differing in what the
+    reader sees, and the defect this measures moves a whole line — so
+    counting the bands of rows that carry ink reports exactly the thing
+    that changed and is blind to the thing that did not.
+
+    Args:
+        shot: A PNG.
+
+    Returns:
+        The number of row bands carrying at least one pixel below
+        `INK_THRESHOLD`. Zero for a blank raster.
+    """
+    w, h, pix = read_png_gray(shot)
+    runs, prev = 0, False
+    for y in range(h):
+        row = y * w
+        cur = any(pix[row + x] < INK_THRESHOLD for x in range(w))
+        runs += int(cur and not prev)
+        prev = cur
+    return runs
+
+
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
                              "(starts a headless browser)")
 class TestClientTierMechanisms(unittest.TestCase):
-    """The two properties the client tier's arithmetic rests on.
+    """The three properties the client tier's arithmetic rests on.
 
     The tier's findings are only evidence if the renders behind them are
     comparable and repeatable, and neither is visible in a finding: an
@@ -2825,8 +3091,13 @@ class TestClientTierMechanisms(unittest.TestCase):
     shots were framed differently, or the app rendered the same bytes
     twice by accident. These ask both questions directly, in pixels.
 
-    Both cost a real session (~6s cold) and neither can be answered from
-    the cache, which is the point — see each docstring.
+    The third is repeatability's other half, and the two are not the same
+    question: the render must agree with itself WITHIN a page load and
+    ACROSS page loads, and the font race made the first true while the
+    second was a coin flip. See the section comment above.
+
+    All three cost real sessions and none can be answered from the cache,
+    which is the point — see each docstring.
     """
 
     def test_ablating_an_extremal_element_still_lands_on_one_grid(
@@ -2918,6 +3189,133 @@ class TestClientTierMechanisms(unittest.TestCase):
                          "SAME bytes as the original (%s) — the session is "
                          "not rendering per artifact, so the agreement "
                          "above measured nothing" % digests)
+
+    def test_the_label_scene_sits_on_the_wrap_boundary(self) -> None:
+        """The pin below is only worth its sessions if the scene flips.
+
+        A stability assertion on a scene whose wrap NOTHING could move is
+        green forever and proves nothing, which is this repo's recurring
+        way of being wrong. So the boundary is asserted rather than
+        assumed, in the arithmetic that puts the scene there, before a
+        browser is paid for.
+
+        Three conditions, and all three are about the WRAPPING pole:
+
+        1. The whole label must overhang its budget, or the warm face
+           puts it on one line and there is no second line to lose.
+        2. The overhang must be at most `_FONTRACE_OVERHANG`, or no
+           plausible fallback is narrow enough to close it and the scene
+           reads the same in either face.
+        3. The widest single word must FIT, or the label wraps in every
+           face for a reason that has nothing to do with the race.
+
+        Measured in raw advances (`canvas._display_width`), NOT through
+        `text_dims`: that estimator adds a ceil and 2px of safety on top
+        of the real advance, and a boundary manufactured by a safety pad
+        is not a boundary the browser has to agree with.
+
+        The control pole is asserted the other way — the label must clear
+        the wider diamond's budget outright, so its line count cannot
+        move whatever face measures it.
+        """
+        fs = _FONTRACE_FONT_SIZE
+        budget = _bound_text_budget(_FONTRACE_WRAPS)
+        whole = canvas._display_width(_FONTRACE_LABEL) * fs
+        widest = max(canvas._display_width(word) * fs
+                     for word in _FONTRACE_LABEL.split())
+        self.assertGreater(
+            whole, budget,
+            "%r measures %.2fpx against a %dpx budget, so it fits on one "
+            "line in the REAL face and the pin below has no second line "
+            "to lose" % (_FONTRACE_LABEL, whole, budget))
+        self.assertLessEqual(
+            whole, budget * (1 + _FONTRACE_OVERHANG),
+            "%r overhangs its %dpx budget by %.2fpx (%.1f%%), past the "
+            "%.0f%% a fallback face was measured to close — the scene "
+            "wraps to two lines in every face and would stay green "
+            "through the race"
+            % (_FONTRACE_LABEL, budget, whole - budget,
+               100 * (whole - budget) / budget, 100 * _FONTRACE_OVERHANG))
+        self.assertLess(
+            widest, budget,
+            "the widest word in %r measures %.2fpx against a %dpx budget, "
+            "so the label wraps for want of room for one WORD — a fact "
+            "about the container, not about which face measured it"
+            % (_FONTRACE_LABEL, widest, budget))
+        self.assertLess(
+            whole, _bound_text_budget(_FONTRACE_FITS),
+            "the control diamond budgets %dpx and %r measures %.2fpx, so "
+            "the control is on the boundary too and cannot hold the "
+            "reading still"
+            % (_bound_text_budget(_FONTRACE_FITS), _FONTRACE_LABEL, whole))
+
+    def test_a_label_wraps_the_same_way_in_every_cold_session(self) -> None:
+        """The font race, forced rather than sampled.
+
+        THE ACCEPTANCE PIN for the export path's font readiness (f1e5bc9).
+        Read the section comment above this class first — it carries the
+        mechanism, the bundle-swap measurements, and the three traps.
+
+        What makes this test different from every other stability claim in
+        the file is that it asserts across page loads. The client measures
+        each string once per load and reuses the answer, so twenty exports
+        inside one session agree no matter which face was loaded when the
+        first one was taken; `test_one_scene_rendered_three_times_comes_
+        back_byte_identical` next door passed uniformly on the racing
+        bundle, at the WRONG value.
+
+        And it goes through `_cold_font_session`, not `_client_session`,
+        which is the difference between an instrument and a coin. A plain
+        session shares chromium's default profile, so the webfont is warm
+        from the first run of the day onward and the racing bundle starts
+        PASSING this test — measured, 6 of 6, against a bundle with no
+        readiness code in it. Cold-profiled, the racing bundle read the
+        fallback in all ten sessions measured and the fixed one read the
+        real face in all ten. The assertion fails on ANY session reading
+        the fallback, so it does not need every session to stay cold —
+        only the first, which is the one the profile guarantees.
+
+        IT ASSERTS THE VALUE, not merely that the sessions agree. The
+        fallback answer is a perfectly uniform answer, so a fix that
+        measured the wrong face consistently would satisfy a uniformity-
+        only pin exactly as well as a real one. The value comes from
+        `_warm_line_count`, which is Nunito's own measured advances in
+        `canvas.py` — two independent witnesses to one face, rather than
+        the export path agreeing with itself.
+
+        The control variant rides in the SAME session, which costs nothing
+        extra and is what stops the reading from being a constant: it must
+        read one line in every session, where the boundary variant reads
+        two. A row-run reader stuck on either answer fails one arm or the
+        other, and a run where the app drew nothing fails both.
+
+        `_client_shots` must never appear in this test. Its cache would
+        answer the second session with the first session's bytes and the
+        agreement would be a dict lookup's.
+        """
+        want = (_warm_line_count(_FONTRACE_WRAPS),
+                _warm_line_count(_FONTRACE_FITS))
+        got = []
+        for _ in range(_FONTRACE_SESSIONS):
+            shots = _cold_font_session(
+                {"wraps": _label_only_diamond(_FONTRACE_WRAPS),
+                 "fits": _label_only_diamond(_FONTRACE_FITS)})
+            got.append((_inked_row_runs(shots["wraps"]),
+                        _inked_row_runs(shots["fits"])))
+        self.assertEqual(
+            got, [want] * _FONTRACE_SESSIONS,
+            "%d COLD sessions exported %r painted (boundary, control) "
+            "line counts of %s; every one of them must read %s. A run "
+            "that DISAGREES with itself is the font race — the export "
+            "wrapped against whatever face happened to be loaded. A run "
+            "that agrees on the wrong count is worse: the export is "
+            "consistently measuring a face it does not paint in, and the "
+            "warm answer for a %dpx budget is %d line(s) by Nunito's own "
+            "measured advances. Either way `fontsSettled` is not being "
+            "awaited before `restoreForRender`."
+            % (_FONTRACE_SESSIONS, _FONTRACE_LABEL, got,
+               [want] * _FONTRACE_SESSIONS,
+               _bound_text_budget(_FONTRACE_WRAPS), want[0]))
 
 
 # --------------------------------------------------------------------------
