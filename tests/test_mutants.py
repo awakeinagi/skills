@@ -24055,7 +24055,20 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # not the one the handover named; a note here that had transcribed the
 # named repair would have described a tree that does not exist. Read the
 # class, not the paragraph that commissioned it.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# TWO on 2026-08-20 (CURATOR BATCH 46), read off the guard the same way: the
+# class was written, this was run against an empty declaration, it reported
+# `measured {'TestTheRenderRegimeFiguresAreTheOnesPaintEmits': 2}`, and the
+# measured side was transcribed. NOT a product defect — nothing in
+# `canvas.py` is red. They are two arithmetic claims in
+# `tests/test_mutants_render.py` about where `paint` puts a wrapped text,
+# both written at 1.25 where the element resolves 1.35, both feeding LOWER
+# bounds so the wrong figure only loosens the assertion and neither has ever
+# failed. Two reds and not one because they are two expressions in two
+# methods; five honest repairs were written and each flips exactly one.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheRenderRegimeFiguresAreTheOnesPaintEmits": 2,
+}
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
 # `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
@@ -32347,6 +32360,314 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
             % (helper_top, helper_bottom, top, bottom,
                abs(helper_bottom - bottom),
                scene[0]["y"] + scene[0]["height"]))
+
+
+# ---------------------------------------------------------------------------
+# CURATOR BATCH 46 — THE RENDER-TIER FIGURES (2026-08-20).
+#
+# TWO ARITHMETIC CLAIMS about how `paint` lays a wrapped text out, both
+# written at 1.25 where the shipped reader takes `line_height_of` and
+# resolves 1.35 for that element, both in `tests/test_mutants_render.py`:
+#
+#   * `last_baseline` reads 73.6 where the fourth baseline is emitted at
+#     78.4;
+#   * `ink_bottom` reads 80 where the fourth line box bottoms at 86.4.
+#
+# Same family as curator batch 42's emitter comment, and the fifth and sixth
+# sites that hunt turned up. Found there, filed here because they are a
+# different tier, a different owner, and folding them into that batch would
+# have mixed two subjects.
+#
+# WHY THEY MATTER DESPITE PASSING. Both feed `assertGreater` /
+# `assertGreaterEqual` — LOWER BOUNDS — so a figure that is too SMALL only
+# loosens them, and both still pass against the real 127px frame. Nothing
+# failed when they went wrong and nothing would fail if they rotted further.
+# That is exactly the condition batch 42 was opened for, and repairing them
+# without pinning them re-creates it.
+#
+# THE GATE PREMISE DOES NOT APPLY TO THESE TWO, and it was worth checking
+# rather than inheriting: they were routed here as render-tier work behind
+# `MUTANTS_RENDER=1`, which would have made them part of the never-run
+# problem the render-evidence record was built for. MEASURED:
+# `TestRenderParityRegime` carries NO class decorator, runs under plain
+# discovery with the variable unset, and its seven tests pass in 0.003s
+# without a browser. So these two claims have run on every commit all along
+# — they are not silent, they are WRONG-LOOSE, which is a different defect
+# and a worse-hidden one. This section therefore rides no run record and
+# blocks on no fold.
+#
+# THE PIN EVALUATES THE EXPRESSION, IT DOES NOT MATCH ITS SHAPE, which is
+# batch 42's own rule about anchors turned on this subject. The honest
+# repairs here are several — write 1.35, write `canvas.line_height_of(lbl)`,
+# write the derived number, hoist it to a helper — and a guard keyed to any
+# one wording would forbid the others. What is asserted is the VALUE the
+# assignment produces, against a value read out of the emitted markup.
+# ---------------------------------------------------------------------------
+
+_RENDER_FIGURES = "test_mutants_render"
+# Which assignment, in which test method. The method is named as well as the
+# variable so that a second `ink_bottom` somewhere else in the file cannot be
+# measured in place of this one.
+_RENDER_FIGURE_SITES = {
+    "last_baseline":
+        "test_the_body_text_still_wraps_to_more_lines_than_it_is_bound_for",
+    "ink_bottom":
+        "test_the_bounds_loop_frames_the_wrapped_text_it_used_to_clip",
+}
+
+
+def _render_baselines() -> list[float]:
+    """Every text baseline `render_svg` emits for the wrapped fixture.
+
+    READ OFF THE MARKUP, which is the whole point: both figures below are
+    claims about where `paint` puts lines, and the only unarguable answer
+    is where it put them. No multiplier is written here — the advance is
+    the difference between two emitted baselines, so a change to the
+    metrics moves this with the drawing instead of leaving it behind.
+
+    No browser. `render_svg` is stdlib Python, which is why this section
+    is ungated and why its subject can be too.
+
+    Returns:
+        The baseline `y` values in document order.
+
+    Raises:
+        AssertionError: If the fixture is gone, or emits fewer than two
+            baselines — one baseline cannot yield an advance, and a
+            figure derived from no advance would be a literal wearing a
+            derivation's clothes.
+    """
+    module = sys.modules.get(_RENDER_FIGURES) or importlib.import_module(
+        _RENDER_FIGURES)
+    scene = module._wrapped_body_text(False)
+    svg, _w, _h = canvas.render_svg(scene)
+    found = [float(y) for y in
+             re.findall(r"<(?:text|tspan)[^>]*?y='([-\d.]+)'", svg)]
+    if len(found) < 2:
+        raise AssertionError(
+            "the wrapped fixture emits %d baseline(s), so there is no "
+            "line advance to derive and neither figure below can be "
+            "checked against anything. This is a finding about the "
+            "fixture, not about the figures" % len(found))
+    return found
+
+
+def _render_truth() -> dict[str, float]:
+    """What the two figures ought to say, derived from the emitted markup.
+
+    Returns:
+        `last_baseline` — where the last line's baseline really is; and
+        `ink_bottom` — where its line box really ends, taken as the line
+        count times the measured advance rather than as any multiplier.
+    """
+    baselines = _render_baselines()
+    advance = baselines[1] - baselines[0]
+    return {"last_baseline": baselines[-1],
+            "ink_bottom": len(baselines) * advance}
+
+
+def _render_figure(name: str) -> float:
+    """Evaluate the value that assignment produces, in its own module.
+
+    THE VALUE AND NOT THE WORDING. Several honest repairs exist here —
+    write the other multiplier, call `line_height_of`, hoist a helper,
+    write the number — and a guard keyed to one of them would forbid the
+    rest, which is the trap curator batch 42 was caught in twice. So the
+    right-hand side is compiled and run rather than pattern-matched.
+
+    WHERE THIS REFUSES, stated because the derive range is the range that
+    can be laundered: it evaluates the expression against the module's
+    GLOBALS only. A repair that made the figure depend on a local of the
+    test method is not wrong, but it is beyond what this can reach, and
+    it raises rather than passing — see the message.
+
+    Args:
+        name: The assigned variable, a key of `_RENDER_FIGURE_SITES`.
+
+    Returns:
+        The number that assignment evaluates to today.
+
+    Raises:
+        AssertionError: If the method or the assignment is gone, if it
+            appears more than once, or if the expression cannot be
+            evaluated from module scope.
+    """
+    module = sys.modules.get(_RENDER_FIGURES) or importlib.import_module(
+        _RENDER_FIGURES)
+    method = _RENDER_FIGURE_SITES[name]
+    tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
+    found = [node.value
+             for cls in ast.walk(tree)
+             if isinstance(cls, ast.FunctionDef) and cls.name == method
+             for node in ast.walk(cls)
+             if isinstance(node, ast.Assign)
+             and isinstance(node.targets[0], ast.Name)
+             and node.targets[0].id == name]
+    if len(found) != 1:
+        raise AssertionError(
+            "%s.%s assigns %r %d times and this guard needs exactly one. "
+            "Zero means the figure has been deleted or moved — it is then "
+            "unwatched, which is the state this section was written to "
+            "end" % (_RENDER_FIGURES, method, name, len(found)))
+    try:
+        return float(eval(compile(ast.Expression(found[0]), "<figure>",
+                                  "eval"), vars(module)))
+    except NameError as exc:
+        raise AssertionError(
+            "%s's %r now depends on a name this guard cannot supply (%s). "
+            "It evaluates the expression against module globals, so a "
+            "figure derived from a local of the test method is outside "
+            "what it can reach — hoist the derivation to module scope, or "
+            "re-point this guard, but do not leave the figure unwatched"
+            % (method, name, exc)) from exc
+
+
+class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
+    """Two lower bounds in the render regime class, against the markup.
+
+    TWO REDS. Both figures are wrong today and both are wrong in the
+    direction that hides it: they under-state where the ink reaches, and
+    they are compared with `assertGreater` / `assertGreaterEqual`, so the
+    wrong number makes the assertion LOOSER and both still pass. A pin
+    that merely re-asserted those bounds would pass over the rot exactly
+    as the bounds themselves do — so what is asserted here is EQUALITY
+    against the emitted markup, which is the only reading that fails in
+    both directions.
+
+    RE-DERIVED ON THIS BASE, not carried from the batch that found them.
+    `render_svg` emits baselines at 13.6, 35.2, 56.8 and 78.4 for the
+    wrapped fixture — an advance of 21.6px, which is `fontSize` times the
+    1.35 `line_height_of` resolves for an element carrying neither a
+    stored `lineHeight` nor a `fontFamily`. The written figures are 73.6
+    and 80, computed at 1.25.
+
+    NOT A GATED-TIER PROBLEM, checked rather than assumed. These were
+    routed here as render-tier work, which would have put them among the
+    tests that have never run for want of `MUTANTS_RENDER=1`.
+    `TestRenderParityRegime` carries no decorator: its seven tests run
+    under plain discovery, with no browser, in 0.003s. They have run on
+    every commit and been wrong on every one of them.
+
+    WHERE THIS DISCRIMINATES, measured rather than claimed, because a pin
+    that speaks on every input and separates none is the shape this
+    curator shipped and withdrew one batch ago. Five honest repairs were
+    written and each flips exactly its own red: the other multiplier, a
+    call to `line_height_of`, and the bare derived number, on each of the
+    two figures. Four degradations: removing the assignment's name, and
+    duplicating it, and making it depend on a method local all FAIL
+    loudly; renaming the fixture builder away makes both greens ERROR.
+    Making a figure MORE wrong — zero, or a lying `_WRAPPED_LINES` —
+    leaves the reds red, which is the correct answer and is the boundary
+    worth knowing: these reds say "this figure is not the emitted one",
+    not "this figure is wrong by 4.8".
+
+    THE TRUTH SIDE READS NO CONSTANT OF THAT FILE'S, deliberately. The
+    advance is the gap between two emitted baselines and the line count is
+    how many were emitted, so `_WRAPPED_LINES` appears on the CLAIM side
+    only — set it to 1 and the figure it feeds moves while the truth does
+    not, which is what keeps a wrong constant from validating itself.
+
+    NOT REPAIRED HERE. Two constants in another tier's file, and a
+    curator writing the acceptance test and the fix is the pattern this
+    charter refuses.
+    """
+
+    def test_the_two_figures_are_still_in_that_file_and_still_parse(
+            self) -> None:
+        """The subject exists, once each, and still evaluates to a number.
+
+        First, because both reds raise from `_render_figure` when their
+        assignment is gone, and a raise under `expectedFailure` reads as
+        a healthy red. This says plainly which figure went missing.
+        """
+        for name in sorted(_RENDER_FIGURE_SITES):
+            with self.subTest(figure=name):
+                self.assertIsInstance(_render_figure(name), float)
+
+    def test_the_fixture_still_wraps_to_more_than_one_line(self) -> None:
+        """The premise: a one-line fixture has no advance to be wrong about.
+
+        Both figures are about the SECOND and later lines. If the wrap,
+        the cap or the string ever collapsed this fixture to one line,
+        the advance would be underivable and the reds below would be
+        asserting nothing — so that fails here, where the message is
+        about the stage.
+        """
+        baselines = _render_baselines()
+        self.assertGreater(
+            len(baselines), 1,
+            "the wrapped fixture now paints %d line(s), so there is no "
+            "line-to-line advance and neither figure below has a subject"
+            % len(baselines))
+
+    def test_the_bounds_these_figures_feed_are_loose_in_the_hiding_direction(
+            self) -> None:
+        """GREEN: why a wrong figure here passes, asserted rather than said.
+
+        The live half, and the reason this class exists at all. Both
+        figures are compared as LOWER bounds, so under-stating them can
+        only make the assertion easier — and the real frame clears both
+        the written figure and the true one, which is why nothing has
+        ever failed. Asserted so that the day the frame tightens enough
+        for the difference to matter, that is news rather than a silent
+        flip.
+
+        It stays true after either repair, so it goes on recording WHY
+        the reds existed once they have flipped.
+        """
+        truth = _render_truth()
+        for name in sorted(_RENDER_FIGURE_SITES):
+            with self.subTest(figure=name):
+                self.assertLess(
+                    _render_figure(name), truth[name] + 1e-9,
+                    "%r now reads ABOVE what the markup emits (%g against "
+                    "%g). That is the other direction and it would fail "
+                    "its own assertion rather than hide — a different "
+                    "finding from the reds below"
+                    % (name, _render_figure(name), truth[name]))
+
+    @unittest.expectedFailure
+    def test_the_last_baseline_is_where_paint_puts_the_last_baseline(
+            self) -> None:
+        """RED: 73.6 written, 78.4 emitted, a 4.8px under-statement.
+
+        The invariant, not either number: whatever the metrics do next,
+        a figure claiming to be the last line's baseline has to be the
+        last line's baseline. Compared against the value read out of the
+        markup `render_svg` produced, so any repair landing on the right
+        number passes however it is written.
+        """
+        truth = _render_truth()["last_baseline"]
+        got = _render_figure("last_baseline")
+        self.assertAlmostEqual(
+            got, truth, places=6,
+            msg="the regime test computes a last baseline of %g and "
+                "`paint` emits it at %g — %gpx short. It feeds an "
+                "`assertGreater`, so the short figure only loosens the "
+                "bound and nothing fails" % (got, truth, truth - got))
+
+    @unittest.expectedFailure
+    def test_the_ink_bottom_is_where_the_last_line_box_ends(self) -> None:
+        """RED: 80 written, 86.4 emitted, a 6.4px under-statement.
+
+        Filed separately from its sibling because it is a different
+        expression in a different method, and a repair can plausibly
+        close one and leave the other — which is what happened to the
+        two claims four lines apart in that same file that DO state 1.35
+        correctly.
+
+        The truth is the line count times the MEASURED advance, so no
+        multiplier is written on either side of the comparison.
+        """
+        truth = _render_truth()["ink_bottom"]
+        got = _render_figure("ink_bottom")
+        self.assertAlmostEqual(
+            got, truth, places=6,
+            msg="the regime test computes an ink bottom of %g and the "
+                "last line box ends at %g — %gpx short. It feeds an "
+                "`assertGreaterEqual` against a frame that clears both, "
+                "so the short figure has never failed"
+                % (got, truth, truth - got))
 
 
 class TestCoverage(unittest.TestCase):
