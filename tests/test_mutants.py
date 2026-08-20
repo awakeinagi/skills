@@ -15707,7 +15707,8 @@ def _rect_stage_gapped() -> list[dict]:
     return scene
 
 
-def _labelled_shape(shape: str, width: int = 200) -> list[dict]:
+def _labelled_shape(shape: str, width: int = 200,
+                    height: int = 100) -> list[dict]:
     """One node carrying a bound label right at the old fitter's budget.
 
     `fit_label_in` used to allot a label `width - 24` whatever the
@@ -15719,36 +15720,43 @@ def _labelled_shape(shape: str, width: int = 200) -> list[dict]:
     because at the label's own height the rhombus is 160px across, not
     200px.
 
-    `width` is the OTHER POLE, and it is the room and not the shape that
-    it moves: at 220 the same label on the same diamond has a 176px
-    chord at the same band and clears by 4px. Holding the label and the
-    type fixed and varying only the width is what forces the check to be
-    about the body's room — a check that fired on diamonds as such, or
-    above some coarse size, would pass a rectangle control and fail this
-    one.
+    THE CLIENT'S ROOM RULE RE-CUT ALL OF THIS (TASK-TEXT-TRUTH,
+    `90e9e56`), and the stored 171px box is no longer drawn anywhere: a
+    bound label is wrapped to `client_wrap_width`, `round(width/2) - 10`
+    on a rhombus, so at 200 wide the cap is 90 and this label draws as
+    three lines of 62px ink, 60px tall. Every pole below was re-derived
+    against that on 2026-08-19. The first paragraph's numbers no longer
+    describe any finding and are kept only because they explain the
+    geometry the stage was cut from.
 
-    Coordinates are frozen. The label's stored box is 171x20 and the
-    measured ink is now 172 wide, so the ink sits half a pixel proud of
-    its own box on each side; the box is centred on the node (x = 14 at
-    200 wide — half a pixel left of centre, since exact centring would
-    want 14.5). Drift in the advance table therefore moves the finding
-    this stage asserts, which is what it is for: that drift is exactly
-    how the pinned magnitude went stale by a pixel between 2026-08-18
-    and 2026-08-20, and re-deriving on the merged tree is what caught it.
-    The mutant's 12px reading has 3.6px of band on each side and the
-    clearance here is 4px, so the two poles are now about equally tight —
-    neither is the fragile one.
+    `width` AND `height` ARE BOTH POLES, and both move the ROOM rather
+    than the shape — which is what forces the checks to be about the
+    body's room, since a check that fired on diamonds as such would pass
+    a rectangle control and fail these. `width` moves the client's wrap
+    cap (200 → 90, 240 → 110, which is three lines against two).
+    `height` moves the room the wrapped block has to sit in, and it is
+    the pole the room rule made necessary: a wrapped label is three
+    times taller than the one this stage was cut for, so height is now
+    the axis on which it fits or does not.
+
+    Coordinates are frozen. The label is sized to
+    `text_dims("Send for second review", 16)` exactly and centred on the
+    node (x = 14 at 200 wide — half a pixel left of centre, since exact
+    centring would want 14.5), so drift in the advance table moves the
+    finding this stage asserts.
 
     Args:
-        shape: The container's element type — `"diamond"` for the mutant,
-            `"rectangle"` for the shape control.
-        width: The container's width. 200 overhangs; 220 fits.
+        shape: The container's element type — `"diamond"` for the
+            mutants, `"rectangle"` for the shape control.
+        width: The container's width, which sets the client's wrap cap.
+        height: The container's height, which sets the room the wrapped
+            block gets. 100 is too short for three lines; 180 is not.
 
     Returns:
         The two-element scene: the node `d1`, then its bound label `t1`.
     """
     text = "Send for second review"
-    node = el(id="d1", type=shape, x=0, y=0, width=width, height=100,
+    node = el(id="d1", type=shape, x=0, y=0, width=width, height=height,
               customData={"role": "node"},
               boundElements=[{"id": "t1", "type": "text"}])
     lbl = el(id="t1", type="text", x=int((width - 171) / 2), y=40,
@@ -17917,31 +17925,108 @@ _register(Mutant(
 # owner's bounds, and on this scene it is right to be quiet — the text does
 # wrap and the wrapped block does fit. This asks whether the label's DRAWN
 # box lies inside the outline a reader can see.
+#
+# RE-DERIVED FOR THE ROOM RULE (curator batch 39, 2026-08-19), and the
+# handover's diagnosis is corrected here rather than applied. TASK-TEXT-
+# TRUTH's report §A6.1(a) routed this entry as "the detector has gone
+# SILENT, so the class moves to `text_overflow`". The first half is true of
+# the OLD SCENE and false of the detector: swept across diamond geometry at
+# `ab1150a`, `label_overflows_shape` still fires on this very label at
+# 240x220 (17px), 260x220 (22px) and 260x180 (1px). What died is the old
+# scene's claim, not the check — the client now wraps the 171px label to
+# 62px, so at 200x100 nothing overhangs anything.
+#
+# SO THE CLASS SPLIT RATHER THAN MOVED, which is why this is two entries and
+# not a re-key. This one keeps its id, its check and its `element="t1"`, and
+# takes geometry where the overhang is still real; the new class the room
+# rule created — a wrapped label too TALL for the rhombus — is
+# `diamond_wrapped_label_is_too_tall` below, with its own id and its own
+# check. Re-keying this entry to `text_overflow` as routed would have left
+# `label_overflows_shape` with no proving mutant while the check was still
+# live, which is precisely the silence the coverage table exists to refuse.
+#
+# THE NEW MAGNITUDE IS 17px AT 240x220: the cap is `round(240/2) - 10` = 110,
+# the label wraps to two lines of 106px ink, and the rhombus is only 87px
+# across at that block's own height. The ±30% band (11.9..22.1) keeps the
+# convention this entry has always held and excludes the same two wrong
+# readings: 0 (measuring at the centre line, where everything fits) and 8.5
+# (half the total, the shape a per-side report would take).
 _register(Mutant(
     "diamond_label_overflows_shape",
-    build=lambda: _labelled_shape("diamond"),
+    build=lambda: _labelled_shape("diamond", width=240, height=220),
     op="unchanged", args={},
     # 12, re-derived on the merged tree 2026-08-20 (curator batch 36). Was
     # 11, which the measured-advance estimator turned stale by 1px; ±30%
     # was wide enough that the entry went on asserting 11 while the check
     # emitted 12. The derivation and the four rejected readings are above.
     expect=FindingSpec("label_overflows_shape", element="t1",
-                       magnitude=(12, 0.30)),
-    # THE OTHER POLE, paid for at the flip (task 17). This was a
-    # `Silence("endpoint_gap")` over a rectangle — liveness only, because
-    # a Silence on a check with no detector passes vacuously (see
-    # `phantom_passthrough_shared_attach`). Now the check exists, so the
-    # Silence bites, and the control moved from the rectangle to a WIDER
-    # DIAMOND on purpose: same label, same shape, 220px wide, where the
-    # chord at the same band is 176px and the label clears by 4px (5px
-    # until the measured-advance estimator made this string 172 rather
-    # than 171 wide; re-derived on the merged tree, curator batch 36). The
-    # rectangle could not have caught a check that fired on every diamond
-    # regardless of room; this does. The shape control is not lost —
-    # `marker_inset` gates the check, so a rectangle is silent by
-    # construction and `text_overflow` still owns it.
-    neighbour=Neighbour(lambda: _labelled_shape("diamond", width=220),
+                       magnitude=(17, 0.30)),
+    # THE OTHER POLE, and it moves from the WIDTH axis to the HEIGHT axis
+    # for a derived reason, not a convenient one. The old control was the
+    # same label on a 220px-wide diamond, silent because the chord was
+    # wider there. Under the client's rule that control is dead twice
+    # over: at 220 the cap is 100, the label still wraps to three lines of
+    # 62px, and the scene reports `text_overflow` AND `label_adrift` — it
+    # is not silent on anything, let alone on this check. Re-derived at
+    # `ab1150a`: holding the width at 240 (so the cap, the wrap and the
+    # ink are all identical to the mutant's) and opening the height to 180
+    # gives the same block room to sit in, and the check is correctly
+    # quiet. Same label, same shape, same ink, one axis apart — which is
+    # the property the old control had and the reason to keep its shape.
+    neighbour=Neighbour(lambda: _labelled_shape("diamond", width=240,
+                                                height=180),
                         Silence("label_overflows_shape"))))
+
+# The other half of the split above (curator batch 39, 2026-08-19), and the
+# class TASK-TEXT-TRUTH's §A6.1(a) correctly identified even though its
+# mechanism was wrong: the client's room rule creates a defect that did not
+# exist before it, and no entry claimed it.
+#
+# WHAT THE DRAWING GETS WRONG. A rhombus 200px wide caps a bound label at
+# `round(200/2) - 10` = 90px, so "Send for second review" — one line of
+# 171px as anyone would author it — is drawn as THREE lines, 62px wide and
+# 60px tall. The rhombus gives that block 40px of room. Twenty pixels of the
+# last line are painted below the shape. The old failure mode was a label
+# too WIDE for the body and it is the one every number in this family was
+# cut for; this one is too TALL, it arrives from the wrap rather than from
+# the author, and widening the node makes it worse rather than better —
+# a wider rhombus raises the cap, but the block that has to fit is still
+# three lines deep until the cap passes the whole string.
+#
+# WHY IT IS `text_overflow` AND NOT THE CHECK ABOVE. Height is the axis
+# `text_overflow` owns, and it reports it: `needs ~62x60px, the box gives
+# 90x40px (too tall)`. `label_overflows_shape` asks a horizontal question —
+# does the drawn box lie inside the outline — and is right to be quiet on a
+# 62px block inside an 87px chord. The task-17 convergence note above is
+# unchanged by this: these are still different questions, and the split
+# proves it rather than contradicting it.
+#
+# THE MAGNITUDE BAND IS ±3%, WHICH IS TIGHTER THAN THIS FILE'S HABIT, and
+# deliberately so. `90e9e56`'s own ruling is that wrap points, fit checks
+# and drawn ink read INK while stored extents RESERVE — the 2px difference
+# between `text_ink_width` (62) and `text_dims` (64) is the whole content of
+# that ruling. A ±10% band would admit 64 and this entry would stop
+# noticing a regression to the reserving reader; 60.1..63.9 excludes it.
+#
+# THE SCENE ALSO REPORTS A FALSE `label_adrift`, and that is not this
+# entry's subject — see `TestABandTouchingTheApexIsNotAMiss`, which owns it
+# as a red. Named here because a reader running this mutant will see two
+# findings and should know the second one is a known lie, not a second
+# claim this entry is making.
+_register(Mutant(
+    "diamond_wrapped_label_is_too_tall",
+    build=lambda: _labelled_shape("diamond"),
+    op="unchanged", args={},
+    expect=FindingSpec("text_overflow", element="d1", direction="tall",
+                       magnitude=(62, 0.03)),
+    # THE OTHER POLE ON THE AXIS THAT MATTERS. Same width, so the cap, the
+    # wrap and the ink are byte-identical — 90px, three lines, 62x60 — and
+    # only the room changes. At 180 tall the block fits and the check is
+    # quiet. A control that varied the WIDTH instead would have changed
+    # the wrap and proved nothing about height, which is the mistake the
+    # dead 220px control above made once the room rule landed.
+    neighbour=Neighbour(lambda: _labelled_shape("diamond", height=180),
+                        Silence("text_overflow"))))
 
 
 def _wrapped_ink_in_a_wide_frame() -> list[dict]:
@@ -20908,23 +20993,46 @@ _register(Mutant(
 # (272).
 #
 # THE NEIGHBOUR IS THE SIBLING ARM'S OWN SCENE, which is the control
-# this defect needs and not merely a quiet one. `_labelled_shape(
-# "diamond")` is an OVERSIZED but CENTRED label: it overhangs by 12px
-# and must come out as `label_overflows_shape`, a sizing fault with a
-# sizing remedy, while `label_adrift` stays silent on it. The two
-# sentences are not interchangeable — "shorten it" cannot help a label
-# 347px clear of anything — so a rewrite that merged them would pass
-# the mutant and fail here. Sharing the base scene with
-# `diamond_label_overflows_shape` is deliberate as well: one stage now
-# carries both arms of the check, and the arms differ by their
-# magnitude and their remedy rather than by their fixture.
+# this defect needs and not merely a quiet one. It is an OVERSIZED but
+# CENTRED label: it overhangs, and must come out as
+# `label_overflows_shape`, a sizing fault with a sizing remedy, while
+# `label_adrift` stays silent on it. The two sentences are not
+# interchangeable — "shorten it" cannot help a label 347px clear of
+# anything — so a rewrite that merged them would pass the mutant and
+# fail here. Sharing the base scene with `diamond_label_overflows_shape`
+# is deliberate as well: one stage carries both arms of the check, and
+# the arms differ by their magnitude and their remedy rather than by
+# their fixture.
+#
+# THE NEIGHBOUR'S GEOMETRY MOVED (curator batch 39, 2026-08-19) and its
+# MEANING DID NOT. It was `_labelled_shape("diamond")` at 200x100. Under
+# the client's room rule that scene reports `label_adrift` — falsely, at
+# the full 62px of its ink, saying "none of the text lands on it" about a
+# label whose ink is drawn squarely on the rhombus. That is a defect in
+# `shape_band_span`'s contract, it is owned as a red by
+# `TestABandTouchingTheApexIsNotAMiss`, and it is NOT re-calibrated away
+# here: this control moves to the geometry where the sibling arm is still
+# the true reading (240x220, overhanging by 17px), so the pairing this
+# comment describes survives intact and nothing about `label_adrift`'s
+# threshold or its band arithmetic is touched.
+#
+# TASK-TEXT-TRUTH's §A6.1(b) routed this as "re-calibrate the NEIGHBOUR'S
+# DRAG DISTANCE so it still overlaps at the drawn width", with numbers off
+# a 240x80 diamond. Not applied, for three reasons found on re-derivation:
+# the neighbour has no drag — doctrine §3 builds it as-is and never applies
+# the operator, and the dragged scene is `_adrift_label_stage`, which is
+# PASSING; 240x80 is neither stage's geometry (the mutant's is 200x100 with
+# a 55px 'Ready?' label); and those figures belong to the WP4 pin tabled in
+# that report's own §A6.3, one file over. The finding it calls
+# arithmetically correct is the false one described above.
 _register(Mutant(
     "label_dragged_clear_of_its_owner",
     build=_adrift_label_stage,
     op="shift_label", args={"text_id": "t1", "dx": 400, "dy": 0},
     expect=FindingSpec("label_adrift", element="t1",
                        magnitude=(347, 0.10)),
-    neighbour=Neighbour(lambda: _labelled_shape("diamond"),
+    neighbour=Neighbour(lambda: _labelled_shape("diamond", width=240,
+                                                height=220),
                         Silence("label_adrift"))))
 
 # v0.9 whole-branch review M-4's acceptance test, the third of the three
@@ -21277,12 +21385,23 @@ class TestMutantCatalogue(unittest.TestCase):
         self._run_neighbour("diamond_wrong_direction")
 
     def test_mutant_diamond_label_overflows_shape(self) -> None:
-        """A label inside its w-24 budget overhangs the rhombus by 11px."""
+        """The client's wrapped label still overhangs the rhombus by 17px."""
         # Was invisible to every check we owned. FLIPPED by WP4 (task
         # 17): `label_overflows_shape` measures the label's drawn box
         # against `shape_band_width` at the label's own y-band, and
         # `fit_label_in` budgets against the same number.
+        # RE-DERIVED for the room rule (curator batch 39, 2026-08-19):
+        # same check, same claim, geometry moved to where the overhang is
+        # still real once the client wraps the label. See the entry.
         self._run("diamond_label_overflows_shape")
+
+    def test_mutant_diamond_wrapped_label_is_too_tall(self) -> None:
+        """Three wrapped lines need 60px of a rhombus that gives 40px."""
+        self._run("diamond_wrapped_label_is_too_tall")
+
+    def test_neighbour_diamond_wrapped_label_is_too_tall(self) -> None:
+        """The same ink in a 180px-tall rhombus fits, and it says so."""
+        self._run_neighbour("diamond_wrapped_label_is_too_tall")
 
     def test_the_overflow_check_measures_ink_and_not_the_frame(
             self) -> None:
@@ -23214,6 +23333,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # moved, for the twelfth and thirteenth time.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestOneComposedPartPredicateHasThreeSites": 2,
+    "TestABandTouchingTheApexIsNotAMiss": 2,
 }
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
@@ -23243,6 +23363,20 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # before it loses its line, which is the shape the entry above warned about
 # and got right.
 #
+
+# ONE JOINED on 2026-08-19 (curator batch 39), and it is the first entry
+# here filed against a HELPER rather than against a check or a record:
+# `shape_band_span` breaks the contract its own docstring states, and
+# `label_adrift` is merely the caller that shows it. It arrived from a
+# catalogue re-derivation, which is the part worth banking — the two
+# entries TASK-TEXT-TRUTH routed to the curator were routed as fixture
+# staleness, and one of them was a live defect wearing staleness's clothes.
+# The report's own instruction ("do NOT widen the threshold to restore the
+# silence") was right about the door it named and silent about the other
+# one: re-calibrating the fixture would have buried it just as well. A
+# curator asked to re-calibrate a control should re-derive whether the
+# control was ever wrong before moving it.
+
 # EMPTY on 2026-08-18 (the v0.9 FINAL FIX ROUND) for the first time since
 # this dict was written. `TestAFreedrawKeepsTheGeometryItWasGiven` left it
 # the day after curator batch 33 filed it, with both of its reds flipped by
@@ -28445,6 +28579,234 @@ class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
             "pointed at `part_owner_id`, that is the merge this pins "
             "against — the two agree on every element shape but this "
             "one, and this one is what the report turns on" % (gaps,))
+
+
+# ---------------------------------------------------------------------------
+# CURATOR BATCH 39 (2026-08-19). THE BAND THAT TOUCHES THE APEX. Found while
+# re-deriving the two catalogue moves TASK-TEXT-TRUTH routed here, and filed
+# as a red rather than absorbed into their re-calibration — which is the
+# whole reason it is worth writing down.
+#
+# THE HANDOVER CALLED THIS CALIBRATION DRIFT. §A6.1(b) of that report reads
+# the `label_adrift` firing on `_labelled_shape("diamond")` as the control
+# having gone stale against a narrower ink width, and instructs: re-calibrate
+# the neighbour, and "do NOT widen `label_adrift`'s threshold to restore the
+# silence — the finding is arithmetically correct at the new ink width".
+#
+# The instruction is right and its premise is wrong. The finding is not
+# arithmetically correct. It is false, and re-calibrating the fixture would
+# have hidden it exactly as effectively as widening the threshold would —
+# the same mistake through the other door, which is why the fixture move
+# above is paired with this.
+#
+# WHAT THE DRAWING GETS WRONG. `shape_band_span` documents its `None` as
+# meaning the band "lies wholly outside the shape, so a caller can tell 'no
+# room here' from 'no room at all'". It does not compute that. It probes the
+# band's two EDGES and returns `None` the moment EITHER probe misses:
+#
+#     for y in (y0, y1):
+#         seg = shape_clip(el, cx, y, 1.0, 0.0)
+#         if seg is None or seg[1] <= seg[0]:
+#             return None
+#
+# So a band whose top edge is deep inside the body and whose bottom edge
+# grazes the apex answers "wholly outside". `label_adrift` consumes that as
+# "the band misses the body altogether — every pixel of the label is on
+# empty canvas", reports the WHOLE ink width as the clear-of distance, and
+# prints "none of the text lands on it".
+#
+# MEASURED at `ab1150a` on the 200x100 rhombus this file has carried since
+# WP4: the label's ink runs x 68.5..130.5 over y 40..100, and the rhombus is
+# 160px across (x 20..180) at the ink's own top edge. Most of the label is
+# painted on the node. The check says 62px clear.
+#
+# WHY IT IS LIVE NOW AND WAS NOT BEFORE. Nothing in `shape_band_span`
+# changed. The room rule made bound labels WRAP — this one goes from one
+# line to three — so the band grew from 20px to 60px and started reaching
+# the apex of shapes it used to sit well inside. A latent contract violation
+# that a taller band exposed; the room rule is the occasion, not the cause,
+# and reverting it would only re-hide this.
+#
+# WHO FLIPS THESE: whoever owns `shape_band_span`. The repair is that
+# function's, not the check's — a caller working around a helper that
+# breaks its own documented contract is how the next caller inherits the
+# bug. `label_adrift`'s threshold and its band arithmetic are correct and
+# must not move; the two reds below deliberately assert nothing about how
+# the span should be computed, only that a band overlapping the body must
+# not answer "wholly outside".
+# ---------------------------------------------------------------------------
+
+
+def _apex_band_stage() -> list[dict]:
+    """The stage both reds read: a centred label wrapped to three lines.
+
+    `_labelled_shape("diamond")` unchanged — the 200x100 rhombus this
+    file has carried since WP4. Under the client's room rule the cap is
+    90px, so the label draws as three lines and its band reaches y=100,
+    which is exactly the rhombus's bottom apex. Nothing here is tuned to
+    provoke that: it is the stage as it already stood, met by the new
+    wrap.
+
+    Returns:
+        The two-element scene: the node `d1`, then its bound label `t1`.
+    """
+    return _labelled_shape("diamond")
+
+
+def _drawn_ink_band(scene: list[dict]) -> tuple[float, float, float, float]:
+    """Where a bound label's ink is actually painted, by the check's own rule.
+
+    Re-derived from `canvas`'s own helpers rather than copied as numbers,
+    so a change to the wrap or the metrics moves this with it and the
+    reds keep asking their question instead of guarding a literal.
+
+    Args:
+        scene: A two-element `[owner, label]` scene.
+
+    Returns:
+        `(ink_left, ink_right, band_top, band_bottom)` in scene
+        coordinates.
+    """
+    owner, lbl = scene[0], scene[1]
+    fs = lbl["fontSize"]
+    drawn = canvas.wrap_label_text(lbl["text"].replace("\n", " "),
+                                   int(canvas.client_wrap_width(owner)), fs)
+    drawn_w = canvas.text_ink_width(drawn, fs)
+    drawn_h = canvas.text_dims(drawn, fs)[1]
+    cy = lbl["y"] + max(float(lbl["height"]), drawn_h) / 2.0
+    ink_cx = lbl["x"] + max(float(lbl["width"]), drawn_w) / 2.0
+    return (ink_cx - drawn_w / 2.0, ink_cx + drawn_w / 2.0,
+            cy - drawn_h / 2.0, cy + drawn_h / 2.0)
+
+
+class TestABandTouchingTheApexIsNotAMiss(unittest.TestCase):
+    """`shape_band_span` calls a band that overlaps the body "wholly outside".
+
+    Its `None` is documented to mean the band misses the shape entirely,
+    and `label_adrift` is built on that reading: it reports the whole ink
+    width and says none of the text lands on the node. But the function
+    probes only the band's two edges and returns `None` if either misses,
+    so a label whose top is deep inside a rhombus and whose bottom grazes
+    the apex answers as if it were on empty canvas.
+
+    Both reds read one stage and flip on one repair in `shape_band_span`.
+    They are two claims, not one: the first says the helper breaks its own
+    contract, the second says the check built on it prints a false
+    sentence with a false number. A repair that made the check work around
+    the helper would answer the second and leave the first for the next
+    caller to find.
+    """
+
+    def test_the_band_really_does_overlap_the_body(self) -> None:
+        """The premise, derived: most of this label is drawn on the node.
+
+        Both reds claim a finding is false. That claim rests on the ink
+        genuinely landing on the rhombus, and if the wrap or the metrics
+        ever move so that it does not, the reds would be asserting
+        something untrue and would need re-deriving rather than flipping.
+        This measures it instead of assuming it — the chord at the ink's
+        own top edge, against the ink's own interval.
+        """
+        scene = _apex_band_stage()
+        ink0, ink1, top, bottom = _drawn_ink_band(scene)
+        chord = canvas.shape_band_span(scene[0], top, top)
+        self.assertIsNotNone(
+            chord, "the ink's top edge is off the shape entirely, so this "
+                   "stage no longer poses the question the reds ask")
+        self.assertLess(ink0, chord[1])
+        self.assertGreater(
+            ink1, chord[0],
+            "the label's ink no longer overlaps the rhombus at its own top "
+            "edge (ink %.1f..%.1f against chord %.1f..%.1f), so the reds "
+            "below have stopped being about a false finding"
+            % (ink0, ink1, chord[0], chord[1]))
+        self.assertGreaterEqual(
+            bottom, scene[0]["y"] + scene[0]["height"],
+            "the band no longer reaches the apex, so the cliff this class "
+            "is about is not being exercised")
+
+    def test_the_span_is_live_on_a_band_that_clears_the_apex(self) -> None:
+        """The live pole, ungated: the helper answers when it can.
+
+        A red saying "this reads the boundary wrong" passes the day the
+        function stops answering at all. The same shape and the same
+        probe, one pixel of band clearance short of the apex, is what
+        separates "wrong at the boundary" from "dead".
+
+        Asserted as presence and containment rather than as the exact
+        interval, deliberately. The narrowest-chord semantics are one of
+        the things a repair may legitimately change, and a green pinning
+        `(98, 102)` would fail the fix rather than confirm it — which is
+        the mistake the two reds below were rewritten to avoid.
+        """
+        node = _apex_band_stage()[0]
+        clear = canvas.shape_band_span(node, 40, 99)
+        self.assertIsNotNone(
+            clear, "`shape_band_span` answers nothing even for a band well "
+                   "inside the body, so it is broken rather than boundary-"
+                   "blind and the reds below are measuring a corpse")
+        self.assertGreaterEqual(clear[0], node["x"])
+        self.assertLessEqual(clear[1], node["x"] + node["width"])
+
+    @unittest.expectedFailure
+    def test_a_centred_label_is_not_reported_clear_of_its_own_node(
+            self) -> None:
+        """The red: the check took the arm that means "on empty canvas".
+
+        `label_adrift` has two arms with two remedies, and the split is
+        `span is None or the ink lies wholly outside the body`. The apex
+        makes the first disjunct true, so a label drawn ON the rhombus
+        gets the sentence written for one that is nowhere near it: "none
+        of the text lands on it ... move it back over its node". It is
+        already over its node.
+
+        NAMES NO REPAIR, on purpose. Two are open — teach the check to
+        ask whether the ink overlaps the body ANYWHERE in the band
+        (a union) while keeping the narrowest chord for the overhang
+        magnitude, or give `shape_band_span` the contract its docstring
+        claims. Either flips this. A first draft of this class asserted
+        the span directly and was rewritten: it prejudged the second
+        repair, and a clamp-the-band prototype showed that one does not
+        even work — the apex is genuinely inside the band, so the
+        narrowest chord there is genuinely empty.
+        """
+        scene = _apex_band_stage()
+        ink0, ink1, _, _ = _drawn_ink_band(scene)
+        adrift = [f for f in collect_findings(scene)
+                  if f["check"] == "label_adrift"]
+        self.assertEqual(
+            adrift, [],
+            "a centred label whose ink runs %.1f..%.1f, squarely on a "
+            "rhombus 160px across at that height, is reported as %r"
+            % (ink0, ink1, [f["raw"] for f in adrift]))
+
+    @unittest.expectedFailure
+    def test_no_finding_here_quotes_the_whole_ink_width(self) -> None:
+        """The magnitude arm: 62px is the fallback, not a measurement.
+
+        The pole a change of ARM alone would not answer. When the span is
+        None the check sets `over = drawn_w` — the entire ink width — as
+        a deliberate "every pixel is on empty canvas" reading. On this
+        scene that number is 62, and 62px is not the distance between
+        anything: the ink overlaps the rhombus, so no honest reading of
+        this drawing produces the label's own width as an overhang.
+
+        Read against the ink width derived from the scene rather than
+        against a literal 62, so a change to the wrap or the metrics
+        moves both sides together and this keeps asking its question.
+        A repair that reports a real overhang, or that is silent, passes.
+        """
+        scene = _apex_band_stage()
+        ink0, ink1, _, _ = _drawn_ink_band(scene)
+        width = round(ink1 - ink0)
+        quoted = [f["magnitude"] for f in collect_findings(scene)
+                  if f["check"] in ("label_adrift", "label_overflows_shape")]
+        self.assertNotIn(
+            width, [round(m) for m in quoted if m is not None],
+            "a finding on this scene quotes %dpx — the label's whole ink "
+            "width, which is what the check reports when it believes the "
+            "band misses the body altogether. Quoted: %r"
+            % (width, quoted))
 
 
 class TestCoverage(unittest.TestCase):
