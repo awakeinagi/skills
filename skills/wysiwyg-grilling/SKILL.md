@@ -475,9 +475,23 @@ first complex batch of a session):
   a mapping member pointing at one is a **WARNING**, and a note whose
   anchor is gone is a **NOTE** (deliberately, because a tombstone left
   on purpose is legitimate).
-- Default-mapped pairs: wireframe↔flow, domain↔flow, and sequence↔flow
-  (flow is the hub) — create element links **eagerly as you draw those
-  pairs**. Domain↔wireframe stays inference-only.
+- **Link eagerly across the hub pairs** — wireframe↔flow, domain↔flow,
+  sequence↔flow (flow is the hub). That is a habit *you* owe the
+  drawing, not a promise the tool keeps: **the strict cross-artifact
+  checks (3.2.4, 3.3.7) join
+  <!-- live:cross_lint_join -->wireframe × flow<!-- /live:cross_lint_join -->
+  and nothing else.** A mapping member of any other type is skipped in
+  silence, so a domain↔flow link buys you narration and tripwires, not
+  strict linting. (That sentence is derived from `CROSS_LINT_JOIN` in
+  `canvas.py`, not typed — if the join widens, it rewrites itself.)
+- **Tripwires are type-blind, and that is the ruling, not an oversight**
+  (user, 2026-08-20): every mapping you declare arms "you changed one
+  side and not the other" regardless of what types it joins.
+  `add_mapping` type-checks **nothing** — a domain↔wireframe mapping is
+  accepted, fires tripwires like any other, and is then skipped by every
+  strict check. So domain↔wireframe is **inference-only by convention**:
+  nothing stops you declaring one, and Q12 (whose-word) already joins
+  domain entity labels to wireframe labels with no mapping at all.
 
 **Mermaid seeding (v0.8)** — **seed, then drag.** For a first draft,
 write mermaid instead of coordinates:

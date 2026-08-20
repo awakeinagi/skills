@@ -75,9 +75,17 @@ many entities are drawn from it.
 
 ## Mapping rules
 
-- domain↔flow (default pair): entity ↔ the steps that act on it — link
-  eagerly.
-- domain↔wireframe: inference only.
+- domain↔flow: entity ↔ the steps that act on it — link eagerly. The link
+  earns narration and tripwires. It earns **no strict lint**: 3.2.4 and
+  3.3.7 join wireframe × flow only, and a domain member is skipped in
+  silence. That is deliberate here — 3.2.4's premise is "mapped members
+  share a name", which is false *by design* for an entity mapped to the
+  steps that act on it, so running it would fire on correct drawings.
+- domain↔wireframe: **inference only by convention, not by enforcement.**
+  `add_mapping` type-checks nothing, so declaring one is accepted and will
+  fire tripwires like any other mapping (type-blind by ruling, user
+  2026-08-20). Prefer inference anyway — Q12 (whose-word) already joins
+  domain entity labels to wireframe labels with no mapping at all.
 
 **Seeding from mermaid** (v0.8): an `erDiagram` seeds a domain view in
 one command — `canvas.py mermaid --file d.mmd --artifact <id> --concept

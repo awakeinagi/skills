@@ -161,10 +161,16 @@ template and the entry-point/eye-flow/weight/emphasis question sets in
 
 ## Mapping rules
 
-- wireframe↔flow (default pair): screen ↔ step, button ↔ transition — link
-  eagerly as you draw.
-- wireframe↔domain: inference only; propose an explicit link only after
-  repeated inferred hits.
+- wireframe↔flow: screen ↔ step, button ↔ transition — link eagerly as you
+  draw. **This is the one pair the strict cross-artifact checks join**
+  (3.2.4 one-function-one-label, 3.3.7 redundant entry); every other pair
+  gets narration and tripwires but no strict lint.
+- wireframe↔domain: **inference only by convention, not by enforcement** —
+  propose an explicit link only after repeated inferred hits. Nothing
+  refuses one if you declare it: `add_mapping` type-checks nothing, and
+  tripwires are type-blind by ruling (user, 2026-08-20), so the mapping
+  will nag on one-sided edits while no strict check ever reads it. Q12
+  (whose-word) already joins this pair by label, with no mapping.
 
 ## Seed archetypes
 

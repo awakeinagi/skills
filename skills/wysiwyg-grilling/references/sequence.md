@@ -95,9 +95,17 @@ lands, narrate guards from the annotation texts.
 
 ## Mapping rules
 
-- sequence↔flow (default pair): message ↔ transition, actor ↔ the steps it
-  owns. Link eagerly as you draw. Flow stays the hub; sequence is a spoke.
-- sequence↔wireframe/domain: inference only.
+- sequence↔flow: message ↔ transition, actor ↔ the steps it owns. Link
+  eagerly as you draw. Flow stays the hub; sequence is a spoke. The link
+  earns narration and tripwires and **no strict lint** — 3.2.4 and 3.3.7
+  join wireframe × flow only, and a sequence member is skipped in silence
+  (3.3.7 reads `frameId` and `kind: input`, which a sequence has no
+  analogue for).
+- sequence↔wireframe/domain: **inference only by convention, not by
+  enforcement.** `add_mapping` type-checks nothing and tripwires are
+  type-blind by ruling (user, 2026-08-20), so a declared mapping is
+  accepted and nags on one-sided edits — it just never reaches a strict
+  check.
 
 ## Seed archetypes
 

@@ -548,6 +548,40 @@ def first_class_types() -> str:
                      for t in _types_in_tier("first-class"))
 
 
+@calculator("cross_lint_join")
+def cross_lint_join() -> str:
+    """The artifact-type pair `cross_lint`'s mapped-element checks join.
+
+    A live value precisely because the sentence it fills is the one that
+    rotted: SKILL.md said "default-mapped pairs" and named three, while
+    3.2.4 and 3.3.7 have only ever joined one — a set stated in prose
+    with nothing binding it, which is the shape two sweeps found 28 times
+    this week. `canvas.CROSS_LINT_JOIN` is load-bearing (the collector
+    reads it), so widening the join in a future version rewrites this
+    sentence or fails the hook, and neither can happen alone.
+
+    This deliberately does NOT cover the tripwire half, which is
+    type-blind and therefore has no pair to name.
+
+    Returns:
+        e.g. `wireframe × flow`.
+
+    Raises:
+        AssertionError: If the constant is not a 2-tuple of type names.
+            Anything else means the join stopped being one pair, and
+            publishing its first two entries would print a narrower
+            claim than the code makes.
+    """
+    join = _canvas().CROSS_LINT_JOIN
+    if not isinstance(join, tuple) or len(join) != 2 or \
+            not all(isinstance(t, str) and t for t in join):
+        raise AssertionError(
+            "canvas.CROSS_LINT_JOIN is %r, not a 2-tuple of type names — "
+            "the prose it fills says the strict checks join exactly one "
+            "pair, and that is no longer what the code says" % (join,))
+    return "%s × %s" % join
+
+
 @calculator("extended_types")
 def extended_types() -> str:
     """The types that draw fine and narrate generically, in priority order.

@@ -19679,6 +19679,23 @@ def flow_reachable(els, cap=200):
     return out
 
 
+# THE ONE PAIR THE MAPPED-ELEMENT CHECKS JOIN, named so the docs can be
+# derived from it rather than transcribe it. The doctrine said "default-
+# mapped pairs" (wireframe↔flow, domain↔flow, sequence↔flow) and 3.2.4 /
+# 3.3.7 have only ever run on the first: the other two members are
+# collected into no bucket and fall out of `pairs` in silence. The user
+# ruled on 2026-08-20 that the doctrine is a DRAWING HABIT the agent owes
+# and not a contract the tool owes, so the wording moves and the join
+# does not — widening it is blocked, not merely costly (3.2.4's premise
+# is "mapped members share a name", which is false BY DESIGN for
+# `entity ↔ the steps that act on it`; 3.3.7 reads `frameId` and
+# `kind == "input"`, which domain and sequence scenes have no analogue
+# for). See docs/todo for the invariants a future version should build
+# instead. `tests/livedoc.py:cross_lint_join` publishes this tuple into
+# the prose, so a change here rewrites the sentences or fails the hook.
+CROSS_LINT_JOIN = ("wireframe", "flow")
+
+
 def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
     """Cross-artifact lints (v0.4 WP2) — the checks that need more than
     one scene: 3.3.7 redundant entry along a mapped flow path, 3.2.4
@@ -19732,7 +19749,11 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 return True
         return False
 
-    # mapping joins: every (wireframe member, flow member) pair
+    # mapping joins: every (wireframe member, flow member) pair. A member
+    # of any OTHER type lands in neither bucket and is skipped — that is
+    # the whole reach of 3.2.4/3.3.7, and `CROSS_LINT_JOIN` is where it
+    # is decided.
+    wf_type, fl_type = CROSS_LINT_JOIN
     pairs, divergent = [], set()
     for mi, m in enumerate((registry or {}).get("mappings") or []):
         wf, fl = [], []
@@ -19741,9 +19762,9 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 continue
             aid, eid = ref.split("#", 1)
             t = artifact_types.get(aid)
-            if t == "wireframe":
+            if t == wf_type:
                 wf.append((aid, eid))
-            elif t == "flow":
+            elif t == fl_type:
                 fl.append((aid, eid))
         mine = [(wa, we, fa, fe, mi) for wa, we in wf for fa, fe in fl]
         pairs.extend(mine)
