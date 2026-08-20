@@ -11725,9 +11725,23 @@ def shape_band_span(el, y0, y1):
         `(left, right)` in SCENE COORDINATES — the NARROWEST horizontal
         extent of the body anywhere in the band, which for these convex
         shapes symmetric about their centre line is the intersection of
-        the two edge probes. `None` when the band lies wholly outside
-        the shape, so a caller can tell "no room here" from "no room at
-        all".
+        the two edge probes. DEGENERATE (`right == left`, at the centre
+        line) where the band meets the body but pinches to nothing
+        somewhere inside it, and `None` only where the band lies wholly
+        outside the shape — so a caller can tell "no room here" from "no
+        room at all".
+
+        THE TWO USED TO BE THE SAME ANSWER, and that was a defect: this
+        returned `None` the moment EITHER edge probe missed, so a band
+        whose top edge is deep inside a rhombus and whose bottom edge
+        grazes the apex reported "wholly outside". `label_adrift` reads
+        that `None` as "every pixel of the label is on empty canvas" and
+        told a user to move a label back over the node it was already
+        drawn on (curator batch 39). Nothing here changed to cause it —
+        the client's room rule made bound labels wrap, the band grew
+        from one line to three, and a latent contract violation started
+        being reached. `shape_band_width` is unaffected either way: a
+        degenerate interval and a `None` both reduce to 0 room.
 
         Scene coordinates and not `shape_clip`'s parameters: that
         function answers in `t` along the ray from the origin it was
@@ -11735,15 +11749,58 @@ def shape_band_span(el, y0, y1):
         DISTANCE. An interval is only useful here if it says where, so
         the origin is added back once, here, rather than at each caller.
     """
+    if el.get("width", 0) <= 0 or el.get("height", 0) <= 0:
+        return None                     # no body to have an extent
     cx = el.get("x", 0) + el.get("width", 0) / 2.0
+    top, bot = (y0, y1) if y0 <= y1 else (y1, y0)
+    ey = el.get("y", 0)
+    # WHOLLY OUTSIDE IS A Y-EXTENT QUESTION, not an edge-probe one. All
+    # three node shapes span their full stored height, so the body is
+    # somewhere in the band exactly when the band meets `[y, y+height]`.
+    if bot < ey or top > ey + el.get("height", 0):
+        return None
     lo = hi = None
-    for y in (y0, y1):
+    for y in (top, bot):
         seg = shape_clip(el, cx, y, 1.0, 0.0)
-        if seg is None or seg[1] <= seg[0]:
-            return None
-        lo = cx + seg[0] if lo is None else max(lo, cx + seg[0])
-        hi = cx + seg[1] if hi is None else min(hi, cx + seg[1])
-    return None if lo is None or hi <= lo else (lo, hi)
+        # A probe that misses is an EMPTY chord at the centre line, not
+        # an absent shape: the band reaches past the apex here, and the
+        # narrowest extent anywhere in it is that pinch point.
+        a, b = (cx, cx) if seg is None or seg[1] <= seg[0] else \
+            (cx + seg[0], cx + seg[1])
+        lo = a if lo is None else max(lo, a)
+        hi = b if hi is None else min(hi, b)
+    return (lo, hi) if hi > lo else (cx, cx)
+
+
+def shape_band_reach(el, y0, y1):
+    """WHERE a node's body reaches at its WIDEST across a horizontal band.
+
+    The union to `shape_band_span`'s intersection, and the two answer
+    different questions about the same band. The span says where a BOX
+    of that height could sit — the room it needs at its worst height.
+    This says where the body has any ink at all, which is what "does
+    this label land on its node ANYWHERE" means. A check that asks the
+    second question with the first answer calls a label adrift because
+    its band happens to reach a rhombus's apex, which is the bug
+    `shape_band_span`'s own `None` used to cause (curator batch 39).
+
+    Exact rather than a sample, by the same argument `shape_band_width`
+    makes: every node shape is convex and symmetric about its centre
+    line, so its chord widens monotonically towards that line and the
+    widest chord in a band is the one nearest it.
+
+    Args:
+        el: The container element (`type`, `x`, `y`, `width`, `height`).
+        y0: One edge of the band, in scene coordinates.
+        y1: The other edge — need not be below `y0`.
+
+    Returns:
+        `(left, right)` in scene coordinates, degenerate or `None` on
+        the same terms as `shape_band_span`.
+    """
+    cy = el.get("y", 0) + el.get("height", 0) / 2.0
+    widest = min(max(cy, min(y0, y1)), max(y0, y1))
+    return shape_band_span(el, widest, widest)
 
 
 def shape_band_width(el, y0, y1):
@@ -17351,18 +17408,52 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # numbers do not move.
         span = shape_band_span(owner, cy - drawn_h / 2.0,
                                cy + drawn_h / 2.0)
-        room = 0.0 if span is None else span[1] - span[0]
+        # TWO CHORDS, BECAUSE THERE ARE TWO QUESTIONS (curator batch 39).
+        # `span` is the narrowest chord in the band — where a BOX this
+        # tall could sit — and it is the right measure of a SIZING fault.
+        # `reach` is the widest, and it is the only honest answer to the
+        # PLACEMENT question this check's other arm asks: "does any of
+        # the text land on the node?". Asking that with the narrowest
+        # chord is what made a wrapped label whose band grazes a
+        # rhombus's apex read as 62px of ink on empty canvas, when 160px
+        # of rhombus is drawn under its own top edge.
+        reach = shape_band_reach(owner, cy - drawn_h / 2.0,
+                                 cy + drawn_h / 2.0)
         ink_cx = t.get("x", 0) + max(box_w, drawn_w) / 2.0
         ink0, ink1 = ink_cx - drawn_w / 2.0, ink_cx + drawn_w / 2.0
-        if span is None:
+        if span is None or reach[1] <= reach[0]:
             # The band misses the body altogether — every pixel of the
             # label is on empty canvas. Reported as the whole width
             # rather than skipped, which is what the old width
             # comparison did too (`room` was 0), so the loudest case
-            # stays loud.
-            over = drawn_w
+            # stays loud. It now means what it says, and that is
+            # `shape_band_span`'s repair and not this branch's: `None`
+            # is a band wholly off the shape, and a band that merely
+            # pinches to nothing inside it comes back DEGENERATE and
+            # falls to the arm below. Written against `None` and not
+            # against a width so that it stays that way — restore the
+            # helper's old contract and this branch swallows the apex
+            # again, which is what the two reds in
+            # `TestABandTouchingTheApexIsNotAMiss` measure.
+            fit, over, adrift = None, drawn_w, True
         else:
-            over = max(span[0] - ink0, 0.0) + max(ink1 - span[1], 0.0)
+            # A DEGENERATE `span` IS NOT A MEASUREMENT. Where the band
+            # pinches to nothing the narrowest chord is 0 across, and
+            # the overhang it yields is the ink's own whole width — the
+            # same "none of it lands on the node" the arm above means,
+            # arriving under the sizing arm's wording. That reading is
+            # false whenever the ink does land on the node, and no
+            # single-chord formula can be right in both places: the same
+            # ink wants 17px of overhang against an 87px chord and none
+            # at all against a 0px one. So when the box cannot fit at
+            # ANY height the fault is vertical — `text_overflow` owns
+            # the height axis and reports it — and what is left for this
+            # check to say is how far the ink lies beyond the body's
+            # actual extent in the band.
+            fit = span if span[1] > span[0] else reach
+            over = max(fit[0] - ink0, 0.0) + max(ink1 - fit[1], 0.0)
+            adrift = ink0 >= reach[1] or ink1 <= reach[0]
+        room = 0.0 if fit is None else fit[1] - fit[0]
         # `>= 1` and not `> 0`: the interval `shape_clip` returns is
         # closed, so a label whose edge lands exactly on the outline is
         # touching it, not overhanging it (v0.9 WP4 review, F1), and a
@@ -17382,8 +17473,10 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # "shorten it" is advice that cannot work: at 380px clear of
             # a 200px diamond there is no shorter string that helps.
             # The split is `ink wholly outside the body's interval`,
-            # which is the same measurement, read for its sign.
-            adrift = span is None or ink0 >= span[1] or ink1 <= span[0]
+            # which is the same measurement, read for its sign — and the
+            # interval it is read against is `reach`, decided above,
+            # because "none of the text lands on it" is a claim about
+            # the whole band and not about its narrowest height.
             if adrift:
                 warnings.append(
                     "label %s is drawn %dpx clear of %s — it is bound to "

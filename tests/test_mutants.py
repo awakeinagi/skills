@@ -18008,11 +18008,13 @@ _register(Mutant(
 # that ruling. A ±10% band would admit 64 and this entry would stop
 # noticing a regression to the reserving reader; 60.1..63.9 excludes it.
 #
-# THE SCENE ALSO REPORTS A FALSE `label_adrift`, and that is not this
-# entry's subject — see `TestABandTouchingTheApexIsNotAMiss`, which owns it
-# as a red. Named here because a reader running this mutant will see two
-# findings and should know the second one is a known lie, not a second
-# claim this entry is making.
+# THE SCENE USED TO ALSO REPORT A FALSE `label_adrift`, and that was never
+# this entry's subject — `TestABandTouchingTheApexIsNotAMiss` owned it as a
+# red and TASK-BAND-APEX flipped it on 2026-08-20. This scene is now down to
+# the one finding this entry asserts, which is what that class predicted
+# would be left. Kept in the record because a reader comparing this entry
+# against curator batch 39's own commit message will see two findings there
+# and one here, and the difference is the fix and not a drift.
 _register(Mutant(
     "diamond_wrapped_label_is_too_tall",
     build=lambda: _labelled_shape("diamond"),
@@ -21009,12 +21011,15 @@ _register(Mutant(
 # the client's room rule that scene reports `label_adrift` — falsely, at
 # the full 62px of its ink, saying "none of the text lands on it" about a
 # label whose ink is drawn squarely on the rhombus. That is a defect in
-# `shape_band_span`'s contract, it is owned as a red by
-# `TestABandTouchingTheApexIsNotAMiss`, and it is NOT re-calibrated away
-# here: this control moves to the geometry where the sibling arm is still
-# the true reading (240x220, overhanging by 17px), so the pairing this
-# comment describes survives intact and nothing about `label_adrift`'s
-# threshold or its band arithmetic is touched.
+# `shape_band_span`'s contract, it was owned as a red by
+# `TestABandTouchingTheApexIsNotAMiss` (flipped 2026-08-20, TASK-BAND-APEX),
+# and it was NOT re-calibrated away here: this control moved to the geometry
+# where the sibling arm is still the true reading (240x220, overhanging by
+# 17px), so the pairing this comment describes survives intact and nothing
+# about `label_adrift`'s threshold or its band arithmetic was touched. The
+# 200x100 scene is silent on this check now, which is why the control could
+# not have stayed there even after the fix — a Silence that holds because
+# the reading is TRUE is the point, and there the reading is merely absent.
 #
 # TASK-TEXT-TRUTH's §A6.1(b) routed this as "re-calibrate the NEIGHBOUR'S
 # DRAG DISTANCE so it still overlaps at the drawn width", with numbers off
@@ -23333,7 +23338,6 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # moved, for the twelfth and thirteenth time.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestOneComposedPartPredicateHasThreeSites": 2,
-    "TestABandTouchingTheApexIsNotAMiss": 2,
 }
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
@@ -23364,6 +23368,15 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # and got right.
 #
 
+
+# ONE LEFT on 2026-08-20 (TASK-BAND-APEX), the day after it joined, and it
+# lost a LINE and not a number: `shape_band_span` now returns a DEGENERATE
+# interval where the band meets the body but pinches to nothing, and `None`
+# only where the band is wholly off the shape, which is the contract its
+# docstring always claimed. Both of the class's reds flipped on that plus
+# the second chord it forced — see the class for why one chord could not
+# have done it.
+#
 # ONE JOINED on 2026-08-19 (curator batch 39), and it is the first entry
 # here filed against a HELPER rather than against a check or a record:
 # `shape_band_span` breaks the contract its own docstring states, and
@@ -28634,6 +28647,18 @@ class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
 # must not move; the two reds below deliberately assert nothing about how
 # the span should be computed, only that a band overlapping the body must
 # not answer "wholly outside".
+#
+# BOTH FLIPPED 2026-08-20 (TASK-BAND-APEX), and the repair went where this
+# comment said it would: `shape_band_span` now answers `None` only for a
+# band wholly off the shape and a DEGENERATE interval where the band meets
+# the body but pinches to nothing, which is the contract the docstring
+# always stated. The threshold did not move and neither did the band
+# arithmetic. What the reds could not have known, and what measuring showed,
+# is that the helper fix alone does not finish it: a degenerate chord hands
+# the check the ink's own width all over again, so the check gained a SECOND
+# CHORD — `shape_band_reach`, the widest extent in the band — to answer the
+# placement question the narrowest chord was never able to answer. The two
+# reds' own docstrings carry the arithmetic that forces that shape.
 # ---------------------------------------------------------------------------
 
 
@@ -28680,21 +28705,30 @@ def _drawn_ink_band(scene: list[dict]) -> tuple[float, float, float, float]:
 
 
 class TestABandTouchingTheApexIsNotAMiss(unittest.TestCase):
-    """`shape_band_span` calls a band that overlaps the body "wholly outside".
+    """`shape_band_span` called a band that overlaps the body "wholly outside".
 
     Its `None` is documented to mean the band misses the shape entirely,
     and `label_adrift` is built on that reading: it reports the whole ink
     width and says none of the text lands on the node. But the function
-    probes only the band's two edges and returns `None` if either misses,
+    probed only the band's two edges and returned `None` if either missed,
     so a label whose top is deep inside a rhombus and whose bottom grazes
-    the apex answers as if it were on empty canvas.
+    the apex answered as if it were on empty canvas.
 
-    Both reds read one stage and flip on one repair in `shape_band_span`.
-    They are two claims, not one: the first says the helper breaks its own
-    contract, the second says the check built on it prints a false
-    sentence with a false number. A repair that made the check work around
-    the helper would answer the second and leave the first for the next
-    caller to find.
+    Both reds read one stage. They are two claims, not one: the first says
+    the helper breaks its own contract, the second says the check built on
+    it prints a false sentence with a false number. A repair that made the
+    check work around the helper would answer the second and leave the
+    first for the next caller to find.
+
+    GREEN since 2026-08-20 (TASK-BAND-APEX), and it took BOTH halves —
+    the class as filed expected one repair in `shape_band_span` and that
+    is not what the arithmetic allowed. The helper's contract fix flips
+    the first red on its own; the second needs the check to stop reading
+    a degenerate chord as an overhang, because a chord 0px across yields
+    the ink's whole width whatever the helper returns. The two greens
+    below were the reason that was cheap to find: they pin the premise
+    and the helper's liveness, so a repair that killed either would have
+    shown up as a green going red rather than as two reds going quiet.
     """
 
     def test_the_band_really_does_overlap_the_body(self) -> None:
@@ -28748,27 +28782,32 @@ class TestABandTouchingTheApexIsNotAMiss(unittest.TestCase):
         self.assertGreaterEqual(clear[0], node["x"])
         self.assertLessEqual(clear[1], node["x"] + node["width"])
 
-    @unittest.expectedFailure
     def test_a_centred_label_is_not_reported_clear_of_its_own_node(
             self) -> None:
         """The red: the check took the arm that means "on empty canvas".
 
-        `label_adrift` has two arms with two remedies, and the split is
+        `label_adrift` has two arms with two remedies, and the split was
         `span is None or the ink lies wholly outside the body`. The apex
         makes the first disjunct true, so a label drawn ON the rhombus
         gets the sentence written for one that is nowhere near it: "none
         of the text lands on it ... move it back over its node". It is
         already over its node.
 
-        NAMES NO REPAIR, on purpose. Two are open — teach the check to
+        NAMED NO REPAIR, on purpose. Two were open — teach the check to
         ask whether the ink overlaps the body ANYWHERE in the band
         (a union) while keeping the narrowest chord for the overhang
         magnitude, or give `shape_band_span` the contract its docstring
-        claims. Either flips this. A first draft of this class asserted
-        the span directly and was rewritten: it prejudged the second
-        repair, and a clamp-the-band prototype showed that one does not
-        even work — the apex is genuinely inside the band, so the
-        narrowest chord there is genuinely empty.
+        claims. A first draft of this class asserted the span directly
+        and was rewritten: it prejudged the second repair, and a
+        clamp-the-band prototype showed that one does not even work —
+        the apex is genuinely inside the band, so the narrowest chord
+        there is genuinely empty.
+
+        FLIPPED 2026-08-20 (TASK-BAND-APEX) by the helper, which is where
+        this class said the repair belonged. Proven by reverting: restore
+        `shape_band_span`'s old contract and leave every other line of
+        the fix in place, and this test fails again. The second red needs
+        one thing more, and its own docstring carries the arithmetic.
         """
         scene = _apex_band_stage()
         ink0, ink1, _, _ = _drawn_ink_band(scene)
@@ -28780,13 +28819,12 @@ class TestABandTouchingTheApexIsNotAMiss(unittest.TestCase):
             "rhombus 160px across at that height, is reported as %r"
             % (ink0, ink1, [f["raw"] for f in adrift]))
 
-    @unittest.expectedFailure
     def test_no_finding_here_quotes_the_whole_ink_width(self) -> None:
         """The magnitude arm: 62px is the fallback, not a measurement.
 
-        The pole a change of ARM alone would not answer. When the span is
-        None the check sets `over = drawn_w` — the entire ink width — as
-        a deliberate "every pixel is on empty canvas" reading. On this
+        The pole a change of ARM alone would not answer. When the span
+        was None the check set `over = drawn_w` — the entire ink width —
+        as a deliberate "every pixel is on empty canvas" reading. On this
         scene that number is 62, and 62px is not the distance between
         anything: the ink overlaps the rhombus, so no honest reading of
         this drawing produces the label's own width as an overhang.
@@ -28795,6 +28833,23 @@ class TestABandTouchingTheApexIsNotAMiss(unittest.TestCase):
         against a literal 62, so a change to the wrap or the metrics
         moves both sides together and this keeps asking its question.
         A repair that reports a real overhang, or that is silent, passes.
+
+        FLIPPED 2026-08-20 (TASK-BAND-APEX) by SILENCE, and the reason it
+        could not be a real overhang is arithmetic rather than taste. The
+        contract fix alone does not reach it — MEASURED, by making that
+        fix and no other: the arm above goes green and this one still
+        fails at 62, because the span comes back DEGENERATE here and a
+        chord 0px across yields the ink's own width all over again. That
+        is the same false sentence under the other arm's wording, which
+        is exactly the dodge this pole was written to catch. No
+        single-chord formula escapes it either: the same check must read
+        17px against the 87px chord `diamond_label_overflows_shape`
+        stands on and nothing against a 0px one, and no monotone function
+        of chord width does both. So the degenerate case is answered
+        against `shape_band_reach` instead, which on this scene is the
+        whole 200px body and leaves nothing to report. The height fault
+        is real and `text_overflow` keeps it: this scene still says
+        `needs ~62x60px, the box gives 90x40px (too tall)`.
         """
         scene = _apex_band_stage()
         ink0, ink1, _, _ = _drawn_ink_band(scene)
