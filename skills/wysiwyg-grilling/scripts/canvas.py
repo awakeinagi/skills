@@ -17489,10 +17489,16 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # sub-pixel overhang — it is categorically not on its node, and
         # it says so however close it sits. That distinction did not
         # matter while the magnitude there was the ink's own width,
-        # which is never below 1; once M-1 made it a real gap, 312 of
+        # which is never below 1; once M-1 made it a real gap, 240 of
         # the 4,320 scenes in this check's sweep — labels sitting flush
         # under a rhombus's apex, gap exactly 0 — would have gone quiet
         # on a true finding. Their number was wrong, not their sentence.
+        # (240 and not the 312 this comment carried before the
+        # WP4-AND-GUARDS rebase: that stream made the band's depth come
+        # from the element's own `lineHeight`, which moves which scenes
+        # reach the apex at all. Re-derived on the merged tree, because
+        # a count that was right on the older base is exactly the kind
+        # of literal this fold has already had to send back once.)
         if over >= 1 or fit is None:
             # THREE READINGS, because they have three remedies, and this
             # file's own rule is that a remedy gets a sentence and a
