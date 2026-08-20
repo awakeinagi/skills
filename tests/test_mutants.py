@@ -26,6 +26,7 @@ import re
 import shutil
 import sys
 import tempfile
+import textwrap
 import unittest
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -32443,10 +32444,23 @@ _EMITTER_SCENE = re.compile(
 _EMITTER_ABOVE = re.compile(
     r"reads an (?P<chord>\d+)px chord whether the block is (?P<shallow>\d+)"
     r"\s+or (?P<deep>\d+)px deep")
+# THE CHORDS AND THE OVERHANGS ARE TWO PATTERNS, and the split is a repair
+# rather than tidiness. One regex covering the whole sentence REQUIRED the
+# overhang clause — so the repair this batch recommends, dropping that clause
+# and keeping the chords, would have made the guard raise instead of pass. A
+# check whose anchor forbids the fix it is asking for is prescribing the
+# wording, which is the same trap the half-pixel enumeration was caught in
+# one round earlier. The chord half is MANDATORY, because it carries the
+# paragraph's argument; the overhang half is OPTIONAL, and the two methods
+# that read it skip themselves — visibly, and with instructions to delete
+# them — when it is gone.
 _EMITTER_BELOW = re.compile(
-    r"at y=(?P<y>\d+):\s+(?P<chord_shallow>\d+)px chord and "
+    r"at y=(?P<y>\d+):\s+(?P<chord_shallow>\d+)px chord"
+    r"(?: and \d+px of overhang)? at (?P<shallow>\d+)px\s+deep, "
+    r"(?P<chord_deep>\d+)px (?:and \d+px )?at (?P<deep>\d+)px\)")
+_EMITTER_OVERHANG = re.compile(
     r"(?P<over_shallow>\d+)px of overhang at (?P<shallow>\d+)px\s+deep, "
-    r"(?P<chord_deep>\d+)px and (?P<over_deep>\d+)px at (?P<deep>\d+)px\)")
+    r"\d+px and (?P<over_deep>\d+)px at (?P<deep>\d+)px\)")
 
 
 def _emitter_band_prose() -> str:
@@ -32520,6 +32534,35 @@ def _emitter_figure(pattern: re.Pattern[str], what: str) -> dict[str, int]:
     return {k: int(v)
             for k, v in pattern.search(_emitter_band_prose()).groupdict()
             .items()}
+
+
+def _emitter_overhangs() -> dict[str, int] | None:
+    """The overhang clause's figures, or None when the clause is gone.
+
+    The one OPTIONAL claim in the paragraph, and the only place this
+    class tolerates an absent subject. Dropping the clause is a repair
+    this batch recommends — an overhang is `ink - chord` and the
+    paragraph never names its label, so the figure is consistent with
+    every value in a wide band and nobody can check it — so a guard that
+    raised on its absence would be refusing the fix.
+
+    Returns:
+        The clause's named groups as ints, or None if it is not there.
+
+    Raises:
+        AssertionError: If the clause appears more than once, where the
+            guard would otherwise measure whichever copy it met first.
+    """
+    found = _EMITTER_OVERHANG.findall(_emitter_band_prose())
+    if len(found) > 1:
+        raise AssertionError(
+            "the emitter paragraph states its overhang pair %d times; "
+            "one of them would go unchecked" % len(found))
+    if not found:
+        return None
+    return {k: int(v) for k, v in
+            _EMITTER_OVERHANG.search(_emitter_band_prose())
+            .groupdict().items()}
 
 
 def _emitter_rhombus(y: int, text: str, width: int,
@@ -32897,14 +32940,20 @@ class TestTheEmitterProseMeasuresTheSpacingItDescribes(unittest.TestCase):
         the agreement vacuous.
         """
         said = _emitter_figure(_EMITTER_BELOW, "below-the-waist claim")
+        over = _emitter_overhangs()
+        if over is None:
+            self.skipTest(
+                "the emitter paragraph no longer states an overhang pair, "
+                "which is the repair this class recommends — DELETE this "
+                "method and its sibling rather than leaving them skipped")
         scene = _emitter_figure(_EMITTER_SCENE, "scene")
         chords = {
             said["shallow"]: _emitter_chord(said["y"], _EMITTER_ONE_LINE,
                                             scene["w"], scene["h"]),
             said["deep"]: _emitter_chord(said["y"], _EMITTER_TWO_LINE,
                                          scene["w"], scene["h"])}
-        implied = [chords[said["shallow"]] + said["over_shallow"],
-                   chords[said["deep"]] + said["over_deep"]]
+        implied = [chords[said["shallow"]] + over["over_shallow"],
+                   chords[said["deep"]] + over["over_deep"]]
         self.assertEqual(
             implied[0], implied[1],
             "the paragraph's two overhangs imply two different labels — "
@@ -32956,10 +33005,16 @@ class TestTheEmitterProseMeasuresTheSpacingItDescribes(unittest.TestCase):
         actual argument on their own.
         """
         said = _emitter_figure(_EMITTER_BELOW, "below-the-waist claim")
+        over = _emitter_overhangs()
+        if over is None:
+            self.skipTest(
+                "the emitter paragraph no longer states an overhang pair, "
+                "which is the repair this class recommends — DELETE this "
+                "method and its sibling rather than leaving them skipped")
         scene = _emitter_figure(_EMITTER_SCENE, "scene")
         chord = _emitter_chord(said["y"], _EMITTER_TWO_LINE, scene["w"],
                                scene["h"])
-        ink = int(chord + said["over_deep"])
+        ink = int(chord + over["over_deep"])
         self.assertIsNotNone(
             _token_of_ink(ink, scene["w"]),
             "the paragraph's deep overhang of %dpx over a %gpx chord "
@@ -32967,159 +33022,230 @@ class TestTheEmitterProseMeasuresTheSpacingItDescribes(unittest.TestCase):
             "rhombus paints that width while the client chops it to the "
             "deep block — so the sentence describes a label that cannot "
             "exist on the scene it names"
-            % (said["over_deep"], chord, ink, scene["w"], scene["h"]))
+            % (over["over_deep"], chord, ink, scene["w"], scene["h"]))
+
+
+_APEX_PIN_OWNER = "TestTheInkBandHelperMeasuresTheCheckItQuotes"
+_APEX_PIN_METHOD = "test_the_check_itself_measures_at_the_labels_own_spacing"
+
+
+def _apex_pin_derivation() -> ast.FunctionDef:
+    """The subject method's own syntax tree, or a refusal.
+
+    READ FROM THE SUBJECT AND NOT COPIED BESIDE IT, which is the whole
+    correction this helper exists for. The first version of this class
+    transcribed the method's arithmetic into a local and compared
+    against the transcription — so repairing the SUBJECT left both reds
+    red, a red watching a copy of a defect rather than the defect. That
+    is the same class of fault the class reports, committed inside the
+    report of it, which is now three times for this family in one day.
+
+    Returns:
+        The `ast.FunctionDef` of the pinned method.
+
+    Raises:
+        AssertionError: If the owning class or the method is gone. A
+            red whose subject has been deleted must say so rather than
+            go on failing about a tree that no longer exists.
+    """
+    owner = globals().get(_APEX_PIN_OWNER)
+    method = getattr(owner, _APEX_PIN_METHOD, None) if owner else None
+    if method is None:
+        raise AssertionError(
+            "%s.%s is not in this file. The pin this class watches has "
+            "been renamed or deleted — delete this class with it rather "
+            "than leaving reds about a method nobody has"
+            % (_APEX_PIN_OWNER, _APEX_PIN_METHOD))
+    tree = ast.parse(textwrap.dedent(inspect.getsource(method)))
+    return tree.body[0]
+
+
+def _apex_pin_calls(name: str) -> list[ast.Call]:
+    """Every call to `name` inside the subject method.
+
+    Args:
+        name: The attribute called on `canvas`, e.g. `text_dims`.
+
+    Returns:
+        The matching `ast.Call` nodes, in source order.
+    """
+    found = []
+    for node in ast.walk(_apex_pin_derivation()):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        if isinstance(fn, ast.Attribute) and fn.attr == name:
+            found.append(node)
+    return found
+
+
+def _apex_divergence(**overrides: object) -> tuple[float, int]:
+    """What the check reads, and what a fixture-sized reading gives.
+
+    The MAGNITUDE evidence for the two reds, kept out of their
+    assertions on purpose. The reds assert on the subject's SOURCE, so
+    they flip when it is repaired; this supplies the px numbers that say
+    the defect is not cosmetic, and it stays true whichever way the
+    repair goes.
+
+    Args:
+        **overrides: Fields merged into the apex fixture's bound label.
+
+    Returns:
+        `(band_depth_the_check_measures, depth_a_literal_16_unflattened
+        _reading_gives)`.
+    """
+    scene = [dict(e) for e in _apex_band_stage()]
+    scene[1].update(overrides)
+    if "text" in overrides:
+        scene[1]["originalText"] = overrides["text"]
+    _body, top, bottom = _check_band_probe(scene)
+    blind = canvas.text_dims("\n".join(canvas.client_wrapped_lines(
+        scene[1]["text"], int(canvas.client_wrap_width(scene[0])), 16)),
+        16, canvas.line_height_of(scene[1]))[1]
+    return bottom - top, blind
 
 
 class TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture(
         unittest.TestCase):
     """`TestTheInkBandHelperMeasuresTheCheckItQuotes`' live pole, measured.
 
-    THE SAME SHAPE THIS BATCH EXISTS FOR, one class over and found by a
-    reviewer on 2026-08-20. `test_the_check_itself_measures_at_the_
-    labels_own_spacing` is the ungated green that pins WHICH SIDE of the
-    ink-band disagreement is correct — so a repair that dragged the
-    check onto `text_dims`' default would fail there rather than pass.
-    It reproduces the check's block with two inputs the check does not
-    use:
-
-      * it writes `16` where the check reads `t.get("fontSize")`, twice
-        — once as the wrap size and once as the metric size;
-      * it passes `lbl["text"]` whole where the check first
-        replaces every newline in the text with a space.
+    THE SAME SHAPE THIS BATCH EXISTS FOR, one class over, found by a
+    reviewer on 2026-08-20. That class's ungated green pins WHICH SIDE
+    of the ink-band disagreement is correct — so a repair dragging the
+    check onto `text_dims`' default would fail there rather than pass
+    quietly. It reproduces the check's block with two inputs the check
+    does not use: it writes `16` where the check reads the element's own
+    `fontSize`, twice, and it passes the label's text whole where the
+    check replaces newlines with spaces first.
 
     It agrees today only because the apex fixture is fontSize 16 with no
     newline in it. That is the "agreed by luck" the fix's own commit
-    named on the wrap axis — "an agreement nothing enforces is the same
-    defect waiting for a chopped token" — living inside the class that
-    commit flipped.
+    named on the wrap axis, living inside the class that commit flipped.
 
-    MEASURED, so the claim is not an inspection: move the fixture to
-    fontSize 20 and the check's band is 75px deep where that assertion's
-    right-hand side says 60. Put a newline in a short label and the
-    client paints two lines unflattened where the check measures one.
-    Neither is a wrong answer TODAY, because the fixture is neither —
-    the defect is that the pin would go on passing over a check that had
-    broken on either axis.
+    THE REDS ASSERT ON THE SUBJECT'S SOURCE, and the reason is a defect
+    this class was caught in before it landed. They first compared the
+    check's band against a TRANSCRIPTION of the method's arithmetic kept
+    here — and a transcription is not the subject: repairing the real
+    method left both reds red, because nothing they read had changed.
+    They now walk the method's own syntax tree, so the repair flips them
+    and deleting the method makes them refuse instead of fail.
 
-    NOT REPAIRED HERE. The method belongs to the ink-band class, the
-    repair is to read `lbl["fontSize"]` and flatten as the check does,
-    and a curator writing both the acceptance test and the fix is the
-    pattern this charter exists to refuse. The red below is the
-    handover.
+    MEASURED, so neither red rests on inspection: move the fixture to
+    fontSize 20 and the check's band is 75px deep where a literal-16
+    reading gives 60. Neither is a wrong answer TODAY, because the
+    fixture is neither — the defect is a pin that would go on passing
+    over a check that had broken on either axis.
+
+    NOT REPAIRED HERE. The method belongs to the ink-band class and the
+    repair is two edits: read `lbl["fontSize"]`, and flatten as the
+    check does. A curator writing both the acceptance test and the fix
+    is the pattern this charter refuses.
     """
 
-    def _stage(self, **overrides: object) -> list[dict]:
-        """The apex fixture, with the label's own fields overridden.
+    def test_the_pin_this_class_watches_is_still_in_the_tree(self) -> None:
+        """The subject exists and still measures a block at all.
 
-        Args:
-            **overrides: Fields merged into the bound label. `text` also
-                sets `originalText`, because the load path treats a
-                label whose two texts disagree as user-edited and this
-                stage is not making that claim.
-
-        Returns:
-            The two-element scene, node then label.
+        First, because both reds raise from `_apex_pin_derivation` when
+        the method is gone, and a raise under `expectedFailure` reads as
+        a healthy red. This says plainly that the subject went missing.
         """
-        scene = [dict(e) for e in _apex_band_stage()]
-        scene[1].update(overrides)
-        if "text" in overrides:
-            scene[1]["originalText"] = overrides["text"]
-        return scene
+        node = _apex_pin_derivation()
+        self.assertTrue(
+            _apex_pin_calls("client_wrapped_lines")
+            and _apex_pin_calls("text_dims"),
+            "%s no longer wraps and measures a block, so there is no "
+            "derivation here for the check to be reproduced by: %s"
+            % (_APEX_PIN_METHOD, ast.dump(node)[:200]))
 
-    def _pinned_reading(self, scene: list[dict]) -> int:
-        """The block depth that assertion computes, transcribed as it is.
-
-        The literals are deliberate and are the subject: this reproduces
-        the pinned method's right-hand side EXACTLY, hardcoded `16` and
-        unflattened text included, so what fails below is that method's
-        derivation and not a paraphrase of it.
-
-        Args:
-            scene: A two-element `[owner, label]` scene.
-
-        Returns:
-            The block height in px, by the pinned method's arithmetic.
-        """
-        owner, lbl = scene[0], scene[1]
-        return canvas.text_dims("\n".join(canvas.client_wrapped_lines(
-            lbl["text"], int(canvas.client_wrap_width(owner)), 16)),
-            16, canvas.line_height_of(lbl))[1]
-
-    def test_the_fixture_is_the_one_position_the_two_agree_at(
+    def test_the_divergence_the_reds_describe_is_real_and_measured(
             self) -> None:
-        """GREEN: on the shipped fixture the pin and the check do agree.
+        """GREEN: at fontSize 20 the two readings are 75px and 60px apart.
 
-        The live half. It is what says the pinned method is not simply
-        broken — it is right about the scene it is run on — and it is
-        what makes the red below a statement about GENERALITY rather
-        than about arithmetic. It also proves the instrument: a
+        The live half, ungated, and the magnitude the reds' names quote.
+        It stays true after the repair — it is a fact about `canvas`,
+        not about the pin — so it goes on recording WHY the reds existed
+        once they have flipped. It also proves the instrument: a
         `_check_band_probe` that had stopped reaching the check would
-        fail here instead of hiding under the red.
+        fail here rather than hide under an expected failure.
+
+        The DIRECTION is asserted, not just the difference: the blind
+        reading is the SMALLER one, so a check that had drifted to a
+        shallower block than the client paints would satisfy the pin
+        that exists to catch exactly that.
         """
-        scene = self._stage()
-        _body, top, bottom = _check_band_probe(scene)
+        deep, blind = _apex_divergence(fontSize=20)
+        self.assertGreater(
+            deep, blind,
+            "a literal-16 reading no longer under-measures this label at "
+            "fontSize 20 (check %.0fpx, blind reading %d) — the axis the "
+            "reds below are about has stopped existing, so re-derive "
+            "them rather than deleting them" % (deep, blind))
+        same, blind_same = _apex_divergence()
         self.assertEqual(
-            bottom - top, self._pinned_reading(scene),
-            "the ink-band class's live pole disagrees with the check on "
-            "its OWN fixture (%.0fpx against %.0f), which is a bigger "
-            "finding than the one below and means that pin is failing "
-            "rather than over-fitting"
-            % (bottom - top, self._pinned_reading(scene)))
+            same, blind_same,
+            "on the SHIPPED fixture the two readings disagree (%.0f "
+            "against %d), which would mean that pin is failing rather "
+            "than over-fitting — a bigger finding than the reds"
+            % (same, blind_same))
 
     @unittest.expectedFailure
-    def test_the_pin_tracks_the_label_when_the_font_size_moves(
-            self) -> None:
-        """RED: at fontSize 20 the check reads 75px and the pin says 60.
+    def test_the_pin_takes_its_font_size_from_the_label(self) -> None:
+        """RED: `16` is written in twice where the check reads the element.
 
-        The invariant, not either number: a pin that claims to reproduce
-        the check's block has to reproduce it for the label it is handed,
-        and the font size is the label's, not the fixture's. Asserted
-        over a scene built by CHANGING one field of the shipped fixture,
-        so the day the method reads `lbl["fontSize"]` this flips without
-        anything else moving.
+        The invariant, not the number: a pin claiming to reproduce the
+        check's block must take the font size from the label it is
+        handed. Asserted over the method's own syntax tree, so it flips
+        the moment the literal becomes an attribute read and cannot be
+        satisfied by anything else.
 
-        The DIRECTION is the reason it matters: the pin's reading is the
-        SMALLER one, so a check that had drifted to a shallower block
-        than the client paints would satisfy it — which is precisely the
-        under-report `label_overflows_shape` was fixed for twice.
+        Every numeric literal in the wrap and metric calls is reported,
+        because the method passes two and a repair that fixed one would
+        otherwise look done.
         """
-        scene = self._stage(fontSize=20)
-        _body, top, bottom = _check_band_probe(scene)
+        literals = [
+            arg.value
+            for name in ("client_wrapped_lines", "text_dims")
+            for call in _apex_pin_calls(name)
+            for arg in call.args
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, int)]
+        deep, blind = _apex_divergence(fontSize=20)
         self.assertEqual(
-            bottom - top, self._pinned_reading(scene),
-            "with the label at fontSize %d the check's band is %.0fpx "
-            "deep and the ink-band class's live pole computes %.0f — it "
-            "wrote 16 in where the check reads the element, so it is "
-            "measuring the fixture rather than the label"
-            % (scene[1]["fontSize"], bottom - top,
-               self._pinned_reading(scene)))
+            literals, [],
+            "%s passes the font size as a literal %s where the check "
+            "reads the element. On a fontSize-20 label the check's band "
+            "is %.0fpx deep and this reading gives %d — the pin would go "
+            "on passing over a check measuring the wrong block"
+            % (_APEX_PIN_METHOD, literals, deep, blind))
 
     @unittest.expectedFailure
-    def test_the_pin_flattens_the_text_the_way_the_check_does(
-            self) -> None:
-        """RED: a label split by a newline reads as two blocks.
+    def test_the_pin_flattens_the_text_the_way_the_check_does(self) -> None:
+        """RED: the label's text goes in whole, newlines and all.
 
         The second axis, filed separately because it is a different
-        input and a repair could plausibly close one and not the other —
-        reading `lbl["fontSize"]` and flattening the newline are two
-        separate edits, and the class's own history is that a fix took
-        the third of three named candidates rather than the named one.
+        input and a repair can plausibly close one and not the other —
+        reading the element's size and flattening the text are two
+        edits, and this class's own history is that a fix took the third
+        of three named candidates rather than the named one.
 
-        The text is chosen to make the divergence a LINE COUNT and not a
-        width: flattened it fits the cap whole, unflattened the client
-        paints the two the stored newline asks for. Any label whose
-        newline survives into the pin's reading has the same problem;
-        this is the smallest one that shows it.
+        Asserted as the ABSENCE of any flattening call in the method,
+        which is what the check does before it measures anything. A
+        label whose stored newline survives into the pin's reading is
+        counted as an extra painted line the browser does not draw.
         """
-        scene = self._stage(text="Send\nfor")
-        _body, top, bottom = _check_band_probe(scene)
-        self.assertEqual(
-            bottom - top, self._pinned_reading(scene),
-            "the check flattens this label's newline and measures a "
-            "%.0fpx block; the ink-band class's live pole keeps the "
-            "newline and computes %.0f. The check's own line is "
-            "`txt.replace(chr(10), ' ')` and the pin does not have it"
-            % (bottom - top, self._pinned_reading(scene)))
+        flattens = [
+            node for node in ast.walk(_apex_pin_derivation())
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "replace"]
+        deep, blind = _apex_divergence(text="Send\nfor")
+        self.assertTrue(
+            flattens,
+            "%s never flattens the label's text, where the check "
+            "replaces newlines with spaces before wrapping. On a label "
+            "split by a newline the check measures a %.0fpx block and "
+            "this reading gives %d"
+            % (_APEX_PIN_METHOD, deep, blind))
 
 
 # ---------------------------------------------------------------------------
