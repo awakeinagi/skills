@@ -11235,6 +11235,15 @@ class TestCrossLintJoinIsLoadBearing(CrossLintDriver, Base):
     2026-08-20.
     """
 
+    # Every shipped document that publishes the join, one line each. Not
+    # a count — a count is the thing that goes stale quietly; this is the
+    # list, so a deletion has to be argued for in a diff. `SKILL.md` is
+    # the doctrine statement; the four per-type references each state it
+    # where a reader of that artifact type will meet the question.
+    JOIN_MARKER_SITES: ClassVar[tuple[str, ...]] = (
+        "SKILL.md", "references/domain.md", "references/flow.md",
+        "references/sequence.md", "references/wireframe.md")
+
     def notes_324(self, types, join=None):
         """3.2.4's naming notes over the seeded scene.
 
@@ -11328,6 +11337,15 @@ class TestCrossLintJoinIsLoadBearing(CrossLintDriver, Base):
         statement of the pair anywhere in the shipped skill must sit
         INSIDE a marker. The hook keeps the marked ones true; this keeps
         new unmarked ones from appearing.
+
+        AND THE SITES ARE ROSTERED, which is the half a name-keyed check
+        structurally cannot do. `livedoc check` subtracts marker NAMES,
+        not marker SITES: with five documents publishing one calculator,
+        deleting four of them leaves the fifth answering for all five and
+        the hook green (measured on this branch, 2026-08-20 — the same
+        shape the v0.9 ledger records against the guard roster). A roster
+        makes a deletion cost one line in this file, and that line is the
+        place to say why the doc no longer owes the fact.
         """
         root = Path(canvas.__file__).parent.parent
         marked, bare = {}, {}
@@ -11349,6 +11367,12 @@ class TestCrossLintJoinIsLoadBearing(CrossLintDriver, Base):
         self.assertFalse(bare, "these docs state the join in prose, "
                                "outside any live marker, so nothing holds "
                                "them true: %r" % (bare,))
+        self.assertEqual(sorted(marked), sorted(self.JOIN_MARKER_SITES),
+                         "the documents publishing the join have changed. "
+                         "A doc DROPPED here is the invisible half — the "
+                         "livedoc hook keys on the calculator name and "
+                         "cannot see a site go. Add or remove the roster "
+                         "entry in the same change, with the reason")
 
     def test_every_doc_that_claims_the_join_names_it(self):
         """A POSITIONAL CLAIM IS THE WORST CASE FOR DRIFT, not an
