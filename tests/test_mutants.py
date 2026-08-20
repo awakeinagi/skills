@@ -15629,19 +15629,23 @@ def _labelled_shape(shape: str, width: int = 200) -> list[dict]:
 
     `width` is the OTHER POLE, and it is the room and not the shape that
     it moves: at 220 the same label on the same diamond has a 176px
-    chord at the same band and clears by 5px. Holding the label and the
+    chord at the same band and clears by 4px. Holding the label and the
     type fixed and varying only the width is what forces the check to be
     about the body's room — a check that fired on diamonds as such, or
     above some coarse size, would pass a rectangle control and fail this
     one.
 
-    Coordinates are frozen. The label is sized to
-    `text_dims("Send for second review", 16)` exactly and centred on the
-    node (x = 14 at 200 wide — half a pixel left of centre, since exact
-    centring would want 14.5), so drift in the advance table moves the
-    finding this stage asserts. The mutant's 11px margin fails its ±30%
-    band before the 5px clearance here fails, so the tight pole costs no
-    robustness the mutant does not already spend.
+    Coordinates are frozen. The label's stored box is 171x20 and the
+    measured ink is now 172 wide, so the ink sits half a pixel proud of
+    its own box on each side; the box is centred on the node (x = 14 at
+    200 wide — half a pixel left of centre, since exact centring would
+    want 14.5). Drift in the advance table therefore moves the finding
+    this stage asserts, which is what it is for: that drift is exactly
+    how the pinned magnitude went stale by a pixel between 2026-08-18
+    and 2026-08-20, and re-deriving on the merged tree is what caught it.
+    The mutant's 12px reading has 3.6px of band on each side and the
+    clearance here is 4px, so the two poles are now about equally tight —
+    neither is the fragile one.
 
     Args:
         shape: The container's element type — `"diamond"` for the mutant,
@@ -17593,13 +17597,39 @@ _register(Mutant(
 # WP4's endpoint work): the overflow is measured at the LABEL BOX's own
 # height, not at the shape's widest point. A 200x100 rhombus is 200px across
 # at its centre line but 160px across at the top and bottom edges of a 20px
-# label, so the 171px label overhangs by 11px. The ±30% band admits that and
-# excludes the two plausible wrong readings deliberately: 0px (measuring at
-# the centre line, where everything fits) and 5.5px (half the total, the
-# shape a per-side report would take). A lint reporting either is wrong by
-# this spec and will not flip this mutant. The true split is 6px left and
-# 5px right, not 5.5 each: at x=14 the label sits half a pixel left of the
-# node's centre line, since exact centring would want 14.5.
+# label, so this label overhangs by 12px.
+#
+# 12 AND NOT 11 since 2026-08-20, and the 1px is the estimator getting
+# BETTER, not this scene changing. `text_dims` now measures off the
+# vendored face's own advance table rather than guessing by width class,
+# and it makes this string 172px where it used to make it 171. The chord
+# is unmoved at 160, so the overhang moved with the width alone. Re-derived
+# on the merged tree by curator batch 36 rather than carried across the
+# rebase, which is the only reason it was caught: the entry asserted a
+# number the check had stopped emitting, and a ±30% band was wide enough to
+# keep passing while it said so.
+#
+#   text_dims("Send for second review", 16, 1.25) = (172, 20)
+#   drawn_h = max(20, box_h=20) = 20;  cy = 40 + 10 = 50.0, which is
+#     exactly the node's centre line, so the band is symmetric: [40, 60]
+#   chord(d) = W * (1 - d/(H/2));  chord(10) = 160  (both edges)
+#   over = 172 - 160 = 12
+#
+# THE ±30% BAND ADMITS 12 AND EXCLUDES EVERY WRONG READING, all four
+# re-measured on this tree rather than inherited:
+#   * 0 — measured at the shape's centre line, where the chord is 200 and
+#     this label fits with 28px to spare. The original shape-blind bug.
+#   * 6 — half the total, the shape a per-side report would take.
+#   * 6.5 — the larger single side alone. The ink is 172 wide centred in a
+#     171 box, so it spans [13.5, 185.5] against a chord of [20, 180]: the
+#     true split is 6.5 left and 5.5 right, not 6 each.
+#   * 20 — what this reports if a 1.35 line-height fallback ever returns
+#     (band 22, chord 152). That reading is the font-blindness a separate
+#     stream chased and closed at source; the band refuses it either way.
+# A lint reporting any of them is wrong by this spec and will not flip this
+# mutant. The band is deliberately NOT tightened past ±30%: the advance
+# table lands within 0.19px median of the browser over 413 corpus texts,
+# and there is no wrong reading in the gap between ±20% and ±30% to buy.
 #
 # The ellipse is deliberately NOT a second mutant, and the thresholds differ
 # by which box you mean — state both, because quoting one at the other is
@@ -17625,9 +17655,9 @@ _register(Mutant(
 # 96px of room), and neither is true. Flipping it from inside would mean
 # rewriting the wrapped arm's semantics, which is what
 # `wrapped_label_overflows_its_box` is green to prevent. (2) The magnitude
-# would not survive: `_TEXT_OVERFLOW_RE` reports the needed WIDTH (171
-# here), and the band this entry exists to hold is the OVERHANG (11, ±30%,
-# excluding 0 and 5.5 on purpose). (3) They are different questions.
+# would not survive: `_TEXT_OVERFLOW_RE` reports the needed WIDTH (172
+# here), and the band this entry exists to hold is the OVERHANG (12, ±30%,
+# excluding 0, 6 and 6.5 on purpose). (3) They are different questions.
 # `text_overflow` asks whether the renderer's wrapping fits the text in the
 # owner's bounds, and on this scene it is right to be quiet — the text does
 # wrap and the wrapped block does fit. This asks whether the label's DRAWN
@@ -17636,15 +17666,21 @@ _register(Mutant(
     "diamond_label_overflows_shape",
     build=lambda: _labelled_shape("diamond"),
     op="unchanged", args={},
+    # 12, re-derived on the merged tree 2026-08-20 (curator batch 36). Was
+    # 11, which the measured-advance estimator turned stale by 1px; ±30%
+    # was wide enough that the entry went on asserting 11 while the check
+    # emitted 12. The derivation and the four rejected readings are above.
     expect=FindingSpec("label_overflows_shape", element="t1",
-                       magnitude=(11, 0.30)),
+                       magnitude=(12, 0.30)),
     # THE OTHER POLE, paid for at the flip (task 17). This was a
     # `Silence("endpoint_gap")` over a rectangle — liveness only, because
     # a Silence on a check with no detector passes vacuously (see
     # `phantom_passthrough_shared_attach`). Now the check exists, so the
     # Silence bites, and the control moved from the rectangle to a WIDER
     # DIAMOND on purpose: same label, same shape, 220px wide, where the
-    # chord at the same band is 176px and the label clears by 5px. The
+    # chord at the same band is 176px and the label clears by 4px (5px
+    # until the measured-advance estimator made this string 172 rather
+    # than 171 wide; re-derived on the merged tree, curator batch 36). The
     # rectangle could not have caught a check that fired on every diamond
     # regardless of room; this does. The shape control is not lost —
     # `marker_inset` gates the check, so a rectangle is silent by
@@ -18268,11 +18304,11 @@ _register(Mutant(
 # owner's bbox on every container type (canvas.py), so a diamond or
 # ellipse is credited with room its drawn body does not have. Measured on the
 # scene the catalogue ALREADY pins for this: `_labelled_shape("diamond")` is a
-# 200x100 rhombus carrying a 171px label at y=40..60, where the rhombus is
-# 160px across — an 11px overhang — and `text_overflow` is SILENT on it, as it
+# 200x100 rhombus carrying a 172px label at y=40..60, where the rhombus is
+# 160px across — a 12px overhang — and `text_overflow` is SILENT on it, as it
 # is on the rectangle control. A shape-aware `room_w` would therefore report
-# exactly 11px there, which is `diamond_label_overflows_shape`'s pinned
-# magnitude (11, ±30%) to the pixel.
+# exactly 12px there, which is `diamond_label_overflows_shape`'s pinned
+# magnitude (12, ±30%) to the pixel.
 #
 # So this is not shape-blindness instance SIX. It is the same defect
 # `label_overflows_shape` already pins, seen from the checker side rather than
@@ -20419,7 +20455,7 @@ _register(Mutant(
 #
 # THE NEIGHBOUR IS THE SIBLING ARM'S OWN SCENE, which is the control
 # this defect needs and not merely a quiet one. `_labelled_shape(
-# "diamond")` is an OVERSIZED but CENTRED label: it overhangs by 11px
+# "diamond")` is an OVERSIZED but CENTRED label: it overhangs by 12px
 # and must come out as `label_overflows_shape`, a sizing fault with a
 # sizing remedy, while `label_adrift` stays silent on it. The two
 # sentences are not interchangeable — "shorten it" cannot help a label
@@ -20754,7 +20790,7 @@ class TestMutantCatalogue(unittest.TestCase):
         The silence is asserted over every channel rather than as a
         `Silence` spec, because the neighbour half of this claim already
         lives in `diamond_label_overflows_shape` — that entry proves the
-        check still fires, at a magnitude of 11px, so a check that had
+        check still fires, at a magnitude of 12px, so a check that had
         simply died could not make this pass.
         """
         scene = _wrapped_ink_in_a_wide_frame()
