@@ -11175,46 +11175,19 @@ def shape_band_width(el, y0, y1):
     return nearest if abs(room - nearest) < 1e-9 else room
 
 
-def label_room(container, height):
-    """Body width a bound label of a given height has to sit in.
-
-    A bound label is centred vertically, so a label `height` tall
-    occupies the band `height` deep around the container's centre line —
-    and on a rhombus or an ellipse that band is narrower than the box
-    (v0.9 WP4). This is the raw room, before any padding: what a check
-    compares a drawn label against.
-
-    Args:
-        container: The container element.
-        height: The label's height in px.
-
-    Returns:
-        The body width available across that band, in px.
-    """
-    cy = container.get("y", 0) + container.get("height", 0) / 2.0
-    return shape_band_width(container, cy - height / 2.0,
-                            cy + height / 2.0)
-
-
-def label_budget(container, height):
-    """Width a bound label of a given height may be WRAPPED to.
-
-    The shape-aware replacement for `width - 24`, which credited a
-    rhombus and an ellipse with room their drawn bodies do not have
-    (v0.9 WP4). The 60px floor and the 24px side padding are unchanged
-    from the box-only rule, so a rectangle gets exactly the budget it
-    always got.
-
-    Args:
-        container: The container element.
-        height: The label's height in px — taller labels reach further
-            into the corners a rhombus or an ellipse does not fill, and
-            so get LESS width, not the same.
-
-    Returns:
-        The usable width in px, never below 60.
-    """
-    return max(60, label_room(container, height) - 24)
+# `label_room` AND `label_budget` WERE DELETED HERE on 2026-08-19. They
+# were the shape-aware budget WP4 built to replace `width - 24`: the band
+# a vertically-centred label of a given height occupies, and that band
+# less 24 with a 60px floor. Both computed a real geometric quantity and
+# neither was the one that decides the wrap — the client wraps to
+# `client_wrap_width` below and never asks how deep the label is. Once
+# TASK-TEXT-TRUTH moved the fitter and both fit checks onto the client's
+# rule, `label_budget`'s only remaining caller in the tree was the pin
+# asserting it still returned `width - 24`, and `label_room`'s only caller
+# was `label_budget`. Deleting just the one would have moved the dead body
+# one frame up. `shape_band_width` STAYS: it is the geometric primitive
+# `diamond_label_overflows_shape`'s catalogue entry quotes its derivations
+# from, and `TestShapeAwareLabelRoom` still pins those four numbers.
 
 
 # THE CLIENT'S BOUND-TEXT PADDING. `Yn = 5` in the shipped bundle

@@ -21795,8 +21795,35 @@ class TestShapeAwareLabelRoom(Base):
 
     `diamond_label_overflows_shape` carries the lint's side. What lives
     here is the arithmetic that mutant only sees one point of, and the
-    two FITTER properties it cannot see at all — the mutant's scene is
-    built by hand and never calls `fit_label_in`.
+    FITTER properties it cannot see at all — the mutant's scene is built
+    by hand and never calls `fit_label_in`.
+
+    FOUR OF THESE PINS WERE REWRITTEN ON 2026-08-19, and not because
+    their numbers went stale. They asserted a belief — *the client wraps
+    bound text to the width we allot, and `autoResize: False` makes it
+    stick* — that is false on both sides of the wire, which is why the
+    stream that found it declined to edit them and routed them out
+    (v0.9 TASK-TEXT-TRUTH § A6.3; fixed here by WP4-AND-GUARDS). The
+    belief was re-derived here rather than taken on report:
+
+      * the shipped bundle, `ai` @553053 —
+        `(t||!e.autoResize)&&(i=t?_s(t,e):e.width, ...)`. `t` is the
+        CONTAINER; when there is one the wrap width is `_s(t, e)` and
+        the label's stored `width` is unreachable. `autoResize` is
+        `||`-ed on the left, so it does not gate the wrap at all;
+      * `_s` @555675 with `Yn = 5`: ellipse `round(w/2*sqrt(2)) - 10`,
+        diamond `round(w/2) - 10`, else `w - 10`;
+      * this repo's own `App.tsx`, whose `restoreForRender` passes
+        `refreshDimensions: true` — the option its own comment calls
+        "what re-wraps container-bound text" — nine lines under a
+        parenthetical repeating the false belief.
+
+    So the walk these pinned was optimising a variable the client never
+    consults. Each rewrite below keeps whatever the old pin was really
+    guarding and says which half of its subject stopped existing; the
+    two that named a rule in their own title were renamed, because a
+    green test whose NAME is the false claim is the worst of the four
+    ways to leave this.
     """
 
     def test_band_width_reproduces_the_catalogue_derivations(self):
@@ -21824,36 +21851,76 @@ class TestShapeAwareLabelRoom(Base):
             canvas.shape_band_width(dict(dia, type="rectangle"), 40, 60),
             200.0)
 
-    def test_fitter_leaves_a_label_no_wrap_can_improve(self):
-        """On a 240x80 diamond the label that fits unwrapped is untouched.
+    def test_the_fitter_ignores_the_width_the_label_arrives_with(self):
+        """The width we store is not an input to the width we store.
 
-        The rule this pins is BEST candidate, not LAST. Wrapping buys
-        width by spending height, and height is what a rhombus charges
-        for: here the 171px label has a 180px chord at its own 20px band
-        and fits, but every wrap available to it is taller and therefore
-        narrower-roomed, and a walk that took its fixpoint would wrap
-        this to 60px and hang it 30px outside a shape it was already
-        inside.
+        THIS PIN REPLACES ONE WHOSE SUBJECT DOES NOT EXIST. It used to
+        say "on a 240x80 diamond the label that fits unwrapped is left
+        untouched", and pinned the walk's BEST-candidate rule: the 171px
+        label has a 180px chord at its own 20px band, so wrapping it
+        would only spend height a rhombus charges for, so the fitter
+        declined. There is no decline. `ai` in the shipped bundle wraps
+        a bound label to `_s(container)` and never reads the label's own
+        `width` — `i = t ? _s(t, e) : e.width`, with `e.width` reachable
+        only when there is NO container. The walk was optimising a
+        variable the client does not consult, so the property worth
+        pinning is the one that makes the walk impossible rather than
+        merely unnecessary.
+
+        The same scene, fed four different arrival widths — the 171 the
+        old pin called "fits", a tenth of it, sixty times it, and zero —
+        comes out at the same 104x40 every time, because the answer is a
+        function of the container's width alone. A revert to any walk
+        over the label's own box fails here on the first row.
         """
-        cont = {"id": "n1", "type": "diamond", "x": 0, "y": 0,
-                "width": 240, "height": 80}
-        lbl = {"id": "t1", "type": "text", "text": "Send for second review",
-               "originalText": "Send for second review", "fontSize": 16,
-               "width": 171, "height": 20, "containerId": "n1"}
-        canvas.fit_label_in(cont, lbl)
-        self.assertEqual((lbl["width"], lbl["height"]), (171, 20))
-        self.assertEqual(cont["height"], 80, "nothing to grow for")
-        self.assertNotIn("autoResize", lbl,
-                         "a label left alone must not be pinned fixed-width")
+        cap = canvas.client_wrap_width({"type": "diamond", "width": 240})
+        self.assertEqual(cap, 110)               # round(240 / 2) - 5 * 2
+        self.assertEqual(canvas.text_ink_width("Send for second review", 16),
+                         170, "the ink the old pin stored as 171")
+        for arrived in (171, 17, 9999, 0):
+            cont = {"id": "n1", "type": "diamond", "x": 0, "y": 0,
+                    "width": 240, "height": 80}
+            lbl = {"id": "t1", "type": "text",
+                   "text": "Send for second review",
+                   "originalText": "Send for second review", "fontSize": 16,
+                   "width": arrived, "height": 20, "containerId": "n1"}
+            canvas.fit_label_in(cont, lbl)
+            self.assertEqual((lbl["width"], lbl["height"]), (104, 40),
+                             "arrival width %s changed the answer" % arrived)
+            self.assertEqual(cont["height"], 100,
+                             "two lines of 20 need more than the 30px of "
+                             "headroom an 80px rhombus gives")
+            self.assertNotIn("autoResize", lbl,
+                             "the client ignores autoResize on a bound "
+                             "label's wrap, so writing it is a field with "
+                             "no consequence")
 
-    def test_box_containers_keep_the_budget_they_always_had(self):
-        """A rectangle still gets `width - 24` and wraps exactly as before.
+    def test_a_box_container_is_its_own_wrap_width(self):
+        """A rectangle's cap carries no shape term. It is not 24 either.
 
-        The shape term must be inert where the bbox IS the shape, or WP4
-        would have re-laid every rectangle label in every artifact. The
-        fixture replay says it did not; this says why.
+        THE OLD PIN'S TITLE WAS THE CLAIM AND THE CLAIM WAS FALSE. It
+        said a rectangle "still gets `width - 24` and wraps exactly as
+        before", so that the shape term would be inert where the bbox IS
+        the shape and no rectangle label would move. The client's padding
+        is `Yn = 5` a side, not 12: a 160px rectangle allows **150**, and
+        every rectangle label wide enough to wrap moved by those 14px.
+        The half of the old subject that survives is the half about
+        SHAPE, so that is what this pins — the rectangle arm is the one
+        with nothing in it, which is exactly what makes the halving on
+        the other two the finding.
+
+        The three caps are derived from the bundle's `_s` by hand rather
+        than from the function under test, which could not otherwise
+        notice itself being wrong.
         """
         text = "Escalate to the regional compliance desk for manual review"
+        self.assertEqual(canvas.client_wrap_width(
+            {"type": "rectangle", "width": 160}), 160 - 10)
+        self.assertEqual(canvas.client_wrap_width(
+            {"type": "diamond", "width": 160}), round(160 / 2) - 10)
+        self.assertEqual(canvas.client_wrap_width(
+            {"type": "ellipse", "width": 160}),
+            round(160 / 2 * math.sqrt(2)) - 10)
         cont = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
                 "width": 160, "height": 60}
         lbl = {"id": "t1", "type": "text", "text": text,
@@ -21861,26 +21928,43 @@ class TestShapeAwareLabelRoom(Base):
                "width": canvas.text_dims(text, 16)[0], "height": 20,
                "containerId": "n1"}
         canvas.fit_label_in(cont, lbl)
-        self.assertEqual(lbl["width"], 136)          # 160 - 24
-        self.assertEqual(lbl["height"],
-                         canvas.text_dims(
-                             canvas.wrap_label_text(text, 136, 16), 16)[1])
-        self.assertIs(lbl["autoResize"], False)
-        self.assertEqual(cont["height"], lbl["height"] + 16)
-        self.assertAlmostEqual(canvas.label_budget(cont, lbl["height"]), 136)
+        self.assertEqual(lbl["width"], 146)   # the ink of the wrap, not 136
+        self.assertLessEqual(lbl["width"], 150, "wider than the client's cap")
+        self.assertEqual(lbl["height"], canvas.text_dims(
+            canvas.wrap_label_text(text, 150, 16), 16)[1])
+        self.assertNotIn("autoResize", lbl)
+        # 80px of text against the 50px of headroom a 60px box gives,
+        # grown by the CLIENT's rule — `height + 10`, where the walk this
+        # replaces added a flat 16
+        self.assertEqual(canvas.client_text_headroom(
+            {"type": "rectangle", "width": 160, "height": 60}), 50)
+        self.assertEqual(cont["height"], lbl["height"] + 10)
 
-    def test_the_walk_never_steps_over_the_box_rule(self):
-        """The budget `width - 24` would have chosen is always a candidate.
+    def test_a_narrow_rhombus_gets_the_narrow_cap_it_actually_gives(self):
+        """No floor. The old rule had one and it was room it did not have.
 
-        On a narrow rhombus the first shape-aware step lands on the 60px
-        floor, skipping a budget between the two ends that beats both:
-        a 90x100 diamond wrapping this label to the box rule's 66px
-        overhangs by 30px, and to the floor's 60px by 42px, because the
-        narrower wrap costs a fourth line and a rhombus charges for
-        height. Keeping `box` in the candidate set is what makes "never
-        worse than the rule it replaces" true by construction.
+        THE OLD PIN HERE HAD NO SUBJECT LEFT AT ALL — it said "the budget
+        `width - 24` would have chosen is always a candidate", and there
+        is no candidate set to keep it in. What it was really guarding is
+        worth keeping: the walk it pinned bottomed out at
+        `max(60, ...)`, and on a 90px rhombus that 60px floor is nearly
+        twice the **35** the client gives (`round(90 / 2) - 10`). A floor
+        on a budget is a promise about room, and this shape has none to
+        promise.
+
+        The cost of telling the truth here is height, which is the
+        direction that is safe to be wrong in and the one the old rule
+        got backwards: four lines instead of three, and a container the
+        client's own doubling takes from 100 to **180**. Nothing is
+        clamped on the way — over every integer width 20..800 the diamond
+        arm goes all the way to 0 rather than stopping at a floor.
         """
         text = "Send for second review"
+        self.assertEqual(canvas.client_wrap_width(
+            {"type": "diamond", "width": 90}), 35)
+        self.assertEqual(min(canvas.client_wrap_width(
+            {"type": "diamond", "width": w}) for w in range(20, 801)), 0,
+            "a floor crept back into the client's rule")
         cont = {"id": "n1", "type": "diamond", "x": 0, "y": 0,
                 "width": 90, "height": 100}
         lbl = {"id": "t1", "type": "text", "text": text,
@@ -21888,38 +21972,57 @@ class TestShapeAwareLabelRoom(Base):
                "width": canvas.text_dims(text, 16)[0], "height": 20,
                "containerId": "n1"}
         canvas.fit_label_in(cont, lbl)
-        self.assertEqual((lbl["width"], lbl["height"]), (66, 60))  # 90 - 24
-        self.assertAlmostEqual(
-            lbl["width"] - canvas.label_room(cont, lbl["height"]), 30.0)
+        self.assertEqual(canvas.wrap_label_text(text, 35, 16),
+                         "Send\nfor\nsecond\nreview")
+        self.assertEqual((lbl["width"], lbl["height"]), (52, 80))
+        self.assertEqual(cont["height"], 180)
+        self.assertEqual(cont["customData"]["auto_grown"], 80)
 
-    def test_an_integer_wide_box_gives_an_integer_room(self):
-        """Float dust off the clip must not reach a stored label width.
+    def test_an_integer_wide_box_gives_an_integer_stored_width(self):
+        """Float dust off the geometry must not reach a stored label width.
 
-        The clip divides by a half-width and multiplies it back, so 72
-        of the 781 integer widths in 20..800 came back inexact — 210
-        gave 209.99999999999997, which `fit_label_in` stored as a label
-        width of 185.99999999999997 where it had stored 186. That is a
-        float in saved JSON and a diff out of nothing (v0.9 WP4 review,
-        F2). Only dust is snapped; a genuinely fractional chord is not.
+        THE WORRY SURVIVES THE RULE CHANGE AND THE ARITHMETIC DOES NOT.
+        The old clip divided by a half-width and multiplied it back, so
+        72 of the 781 integer widths in 20..800 came back inexact — 210
+        gave 209.99999999999997 and `fit_label_in` stored a label width
+        of 185.99999999999997 where it had stored 186, which is a float
+        in saved JSON and a diff out of nothing (v0.9 WP4 review, F2).
+        The number moved (a 210px box now stores **171**, the ink of the
+        wrap, not `210 - 24`), and the guard did not.
+
+        IT ALSO MOVED WHERE IT HAS TO BE CHECKED, which is the part worth
+        reading. `client_wrap_width` returns a FLOAT on all 781 of those
+        widths — the rectangle arm is `float(w) - 10`, so `150.0` — and
+        that is harmless, because a cap is an intermediate that no one
+        saves. What reaches JSON is `text_ink_width`'s `math.ceil`, and
+        asserting on the cap instead of on the stored value would have
+        pinned the one of the two that does not matter. So: the cap is
+        exactly `width - 10` and never fractional at every integer width,
+        and the width actually STORED is an `int` at every one of them.
         """
-        inexact = [w for w in range(20, 801)
-                   if canvas.label_room({"type": "rectangle", "x": 0, "y": 0,
-                                         "width": w, "height": 60}, 20) != w]
-        self.assertEqual(inexact, [])
+        caps = {w: canvas.client_wrap_width(
+            {"type": "rectangle", "x": 0, "y": 0, "width": w, "height": 60})
+            for w in range(20, 801)}
+        self.assertEqual([w for w, c in caps.items() if c != w - 10], [])
+        self.assertEqual([w for w, c in caps.items() if float(c) % 1], [])
         text = "Escalate to the regional compliance desk for manual review"
-        cont = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
-                "width": 210, "height": 60}
-        lbl = {"id": "t1", "type": "text", "text": text,
-               "originalText": text, "fontSize": 16,
-               "width": canvas.text_dims(text, 16)[0], "height": 20,
-               "containerId": "n1"}
-        canvas.fit_label_in(cont, lbl)
-        self.assertEqual(lbl["width"], 186)          # 210 - 24, exactly
-        self.assertNotIsInstance(lbl["width"], float,
-                                 "186.0 and 186 are different bytes in "
-                                 "saved JSON even though they fingerprint "
-                                 "the same")
-        # the ellipse's real chord is fractional and must stay that way
+        stored = {}
+        for w in range(20, 801):
+            cont = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                    "width": w, "height": 60}
+            lbl = {"id": "t1", "type": "text", "text": text,
+                   "originalText": text, "fontSize": 16,
+                   "width": canvas.text_dims(text, 16)[0], "height": 20,
+                   "containerId": "n1"}
+            canvas.fit_label_in(cont, lbl)
+            stored[w] = lbl["width"]
+        self.assertEqual(
+            [w for w, v in stored.items() if isinstance(v, float)], [],
+            "186.0 and 186 are different bytes in saved JSON even though "
+            "they fingerprint the same")
+        self.assertEqual(stored[210], 171)
+        # the ellipse's real chord is fractional and must stay that way —
+        # it is a body width, not a stored one
         self.assertAlmostEqual(
             canvas.shape_band_width({"type": "ellipse", "x": 0, "y": 0,
                                      "width": 200, "height": 100}, 40, 60),
