@@ -470,9 +470,11 @@ it "agent asked a question" with no Apply action.
   user can flip it mid-session),
   **`LINT_DEBT`** (standing cross-artifact lint counts — drift in
   artifacts your batch didn't touch), **`PIN_DEBT`** (open/answered
-  pins with age in rounds + how often their target changed; entries with
-  `direction: user` are the USER'S questions awaiting your move — answer
-  them first) and **`OPEN_TRIPWIRE`** (standing unresolved divergence
+  pins with age in rounds + how often their target changed — and that
+  is the whole line: `direction`, which marks the USER'S questions from
+  your own, is computed but is NOT printed here. It is readable only in
+  `GET /api/state`'s `pin_debt`, so "answer theirs first" costs you a
+  state read) and **`OPEN_TRIPWIRE`** (standing unresolved divergence
   questions, with their text — not just the count).
   **All three ride every apply response, including a queued one.**
   Nothing is pull-only: if a nag exists you will be told without asking.

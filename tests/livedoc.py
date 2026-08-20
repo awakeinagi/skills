@@ -379,6 +379,229 @@ def pin_guard_sites() -> str:
     return words.get(n, str(n))
 
 
+def _canvas() -> ModuleType:
+    """`canvas.py`, imported on demand.
+
+    SKILL.md is the file an agent reads to learn how the tool works, and
+    the numbers in it are the tool's own — budgets, artifact tiers,
+    config defaults. Importing the backend is how those stop being
+    transcriptions. Same shape as `_harness()` below and for the same
+    reason: a calculator that cannot reach its subject refuses rather
+    than agreeing with the prose.
+
+    Returns:
+        The imported module.
+
+    Raises:
+        AssertionError: If it cannot be imported, with the original
+            attached.
+    """
+    scripts = str(REPO / "skills" / "wysiwyg-grilling" / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    try:
+        import canvas
+    except Exception as exc:
+        raise AssertionError(
+            "skills/wysiwyg-grilling/scripts/canvas.py could not be "
+            "imported (%s), so the values SKILL.md derives from it cannot "
+            "be recomputed. That is a finding about the backend, not about "
+            "the prose holding the marker" % exc) from exc
+    return canvas
+
+
+# The budget probes below MEASURE `lint_layout` rather than read the two
+# literals inside it. Deliberate, and it is the difference between the two
+# kinds of wrong this repo keeps meeting: a constant transcribed into prose
+# goes stale when somebody edits the constant, and a constant transcribed
+# into a TEST goes stale in lockstep with it and says nothing. What SKILL.md
+# promises is "the lint fires past 9 nodes", so the derivation asks the lint.
+_PROBE_CEILING = 40
+
+
+def _first_over_budget(kind: str, artifact_type: str | None,
+                       word: str) -> int:
+    """The smallest population `lint_layout` calls over budget.
+
+    Builds scenes of growing size and asks the real check, so the answer
+    is the behaviour SKILL.md describes and not a literal read off the
+    same line the prose was copied from.
+
+    Args:
+        kind: `"nodes"` to grow the node population, `"arrows"` to hold
+            nodes at a legal count and grow the arrows.
+        artifact_type: What to lint the scene as — `"domain"` lowers the
+            node budget, `None` takes the default.
+        word: The noun the budget note must contain (`"nodes"`,
+            `"entities"` or `"arrows"`), so a note about some OTHER
+            budget can never be mistaken for this one.
+
+    Returns:
+        The population at which the note first appears. The budget itself
+        is one less.
+
+    Raises:
+        AssertionError: If no scene up to `_PROBE_CEILING` trips the note.
+            A budget that cannot be provoked is a check that has stopped
+            firing, and publishing a number for it would be worse than
+            failing.
+    """
+    canvas = _canvas()
+    for n in range(2, _PROBE_CEILING):
+        n_nodes = n if kind == "nodes" else 9
+        n_arrows = n if kind == "arrows" else 0
+        els: list[dict[str, object]] = [
+            {"id": "n%d" % i, "type": "rectangle", "x": i * 300, "y": 0,
+             "width": 100, "height": 60, "customData": {"role": "node"}}
+            for i in range(n_nodes)]
+        els.extend(
+            {"id": "a%d" % i, "type": "arrow", "x": 0, "y": 0,
+             "points": [[0, 0], [50, 0]],
+             "startBinding": {"elementId": "n%d" % (i % n_nodes)},
+             "endBinding": {"elementId": "n%d" % ((i + 1) % n_nodes)}}
+            for i in range(n_arrows))
+        notes = canvas.lint_layout(els, artifact_type=artifact_type)["notes"]
+        if any("budget: " in x and word in x for x in notes):
+            return n
+    raise AssertionError(
+        "no scene up to %d %s tripped a %r budget note in lint_layout — "
+        "the budget SKILL.md publishes is no longer enforced, and a "
+        "number derived from a silent check is a fiction"
+        % (_PROBE_CEILING, kind, word))
+
+
+@calculator("node_budget")
+def node_budget() -> str:
+    """The per-artifact node ceiling `lint_layout` enforces.
+
+    Returns:
+        The largest node count that draws no budget note, as digits.
+    """
+    return str(_first_over_budget("nodes", None, "nodes") - 1)
+
+
+@calculator("arrow_budget")
+def arrow_budget() -> str:
+    """The per-artifact arrow ceiling `lint_layout` enforces.
+
+    Counted over arrows alone: `lint_layout` filters `line` elements out
+    before this note, which is why SKILL.md's sentence says arrows and
+    means it.
+
+    Returns:
+        The largest arrow count that draws no budget note, as digits.
+    """
+    return str(_first_over_budget("arrows", "flow", "arrows") - 1)
+
+
+@calculator("domain_node_budget")
+def domain_node_budget() -> str:
+    """The lowered node ceiling a `domain` artifact is linted against.
+
+    Returns:
+        The largest entity count that draws no budget note, as digits.
+    """
+    return str(_first_over_budget("nodes", "domain", "entities") - 1)
+
+
+def _types_in_tier(tier: str) -> list[str]:
+    """Artifact type names in one tier, in the priority order they ship in.
+
+    Args:
+        tier: `"first-class"` or `"extended"`, as spelled in
+            `canvas.FIRST_CLASS_DEFAULTS`.
+
+    Returns:
+        The type names, ordered by their configured priority.
+
+    Raises:
+        AssertionError: If the tier holds nothing. An empty tier would
+            publish an empty list into a sentence that reads as a
+            complete enumeration.
+    """
+    defaults = _canvas().FIRST_CLASS_DEFAULTS
+    got = sorted((v.get("priority", 0), k) for k, v in defaults.items()
+                 if v.get("tier") == tier)
+    if not got:
+        raise AssertionError(
+            "canvas.FIRST_CLASS_DEFAULTS lists no %r type, so the "
+            "enumeration SKILL.md publishes would be an empty list "
+            "wearing a complete sentence" % tier)
+    return [k for _p, k in got]
+
+
+# `er` is the one type whose prose spelling is not its config key: the
+# sentence has said "ER" since the tier split, and lowercasing it to match
+# a dict key would be prose damage in the name of derivation. One entry,
+# not a general case-mapping table, so the exception stays visible.
+_TYPE_PROSE = {"er": "ER"}
+
+
+@calculator("first_class_types")
+def first_class_types() -> str:
+    """The types that narrate with typed facts, named in priority order.
+
+    Returns:
+        Comma-separated type names.
+    """
+    return ", ".join(_TYPE_PROSE.get(t, t)
+                     for t in _types_in_tier("first-class"))
+
+
+@calculator("extended_types")
+def extended_types() -> str:
+    """The types that draw fine and narrate generically, in priority order.
+
+    Returns:
+        Comma-separated type names.
+    """
+    return ", ".join(_TYPE_PROSE.get(t, t)
+                     for t in _types_in_tier("extended"))
+
+
+# SKILL.md's EVENT-TAXONOMY NUMERAL IS NOT LIVE, AND MUST NOT BE — this
+# comment is here because it was, briefly, and the suite caught it. The
+# sentence "all sixteen types" is already DERIVED-AND-COMPARED by
+# `test_the_skill_taxonomy_table_is_the_emitted_set` in
+# `tests/test_backend.py`, which walks the emit sites, checks the three
+# table cells against `USER_EVENT_TYPES` / `AGENT_EVENT_TYPES` / the
+# system pair, and only then compares the spelled numeral. That is the
+# census side of this module's header boundary and it is the right side:
+# the table says WHO REACTS to each type, so a type arriving or leaving
+# is an event a human must read, not a number nobody should think about.
+# A marker here would let `refresh` quietly repair the one sentence whose
+# staleness is supposed to make somebody open the table.
+
+
+@calculator("nudge_after_minutes")
+def nudge_after_minutes() -> str:
+    """How long the config lets a silence run before the one nudge.
+
+    Returns:
+        The default from `canvas.DEFAULT_CONFIG`, as digits.
+
+    Raises:
+        AssertionError: If the key is gone or is not a number, which
+            means the config shape moved under the sentence.
+    """
+    got = _canvas().DEFAULT_CONFIG.get("nudge_after_minutes")
+    if not isinstance(got, (int, float)) or isinstance(got, bool):
+        raise AssertionError(
+            "canvas.DEFAULT_CONFIG has no numeric nudge_after_minutes "
+            "(got %r), so SKILL.md's default cannot be derived" % (got,))
+    return str(int(got))
+
+
+# NOT LIVE, AND THE REASON IS NOT LAZINESS: SKILL.md's `wait` ceiling
+# (540s) is pinned to something OUTSIDE this tree — Bash's 600s tool
+# timeout — and the prose says so. Its two occurrences are an argparse
+# default and a `min()` inside `cmd_wait`, neither reachable without
+# building the parser `main()` builds inline or re-reading the literal a
+# marker would exist to stop trusting. A derivation that just relocated
+# the literal would make the sentence LOOK derived while watching
+# nothing, which is worse than the honest literal it replaced.
+
+
 @calculator("corpus_census")
 def corpus_census() -> str:
     """What the frozen corpus lints to, by a convention that is CODE.

@@ -48,9 +48,15 @@ files by hand while the server runs — write through `canvas.py apply`.
    `references/canvas-app.md`, with the moment each one is worth naming.
    You cannot see their screen: an affordance you never mention is one
    they never find.
-3. `CATCHUP_REVN=N` means out-of-session edits were found and reconciled into
-   save record N: your **first move is the Catch-up Narration** — read the
-   record (`saves/`), narrate the facts framed "since we last spoke…". Edits
+3. `CATCHUP_REVN=N` means a reconciliation landed as save record N — so
+   **read record N before you decide it was the user**: its `headline`
+   says which of the two happened, and only one of them is theirs
+   ("out-of-session drift reconciled: N change(s) differ from history"
+   against "load-time repair: … — no outside edits", which is the
+   loader tidying its own store and owes no narration). For real
+   out-of-session edits your **first move is the Catch-up Narration** —
+   read the record (`saves/`), narrate the facts framed "since we last
+   spoke…". Edits
    from any tool are legitimate input, never an error. One check first: if
    the reconciliation's facts merely mirror your own last revision (same
    headline, no new user intent), it's mechanical re-anchoring — acknowledge
@@ -86,10 +92,15 @@ your next move. In order:
    mirrored pin's `resolve_pin` (same rule as registry ops riding the
    batch). A pin left open after its question was settled in another
    channel is bookkeeping drift — sweep it in your next batch.
-   **The user can now pin questions at you** (❓ ask in the app —
-   `direction: user` in PIN_DEBT) and drop sticky notes: user pins are
-   frontier input and get answered FIRST; their notes read as
-   requirements. Every apply/status also restates the standing nags —
+   **The user can now pin questions at you** (❓ ask in the app) and drop
+   sticky notes: user pins are frontier input and get answered FIRST;
+   their notes read as requirements. **Which pins are theirs is not on
+   the `PIN_DEBT=` line** — `apply` and `status` both print id, status,
+   age and target-edit count and nothing else. `direction` (`user` or
+   `agent`) is computed and carried in `GET /api/state`'s `pin_debt`,
+   and that is the only place it is readable, so "theirs first" is a
+   rule you have to open the state for. Every apply/status also restates
+   the standing nags —
    `PIN_DEBT` (open questions with age + target-edit counts) and
    `LINT_DEBT` (cross-artifact lint drift, including artifacts your batch
    never touched) — sweep what's aging, or say why it stays.
@@ -320,10 +331,13 @@ fires when a revision the **user** pulled could not be applied, and its
 `error` field is the only place that is ever said. Re-read state and
 redraw — the user clicked Apply and got nothing.
 
-`agent_revision_noop` is the quieter sibling: the user pulled a held
-re-route and the drawing had moved on, so nothing was written. Nothing
-is broken and nothing is owed — but the banner you were told about is
-gone, so don't narrate a straightening that never happened.
+`agent_revision_noop` is the quieter sibling: the user pulled something
+held and it turned out to have nothing left to do — the classic case is
+a re-route whose drawing has moved on, and a queued revert to a save
+that already matches head reaches it the same way. Nothing was written,
+nothing is broken and nothing is owed — but the banner you were told
+about is gone, so read the event's `headline` for which no-op it was and
+don't narrate a change that never happened.
 
 **Tier 3 — no `Monitor` tool?** `canvas.py wait --timeout 540` (defaults
 to `--for user`, the same filter server-side; exits 3 on timeout, and the
@@ -372,7 +386,7 @@ ageing in the rail is information.
 NEXT revision, narrated and veto-able — mechanics like save records are
 immediate), prep next-round questions, registry hygiene. But never a second
 canvas revision while one is unreviewed. If the user is silent for
-~`nudge_after_minutes` (config, default 10): exactly **one** nudge, then
+~`nudge_after_minutes` (config, default <!-- live:nudge_after_minutes -->10<!-- /live:nudge_after_minutes -->): exactly **one** nudge, then
 indefinite patience. Chat is always a legitimate reply channel — a chat
 answer to a pinned question resolves the pin (`resolve_pin`, narrated).
 
@@ -427,12 +441,20 @@ first complex batch of a session):
 - **Labels**: pass `label` on the element — the server builds the real bound
   text element. Never put a `text` prop on a shape.
 - **Arrows**: give `from`/`to` node ids — the server routes geometry AND
-  binds. Rewire with `mod {"attrs": {"to": "other-node"}}` — that's what
-  makes the REWIRED fact fire.
+  binds. Rewire with `mod {"attrs": {"to": "other-node"}}` rather than
+  deleting and re-adding, because that is what lets the rewire be told
+  as a rewire. **The fact is typed per artifact**, so don't wait for one
+  spelling: a flow fires `rewired`, a domain fires
+  `relationship_rewired`, a sequence fires `actor_reassigned` (an
+  endpoint moved to another lifeline), and **a wireframe fires none of
+  them** — there, the intent echo is all you get. Only ARROWS may carry
+  `from`/`to`: a `line` given either is a rejected batch, because a
+  bound line is routed once and never re-routed, so it drifts off the
+  node it claims. Make it an arrow, or leave it as decoration.
 - **Registry ops ride the same batch** — there is no silent registry write.
   Every `model.json` change appears in that round's narration.
-- **Complexity budget: max 9 nodes AND max 12 arrows per artifact** — two
-  separate limits (8 entities on a domain view), and the arrow limit is
+- **Complexity budget: max <!-- live:node_budget -->9<!-- /live:node_budget --> nodes AND max <!-- live:arrow_budget -->12<!-- /live:arrow_budget --> arrows per artifact** — two
+  separate limits (<!-- live:domain_node_budget -->8<!-- /live:domain_node_budget --> entities on a domain view), and the arrow limit is
   the one that usually fires first (edges collide, nodes don't). Over
   budget → propose a second view, don't shrink the font — or, when the
   overage IS the design (a 5-way fan that is the point of the view),
@@ -449,8 +471,12 @@ first complex batch of a session):
 - **A deletion's fallout prints as `CONSEQUENCE=` lines** (arrows left
   half-bound, notes and mappings pointing at the deleted element) —
   narrate them in the same round and resolve them (re-target with `mod
-  from/to`, or delete the wreckage); each also stands as a lint WARNING
-  until resolved.
+  from/to`, or delete the wreckage). Each also stands in the lint until
+  resolved, at **three different tiers** — don't read them as one
+  severity: a connector left bound to a deleted element is an **ERROR**,
+  a mapping member pointing at one is a **WARNING**, and a note whose
+  anchor is gone is a **NOTE** (deliberately, because a tombstone left
+  on purpose is legitimate).
 - Default-mapped pairs: wireframe↔flow, domain↔flow, and sequence↔flow
   (flow is the hub) — create element links **eagerly as you draw those
   pairs**. Domain↔wireframe stays inference-only.
@@ -515,9 +541,11 @@ Per-type guidance (primitives, fact tables, seed archetypes):
 `references/sequence.md`. Cross-type geometry — grid, connector rules,
 budgets, the lint contract — is `references/layout.md`: read it with your
 first drawing batch of a session. What the USER can do in the app, and
-when to point them at it, is `references/canvas-app.md`. First-class types (wireframe, flow,
-domain, sequence) narrate with typed facts; extended types (ER, class,
-swimlane, dfd, mindmap, architecture) draw fine but narrate generically —
+when to point them at it, is `references/canvas-app.md`. First-class types
+(<!-- live:first_class_types -->wireframe, flow, domain, sequence<!-- /live:first_class_types -->)
+narrate with typed facts; extended types
+(<!-- live:extended_types -->ER, class, swimlane, dfd, mindmap, architecture<!-- /live:extended_types -->)
+draw fine but narrate generically —
 lanes and cardinality live as extensions of flow and domain, not as
 separate types. Tiers come from `config.json` — respect `disabled` types
 and priority order when suggesting views.
@@ -580,16 +608,24 @@ and priority order when suggesting views.
   it is 95% true.
 
   **What it covers**: every non-user pass that could reposition an
-  element — tidy's snap and its router, the fan, contention feet,
-  re-routes, z-rebanding, focus solving, relayout, the composed-part
-  reconciler, bound-label re-centring, and the load-time repairs.
+  element — tidy's snap, its router and its group cascade; the fan;
+  contention feet; re-routes; the two post-apply routing passes; the
+  group carry behind a `mod x/y`; a deletion's cascade; z-rebanding;
+  relayout; the composed-part reconciler; bound-label re-centring; and
+  the load-time repairs. **That list is illustrative, not a roster** —
   <!-- live:pin_guard_sites -->Twenty-three<!-- /live:pin_guard_sites -->
-  guard sites hold it, and each one has a test that goes red if that
-  guard is deleted. That last clause is a claim about a sweep, not a
+  guard sites hold the promise, more than are named here, and some of
+  them refuse an op rather than decline a move. Each has a test that
+  goes red if that guard is deleted. That last clause is a claim about a
+  sweep, not a
   number you can read off the tree, so it is not stated as a frozen
-  score: re-derive it with `python3 tests/guard_mutants.py`, which
-  mutates each site out of `canvas.py` and reports the test that
-  noticed. Measured 2026-08-20 at `7053b14`: every site observed.
+  score: re-derive it with `python3 tests/guard_mutants.py` **from the
+  skill's own source repo** — it is a maintainer's sweep, not something
+  an installed copy of this skill can run — which mutates each site out
+  of `canvas.py` and reports the test that noticed. It is also NOT in
+  the commit gate (manual stage: it rewrites `canvas.py` in place), so
+  the freshest thing anyone can honestly tell you is when it last ran:
+  measured 2026-08-20 at `7053b14`, every site observed.
 
   **What it deliberately does NOT cover, and cannot**:
   - **The user's own hand.** They drag, delete and unlock their own
@@ -597,9 +633,13 @@ and priority order when suggesting views.
     for exactly that. Refusing there would be the tool overruling the
     person who set the pin.
   - **Deletion by the user in the app.** A pin is a POSITION guard, not
-    a preservation guard: Excalidraw's own delete has no `locked` check,
-    so a selected pinned element can still be deleted by hand. Say so if
-    the user's words suggest they think it protects against loss.
+    a preservation guard: Excalidraw's own delete has no `locked` check.
+    Selecting a pinned element to delete it is the hard way — the client
+    makes a locked element unselectable — so the route that actually
+    loses work is a **cascade**: delete an unpinned FRAME and its pinned
+    children go with it, delete an unpinned CONTAINER and its pinned
+    bound label goes. Say so if the user's words suggest they think a
+    pin protects against loss.
   - **Bookkeeping.** A pinned arrow whose target is deleted loses the
     dead binding and does not move. A stale binding is corruption, not
     arrangement.
@@ -611,7 +651,12 @@ and priority order when suggesting views.
     anything one dependency hop away (an arrow bound to it, a group
     sibling, its container or frame, or the body a pinned part belongs
     to — the last one holds even after the widget is ungrouped).
-    *Everything else in the batch still
+    **The binding hop is the one that is NOT symmetric**: a pinned NODE
+    holds ops on the arrows bound to it, but a pinned ARROW does not
+    hold ops on the nodes it lands on — you may delete or move them, and
+    the arrow keeps its path. The group, container and frame hops do run
+    both ways. (The asymmetry is what makes the bookkeeping bullet below
+    reachable at all.) *Everything else in the batch still
     applies* — read the response's `notes`: it says "5 of 8 op(s)
     applied; ops 3,4,6 held: login-box is pinned". Do not re-send the
     whole batch; the other five landed.
@@ -667,20 +712,37 @@ control node and rewired two edges" in three lines; the `.excalidraw`
 shows a coordinate storm) and for seeding another diagrammer. **Do not
 use it for handover** — mermaid cannot carry a tooltip, so the SVG above
 is strictly better at that. `--format er` writes an `erDiagram` from a
-domain whose cardinality was actually settled, and refuses relation by
-relation when it wasn't rather than inventing a claim nobody made.
+domain whose cardinality was actually settled, and names the unsettled
+relations one by one rather than inventing a claim nobody made. **The
+naming is per relation; the outcome is not** — one relation without a
+settled cardinality refuses the whole export and writes no file at all,
+so don't go looking for a partial `.mmd` holding the entities and the
+relations that were fine. Settle them, or use `--format mermaid`.
 Wireframes and sequences refuse by name, each with its own reason.
 
-Every exported file is stamped `%% wysiwyg-grilling: <id> at revn N — a
-SNAPSHOT` and prints a `DROPPED=` count of what had no mermaid form
-(pins, annotations, notes, frames, freehand). Say that count out loud: an
-export is one-way. **Text can leave; text never comes back over a drawing
-that exists** — `canvas.py mermaid` seeds NEW artifacts only, and an
-exported file is never read back. The drawing stays the truth.
+**The mermaid and `er` exports** carry a first line stamping themselves
+`%% wysiwyg-grilling: <id> at revn N — a SNAPSHOT of the drawing, never
+read back`, and print a `DROPPED=` count of everything with no mermaid
+form: pins, annotations, notes, frames, freehand, images, plain lines,
+and — except under `--format er`, which is the one form that carries
+them — the decoration text a domain seeder draws inside an entity. Say
+that count out loud: an export is one-way.
 
-Then `canvas.py stop` (an idle watchdog also reaps the
-server if the session dies abruptly; state on disk is always sufficient to
-resume — next session's catch-up reconstructs).
+**The SVG export has neither**, and don't infer a clean sheet from the
+silence: no stamp goes in the file and no `DROPPED=` is printed, so the
+answer to "is this still what the drawing says?" lives only in the revn
+you noted when you ran it. Say the revn yourself when you hand an SVG on.
+
+**Text can leave; text never comes back over a drawing that exists** —
+`canvas.py mermaid` seeds NEW artifacts only, and an exported file is
+never read back. The drawing stays the truth.
+
+Then `canvas.py stop`. A watchdog also reaps the server, and what it
+watches is **inactivity, not death** (`WYSIWYG_IDLE_MINUTES`, hours not
+minutes): a session that is very much alive but has left the canvas
+untouched that long comes back to a dead server, so re-`start` rather
+than assuming your URL still answers. Either way state on disk is always
+sufficient to resume — next session's catch-up reconstructs.
 
 ## Degraded modes
 
