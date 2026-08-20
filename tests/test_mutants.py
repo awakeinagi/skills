@@ -21400,6 +21400,95 @@ _register(Mutant(
                                                 height=220),
                         Silence("label_adrift"))))
 
+
+def _wide_end_control() -> list[dict]:
+    """The same rhombus and the same label, with the body moved off the ink.
+
+    The control for the mutant below, and the ONE axis it moves is the
+    axis that mutant is about. `label_adrift`'s two poles are separated
+    by displacement, so the obvious control — the same stage with the
+    label dragged further — proves only that a bigger number crosses a
+    threshold, which is a claim about arithmetic and not about the
+    picture. This holds the label's geometry BYTE-IDENTICAL to the
+    mutant's (x=134, the same wrap, ink 167.5..271.5) and slides the
+    NODE 140px left instead, so the pair differs by exactly one thing:
+    whether the body has any ink under the text. That is what the
+    check's sentence claims to be about.
+
+    At x=-140 the rhombus reaches x=67.3 at the label's own height and
+    the ink starts at 167.5, so there is genuinely 100px of blank canvas
+    between them and the fired reading is the true one: 248px from the
+    ink's far edge back to the body's narrowest chord, the same
+    convention the sibling arm uses. Unmoved by TASK-BAND-APEX — the
+    band is nowhere near either apex and the pre-fix code answers 248
+    here too — which is what makes it a control rather than a second
+    reading of the repair.
+
+    Returns:
+        The two-element scene: the node `d1`, then its bound label `t1`.
+    """
+    scene = _labelled_shape("diamond", width=240, height=220)
+    scene[1]["x"] += 100                # the mutant's own label position
+    scene[0]["x"] -= 140                # ... and the body slid off it
+    return scene
+
+
+# CURATOR (curator-wide-end, 2026-08-20). THE OTHER DISJUNCT OF THE APEX
+# DEFECT, filed after `TASK-BAND-APEX` closed it and named by that stream's
+# own report as owed to a curator. It joins the family above rather than
+# opening one: same stage as `label_dragged_clear_of_its_owner`'s neighbour,
+# same check, the other arm.
+#
+# WHAT THE DRAWING GETS WRONG. The label is drawn with 39.8px of its ink on
+# the rhombus and the check said "none of the text lands on it, so the label
+# reads as belonging to nothing. Move it back over its node." It is on its
+# node. The reader can see the text touching the shape; the sentence denies
+# it, and the remedy it offers has already been followed.
+#
+# THE DISJUNCT. `label_adrift`'s arm split on `ink0 >= span[1]`, and `span`
+# is the NARROWEST chord in the band — the room a BOX this tall needs. A
+# rhombus narrows with height, so ink can clear the narrowest chord while
+# still landing on the body at the band's WIDE end. The apex red that
+# `TASK-BAND-APEX` flipped reached the same false sentence through
+# `span is None`; this reaches it through the interval test, on a band that
+# touches no apex at all.
+#
+# RE-DERIVED, not inherited (the handoff's figures came from the party that
+# had just measured them). On `_labelled_shape("diamond", 240, 220)` the ink
+# is 104px wide over the band y 40..80; the narrowest chord is 76.4..163.6
+# and the widest is 32.7..207.3. Shifting the label +100 puts the ink at
+# 167.5..271.5 — past the narrowest chord, 39.8px still over the widest.
+# THE CLIFF IS AT +97, not at the +80/+120 bracket the handoff quoted:
+# `ink0` is 67.5 + dx and the narrowest chord ends at 163.636, so the arm
+# turns at dx=97 and the ink does not actually leave the body until dx=140.
+# A 43px-wide window in which the check called a label adrift that was not.
+# +100 sits inside it with margin on both sides rather than on its edge.
+#
+# GREEN ON ARRIVAL, and proven red against the pre-fix world rather than
+# assumed: `a25c964`'s `canvas.py` loaded beside the current one and handed
+# this exact scene answers "label t1 is drawn 108px clear of d1 ... none of
+# the text lands on it", while the tree at `2caa53d` answers "overhangs d1
+# by 108px". Same magnitude, opposite sentence — which is why the pole
+# asserted here is the SENTENCE (`Silence`) and the magnitude pole is
+# pinned separately in `TestTheWideEndOfTheBandIsStillTheNode`. A mutant
+# that had only asserted 108px would have passed against the defect.
+#
+# WHAT FLIPPED IT: `shape_band_reach` and the check reading the adrift arm
+# against it (TASK-BAND-APEX, `2caa53d`) — the same change that flipped the
+# apex reds, which is why this arrives green. Filed anyway because the path
+# had no coverage before that fix and would have had none after it: nothing
+# in the catalogue reached the interval disjunct, and a repair that reverted
+# only the arm — leaving the helper — would have restored this defect
+# silently.
+_register(Mutant(
+    "label_adrift_at_the_bands_wide_end",
+    build=lambda: _labelled_shape("diamond", width=240, height=220),
+    op="shift_label", args={"text_id": "t1", "dx": 100, "dy": 0},
+    expect=Silence("label_adrift"),
+    neighbour=Neighbour(_wide_end_control,
+                        FindingSpec("label_adrift", element="t1",
+                                    magnitude=(248, 0.05)))))
+
 # v0.9 whole-branch review M-4's acceptance test, the third of the three
 # checks that landed that day named-but-unproven, and drained by the same
 # batch for the same reason (curator batch 35, 2026-08-18). Green on
@@ -22935,6 +23024,17 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_label_dragged_clear_of_its_owner(self) -> None:
         """An oversized CENTRED label is a sizing fault, not a placement."""
         self._run_neighbour("label_dragged_clear_of_its_owner")
+
+    def test_mutant_label_adrift_at_the_bands_wide_end(self) -> None:
+        """40px of ink on the rhombus is not "none of the text lands on it"."""
+        # Green: `shape_band_reach` landed with TASK-BAND-APEX. Against
+        # `a25c964` the same scene takes the adrift arm and says the
+        # label is 108px clear of a node it is drawn on.
+        self._run("label_adrift_at_the_bands_wide_end")
+
+    def test_neighbour_label_adrift_at_the_bands_wide_end(self) -> None:
+        """Slide the BODY off that same ink and the arm is right to fire."""
+        self._run_neighbour("label_adrift_at_the_bands_wide_end")
 
     def test_mutant_pin_drifts_onto_a_rival_node(self) -> None:
         """The ❓ is 60px from what it asks about and 16px from the rest."""
@@ -31170,6 +31270,189 @@ class TestTheLoadPathNamesABoundLineWhateverItsRole(unittest.TestCase):
             "`role: decoration` is an error. The lint is the net the save "
             "door's deliberate silence relies on, and the role that holes "
             "it is the role every line in the corpus carries." % gap)
+
+
+class TestTheWideEndOfTheBandIsStillTheNode(unittest.TestCase):
+    """What `label_adrift_at_the_bands_wide_end`'s `Silence` cannot say.
+
+    That mutant asserts an ABSENCE, and an absence has two ways of being
+    satisfied. One is the repair: the check reads the widest chord and
+    finds the ink on the body. The other is the stage quietly ceasing to
+    pose the question — a change to the wrap, the metrics or the client's
+    room rule that carries the ink clear of the rhombus, after which
+    silence would be correct and the mutant would be guarding nothing.
+    The first method below is the difference between those two, measured
+    rather than assumed.
+
+    The second carries the magnitude pole, which a `Silence` structurally
+    cannot. `label_adrift` and `label_overflows_shape` quote the SAME
+    108px on this scene — the pre-fix code took the placement arm and the
+    current one takes the sizing arm, and only the sentence differs. A
+    mutant asserting 108px would therefore have passed against the defect
+    it was written for, so the number is pinned here, against the arm
+    that should be carrying it.
+
+    Both green on arrival, and both fail against `01354aa` — the parent
+    of `48fe90e`, which is where band-apex's repair lands on this
+    lineage. (Re-derived there on the rebase onto `add96db`; the original
+    proof was against `a25c964`, which is no longer an ancestor of
+    anything after that stream rebased twice.)
+    """
+
+    def _stage(self) -> list[dict]:
+        """The mutant's own scene, already shifted, built the same way.
+
+        Returns:
+            `_labelled_shape("diamond", 240, 220)` with `t1` moved 100px
+            right — the mutation applied through the catalogue's own
+            operator, so this cannot drift from what the mutant runs.
+        """
+        return OPERATORS["shift_label"](
+            _labelled_shape("diamond", width=240, height=220),
+            text_id="t1", dx=100, dy=0)
+
+    def _band(self, scene: list[dict]) -> tuple[float, float, float, float]:
+        """Where the ink sits, at the spacing `lint_layout` itself uses.
+
+        NOT `_drawn_ink_band`, and the difference is 4px of band on this
+        scene. That helper measures the block with `text_dims(drawn,
+        fs)` — the DEFAULT multiplier, 1.35 — while the check passes
+        `line_height_of(t)`, which for these fixtures is family 1 at
+        1.25. So the helper reads this label as 44px tall where the
+        check reads 40px, and the chord it then probes is the chord at
+        the wrong height. Its docstring says "by the check's own rule",
+        and since the line-height stream landed that is no longer true.
+
+        Reported rather than repaired: `_drawn_ink_band` is curator
+        batch 39's, `TestABandTouchingTheApexIsNotAMiss` stands on it,
+        and on the apex stage the same divergence reads the band as
+        40..105 where the check reads 40..100 — load-bearing for a test
+        whose whole subject is a band grazing the apex at y=100. Fixing
+        a shared helper under another curator's pins is that curator's
+        call. What this method does is refuse to inherit the divergence.
+
+        Args:
+            scene: A two-element `[owner, label]` scene.
+
+        Returns:
+            `(ink_left, ink_right, band_top, band_bottom)` in scene
+            coordinates, at the label's own `lineHeight`.
+        """
+        owner, lbl = scene[0], scene[1]
+        fs = lbl["fontSize"]
+        drawn = canvas.wrap_label_text(
+            lbl["text"].replace("\n", " "),
+            int(canvas.client_wrap_width(owner)), fs)
+        drawn_w = canvas.text_ink_width(drawn, fs)
+        drawn_h = canvas.text_dims(drawn, fs,
+                                   canvas.line_height_of(lbl))[1]
+        cy = lbl["y"] + max(float(lbl["height"]), drawn_h) / 2.0
+        ink_cx = lbl["x"] + max(float(lbl["width"]), drawn_w) / 2.0
+        return (ink_cx - drawn_w / 2.0, ink_cx + drawn_w / 2.0,
+                cy - drawn_h / 2.0, cy + drawn_h / 2.0)
+
+    def test_the_ink_clears_the_narrow_chord_and_lands_on_the_wide_one(
+            self) -> None:
+        """The premise: this stage really is inside the false-adrift window.
+
+        Both halves are load-bearing and they fail for opposite reasons.
+        Ink still over the NARROWEST chord means the old arm would never
+        have fired and the mutant is silent because there was nothing to
+        report; ink clear of the WIDEST chord means the label has left
+        the body altogether and silence would be wrong rather than right.
+        Only between them is the check being asked the question this
+        family exists for.
+
+        Derived from `canvas`'s own helpers, so a change to the wrap or
+        the advance table moves this with the finding instead of leaving
+        a literal behind to guard a scene that has moved on.
+        """
+        scene = self._stage()
+        ink0, ink1, top, bottom = self._band(scene)
+        span = canvas.shape_band_span(scene[0], top, bottom)
+        reach = canvas.shape_band_reach(scene[0], top, bottom)
+        self.assertGreaterEqual(
+            ink0, span[1],
+            "the ink (%.1f..%.1f) still overlaps the NARROWEST chord "
+            "(%.1f..%.1f), so the old arm would not have fired here and "
+            "this stage no longer reaches the disjunct the mutant pins"
+            % (ink0, ink1, span[0], span[1]))
+        self.assertLess(
+            ink0, reach[1],
+            "the ink (%.1f..%.1f) has come clear of the WIDEST chord "
+            "(%.1f..%.1f), so none of it lands on the rhombus and the "
+            "mutant's silence would be the wrong answer, not the right "
+            "one" % (ink0, ink1, reach[0], reach[1]))
+
+    def test_the_overhang_is_reported_as_a_sizing_fault_at_its_own_number(
+            self) -> None:
+        """The magnitude pole: 108px, and under the arm that means sizing.
+
+        The ink runs 167.5..271.5 and the narrowest chord ends at 163.6,
+        so 107.9px of text is drawn past the room a box that tall has —
+        which is a real overhang with a real remedy. The pre-fix code
+        quoted that same 108 under the PLACEMENT sentence, so the number
+        alone distinguishes nothing and the check name is half the
+        assertion.
+
+        Read against the ink and the chord rather than against a literal
+        108, for the reason the whole family is written that way.
+        """
+        scene = self._stage()
+        ink0, ink1, top, bottom = self._band(scene)
+        span = canvas.shape_band_span(scene[0], top, bottom)
+        want = max(span[0] - ink0, 0.0) + max(ink1 - span[1], 0.0)
+        sized = [f for f in collect_findings(scene)
+                 if f["check"] == "label_overflows_shape"
+                 and f["element"] == "t1"]
+        self.assertEqual(
+            len(sized), 1,
+            "the wide-end overhang is reported by %r, and it is a sizing "
+            "fault: %.1fpx of ink lies past the %.1fpx chord this label's "
+            "own height gets" % ([f["raw"] for f in collect_findings(scene)],
+                                 want, span[1] - span[0]))
+        self.assertAlmostEqual(
+            sized[0]["magnitude"], round(want), delta=1,
+            msg="the sizing arm quotes %r where the ink overruns the "
+                "narrowest chord by %.1fpx" % (sized[0]["magnitude"], want))
+
+    def test_this_class_measures_the_band_the_check_measures(self) -> None:
+        """The instrument agrees with the thing it measures.
+
+        The two methods above are only worth their assertions if the
+        band they probe is the band `lint_layout` probes. That stopped
+        being automatic when the line-height stream gave the check
+        `line_height_of(t)`: a helper that keeps `text_dims`'s default
+        now reads a family-1 label 4px taller than the client draws it,
+        and probes the rhombus at a height nothing is painted at.
+
+        So this asserts the agreement directly rather than trusting the
+        derivation to stay parallel — an instrument silently disagreeing
+        with its subject is the failure class this whole harness exists
+        for, and it has already reached this file once.
+
+        It is deliberately NOT an assertion that `_drawn_ink_band`
+        agrees: that helper currently does not, it belongs to curator
+        batch 39, and a red here about someone else's helper would be
+        this class reporting a defect it does not own. This pins MY
+        derivation only.
+        """
+        scene = self._stage()
+        _, _, top, bottom = self._band(scene)
+        lbl = scene[1]
+        drawn = canvas.wrap_label_text(
+            lbl["text"].replace("\n", " "),
+            int(canvas.client_wrap_width(scene[0])), lbl["fontSize"])
+        # `lint_layout`'s own two lines, quoted rather than paraphrased
+        check_h = canvas.text_dims(drawn, lbl["fontSize"],
+                                   canvas.line_height_of(lbl))[1]
+        cy = lbl["y"] + max(float(lbl["height"]), check_h) / 2.0
+        self.assertEqual(
+            (top, bottom), (cy - check_h / 2.0, cy + check_h / 2.0),
+            "this class probes the chord over y %.0f..%.0f and the check "
+            "reads y %.0f..%.0f — the two have come apart, so the poles "
+            "above are measuring a height nothing is drawn at"
+            % (top, bottom, cy - check_h / 2.0, cy + check_h / 2.0))
 
 
 class TestCoverage(unittest.TestCase):
