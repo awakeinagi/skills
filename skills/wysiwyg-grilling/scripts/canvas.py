@@ -836,7 +836,17 @@ def validate_scene(doc, artifact_id):
         if el.get("width", 0) > max(60, cont.get("width", 160) - 16):
             was = (el.get("width"), el.get("height"),
                    cont.get("width", 0), cont.get("height", 0))
-            snapshot = dict(el), dict(cont)
+            # DEEP, because `fit_label_in` mutates `container["customData"]`
+            # in place (its `auto_grown` tally), and a shallow copy hands
+            # the restore below the very dict that was mutated — so
+            # `cont.clear(); cont.update(...)` could not undo it (v0.9 WP4
+            # review, M-2). Latent rather than live, and proven so: swept
+            # every container kind x container height 10..400 x label
+            # height 1..400 and found 0 cases where the growth writes and
+            # the restore branch is taken, so the write and the undo are
+            # disjoint today. Closed anyway — the restore's whole job is
+            # to be a snapshot, and one that shares nested state is not.
+            snapshot = copy.deepcopy(el), copy.deepcopy(cont)
             fit_label_in(cont, el)
             # THE LOADER ACTS ONLY WHEN THE BOX HAS TO CHANGE. The old
             # test was "did the fitter change anything", and it worked
