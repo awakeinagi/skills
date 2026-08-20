@@ -174,7 +174,10 @@ now, not just documented). Labels are linted against EACH OTHER too
 (label↔label collision, WARNING) — stacked labels read as one caption.
 Declared containment (`parent` on a block) exempts a nested pair from the
 overlap warning; `role: decoration` exempts furniture from connector
-lints and budgets entirely.
+lints and budgets entirely — with one carve-out, added 2026-08-20: a
+decoration that BINDS is not exempt from the bound-line error below,
+because under "only arrows connect shapes" an element that is furniture
+and a connector at once cannot exist.
 
 Budgets are legibility physics, not taste — over budget, split the view,
 never shrink the font.
@@ -195,6 +198,15 @@ proposal):
   usually because it was deleted. Deletion does *not* cascade: the arrows
   stay, so the drawing asserts a flow out of nothing until you re-target
   the binding or delete the arrow with it.
+- **A line that binds** — only arrows connect shapes. Ops refuse to mint
+  a bound `line`, but a legacy artifact can still hold one and must stay
+  savable, so this is where such a fossil is named. Fires on the *type
+  and the bindings alone* — whatever the role, and **however tidy it
+  looks right now**: the binding is inert (the editor's own predicate is
+  arrow-only), the geometry passes move the line and the routing pass
+  never re-routes it, so a bound line sitting perfectly on its node is
+  one node-drag away from the drift. Retype it `arrow`, or drop the
+  bindings and leave it as decoration.
 - **Black hole / miracle node** — in a flow whose kinds require
   through-flow, a node with only inbound (black hole) or only outbound
   (miracle) arrows. Every such gap is a conversation not yet had — turn it
