@@ -8753,6 +8753,48 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                           "`canvas.py status` or the state API)" % (opi, verb, eid))
         return el
 
+    def refuses_binding(el, opi):
+        # ONLY ARROWS CONNECT SHAPES. A line is furniture and
+        # decoration — a checkbox's tick strokes, a slider's track, an
+        # X-box's cross, a lifeline, the low-opacity backdrop behind a
+        # bundle of parallel arrows — and never a connector.
+        #
+        # THE EDITOR ALREADY AGREES; only this path did not. In
+        # vendored Excalidraw 0.18.1 `isBindingElement` is
+        # `type === "arrow"` and `bindLinearElement` opens by returning
+        # on anything else, hardcoding `boundElements: {type: "arrow"}`.
+        # So a user save can never legitimately carry a bound line, and
+        # the op path was the one door that could mint one. It did:
+        # `{"op": "add", "element": {"type": "line"}, "from": …,
+        # "to": …}` was accepted with real bindings and no errors.
+        #
+        # WHAT THAT COST. A bound line lands in
+        # `server_routed_connectors` but not `routable_arrows`, so the
+        # geometry passes MOVE it while the sentence that counts
+        # re-routes cannot see it: drag a bound node 240px, press tidy,
+        # and the reader is told "already tidy — nothing to change"
+        # with the endpoint sitting 210px off its node. Typed `arrow`
+        # the identical scene re-routes and stays attached.
+        #
+        # DELIBERATELY NOT IN `Store.commit`. A legacy scene that
+        # already holds a bound line must stay SAVABLE — an error on
+        # the load path would lock the user out of their own artifact,
+        # which is the one way this rule could do real harm. The gate
+        # belongs here, where the author is an agent that can simply
+        # type `arrow` instead. `lint_layout` remains the load-path
+        # answer, and already names such a scene precisely.
+        if el.get("type") != "line":
+            return False
+        errors.append(
+            "op %d: line %r cannot take `from`/`to` — only arrows connect "
+            "shapes, and a bound line is routed but never re-routed, so it "
+            "silently drifts off the node it claims. Either give it "
+            '"type": "arrow" if it is a connector, or drop `from`/`to` and '
+            "leave it as decoration (widget furniture: tick strokes, slider "
+            "tracks, X-box crosses, lifelines, backdrops)."
+            % (opi, el.get("id")))
+        return True
+
     def obstacles():
         # `hard_obstacles`, not a fourth copy of its predicate. This is
         # the site that carried the sticky divergence: it omitted
@@ -8803,9 +8845,9 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                 arrow = made[0]
                 src_id, dst_id = op.get("from") or spec.get("from"), \
                     op.get("to") or spec.get("to")
-                if src_id or dst_id:
-                    # the verb names the element the op is about, and
-                    # this arm accepts lines as well as arrows
+                if (src_id or dst_id) and not refuses_binding(arrow, i):
+                    # the verb names the element the op is about; only
+                    # an arrow reaches here, lines having been refused
                     verb = connector_noun(arrow)
                     src = resolve(src_id, i, verb + " from") \
                         if src_id else None
@@ -9115,17 +9157,21 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # the same rewire for eleven rounds (refinement audit F2).
             rewire = {k: attrs[k] for k in ("from", "to") if k in attrs}
             if rewire:
-                if el.get("type") not in ("arrow", "line"):
-                    # NO CONNECTOR IN HAND HERE — `el` is the element
-                    # that is NOT one — so this names the accepted set
-                    # as a literal rather than asking `connector_noun`
-                    # about the wrong element. The set it states was
-                    # narrower than the set the branch above accepts: a
-                    # line binds through `from`/`to` exactly as an arrow
-                    # does, so an agent told "only arrows" was being
-                    # taught a rule this code does not enforce.
-                    errors.append("op %d: 'from'/'to' only apply to "
-                                  "arrows and lines" % i)
+                if el.get("type") != "arrow":
+                    if not refuses_binding(el, i):
+                        # NO CONNECTOR IN HAND HERE — `el` is the
+                        # element that is NOT one — so this names the
+                        # accepted set as a literal rather than asking
+                        # `connector_noun` about the wrong element.
+                        # ARROWS ONLY. This sentence once read "arrows
+                        # and lines", which described what this branch
+                        # then accepted; a line is now refused just
+                        # above with its own remedy, so the old prose
+                        # would teach the exact opposite of the rule
+                        # the code enforces — the failure mode of any
+                        # sentence that restates an encoding.
+                        errors.append("op %d: 'from'/'to' only apply to "
+                                      "arrows" % i)
                 else:
                     src = index.get((el.get("startBinding") or {})
                                     .get("elementId"))

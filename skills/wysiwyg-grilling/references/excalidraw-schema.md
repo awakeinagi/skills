@@ -65,6 +65,21 @@ Both endpoint elements list the arrow in their `boundElements`
 (`{"id": "t1", "type": "arrow"}`). `canvas.py` computes edge-anchor geometry
 for you; if you ever hand-build, compute x/y/width/height/points explicitly.
 
+**Only arrows bind — a `line` never does.** The `type: "arrow"` in
+`boundElements` is not a formality: Excalidraw's binding predicate is
+literally `type === "arrow"`, and its bind routine returns early on
+anything else, so no user edit can produce a bound line. `canvas.py`
+matches that — `from`/`to` on a `line` is a hard ERROR in the op path.
+
+A **line is furniture and decoration**, not a connector: a checkbox's tick
+strokes, a slider's track, an X-box's cross, a sequence lifeline, the
+low-opacity backdrop behind a bundle of parallel arrows. It carries
+`points` and usually `role: "decoration"`, and it carries no bindings.
+The distinction is load-bearing rather than stylistic — a bound line is
+moved by the geometry passes but invisible to the routing pass, so it
+drifts off its node while `tidy` reports nothing to change. If two shapes
+are connected, the element is an arrow.
+
 **Rebind sentinel**: while a user drags an arrow endpoint between targets,
 Excalidraw parks coordinates at ±2^56. The differ suppresses these — a
 binding change (the REWIRED fact) is the signal; the coordinate churn is

@@ -98,6 +98,8 @@ on concept `report` clears the umbrella's `wireframe` debt.
 ```jsonc
 {"op": "add", "element": {
   "type": "rectangle" | "ellipse" | "diamond" | "arrow" | "line" | "text" | "frame",
+      // `arrow` connects two shapes; `line` is decoration and never
+      // connects (binding one is an ERROR — see the note under **add**).
   "id": "semantic-slug",      // omit → minted from label; NEVER a nanoid
   "label": "Pay now",         // bound text is built for you (never a text prop)
   "x": 60, "y": 330, "width": 320, "height": 48,
@@ -175,6 +177,20 @@ on concept `report` clears the umbrella's `wireframe` debt.
 // step. Keep the label short; cardinality goes in the tooltip.
 {"op": "add", "element": {"type": "arrow", "id": "r-run-rerun",
  "label": "rerun of"}, "from": "pipeline-run", "to": "pipeline-run"}
+// ONLY ARROWS CONNECT SHAPES. `from`/`to` on a `type: "line"` is a hard
+// ERROR, on `add` and on `mod` alike. A line is furniture and decoration:
+// a checkbox's tick strokes, a slider's track, an X-box's cross, a
+// sequence lifeline, the low-opacity backdrop behind a bundle of parallel
+// arrows. Draw it with `points` (and usually `role: "decoration"`), never
+// with endpoints. If it is a connector, type it `arrow`.
+//   {"op": "add", "element": {"type": "line", "id": "lifeline-api",
+//    "role": "decoration", "x": 300, "y": 80,
+//    "points": [[0,0],[0,420]], "strokeStyle": "dashed"}}
+// Why it is refused rather than quietly bound: a bound line is MOVED by
+// the geometry passes but never counted by the routing pass, so `tidy`
+// drags its endpoint and still reports "already tidy — nothing to
+// change" while the end sits hundreds of px off the node it claims. The
+// editor never makes one either — its binding predicate is arrow-only.
 // `type: "image"` is rejected in ops — real images arrive via the canvas
 // (paste/drop in the browser) with their file blobs.
 ```
@@ -187,8 +203,10 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
   "label": "Order Placed",   // set/replace bound label ("" or null removes it)
                              // — on a FRAME this renames the frame (its name)
   "name": "Checkout screen", // frames only: rename explicitly
-  "from": "other-node",      // arrows/lines: rewire start (re-routes + rebinds)
-  "to": "other-node",        // arrows/lines: rewire end — fires REWIRED
+  "from": "other-node",      // ARROWS ONLY: rewire start (re-routes + rebinds)
+  "to": "other-node",        // ARROWS ONLY: rewire end — fires REWIRED
+      // `from`/`to` on a `line` is a hard ERROR. Only arrows connect
+      // shapes; see the `line` note under **add**.
       // A rewire IS a new path request, so it re-routes — including over
       // a path the USER drew by hand. That is deliberate, and since v0.7
       // it narrates: `user_route_replaced`. If their shape mattered,
