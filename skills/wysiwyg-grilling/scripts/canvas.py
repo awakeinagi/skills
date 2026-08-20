@@ -6700,18 +6700,49 @@ def server_routed_connectors(els):
     apart each and says "re-routed 0 of 0"; the identical scene typed
     `arrow` lands them on the SAME two coordinates and says "2 of 2".
 
-    THE DEFINITION IS `Store.tidy`'s OWN WORDS, not a new rule — its
-    DENOMINATOR paragraph says "server-owned and bound at both ends",
-    and that sentence was already true of the two lines it reported as
-    zero. So this is the number the docstring always promised, computed
-    where a second reader cannot re-derive it differently.
+    ONE END IS ENOUGH, SINCE 2026-08-20 (C-3 fold review, C-1), and this
+    is the clause that made the count above the list a LIE rather than
+    merely a narrow truth. The rule read "bound at BOTH ends" — copied
+    from `routable_arrows`, where it belongs, because `route_arrow`
+    needs a pair to route between. THE FAN needs no such pair: it groups
+    by whichever end IS bound, skipping only the ends that resolve to
+    nothing, so a connector bound at exactly one end is fanned, moves,
+    and lands in `changes` — while a both-ends `M` excluded it. Only the
+    fan, to be exact: `contention_feet` drops a one-end connector at its
+    own `any(n is None ...)` gate and the router loop drops it too. One
+    mover of the three is enough, and the fan is the one that runs
+    twice. Measured through
+    Store/commit/reroute on two coincident feet, one of them bound at
+    its start only: **"re-routed 3 of 2 server-routed connector(s)"**
+    over three named entries and three `rerouted` facts. N above M, from
+    two populations, which is the exact failure `Store.reroute`'s own
+    docstring records having already fixed once on the type axis.
+
+    WIDENED RATHER THAN THE NUMERATOR NARROWED, and the choice is
+    visible to the user. Narrowing `redrew` and the list to a both-ends
+    `M` also restores `N <= M` — and buys it by never telling anyone
+    that the one-end-bound line moved 13px. That is C-3 itself, the
+    defect this helper was written to close, re-entered through the
+    denominator; `Store.tidy` already fails that way in silence. So the
+    population grows to what a pass can actually touch and both doors
+    keep reporting every connector they move.
+
+    MEASURED, NOT REASONED, because the boundary is what the fan does
+    and not what this docstring says it does. Every connector shape was
+    put through `reroute_scene` on a normalized scene: bound at both
+    ends moves 13px, at the start only 13px, at the end only 13px; and
+    UNBOUND, bound to an id no element carries, marked `authored`, or
+    bent past 3 points does not move at all. The set below is exactly
+    the movers. (The first run of that probe reported the unbound case
+    moving too — the fixture had omitted `width`/`height` and was
+    reading `rebuild_bound_elements` filling them in as a redraw.)
 
     NOT THE ROUTER'S SET. `route_arrow` is still handed arrows alone by
     both callers, and that is untouched here: this is what the passes
     may REDRAW, which is the population a note about geometry has to
-    quote. A caller wanting the routing loop's narrower set intersects
-    this with `type == "arrow"` at the loop, which is exactly what both
-    now do.
+    quote. `routable_arrows` is now a STRICT subset — it keeps the
+    both-ends rule its loop needs — and the two are no longer a widening
+    of one another by type alone.
 
     Args:
         els: A scene's elements. Not mutated, and nothing is required to
@@ -6719,18 +6750,25 @@ def server_routed_connectors(els):
 
     Returns:
         `[element_id, ...]` for every arrow or line whose geometry the
-        server owns and whose two bindings both resolve inside `els`.
-        An unbound end has no pair to route between and an authored path
-        is nobody's to redraw, so neither is in the set — which is what
-        makes this an honest denominator: the connectors outside it were
-        never candidates.
+        server owns and at least one of whose bindings resolves inside
+        `els`. A connector bound to nothing has no node to be fanned
+        against and an authored path is nobody's to redraw, so neither
+        is in the set — which is what makes this an honest denominator:
+        the connectors outside it were never candidates.
+
+        MAY OVER-COUNT BY A SHAPE THE CORPUS DOES NOT HOLD: a marked
+        server-owned LINE carrying more than 3 points is in the set and
+        yet immovable, because the router loop takes arrows only and the
+        fan takes 2- and 3-point paths only. The four corpus connectors
+        over 3 points are all both-ends-bound ARROWS, which the router
+        does redraw. An over-count leaves `N <= M` intact and reads as
+        "that one needed no redraw"; it is the under-count that prints a
+        number smaller than the list beneath it.
     """
     ix = {e["id"]: e for e in els if e.get("id") is not None}
     return [c["id"] for c in els if _router_owns(c)
-            and ix.get((c.get("startBinding") or {}).get("elementId"))
-            is not None
-            and ix.get((c.get("endBinding") or {}).get("elementId"))
-            is not None]
+            and any(ix.get((c.get(k) or {}).get("elementId")) is not None
+                    for k in ("startBinding", "endBinding"))]
 
 
 def routable_arrows(els):
@@ -6748,6 +6786,32 @@ def routable_arrows(els):
     copies — it had copied a different computation, which is the failure
     mode a shared name makes impossible rather than merely unlikely.
 
+    THE WIDER SIBLING IS `server_routed_connectors`, and the two are
+    not redundant (v0.9 C-3 fold, 2026-08-19). This is what
+    `route_arrow` is HANDED; that is what a geometry pass may REDRAW,
+    which also holds bound `line`s the fan and the contention pass move.
+    Both callers here rely on THIS one staying arrow-only, because
+    neither router loop carries a type check of its own. Widen this and
+    geometry moves; widen the other and only the sentence does.
+
+    A STRICT SUBSET, AND NO LONGER THE TYPE-SUBSET (2026-08-20). This
+    section used to claim `routable_arrows(els)` is "exactly its
+    `type == "arrow"` subset — same ownership rule, same both-ends-bound
+    rule, same id-indexed lookup". Two of those three still hold; the
+    binding rule does not. `server_routed_connectors` takes ONE
+    resolving binding, because the fan moves a connector bound at one
+    end, so an ARROW bound at its start alone is in the wider set and
+    not in this one. The containment survives, the equality does not.
+
+    AND THE RELATION IS ASSERTED IN PROSE ONLY, which is worth saying
+    plainly rather than leaving a reader to assume a guard exists. The
+    one test that compares the two,
+    `test_the_denominator_is_the_arrows_the_pass_was_handed`, runs on a
+    scene its own docstring says holds no bound `line` — so it can only
+    ever observe the case where the two must coincide, and it could not
+    have caught the equality breaking. Whoever widens either helper
+    should expect nothing to go red.
+
     Args:
         els: A scene's elements. Not mutated, and no element is
             required to be routable — a scene of none answers empty.
@@ -6757,18 +6821,10 @@ def routable_arrows(els):
         recompute. An arrow with only one end bound has no pair to route
         between, and an authored path is nobody's to redraw
         (`server_owns_geometry`), so neither is in the set — which is
-        why this is the honest denominator for "re-routed N of M": the
-        arrows outside it were never candidates.
-
-    THE WIDER SIBLING IS `server_routed_connectors`, and the two are
-    not redundant (v0.9 C-3 fold, 2026-08-19). This is what
-    `route_arrow` is HANDED; that is what a geometry pass may REDRAW,
-    which also holds bound `line`s the fan and the contention pass move.
-    `routable_arrows(els)` is exactly its `type == "arrow"` subset —
-    same ownership rule, same both-ends-bound rule, same id-indexed
-    lookup — and both callers here rely on THIS one staying arrow-only,
-    because neither router loop carries a type check of its own. Widen
-    this and geometry moves; widen the other and only the sentence does.
+        why this is the honest denominator for the ROUTER LOOP: the
+        arrows outside it were never handed to `route_arrow`. It is no
+        longer the denominator of "re-routed N of M" at either narration
+        door — see the strict-subset section above.
     """
     ix = {e["id"]: e for e in els if e.get("id") is not None}
     return [a["id"] for a in els if a.get("type") == "arrow"
@@ -6944,9 +7000,26 @@ def reroute_scene(els):
     # `server_routed_connectors` — because this list answers "what
     # MOVED", and narrowing it to what was eligible would let a pass
     # that moved something outside its own population stay quiet about
-    # exactly the case worth hearing. Nothing outside that population
+    # exactly the case worth hearing.
+    #
+    # THAT LAST SENTENCE USED TO END "Nothing outside that population
     # can move today; this is what makes the sentence survive the day
-    # something does.
+    # something does", and on 2026-08-20 it was FALSE (C-3 fold review,
+    # C-1): a connector bound at exactly one end was outside
+    # `server_routed_connectors` and the fan pulled it 13px, so the
+    # loose scan was not future-proofing at all — it was the only
+    # reason the mover got named. The claim held for the loop it
+    # guards and not for the population it named, and nothing executes
+    # a comment, so it survived every gate.
+    #
+    # IT IS TRUE AGAIN ONLY BECAUSE `M` MOVED. `server_routed_connectors`
+    # now takes one resolving binding rather than two, and re-measuring
+    # every connector shape through this function on a normalized scene
+    # puts the movers exactly inside it: unbound, bound to a missing id,
+    # marked `authored` and bent past 3 points all stay put. Stated as
+    # prose here because that is all a comment can be — the executable
+    # form of it is `N <= M` at both narration doors, which is the
+    # invariant a reader should check this against.
     was = {e["id"]: e for e in els
            if e.get("type") in ("arrow", "line")}
     changes = []
@@ -9265,22 +9338,37 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
         # "left 3 pinned elements where they are" of a scene holding one.
         # Same defect `Store.tidy`'s `routed` set was written to avoid,
         # one altitude down: the union is the count, never the total.
+        #
+        # `_router_owns`, not a fourth inline spelling of it (2026-08-20,
+        # C-3 fold review I-4). See its docstring for what was measured
+        # before these were collapsed.
         declined = set()
         for geom_pass in (fan_attach_points, contention_feet,
                           fan_attach_points):
             if geom_pass(els):
                 declined |= {e["id"] for e in els
-                             if e.get("type") in ("arrow", "line")
-                             and pinned_to_canvas(e)
-                             and server_owns_geometry(e)}
+                             if _router_owns(e) and pinned_to_canvas(e)}
         skipped = len(declined)
         els = normalize_z_order(els)
         if housekeeping is not None:
-            # THE ARROWS NO OP NAMED. An arrow the batch itself moved is
-            # already narrated by its own op's fact, so reporting it here
-            # would double-count; what has never been said is the arrow
-            # the repairs moved as a CONSEQUENCE of an unrelated op, and
-            # that is the entire content of C-3.
+            # THE CONNECTORS NO OP NAMED. A connector the batch itself
+            # moved is already narrated by its own op's fact, so
+            # reporting it here would double-count; what has never been
+            # said is the connector the repairs moved as a CONSEQUENCE
+            # of an unrelated op, and that is the entire content of C-3.
+            #
+            # `connector(s)`, NOT `arrow(s)` (2026-08-20, C-3 fold
+            # review I-2). The scan below has counted the wide
+            # `("arrow", "line")` population since the C-3 repair and
+            # the word never moved with it, so a node move that dragged
+            # two bound LINES printed "re-routed 2 arrow(s) no op named
+            # (l1, l2)" — measured through `apply_batch`. The branch's
+            # own mutant docstring had already made this argument
+            # against itself: "a widened count under the word `arrow(s)`
+            # would tell a user two lines are arrows — a second false
+            # sentence bought with the repair of the first". The count
+            # was right, the noun was the defect, and the two sibling
+            # doors had both been re-nouned a day earlier.
             drifted = sorted(
                 e["id"] for e in els
                 if e.get("type") in ("arrow", "line")
@@ -9289,9 +9377,9 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                                           json.dumps(e.get("points") or [])))
             if drifted:
                 housekeeping.append(
-                    "housekeeping: re-routed %d arrow(s) no op named (%s) so "
-                    "they still meet the shapes they bind — none of them is "
-                    "pinned"
+                    "housekeeping: re-routed %d connector(s) no op named (%s) "
+                    "so they still meet the shapes they bind — none of them "
+                    "is pinned"
                     % (len(drifted), ", ".join(drifted[:6])
                        + (", …" if len(drifted) > 6 else "")))
             if skipped:
@@ -9803,6 +9891,34 @@ def _router_owns(el):
     authored by construction and never reaches `server_owns_geometry`,
     whose answer for a non-arrow would be meaningless rather than merely
     false.
+
+    FIVE SPELLINGS, NOW TWO (2026-08-20, C-3 fold review I-4). This rule
+    was re-typed inline at `apply_ops`' `declined`, `_tidy_pass`'s
+    `pinned |=` and `Store.reroute`'s `held`, each as `type in
+    ("arrow", "line") and pinned_to_canvas(...) and
+    server_owns_geometry(...)`. All three now read
+    `_router_owns(e) and pinned_to_canvas(e)`.
+
+    COLLAPSED ON A MEASUREMENT, NOT ON A READING, because a census that
+    asserts one copy exists is coupled to spelling — the same defect
+    class it would be deployed against — and because this repo has
+    already had a near-identical-looking helper whose divergence on one
+    input shape was load-bearing. The differential: all five spellings
+    plus the two collapsed forms evaluated on every element of the 24
+    frozen artifacts (976 elements) and on 435 adversarial shapes built
+    by crossing type x point-string x `customData.routed` mark x
+    `locked`. **Zero disagreements**, and the populations SEPARATE — the
+    ownership clause answers True on 163/976 and 56/435, the pinned
+    conjunction on 18/435. That last figure is why the adversarial arm
+    exists: the corpus holds no pinned connector at all, so its zero
+    would have been an empty-population zero and evidence of nothing.
+
+    THE OPERAND ORDER MOVED and cannot matter here: the inline sites ask
+    `pinned_to_canvas` before `server_owns_geometry` and the collapsed
+    form asks it after. Both predicates are pure reads, neither raises
+    on any of the 435 shapes (missing `type`, missing `points`,
+    `customData: None` included), and `_router_owns` still gates on type
+    FIRST, so `server_owns_geometry` is never asked about a rectangle.
 
     Args:
         el: The element being judged.
@@ -22145,6 +22261,21 @@ class Store:
             changed. The loop below still iterates `routable_arrows`,
             untouched, because widening THAT would move geometry.
 
+            THE BINDING AXIS WAS THE OTHER HALF and it was fixed a day
+            later, in `server_routed_connectors` rather than here
+            (2026-08-20, C-3 fold review I-1). The type axis above was
+            repaired while the population still required BOTH bindings
+            to resolve, so a connector bound at one end was fanned by
+            this pass and then fell outside `connectors` — landing in
+            neither the numerator nor the denominator of the sentence
+            `Store.tidy` returns. Measured on two coincident feet with
+            `B` off the grid: "re-routed 1 of 1", while `l1` went to 127
+            AND `l2` went to 153. Silent rather than wrong, which is why
+            no arithmetic could catch it here — `redrew` iterates
+            `connectors`, so `N <= M` held by construction the whole
+            time it was missing a mover. The loud twin is C-1 in
+            `Store.reroute`, and one widening closed both.
+
             A set rather than a count because `Store.tidy` unions it
             across passes: summing per-pass counts made "re-routed 6
             arrow(s)" sayable of a scene holding three.
@@ -22202,19 +22333,35 @@ class Store:
         # before any routing for the same reason `routed` is:
         # routing changes neither bindings nor ownership.
         #
-        # THE `id: null` DIVERGENCE THIS COMMENT CARRIED IS RETIRED HERE,
-        # and it is recorded rather than dropped because it was the
-        # load-bearing claim of the C-3 repair's review (MI-1). On the
-        # unfolded branch this loop resolved its bindings through
-        # `server_routed_connectors`' own index, which drops elements
-        # whose `id` is None, so on a scene holding one an arrow bound
-        # to NOTHING stopped being routed against that anonymous
-        # element — three of seven adversarial scenes diverged, all of
-        # them holding an `id: null`. This fold keeps the tip's
-        # `index.get` lookup below, so both sides resolve identically
-        # again and the divergence is gone rather than merely
-        # unreachable. Verified over 40 scenes: ink, settle and
-        # `reroute_is_fossil` byte-identical to the tip.
+        # THE `id: null` DIVERGENCE THIS COMMENT CARRIED IS UNREACHABLE,
+        # NOT RETIRED, and the difference is the whole point (corrected
+        # 2026-08-20, C-3 fold review I-3). On the unfolded branch this
+        # loop resolved its bindings through `server_routed_connectors`'
+        # own index, which drops elements whose `id` is None, so on a
+        # scene holding one an arrow bound to NOTHING stopped being
+        # routed against that anonymous element — three of seven
+        # adversarial scenes diverged, all of them holding an
+        # `id: null`.
+        #
+        # WHAT THIS COMMENT USED TO CLAIM was that keeping the tip's
+        # `index.get` lookup below makes both sides resolve identically
+        # again, so "the divergence is gone rather than merely
+        # unreachable. Verified over 40 scenes." That is false, and it
+        # closed a review finding on a mechanism this code does not
+        # have. The `index.get` lookups below never run for the
+        # divergent case: the gate above them is membership in
+        # `routed`, which is `routable_arrows(els)`, and that helper
+        # builds its own index dropping `id: None` — so the arrow bound
+        # to the anonymous element is skipped before any lookup. The
+        # two BEHAVIOURS still differ; only the door is shut. The new
+        # behaviour is the better one and is not being re-litigated.
+        #
+        # AND THE "40 SCENES BYTE-IDENTICAL" EVIDENCE PROVED NOTHING it
+        # was cited for. A zero over scenes that structurally cannot
+        # reach the divergent branch is an unreachability result being
+        # read as a wide-population agreement result — the same shape as
+        # this file's other empty-population zeros, and worth leaving
+        # written down because the number LOOKS like corroboration.
         connectors = set(server_routed_connectors(els))
         for e in els:
             if e.get("id") not in routed:
@@ -22237,7 +22384,14 @@ class Store:
                                   if t.get("type") == "arrow"
                                   and len(t.get("points") or []) >= 2])
                 recenter_label(els, e)
-                routed.add(e["id"])
+                # `routed.add(e["id"])` stood here and could never change
+                # the set (2026-08-20, C-3 fold review M-1): `routed` is
+                # seeded from `routable_arrows(els)` above, this loop
+                # `continue`s on non-membership, and nothing else writes
+                # it — so every element reaching this point was already
+                # in. Left over from the incremental build the seeded set
+                # replaced, and it read like the population was still
+                # being accumulated here.
         fan_attach_points(els)
         contention_feet(els)
         fan_attach_points(els)
@@ -22245,9 +22399,12 @@ class Store:
         # already named, so their returns are folded in as a SET rather
         # than summed — three passes over one scene must not make one
         # pinned arrow read as three.
+        #
+        # `_router_owns`, not a third inline spelling of it (2026-08-20,
+        # C-3 fold review I-4). See its docstring for what was measured
+        # before these were collapsed.
         pinned |= {a["id"] for a in els
-                   if a.get("type") in ("arrow", "line")
-                   and pinned_to_canvas(a) and server_owns_geometry(a)}
+                   if _router_owns(a) and pinned_to_canvas(a)}
         return normalize_z_order(els), snapped, connectors, pinned
 
     def tidy(self, aid):
@@ -22327,7 +22484,10 @@ class Store:
                 return noop("already tidy — nothing to change")
             # THE DENOMINATOR NAMES ITS POPULATION ("N of M server-routed
             # connector(s)"), added 2026-08-18. `M` is
-            # `len(connectors)` — server-owned and bound at both ends —
+            # `len(connectors)` — server-owned and bound at AT LEAST ONE
+            # end, which is what the fan needs to move a foot; the
+            # "both ends" this comment used to claim is the ROUTER's
+            # rule and cost the note a mover on 2026-08-20 (I-1) —
             # and it had no anchor in the sentence, unlike
             # `Store.reroute`'s, which prints the per-arrow list naming
             # all M underneath it. So a user reading "re-routed 2 of 3"
@@ -22639,6 +22799,23 @@ class Store:
         The pinned clause counts connectors for the same reason: the fan
         and the contention pass both decline a pinned `line`.
 
+        AND `M` TAKES ONE BINDING, NOT TWO, since 2026-08-20 (C-3 fold
+        review, C-1). The type axis above was repaired and the BINDING
+        axis was not, so the same shape came back on the other axis:
+        `examined` required both bindings to resolve while `changes`
+        held anything the fan moved, and the fan groups by whichever end
+        IS bound. Two coincident feet with one connector bound at its
+        start only printed **"re-routed 3 of 2 server-routed
+        connector(s)"** — three named entries and three `rerouted` facts
+        under a denominator of two, measured through
+        Store/commit/reroute. `server_routed_connectors` now names the
+        connectors a pass may actually redraw, so the count and the list
+        are drawn from one population again. The alternative repair was
+        to narrow `redrew` and the list to the both-ends set, which also
+        restores `N <= M` — and pays for it by never mentioning the
+        13px the user can see, which is C-3 itself coming back through
+        the denominator.
+
 
         GATED ON `reroute_is_fossil`, not on "a pass would change
         something" — that is the difference between a verb the user can
@@ -22670,28 +22847,48 @@ class Store:
             # `M` puts a shorter count above a longer list. Measured on
             # the fold of the two commits that each fixed half of this:
             # "re-routed 3 of 1 server-routed arrow(s)" over three
-            # named entries (C-3 fold, 2026-08-19).
+            # named entries (C-3 fold, 2026-08-19). Its BINDING clause
+            # then widened to one resolving end on 2026-08-20, which is
+            # what stopped the same sentence printing "3 of 2" — see the
+            # docstring above, and the helper for what was measured.
             examined = len(server_routed_connectors(self.scenes[aid]))
             els, changes = reroute_scene(self.scenes[aid])
             redrew = sum(1 for c in changes if c["path_changed"])
             # The pinned connectors are named beside the count for the
             # same reason `M` is: this note's per-element list is the
             # anchor a reader checks the number against, and a connector
-            # that is on the canvas, is bound at both ends, is
-            # server-owned, and is absent from the list would otherwise
-            # read as an undercount rather than as a pin being honoured.
+            # that is on the canvas, is bound, is server-owned, and is
+            # absent from the list would otherwise read as an undercount
+            # rather than as a pin being honoured.
             #
-            # `("arrow", "line")`, matching `M` and matching
-            # `_tidy_pass`'s own pinned fold-in, which already counted
-            # both. `fan_attach_points` and `contention_feet` each skip
-            # a pinned LINE exactly as they skip a pinned arrow, so an
-            # arrow-only count here left a held line out of the one
-            # clause that exists to explain why it did not move — the
-            # same blind spot in the same sentence, one clause over.
+            # `_router_owns`, matching `M`'s own ownership clause and
+            # matching `_tidy_pass`'s pinned fold-in, which already
+            # counted both types. `fan_attach_points` and
+            # `contention_feet` each skip a pinned LINE exactly as they
+            # skip a pinned arrow, so an arrow-only count here left a
+            # held line out of the one clause that exists to explain why
+            # it did not move — the same blind spot in the same
+            # sentence, one clause over.
+            #
+            # SPELLED ONCE SINCE 2026-08-20 (C-3 fold review, I-4). It
+            # used to re-type `type in ("arrow", "line") and
+            # server_owns_geometry(...)` inline, and `git blame` showed
+            # the result was stitched line-by-line out of two commits —
+            # `held = sum(` and the ownership clause from `07135123`,
+            # the type clause from `59055b32` — so no author ever wrote
+            # that predicate and no reviewer ever read it as one. See
+            # `_router_owns` for the differential run before the
+            # collapse.
+            #
+            # THE POPULATION IS DELIBERATELY NOT `M`'s: this counts every
+            # pinned server-owned connector, including one bound to
+            # nothing, which `M` now excludes. Left as found rather than
+            # narrowed to `M`-and-pinned — a pinned connector with no
+            # resolving binding could not have moved, so naming it is
+            # noise rather than a wrong number, and that is a separate
+            # judgement from C-1's.
             held = sum(1 for e in self.scenes[aid]
-                       if e.get("type") in ("arrow", "line")
-                       and pinned_to_canvas(e)
-                       and server_owns_geometry(e))
+                       if _router_owns(e) and pinned_to_canvas(e))
             return self.commit(
                 author="agent", new_scenes={aid: els},
                 base_revn=base,
