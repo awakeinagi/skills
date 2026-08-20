@@ -25274,6 +25274,34 @@ def print_kv(**kw):
         print("%s=%s" % (k.upper(), v))
 
 
+def pin_debt_entry(p):
+    """Render one `PIN_DEBT=` member — the standing nag's unit.
+
+    WHOSE QUESTION IT IS RIDES HERE NOW. `direction` was computed in
+    `Store.pin_debt` from v0.2 and reached only `GET /api/state`, so the
+    one surface that says "answer the user's pins FIRST" every single
+    apply was also the one surface that could not tell you which pins
+    those were. The browser rail has shown a `yours`/`agent` chip on
+    every pin card the whole time: the human who does not need the
+    priority rule was told, and the agent that is held to it was not.
+
+    Only the user's are marked, on the `BRANCH=`-when-not-main
+    precedent: an agent's own question is the default case and adding
+    `agent,` to most of a line that prints on every apply buys noise,
+    not a fact. Anything unmarked is your own.
+
+    Args:
+        p: One `Store.pin_debt` entry — `id`, `status`, `age_rounds`,
+            `target_edits`, and `direction` (`user` or `agent`).
+
+    Returns:
+        e.g. ``pin-pay(user, open, age 2r, target edited 1×)``.
+    """
+    return "%s(%s%s, age %dr, target edited %d×)" % (
+        p["id"], "user, " if p.get("direction") == "user" else "",
+        p["status"], p["age_rounds"], p["target_edits"])
+
+
 def cadence_of(cfg):
     """Which canvas-update cadence a config puts in force.
 
@@ -25492,9 +25520,7 @@ def cmd_status(args):
                  for aid, c in sorted(
                      (st.get("lint_debt") or {}).items())) or "none",
              pin_debt="; ".join(
-                 "%s(%s, age %dr, target edited %d×)"
-                 % (p["id"], p["status"], p["age_rounds"],
-                    p["target_edits"])
+                 pin_debt_entry(p)
                  for p in st.get("pin_debt") or []) or "none",
              checkout_revn=st.get("checkout_revn"),
              rollback=st.get("rollback"),
@@ -25606,6 +25632,42 @@ def _mermaid_refusal(aid, kind):
             % (aid, kind))
 
 
+# What the mermaid/er export leaves behind, keyed by the ROLE or TYPE the
+# drop filter in `_export_mermaid` actually tests. The list a reader gets
+# is derived from this map and from that filter's own inputs, never
+# transcribed: the same rule was written out by hand in three places
+# (SKILL.md, this module's NOTE= line, and the filter), and both copies
+# had drifted — `line` and `image` were dropped in silence, and
+# `decoration` was named as left behind even under `--format er`, the one
+# form that carries it. Add a token to the filter and the sentence grows
+# with it, or a KeyError says you forgot.
+MERMAID_DROP_LABELS = {"pin": "pins", "annotation": "annotations",
+                       "note": "notes", "note-text": "notes",
+                       "decoration": "the decoration text inside entities",
+                       "frame": "frames", "line": "plain lines",
+                       "freedraw": "freehand", "image": "images"}
+MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")
+
+
+def _mermaid_dropped_names(silent):
+    """Name the categories this export left behind, in filter order.
+
+    Args:
+        silent: The role tokens the caller's drop filter tests — format
+            dependent, since ``--format er`` carries `decoration`.
+
+    Returns:
+        A comma-joined phrase, deduplicated (`note` and `note-text` are
+        one word to a reader) and order-preserving.
+    """
+    names = []
+    for tok in list(silent) + list(MERMAID_DROP_TYPES):
+        label = MERMAID_DROP_LABELS[tok]
+        if label not in names:
+            names.append(label)
+    return ", ".join(names)
+
+
 def _export_mermaid(args, store, aid, out):
     """Write one artifact out as mermaid text.
 
@@ -25631,6 +25693,23 @@ def _export_mermaid(args, store, aid, out):
     refusal = _mermaid_refusal(aid, kind)
     if refusal:
         die(refusal, 2)
+    # the attribute rows a domain seeder draws inside an entity are
+    # `decoration` text, and erDiagram is the one form that carries them.
+    # `note`/`note-text` are LEGACY and stay: nothing writes them any more
+    # (v0.9 WP8 aligned `_x_user_note` to the client's `annotation`/`label`,
+    # r5-7), but four assessment runs' worth of stickies carry them on
+    # disk, and dropping them here would start exporting those notes into
+    # mermaid as if they were nodes.
+    #
+    # NAMED BEFORE ANYTHING IS WRITTEN. `_mermaid_dropped_names` raises on
+    # a token with no label rather than under-naming it in silence, which
+    # is the whole point — but raising it after `out.write_text` would
+    # hand the user the file AND a traceback, and the file would be the
+    # one artifact of the run that survived. Refuse first, write second.
+    silent = ["pin", "annotation", "note", "note-text"]
+    if args.format != "er":
+        silent.append("decoration")
+    dropped_names = _mermaid_dropped_names(silent)
     if args.format == "er":
         if kind != "domain":
             die("ERROR=--format er reads entities and their cardinality; "
@@ -25664,26 +25743,21 @@ def _export_mermaid(args, store, aid, out):
     nodes = sum(1 for e in els
                 if e.get("type") in ("rectangle", "diamond", "ellipse")
                 and (e.get("customData") or {}).get("role") == "node")
-    # the attribute rows a domain seeder draws inside an entity are
-    # `decoration` text, and erDiagram is the one form that carries them.
-    # `note`/`note-text` are LEGACY and stay: nothing writes them any more
-    # (v0.9 WP8 aligned `_x_user_note` to the client's `annotation`/`label`,
-    # r5-7), but four assessment runs' worth of stickies carry them on
-    # disk, and dropping them here would start exporting those notes into
-    # mermaid as if they were nodes.
-    silent = ["pin", "annotation", "note", "note-text"]
-    if args.format != "er":
-        silent.append("decoration")
     dropped = sum(1 for e in els
                   if role_of(e) in silent
-                  or e.get("type") in ("frame", "line", "freedraw", "image"))
+                  or e.get("type") in MERMAID_DROP_TYPES)
     print_kv(artifact=aid, path=str(out), format=args.format, nodes=nodes,
              lines=len(text.splitlines()), dropped=dropped)
+    # THE COUNT WAS RIGHT AND THE NAMING WAS NOT, which is the worse of
+    # the two: a reader told `DROPPED=3` and given a six-word list that
+    # holds neither of the two lines they drew goes hunting for a third
+    # thing that was never there. Both halves now read `silent`, so the
+    # sentence and the count cannot disagree.
     print("NOTE=this file is a SNAPSHOT of the drawing at this revision "
           "and is never read back — `canvas.py mermaid` seeds NEW "
-          "artifacts only. %d element(s) with no mermaid form (pins, "
-          "annotations, notes, decorations, frames, freehand) were left "
-          "behind; the drawing is still the truth." % dropped)
+          "artifacts only. %d element(s) with no mermaid form (%s) were "
+          "left behind; the drawing is still the truth."
+          % (dropped, dropped_names))
     return 0
 
 
@@ -26423,10 +26497,7 @@ def _print_standing(resp):
                                      for k, v in c.items() if v))
             for aid, c in sorted(lint_debt.items())))
     if pin_debt:
-        print("PIN_DEBT=" + "; ".join(
-            "%s(%s, age %dr, target edited %d×)"
-            % (p["id"], p["status"], p["age_rounds"], p["target_edits"])
-            for p in pin_debt))
+        print("PIN_DEBT=" + "; ".join(pin_debt_entry(p) for p in pin_debt))
 
 
 def rasterize_svg(svg, out_png, want_w, want_h, tag, url=None):

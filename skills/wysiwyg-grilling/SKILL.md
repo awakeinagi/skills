@@ -94,13 +94,11 @@ your next move. In order:
    channel is bookkeeping drift — sweep it in your next batch.
    **The user can now pin questions at you** (❓ ask in the app) and drop
    sticky notes: user pins are frontier input and get answered FIRST;
-   their notes read as requirements. **Which pins are theirs is not on
-   the `PIN_DEBT=` line** — `apply` and `status` both print id, status,
-   age and target-edit count and nothing else. `direction` (`user` or
-   `agent`) is computed and carried in `GET /api/state`'s `pin_debt`,
-   and that is the only place it is readable, so "theirs first" is a
-   rule you have to open the state for. Every apply/status also restates
-   the standing nags —
+   their notes read as requirements. **Which pins are theirs is on the
+   `PIN_DEBT=` line** — theirs read `pin-pay(user, open, age 2r, target
+   edited 1×)` and yours carry no marker, so "theirs first" is
+   answerable from the nag itself and costs no state read. Every
+   apply/status also restates the standing nags —
    `PIN_DEBT` (open questions with age + target-edit counts) and
    `LINT_DEBT` (cross-artifact lint drift, including artifacts your batch
    never touched) — sweep what's aging, or say why it stays.
