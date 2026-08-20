@@ -62,7 +62,8 @@ diagram now says *Provider*, the glossary says *Vendor* — which wins?" On
 agreement, update CONTEXT.md in your next move's doc flush (narrated,
 veto-able). Never let the two drift silently.
 
-**The backend now fires this challenge for you** (`kind: "glossary"`), so
+**The backend now fires this challenge for you** (the tripwire's own
+`kind` is `"glossary"` — a tripwire kind, not an element one), so
 it is a tripwire you ANSWER rather than one you have to notice. It is
 armed by NAME IDENTITY, not by a declared mapping: renaming any element
 whose old label is a settled term raises it. That scope is the fix for

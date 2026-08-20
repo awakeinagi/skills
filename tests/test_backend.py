@@ -27837,5 +27837,140 @@ class TestEveryPinGuardIsObservedAtItsOwnSite(Base):
                          "the unpinned control group tore")
 
 
+class TestTheKindVocabularyHasOneOwner(unittest.TestCase):
+    """The kind vocabulary is bound to its references, in both directions.
+
+    THERE WERE FOUR COPIES AND NO BINDING. `canvas.py` switched on kinds
+    from a dozen scattered literals with no list anywhere; each arm's
+    reference carried its own table; `ops-reference.md` carried a third,
+    open-ended one ending in `…`; and `Inspector.tsx` carried a
+    hand-written fourth — thirteen wireframe kinds, no `body`, no `fold`,
+    and the flow vocabulary handed to every artifact that was not a
+    wireframe or a domain, sequences included. `composed.ts` records the
+    same failure twice over next door, both times by missing `body_of`.
+
+    Two of those copies are gone rather than watched: `canvas.py` now
+    holds the vocabulary and `api_state` SERVES it, so the client has
+    nothing to drift from. This class binds the copy that cannot be
+    generated — the prose an agent actually reads — to the constant, both
+    ways, so neither can move alone.
+
+    EVERY PARSE HERE IS PROVED NON-EMPTY BEFORE IT IS COMPARED. A regex
+    over markdown that silently stops matching would turn this into two
+    empty sets agreeing with each other, which is the exact shape of
+    check this repo keeps finding and calling mute.
+    """
+
+    REFS = (Path(canvas.__file__).resolve().parent.parent / "references")
+    #: One rule for all four arms: an inline `kind: a | b` code span.
+    KIND_SPAN = re.compile(r"`kind:\s*([^`]+)`")
+    #: (reference stem, the constant it is the prose for)
+    ARMS = (("wireframe", "WIREFRAME_KINDS"), ("flow", "FLOW_ARM_KINDS"),
+            ("sequence", "SEQUENCE_KINDS"), ("domain", "DOMAIN_KINDS"))
+
+    def _documented(self, stem):
+        """Kinds named by one reference, refusing an empty read.
+
+        Args:
+            stem: Reference file stem ("wireframe", "flow", …).
+
+        Returns:
+            The set of kind names its `kind:` code spans declare.
+        """
+        path = self.REFS / ("%s.md" % stem)
+        self.assertTrue(path.is_file(), "%s is missing — this guard reads "
+                        "it, so its absence is a failure and never a "
+                        "pass" % path)
+        found = set()
+        for m in self.KIND_SPAN.finditer(path.read_text(encoding="utf-8")):
+            found.update(p.strip() for p in m.group(1).split("|")
+                         if p.strip())
+        self.assertTrue(found, "no `kind: …` span parsed out of %s. The "
+                        "prose changed shape and this guard went blind — "
+                        "it did not go quiet because the code is clean"
+                        % path.name)
+        return found
+
+    def test_each_arm_matches_its_reference_both_ways(self):
+        for stem, const in self.ARMS:
+            documented = self._documented(stem)
+            implemented = set(getattr(canvas, const))
+            self.assertEqual(
+                documented, implemented,
+                "%s and references/%s.md disagree. Undocumented (live "
+                "code keys off a word no agent can find): %s. "
+                "Unimplemented (the doc promises a kind that draws as a "
+                "bare shape): %s"
+                % (const, stem, sorted(implemented - documented) or "none",
+                   sorted(documented - implemented) or "none"))
+
+    def test_the_behaviour_sets_live_inside_the_vocabulary(self):
+        """No gate may key off a kind the vocabulary does not hold.
+
+        `INTERACTIVE_KINDS` is how `link` and `tab` survived undocumented
+        for five versions: they drove the 2.5.8 target-size note and the
+        label-rename tripwire while appearing in no reference and zero
+        times in the corpus. A behaviour set outside the vocabulary is
+        capability nobody can reach.
+        """
+        for const in ("INTERACTIVE_KINDS", "FLOW_KINDS",
+                      "SEQUENCE_PARTY_KINDS", "SEQUENCE_FURNITURE_KINDS",
+                      "PARTY_KINDS"):
+            gate = set(getattr(canvas, const))
+            self.assertTrue(gate, "%s is empty" % const)
+            self.assertLessEqual(
+                gate, set(canvas.KNOWN_KINDS),
+                "%s switches on %s, which no reference documents and the "
+                "unknown-kind note would report as unimplemented"
+                % (const, sorted(gate - set(canvas.KNOWN_KINDS))))
+
+    def test_the_client_transcribes_no_vocabulary_of_its_own(self):
+        """The inspector's selector reads the server's list or none.
+
+        The defect this whole class exists for was a literal array in
+        this file. Its return would be invisible again — the UI would
+        simply stop offering a kind — so the absence is asserted where a
+        human will see it fail.
+        """
+        src = (Path(__file__).resolve().parents[1] / "frontends"
+               / "wysiwyg-grilling" / "src" / "components" / "Inspector.tsx")
+        self.assertTrue(src.is_file(), "%s is missing — moved, not "
+                        "cleaned: re-point this guard" % src)
+        text = src.read_text(encoding="utf-8")
+        self.assertIn("kindVocabulary", text,
+                      "the inspector no longer takes the server's "
+                      "vocabulary; it is transcribing one again")
+        # A LIST, not a mention. `type="checkbox"` is an HTML input
+        # attribute that happens to spell a kind, and failing on it would
+        # be a guard nobody could keep green; two kinds inside one array
+        # literal is the vocabulary coming back.
+        for arr in re.findall(r"\[[^][]*\]", text):
+            named = sorted({k for k in canvas.KNOWN_KINDS
+                            if '"%s"' % k in arr})
+            self.assertLess(
+                len(named), 2,
+                "Inspector.tsx has an array literal naming kinds %s — "
+                "that is the fourth copy coming back. The vocabulary "
+                "arrives on `kind_vocabulary` from /api/state." % named)
+
+    def test_the_served_vocabulary_is_the_implemented_one(self):
+        """`/api/state` hands the client the same words the lints use."""
+        served = {t: set(ks)
+                  for t, ks in canvas.KINDS_BY_TYPE.items()}
+        self.assertEqual(
+            set(canvas.KNOWN_KINDS),
+            set().union(*served.values()),
+            "KINDS_BY_TYPE and KNOWN_KINDS disagree, so a kind the lint "
+            "accepts is one the selector cannot offer (or the reverse)")
+        for t, const in (("wireframe", "WIREFRAME_KINDS"),
+                         ("flow", "FLOW_ARM_KINDS"),
+                         ("sequence", "SEQUENCE_KINDS"),
+                         ("domain", "DOMAIN_KINDS")):
+            self.assertEqual(tuple(canvas.KINDS_BY_TYPE[t]),
+                             tuple(getattr(canvas, const)),
+                             "%s is served under a different order or "
+                             "content than the constant" % t)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

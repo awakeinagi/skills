@@ -14761,6 +14761,47 @@ LANE_SPAN_TOL = 4.0
 INTERACTIVE_KINDS = {"button", "input", "checkbox", "toggle", "slider",
                      "nav", "link", "tab"}
 
+# THE KIND VOCABULARY (v0.9), per arm, in the order its reference
+# introduces it. Every set above answers "does this kind get THIS
+# behaviour?"; none of them answered "is this a kind at all?", and the
+# difference is the whole reason these exist. `kind` rides an op straight
+# into `customData` (see the `spec.get("kind")` copy in the element
+# builder) with no whitelist anywhere on the path, so `kind: "modal"`
+# stored, drew as an unadorned rectangle, and drew NOTHING out of the
+# lint — while the agent that asked for it narrated a modal. A vocabulary
+# that is only ever tested FOR is not a vocabulary; it is a pile of
+# coincidences, and an unrecognised value is indistinguishable from a
+# supported one at every surface a headless agent can read.
+#
+# These are tuples, not sets, because they are also what the inspector's
+# kind selector OFFERS: `api_state` serves them and the client holds no
+# list of its own. Until v0.9 it held a hand-written fourth copy, thirteen
+# long, missing `body` and `fold` — so selecting the fold line on the
+# tearsheet showed `— none —` and one touch of the control wrote
+# `kind: null` over it. Serialising a set would randomise the menu.
+WIREFRAME_KINDS = ("nav", "button", "link", "tab", "input", "block",
+                   "image", "body", "kpi", "checkbox", "toggle", "slider",
+                   "priority", "help", "sticky-bar", "feedback", "fold")
+# `lane` is a FRAME kind and deliberately not in `FLOW_KINDS`: that set
+# gates node-level checks (through-flow, illegal pairings) and a lane is
+# a container, not a step. It is a flow-arm kind all the same, so it
+# belongs in the offered vocabulary and in `KNOWN_KINDS`.
+FLOW_ARM_KINDS = ("source", "transform", "agent", "control", "sink",
+                  "store", "lane")
+SEQUENCE_KINDS = ("actor", "system", "context", "lifeline", "activation")
+DOMAIN_KINDS = ("entity",)
+# The four first-class arms. Extended types (er, class, dfd, …) have no
+# documented vocabulary of their own; the client falls back to the flow
+# arm for them, which is what it has always done.
+KINDS_BY_TYPE = {"wireframe": WIREFRAME_KINDS, "flow": FLOW_ARM_KINDS,
+                 "sequence": SEQUENCE_KINDS, "domain": DOMAIN_KINDS}
+# What "nothing implements this" is measured against. Deliberately the
+# UNION rather than the arm's own list: `lint_layout`'s `artifact_type` is
+# optional, and a check that goes quiet when one argument is absent is
+# the failure mode this one exists to end.
+KNOWN_KINDS = frozenset(WIREFRAME_KINDS + FLOW_ARM_KINDS + SEQUENCE_KINDS
+                        + DOMAIN_KINDS)
+
 # progress-indicator tells (v0.4 U5/Q25) — label evidence, plus the
 # status vocabulary the task-list archetype uses, which is exempt
 # A bare percentage is NOT a progress indicator: `VaR alert 2.5%` on a
@@ -15361,6 +15402,33 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
               and role_of(e) != "decoration"]
     nodes = [e for e in shapes if role_of(e) == "node" or
              (e.get("customData") or {}).get("kind")]
+    # A kind nothing implements (v0.9). Read straight off `customData`
+    # rather than through `kind_of`, which falls back to the element TYPE
+    # and would report every plain rectangle in the corpus.
+    #
+    # Why a NOTE and not an ERROR, given that the drawing plainly does not
+    # say what the agent meant: the ERROR contract is "repair it in the
+    # same move, cosmetic-class, never a second proposal" (SKILL.md), and
+    # deciding what a `modal` should have been is not cosmetic — it is a
+    # design question the user may own. Filed as an ERROR, this check
+    # would instruct the agent to silently substitute `block` and never
+    # mention it, which is a better-hidden version of the same lie. Filed
+    # as a NOTE it does the one thing that repairs the confuser: it makes
+    # the agent SAY that the modal drew as a rectangle. Notes print in
+    # full on every apply and ride LINT_DEBT's standing nag, so this is
+    # the quiet tier only in name.
+    for el in els:
+        kind = (el.get("customData") or {}).get("kind")
+        if not kind or kind in KNOWN_KINDS:
+            continue
+        offer = KINDS_BY_TYPE.get(artifact_type) or \
+            tuple(sorted(KNOWN_KINDS))
+        notes.append(
+            "%s declares kind %r, which nothing implements — it draws as "
+            "a plain %s and every kind-driven check reads straight past "
+            "it. Say so, or use one of: %s"
+            % (name(el.get("id", "?")), kind, el.get("type") or "element",
+               ", ".join(offer)))
     # decorations are exempt from budgets and connector routing — that
     # exemption is right, furniture is not a connector. But it swallowed
     # one thing worth knowing: a decoration that has drifted OFF the
@@ -24421,7 +24489,18 @@ class ServerApp:
         """
         return any(not p["pin_only"] for p in self.pending)
 
-    def api_state(self):
+    def api_state(self) -> dict[str, Any]:
+        """The client's whole view of the session — `GET /api/state`.
+
+        `Store.public_state` is the persisted half; everything added here
+        belongs to the running server rather than to the project on disk,
+        which is why the CLI's `status` never has to carry it.
+
+        Returns:
+            The public state, plus the queue, the dirty flag, the event
+            cursor, the waiting screenshot/mermaid requests, and the kind
+            vocabulary the inspector's selector offers.
+        """
         st = self.store.public_state(queued=self.queued_turn())
         st.update({
             "pending": self.sanitize_pending(),
@@ -24436,6 +24515,15 @@ class ServerApp:
                 {"id": k, "definition": v["definition"]}
                 for k, v in self.mermaid_requests.items()
                 if v.get("status") == "waiting"],
+            # the kind vocabulary, served rather than transcribed (v0.9).
+            # The inspector's kind selector used to carry its own list and
+            # it went stale exactly the way `composed.ts` records its own
+            # hand-lists going stale: thirteen wireframe kinds, no `body`,
+            # no `fold`, and every non-wireframe artifact — sequences
+            # included — offered the FLOW vocabulary. Serving it means the
+            # client cannot drift, because it has nothing to drift from.
+            "kind_vocabulary": {t: list(ks)
+                                for t, ks in KINDS_BY_TYPE.items()},
         })
         return st
 

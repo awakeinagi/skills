@@ -121,6 +121,14 @@ on concept `report` clears the umbrella's `wireframe` debt.
   "kind": "button" | "nav" | "input" | "entity" | "image" | "store"
         | "kpi" | "checkbox" | "toggle" | "slider"
         | "help" | "sticky-bar" | "feedback" | …,
+      // …means "and the rest of that arm's table", NOT "and whatever you
+      // like". The vocabulary is CLOSED and each arm's reference carries
+      // it whole: references/wireframe.md · flow.md · sequence.md ·
+      // domain.md. An unrecognised kind is stored and drawn as a bare
+      // shape — nothing composes it, no check reads it — and says so in a
+      // LAYOUT_NOTE. Before v0.9 it said nothing at all, so `kind:
+      // "modal"` round-tripped in silence while the agent narrated a
+      // modal it had not drawn.
       // v0.4 plain kinds (no composition, but the lints watch them):
       //   help       — where help lives; 3.2.6 slot-drift NOTEs.
       //   sticky-bar — pinned chrome flush with a frame edge; declaring
