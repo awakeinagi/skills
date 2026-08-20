@@ -2739,9 +2739,13 @@ def _close_widget_group(out):
         return
     body = out[0]
     parts = [e for e in out[1:] if part_owner_id(e) == body["id"]]
-    tagged = [e for e in parts
-              if any((e.get("customData") or {}).get(k)
-                     for k in COMPOSED_PART_KEYS)]
+    # THROUGH `_composed_part`, NOT A COPY OF IT. This used to type the
+    # `any(... for k in COMPOSED_PART_KEYS)` body out again, so it was
+    # blind to any change in the answer — one rule, three sites, and only
+    # two of them reading the reader. It is NOT `part_owner_id`: that one
+    # answers `containerId` for a bound label, and a plain labelled box
+    # would then mint itself a group.
+    tagged = [e for e in parts if _composed_part(e.get("customData") or {})]
     if not tagged:
         return          # a plain labelled element is not a composite
     gid = body["id"] + "-grp"
@@ -9600,13 +9604,24 @@ def _composed_part(cd):
     """Is this element a composite's part, or a standalone backdrop?
 
     The distinction the comment above turns on, in one place because it
-    now has TWO readers that must never drift apart: `normalize_z_order`
-    bands a part above its owner and a backdrop beneath everything, and
+    now has FOUR readers that must never drift apart: `normalize_z_order`
+    bands a part above its owner and a backdrop beneath everything,
     `_geometry_derived` calls a part's geometry derived and a backdrop's
-    the author's own. Both questions are the same question — is there a
-    host that owns this element's position — and a tree where one said
-    yes and the other no would paint a backdrop over the drawing or bill
-    a user for a drag they made.
+    the author's own, `_close_widget_group` mints a group only around a
+    real composite, and `composed_group_gaps` reports a tagged part's
+    missing group unconditionally. All four ask the same question — is
+    there a host that owns this element's position — and a tree where one
+    said yes and the other no would paint a backdrop over the drawing or
+    bill a user for a drag they made.
+
+    THE LAST TWO WERE COPIES UNTIL 2026-08-20, typing this body out again
+    inline, so they could not see a change in the answer. They call it
+    now. What must NOT happen next is the tidy that merges this into
+    `part_owner_id`: the two look like one question and are not. Measured
+    over 2715 element shapes, they disagree on exactly one class and no
+    wider — a BOUND LABEL, `text` with a `containerId` and no part tag,
+    which answers its container there and False here — and
+    `composed_group_gaps` turns on precisely that gap.
 
     `role: "decoration"` alone cannot answer it. That role is a
     first-class value of the PUBLIC ops schema (ops-reference.md lists
@@ -9766,8 +9781,15 @@ def composed_group_gaps(els):
         theirs = set(owner.get("groupIds") or [])
         if mine & theirs:
             continue
-        tagged = any((e.get("customData") or {}).get(k)
-                     for k in COMPOSED_PART_KEYS)
+        # THROUGH `_composed_part`, NOT A COPY OF IT — see
+        # `_close_widget_group`, which carried the same open-coded twin.
+        # And NOT `part_owner_id`, which is the tidy that looks identical
+        # and is not: it answers `containerId` for a bound label, and the
+        # `tagged or theirs` sentence right below turns on exactly that
+        # gap — a tagged part is a gap always, a label only when its owner
+        # is grouped. Collapsing the two would report one line per
+        # labelled node in the project.
+        tagged = _composed_part(e.get("customData") or {})
         if tagged or theirs:
             out.append((e["id"], oid))
     return sorted(out)
