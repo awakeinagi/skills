@@ -22714,6 +22714,141 @@ class TestShapeAwareLabelRoom(Base):
                              "label's wrap, so writing it is a field with "
                              "no consequence")
 
+    def test_the_fitter_does_not_grow_a_box_that_has_the_room(self) -> None:
+        """The restraint, as a property over shapes and not one scene's 80.
+
+        RESTORED, 2026-08-20. This is the half of `test_fitter_leaves_a_
+        label_no_wrap_can_improve` that should not have gone with it. That
+        pin had three clauses and the rewrite above closed two: its
+        headline `(171, 20)` was a claim about the CLIENT — "a label that
+        fits unwrapped is left at its arrival width" — and `ai` in the
+        shipped bundle makes it unreachable, so it was rightly deleted
+        and re-pinned inverted. Its third clause, `cont["height"] == 80,
+        "nothing to grow for"`, is not a claim about Excalidraw at all.
+        It is a claim about THIS FILE'S WRITER: that `fit_label_in` does
+        not resize a container it need not touch. The deletion conflated
+        "the editor does not decline" with "we make no promise about
+        restraint", and nothing in the tree has asserted the restraint
+        since.
+
+        IT MATTERS MORE UNDER THE NEW RULE, NOT LESS. The fitter can no
+        longer decline — it always re-wraps and always rewrites the
+        label's height — so the single `if lbl["height"] >
+        client_text_headroom(container)` is the whole of what stands
+        between opening a project and rewriting the geometry on disk.
+
+        WHAT THE PRE-RESTRAINT WORLD ACTUALLY DOES, measured here rather
+        than taken on report, because the report had the sign wrong. With
+        that `if` neutralised to `if True`, the corpus does not inflate:
+        all 287 of the 291 shape-bound labels that currently leave their
+        box alone COLLAPSE it onto the label, by 2px to 590px, and every
+        one of the 287 gains `customData.auto_grown`. It converges in one
+        pass rather than climbing, so "monotonic inflation" is not the
+        failure mode; monotonic collapse in one step is, and it is the
+        larger of the two. The flag is the quieter half: `lint_layout`
+        drops its whole size gate on any truthy `auto_grown` ("ANY
+        overlap it causes is real"), so stamping it on those 287 alone,
+        with every height left honest, moves the frozen corpus from 51
+        overlap warnings to 52.
+
+        WHY IT IS NOT A PIN ON `80`. The deleted clause was one scene's
+        arithmetic, and this repo has been bitten by literals that stayed
+        red over an honest drawing. The claim here is the invariant —
+        given room, the stored height does not move and the flag is not
+        written — swept over four shapes and 110 heights each, plus the
+        whole frozen corpus as an iff. The absolute numbers live in the
+        live pole below, which is here on purpose: a pin that only says
+        "do not grow" is satisfied by a fitter that grows nothing, and
+        rewarding that repair would be worse than having no pin.
+        """
+        pad = canvas.BOUND_TEXT_PADDING * 2
+        # `qg` transcribed by hand, not `client_text_headroom`, which is
+        # what the restraint consults and therefore cannot also be the
+        # judge of whether a case reaches it.
+        headroom = {
+            "rectangle": lambda h: h - pad,
+            "frame": lambda h: h - pad,
+            "diamond": lambda h: math.floor(h / 2 + 0.5) - pad,
+            "ellipse": lambda h: math.floor(h * math.sqrt(2) / 2 + 0.5) - pad,
+        }
+        lbl0 = {"id": "t1", "type": "text", "text": "Ready",
+                "originalText": "Ready", "fontSize": 16, "width": 46,
+                "height": 22, "containerId": "n1"}
+        moved, flagged, slack = [], [], []
+        for kind, room in headroom.items():
+            for h in range(64, 501, 4):
+                cont = {"id": "n1", "type": kind, "x": 0, "y": 0,
+                        "width": 300, "height": h}
+                lbl = dict(lbl0)
+                canvas.fit_label_in(cont, lbl)
+                slack.append(room(h) - lbl["height"])
+                if cont["height"] != h:
+                    moved.append((kind, h, cont["height"]))
+                if "auto_grown" in (cont.get("customData") or {}):
+                    flagged.append((kind, h))
+        # THE SWEEP MUST TOUCH THE BOUNDARY OR IT CANNOT SEE A COMPARISON
+        # THAT SLIPPED. A 64px rhombus gives `round(64/2) - 10` = 22 and
+        # the one-line label is 22, so `>` says leave it and `>=` would
+        # say grow it. Zero here is both "one case sits on the edge" and
+        # "no case in the sweep needed growing"; a floor that drifted
+        # above zero has quietly moved the control scene.
+        self.assertEqual(min(slack), 0,
+                         "the sweep no longer reaches the `>` boundary")
+        self.assertEqual(moved, [],
+                         "the fitter resized a container whose label "
+                         "already fitted the room the client gives it")
+        self.assertEqual(flagged, [],
+                         "`auto_grown` was written where nothing grew, "
+                         "and the overlap lint drops its size gate on it")
+        # THE LIVE POLE. Growth that is earned still happens, at the
+        # client's own extent (`yd`: e + 5 a side on a box) and with the
+        # flag carrying the delta, so the restraint cannot be "satisfied"
+        # by deleting the growth.
+        text = "Escalate to the regional compliance desk for manual review"
+        cont = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
+                "width": 120, "height": 40}
+        lbl = {"id": "t1", "type": "text", "text": text,
+               "originalText": text, "fontSize": 16, "width": 60,
+               "height": 20, "containerId": "n1"}
+        canvas.fit_label_in(cont, lbl)
+        self.assertEqual((lbl["height"], headroom["rectangle"](40)), (108, 30),
+                         "this pole is only live while the label really "
+                         "outruns the room its box has")
+        self.assertEqual(cont["height"], 118)
+        self.assertEqual(cont["customData"]["auto_grown"], 78)
+        # THE DENOMINATOR, and the guard is the iff rather than the count:
+        # a box moves exactly when the wrap outruns the room it arrived
+        # with. That catches the collapse and the never-grows repair from
+        # the same expression, over real geometry neither pole above has.
+        root = Path(__file__).resolve().parent / "fixtures"
+        pop, grew, wrong = 0, 0, []
+        for path in sorted(root.glob("*/artifacts/*.excalidraw")):
+            els = json.loads(path.read_text())["elements"]
+            idx = {e.get("id"): e for e in els}
+            for e in els:
+                c = (idx.get(e.get("containerId"))
+                     if e.get("type") == "text" else None)
+                if c is None or c.get("type") not in headroom:
+                    continue
+                pop += 1
+                cc, ll = copy.deepcopy(c), copy.deepcopy(e)
+                canvas.fit_label_in(cc, ll)
+                need = ll["height"] > headroom[c["type"]](c["height"])
+                grew += bool(need)
+                if need != (cc["height"] != c["height"]) or need != (
+                        "auto_grown" in (cc.get("customData") or {})):
+                    wrong.append((path.stem, e["id"]))
+        self.assertEqual(wrong, [],
+                         "a corpus box moved when its label fitted, or "
+                         "stayed when its label did not")
+        # 273 rectangle / 12 ellipse / 6 diamond / 0 frame, over the 24
+        # frozen artifacts. 4 of the 291 reach the growing arm, so 287
+        # ride the restraint — the branch that had no assertion on it at
+        # all. If a fixture moves this, re-measure the census; do not
+        # relax the line.
+        self.assertEqual((pop, grew), (291, 4),
+                         "the corpus population behind this guard moved")
+
     def test_a_box_container_is_its_own_wrap_width(self):
         """A rectangle's cap carries no shape term. It is not 24 either.
 
