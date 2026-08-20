@@ -145,6 +145,17 @@ _SKIP_TIDY = (
     "                if pinned_to_canvas(e):\n"
     '                    pinned.add(e["id"])\n'
     "                    continue\n")
+# RE-POINTED by the group-ruling change, and it MATTERS THAT THIS ONE
+# MOVED. `_SKIP_TIDY` used to occur twice — the snap loop and the routing
+# loop, byte identical — and the snap loop's copy is now a unit-level
+# question instead (`_TIDY_UNIT_HELD`). So `_SKIP_TIDY` occurs ONCE, the
+# routing loop's entry drops to occurrence 1, and a `_tidy_pass.snap`
+# left pointing at occurrence 1 would have mutated the ROUTING loop while
+# asking the SNAP test: the exact mis-pairing that produced this
+# instrument's first two false survivors. `assert_pristine` now refuses
+# on a multiplicity change for precisely this reason — see its docstring.
+_TIDY_UNIT_HELD = (
+    '                held = {m["id"] for m in unit if pinned_to_canvas(m)}')
 _FINAL_ROUTE = (
     '            if e.get("type") != "arrow" '
     "or not server_owns_geometry(e) \\\n"
@@ -196,26 +207,32 @@ GUARDS: list[tuple[str, str, str, int, str]] = [
      "or not server_owns_geometry(e):", 1,
      "TestEachPinGuardIsObserved."
      "test_the_final_routing_pass_leaves_a_pinned_arrow_alone"),
-    # occurrence 1 of `_SKIP_TIDY` is the SNAP loop, occurrence 2 the
-    # ROUTING loop. They are byte identical, and pairing them the wrong
-    # way round is how this instrument first reported two false
-    # survivors — the mutation ran, the wrong test was asked about it.
-    ("_tidy_pass.snap", _SKIP_TIDY, "", 1,
+    # ONE LINE, TWO CLAIMS, and the two entries are deliberate rather
+    # than a duplicate. The snap loop used to ask the pin question twice —
+    # once about the element it was about to snap, once per part inside
+    # the carry — and the group ruling merged them into a single
+    # unit-level question: a pin ANYWHERE in a group holds the whole
+    # group. The mutation is therefore the same for both, but the two
+    # facts it breaks are not, and each still needs its own test to die.
+    # `.snap` is the leader-pinned pole, `.group_cascade` the
+    # follower-pinned one.
+    ("_tidy_pass.snap", _TIDY_UNIT_HELD, "                held = set()", 1,
      "TestPinnedSurvivesEveryNonUserMover."
      "test_tidy_snap_skips_pinned_and_still_snaps_the_rest"),
-    ("_tidy_pass.routing_loop", _SKIP_TIDY, "", 2,
-     "TestEachPinGuardIsObserved."
-     "test_tidys_router_leaves_a_pinned_arrow_alone"),
     # THE SITE THE ROSTER OMITTED. Verified unobserved before it had a
     # test: deleting it left all 1618 tests green. Its own comment states
     # the rule C-1 breaks — "a pin is a pin whichever end of the group it
     # sits on" — so the guard articulating the invariant was the one
     # nothing checked.
-    ("_tidy_pass.group_cascade",
-     "                        if pinned_to_canvas(p):",
-     "                        if False:", 1,
+    ("_tidy_pass.group_cascade", _TIDY_UNIT_HELD,
+     "                held = set()", 1,
      "TestEachPinGuardIsObserved."
      "test_a_pinned_part_does_not_ride_its_owners_snap"),
+    # occurrence 1 of `_SKIP_TIDY` is the ROUTING loop, and now the only
+    # one — see `_TIDY_UNIT_HELD` for why it used to be occurrence 2.
+    ("_tidy_pass.routing_loop", _SKIP_TIDY, "", 1,
+     "TestEachPinGuardIsObserved."
+     "test_tidys_router_leaves_a_pinned_arrow_alone"),
     # The LOAD path's own router, found by reading curator batch 37's
     # reds: gated on ownership, never on the pin, so a pinned arrow was
     # redrawn by opening the project.
@@ -240,9 +257,13 @@ GUARDS: list[tuple[str, str, str, int, str]] = [
      "    if label is None:", 1,
      "TestPinnedSurvivesEveryNonUserMover."
      "test_recenter_label_honours_a_pinned_label"),
+    # DE-INDENTED by the group ruling: the carry lost the `role ==
+    # "decoration"` arm it used to nest inside, so the guard sits one
+    # level shallower. The anchor is the guard's own line and nothing
+    # around it, which is why re-pointing it was a four-space edit.
     ("apply_ops.group_carry",
-     "                        if pinned_to_canvas(other):",
-     "                        if False:", 1,
+     "                    if pinned_to_canvas(other):",
+     "                    if False:", 1,
      "TestPinnedSurvivesTheBackDoors."
      "test_the_carry_itself_refuses_a_pinned_part"),
     ("apply_ops.del_cascade",
@@ -381,12 +402,31 @@ def assert_pristine(original: str) -> None:
     costs nothing and is the difference between a bad run and a bad run
     you can see.
 
+    AND A MULTIPLICITY CHANGE IS AS BAD AS A MISSING ONE, which is the
+    second check and the newer one. An anchor that goes from two
+    occurrences to one does not go missing — it silently RE-PAIRS, and
+    occurrence 1 becomes a different site than the roster believes.
+    `_SKIP_TIDY` did exactly that when the snap loop's copy became a
+    unit-level question: `_tidy_pass.snap` would have mutated the ROUTING
+    loop and asked the SNAP test about it, which is the shape of this
+    instrument's first two false survivors. So the count must equal the
+    highest occurrence the roster claims for that snippet — never merely
+    reach it. A spare unclaimed copy means a real guard nobody registered
+    or a roster entry pointing at an ambiguous line, and both are
+    findings rather than conditions to run under.
+
     Args:
         original: The source as read at the start of this run.
 
     Raises:
-        SystemExit: If any guard anchor is missing.
+        SystemExit: If any guard anchor is missing or its occurrence
+            count no longer matches what the roster claims.
     """
+    claimed: dict[str, int] = {}
+    labelled: dict[str, list[str]] = {}
+    for label, old, _new, n, _t in GUARDS:
+        claimed[old] = max(claimed.get(old, 0), n)
+        labelled.setdefault(old, []).append(label)
     missing = [label for label, old, _new, n, _t in GUARDS
                if original.count(old) < n]
     if missing:
@@ -395,6 +435,18 @@ def assert_pristine(original: str) -> None:
             "previous sweep probably died before restoring. Restore the "
             "file from git before trusting any result: %s\n"
             % (len(missing), SRC, ", ".join(missing)))
+        raise SystemExit(2)
+    drift = [(", ".join(labelled[old]), n, original.count(old))
+             for old, n in sorted(claimed.items())
+             if original.count(old) != n]
+    if drift:
+        sys.stderr.write(
+            "REFUSING TO RUN: %d anchor(s) changed multiplicity in %s. "
+            "The roster's occurrence numbers no longer name the sites it "
+            "thinks they do, so every result would be a coin flip "
+            "(label: claimed -> found): %s\n"
+            % (len(drift), SRC,
+               ", ".join("%s: %d -> %d" % d for d in drift)))
         raise SystemExit(2)
 
 

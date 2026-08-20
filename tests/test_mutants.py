@@ -23890,9 +23890,7 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # the owner picks has to reach both `_tidy_pass` and `apply_ops`, and the
 # mod class's two reds flip together under every scope choice.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestAModMovesAUserGroupAsOneUnit": 2,
     "TestTheLoadPathNamesABoundLineWhateverItsRole": 1,
-    "TestTidyMovesAUserGroupAsOneUnit": 1,
 }
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
@@ -28988,7 +28986,6 @@ class TestTidyMovesAUserGroupAsOneUnit(unittest.TestCase):
             "the contrast the red below rests on is gone and the red is "
             "now about tidy in general rather than about user groups")
 
-    @unittest.expectedFailure
     def test_every_member_of_the_group_takes_the_same_delta(self) -> None:
         """RED: three members of one group, three different deltas.
 
@@ -29084,7 +29081,6 @@ class TestAModMovesAUserGroupAsOneUnit(unittest.TestCase):
             "a COMPOSED group no longer travels with its body on a `mod "
             "x`, so the contrast the reds below rest on is gone")
 
-    @unittest.expectedFailure
     def test_every_member_of_the_group_takes_the_same_delta(self) -> None:
         """RED: P walks 300px out of the group and nobody follows.
 
@@ -29107,7 +29103,6 @@ class TestAModMovesAUserGroupAsOneUnit(unittest.TestCase):
             "group moves as a unit, so a group has exactly one delta and "
             "this batch produced %d: %r" % (deltas, len(distinct), distinct))
 
-    @unittest.expectedFailure
     def test_the_innermost_group_of_a_nested_pair_takes_one_delta(self
                                                                   ) -> None:
         """RED: nesting, and what this pin does and does not assert.

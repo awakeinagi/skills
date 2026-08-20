@@ -24551,13 +24551,24 @@ class TestComposedWidgetsAreRealGroups(Base):
         sl = next(e for e in self.store.scenes["f2b"] if e["id"] == "sl")
         self.assertEqual(sl["groupIds"], ["sl-grp", "sl-grp"])
 
-    def test_a_hand_made_group_with_no_owner_is_left_alone(self):
-        scene = [mk_el(id="a", type="rectangle", groupIds=["g"]),
-                 mk_el(id="b", type="rectangle", groupIds=["g"]),
-                 mk_el(id="c", type="rectangle", groupIds=["g"])]
-        owners, parts = canvas._group_owners(scene)
-        self.assertEqual(owners, {})
-        self.assertEqual(parts, set())
+    def test_a_hand_made_group_is_one_move_unit(self):
+        """THE RULING: "every group should move as a unit. Period."
+
+        REPLACES `test_a_hand_made_group_with_no_owner_is_left_alone`,
+        which asserted the opposite — that `_group_owners` resolves no
+        owner for a Ctrl+G group and the members are therefore snapped
+        one at a time. That was a deliberate design position, and the
+        user has overruled it. The reading it protected (do not invent a
+        body for a group that has none) survives in `_move_units`: a
+        hand-made group still has no owner, so its delta comes from its
+        top-left-most member rather than from a member promoted to body.
+        """
+        scene = [mk_el(id="c", type="rectangle", x=300, groupIds=["g"]),
+                 mk_el(id="a", type="rectangle", x=100, groupIds=["g"]),
+                 mk_el(id="b", type="rectangle", x=200, groupIds=["g"])]
+        leaders, followers = canvas._move_units(scene)
+        self.assertEqual(leaders, {"a": {"b", "c"}})
+        self.assertEqual(followers, {"b", "c"})
 
 
 class TestPinnedAddSpec(Base):
@@ -24589,17 +24600,22 @@ GEOMETRY_WRITERS: dict[str, tuple[int, str]] = {
                           "position; returns early for a pinned label. "
                           "Dies with: test_recenter_label_honours_a_pinned_"
                           "label"),
-    "_tidy_pass": (4, "SELF-GUARDED — asks for the snap AND for the group "
-                      "carry; a part pinned at either end does not move. "
-                      "Dies with: test_tidy_snap_skips_pinned_and_still_"
-                      "snaps_the_rest, test_tidys_router_leaves_a_pinned_"
-                      "arrow_alone"),
-    "apply_ops": (5, "MIXED — the grouped-decoration carry is SELF-GUARDED "
-                     "(v0.9 fix round D1); the other four write the element "
-                     "an op named, which the gate has already judged. "
-                     "Dies with: test_the_carry_itself_refuses_a_pinned_"
-                     "part, test_the_cascade_itself_spares_a_pinned_"
-                     "element_and_says_so"),
+    "_tidy_pass": (4, "SELF-GUARDED — asks once per MOVE UNIT, before the "
+                      "snap: a pin anywhere in a group holds the whole "
+                      "group where it is. Dies with: test_tidy_snap_skips_"
+                      "pinned_and_still_snaps_the_rest, test_tidys_router_"
+                      "leaves_a_pinned_arrow_alone, test_a_pinned_part_"
+                      "does_not_ride_its_owners_snap"),
+    "apply_ops": (5, "MIXED — the group carry is SELF-GUARDED (v0.9 fix "
+                     "round D1) and is TWO of the five sites; the other "
+                     "THREE (a slider thumb, a toggle thumb, an authored "
+                     "`points`) write the element an op named or a part "
+                     "re-derived from it, which the gate has already "
+                     "judged. Said 'the other four' until 2026-08-20, "
+                     "which counted the carry as one site because it "
+                     "reads as one rule. Dies with: test_the_carry_"
+                     "itself_refuses_a_pinned_part, test_the_cascade_"
+                     "itself_spares_a_pinned_element_and_says_so"),
 
     # --- UPSTREAM-GUARDED: the caller drops pinned before reaching here -
     "_stamp_contention": (3, "UPSTREAM — `contention_feet` drops pinned "
@@ -24940,6 +24956,60 @@ class TestEveryGeometryWriterIsClassified(unittest.TestCase):
                 "pinned_to_canvas", bodies.get(fn, ""),
                 "%s claims to guard itself but never calls the predicate"
                 % fn)
+
+
+class TestTheGuardRosterStillResolves(unittest.TestCase):
+    """`tests/guard_mutants.py`' anchors, checked without running a sweep.
+
+    THE INSTRUMENT WENT DOWN AND SAID NOTHING. `guard_mutants.py` is not
+    part of the suite and nothing in pre-commit invokes it — deliberately,
+    because it rewrites `canvas.py` in place for twenty minutes — so when
+    the group-ruling change moved three of its anchors, it began exiting 2
+    and refusing to run, and the only way anyone would learn that was by
+    running it by hand. An instrument whose job is to catch checks that
+    pass for the wrong reason is the last thing that should be allowed to
+    fail quietly.
+
+    This runs the roster's own pristine check and NOTHING ELSE: no
+    mutation, no write to `canvas.py`, no subprocess. It cannot tell you
+    a guard is observed — only the sweep can, and the sweep stays
+    hand-run. What it can tell you, in the second it costs, is that the
+    sweep would still find its 23 sites where it expects them, which is
+    the difference between "not run lately" and "down".
+    """
+
+    def test_every_anchor_resolves_at_its_claimed_occurrence(self):
+        sys.path.insert(0, str(Path(canvas.__file__).resolve().parents[3]
+                               / "tests"))
+        import guard_mutants
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        try:
+            guard_mutants.assert_pristine(src)
+        except SystemExit as exc:
+            self.fail(
+                "guard_mutants.py would refuse to run against the current "
+                "canvas.py — its anchors have moved, so the pin-guard "
+                "sweep is DOWN. Re-point them in that file's GUARDS "
+                "roster; do not delete the entry: %s" % exc)
+
+    def test_the_roster_and_the_geometry_census_agree_on_the_writers(self):
+        # The two tables answer different questions — one counts geometry
+        # WRITES, the other mutates pin GUARDS — but every function the
+        # roster names a site inside must be a function the census has
+        # classified, or one of them is describing a `canvas.py` that no
+        # longer exists.
+        sys.path.insert(0, str(Path(canvas.__file__).resolve().parents[3]
+                               / "tests"))
+        import guard_mutants
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        named = {label.split(".")[0] for label, *_ in guard_mutants.GUARDS}
+        tree = ast.parse(src)
+        defined = {n.name for n in ast.walk(tree)
+                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        self.assertEqual(
+            sorted(named - defined), [],
+            "the guard roster names functions that no longer exist in "
+            "canvas.py")
 
 
 class TestPinnedSurvivesTheBackDoors(Base):
@@ -25730,21 +25800,48 @@ class TestEachPinGuardIsObserved(Base):
 
         It needs its own scene because the tidy tests either pin the
         BODY (which the snap loop's own guard catches first) or pin
-        nothing. Here the body is free and a PART is pinned: the body
-        snaps, and the carry must leave the part where it is.
+        nothing. Here the body is free and a PART is pinned.
+
+        WHAT THE PINNED PART NOW DOES TO THE REST OF ITS GROUP CHANGED,
+        and the guard this test observes did not. It used to be that the
+        body snapped and the pinned part stayed — which honours the pin
+        and TEARS THE GROUP, the one thing the user's ruling ("every
+        group should move as a unit. Period.") forbids. `_tidy_pass` now
+        holds the whole unit, matching what `_validate_batch` already did
+        on the ops path, where a `mod x` naming a pinned element's group
+        sibling is refused outright. The guard is still the only thing
+        standing between the pinned part and the snap: delete
+        `pinned_to_canvas` from the unit check and the thumb moves, which
+        is the assertion below.
+
+        THE LIVENESS POLE IS A GROUP, and an ungrouped box will not do.
+        The first version of this repair used one, and a reviewer's
+        mutant — make the snap loop skip LEADERS as well as followers, so
+        every group on the canvas freezes — ran the whole suite green:
+        an ungrouped control cannot fail for the reason a grouped one
+        can, so it proved only that `tidy` had been called. `pair-a` and
+        `pair-b` are an unpinned hand-made group, off-grid, and they must
+        move — together, by the same delta, which is the ruling itself
+        standing as this test's control.
         """
         self.store.apply_batch({
             "base_revn": self.store.head_revn(),
             "create": {"id": "s12", "name": "S12", "type": "wireframe"},
             "ops": [{"op": "add", "id": "sl", "type": "rectangle",
                      "x": 100, "y": 200, "width": 160, "height": 44,
-                     "label": "Volume", "kind": "slider", "value": 60}]})
+                     "label": "Volume", "kind": "slider", "value": 60},
+                    {"op": "add", "id": "pair-a", "type": "rectangle",
+                     "x": 600, "y": 600, "width": 80, "height": 40},
+                    {"op": "add", "id": "pair-b", "type": "rectangle",
+                     "x": 700, "y": 602, "width": 80, "height": 40}]})
         els = [dict(e) for e in self.store.scenes["s12"]]
         for e in els:
             e["x"] = e.get("x", 0) + 3      # knock the widget off-grid
             e["y"] = e.get("y", 0) - 3
             if e["id"] == "sl-thumb":
                 e["locked"] = True
+            if e["id"] in ("pair-a", "pair-b"):
+                e["groupIds"] = ["pairgrp"]
         self.store.commit(author="user", new_scenes={"s12": els},
                           base_revn=self.store.head_revn())
         before = {e["id"]: (e.get("x"), e.get("y"))
@@ -25754,8 +25851,15 @@ class TestEachPinGuardIsObserved(Base):
                  for e in self.store.scenes["s12"]}
         self.assertEqual(after["sl-thumb"], before["sl-thumb"],
                          "the group cascade carried a pinned part")
-        self.assertNotEqual(after["sl"], before["sl"],
-                            "the snap did not run, so this proves nothing")
+        self.assertEqual(after["sl"], before["sl"],
+                         "the pinned part's group moved without it")
+        self.assertNotEqual(after["pair-a"], before["pair-a"],
+                            "the snap moved no group at all, so this "
+                            "proves nothing")
+        self.assertEqual(
+            tuple(a - b for a, b in zip(after["pair-a"], before["pair-a"])),
+            tuple(a - b for a, b in zip(after["pair-b"], before["pair-b"])),
+            "the unpinned control group tore")
 
     def test_the_loader_does_not_reroute_a_pinned_arrow(self):
         """The thirteenth site: `reroute_and_confess`, on the LOAD path.
@@ -26744,11 +26848,19 @@ class TestEveryPinGuardIsObservedAtItsOwnSite(Base):
     def test_a_pinned_part_does_not_ride_its_owners_snap(self):
         """`_tidy_pass`' group cascade — the site the review's roster missed.
 
-        Its own comment states the rule: "a part that is itself pinned
-        still does not move — a pin is a pin whichever end of the group
-        it sits on." Nothing was checking. A slider carries TWO parts, so
-        one scene holds both poles: the track rides the owner's +1 snap
-        and the pinned thumb does not.
+        Its own comment states the rule: "a pin is a pin whichever end of
+        the group it sits on." Nothing was checking.
+
+        THE POLE THAT MOVED IS THE OTHER ONE. This used to read "the
+        track rides the owner's +1 snap and the pinned thumb does not" —
+        a widget travelling in two pieces, which the user's ruling
+        ("every group should move as a unit. Period.") forbids. The pin
+        now holds the whole unit, so the track stays with the thumb.
+
+        THE LIVENESS POLE IS A GROUP — `pair-a`/`pair-b`, unpinned and
+        off-grid — and it has to be. See the twin of this test in
+        `TestPinnedSurvivesEveryNonUserMover` for the mutant that walked
+        straight through an ungrouped one.
         """
         self.store.apply_batch({
             "base_revn": 0, "artifact": "w",
@@ -26758,24 +26870,42 @@ class TestEveryPinGuardIsObservedAtItsOwnSite(Base):
                 "type": "rectangle", "id": "sl", "x": 100, "y": 100,
                 "width": 200, "height": 28,
                 "customData": {"kind": "slider", "value": 40}},
-                "label": "Volume"}]})
+                "label": "Volume"},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "pair-a", "x": 600, "y": 600,
+                    "width": 80, "height": 40}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": "pair-b", "x": 700, "y": 602,
+                    "width": 80, "height": 40}}]})
         thumb = _part_id(self.store, "w", "thumb_of", "sl")
         track = _part_id(self.store, "w", "track_of", "sl")
         els = [dict(e) for e in self.store.scenes["w"]]
         for e in els:
-            if e["id"] == "sl":
+            if e["id"] in ("sl", "pair-a", "pair-b"):
                 e["x"] = e["x"] + 3          # off the 4px grid
             if e["id"] == thumb:
                 e["locked"] = True
+            if e["id"] in ("pair-a", "pair-b"):
+                e["groupIds"] = ["pairgrp"]
         self.store.commit(author="user", new_scenes={"w": els},
                           base_revn=self.store.head_revn())
         was_pinned = _xy(self.store, "w", thumb)
-        was_free = _xy(self.store, "w", track)
+        was_kin = _xy(self.store, "w", track)
+        was_a = _xy(self.store, "w", "pair-a")
+        was_b = _xy(self.store, "w", "pair-b")
         self.store.tidy("w")
         self.assertEqual(_xy(self.store, "w", thumb), was_pinned,
                          "the owner's snap carried a pinned part with it")
-        self.assertNotEqual(_xy(self.store, "w", track), was_free,
-                            "the widget stopped travelling as one thing")
+        self.assertEqual(_xy(self.store, "w", track), was_kin,
+                         "the widget travelled without its pinned part")
+        now_a, now_b = _xy(self.store, "w", "pair-a"), _xy(self.store, "w",
+                                                           "pair-b")
+        self.assertNotEqual(now_a, was_a,
+                            "the snap moved no group at all, so this "
+                            "proves nothing")
+        self.assertEqual(tuple(x - y for x, y in zip(now_a, was_a)),
+                         tuple(x - y for x, y in zip(now_b, was_b)),
+                         "the unpinned control group tore")
 
 
 if __name__ == "__main__":
