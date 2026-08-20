@@ -11338,14 +11338,32 @@ class TestCrossLintJoinIsLoadBearing(CrossLintDriver, Base):
         INSIDE a marker. The hook keeps the marked ones true; this keeps
         new unmarked ones from appearing.
 
-        AND THE SITES ARE ROSTERED, which is the half a name-keyed check
-        structurally cannot do. `livedoc check` subtracts marker NAMES,
-        not marker SITES: with five documents publishing one calculator,
-        deleting four of them leaves the fifth answering for all five and
-        the hook green (measured on this branch, 2026-08-20 — the same
-        shape the v0.9 ledger records against the guard roster). A roster
-        makes a deletion cost one line in this file, and that line is the
-        place to say why the doc no longer owes the fact.
+        AND THE SITES ARE ROSTERED — one narrow case, and the argument
+        against it is recorded here too, because it is a good one.
+
+        `livedoc.unmarked_values` (commit `e0a7b42`, landed independently
+        on another branch) covers most of this ground and covers it more
+        generally: it flags any calculator's value sitting in prose
+        outside a marker, for every calculator, not just this one.
+        Measured against it on the merge result, over the two ways four
+        of the five sites can be deleted:
+
+          - marker stripped, words left behind — `unmarked_values` finds
+            4, this roster finds it too. REDUNDANT, and its message is
+            better.
+          - marker deleted AND the sentence reworded — `unmarked_values`
+            finds 0, by explicit design: its docstring argues "there is
+            no false claim left to catch, which is the correct outcome,
+            not a miss." This roster fires.
+
+        SO THE DISAGREEMENT IS EXACTLY ONE CASE, and it is a judgement
+        about what the docs owe a reader rather than about rot: four
+        audiences lose the fact, silently, and each of those five
+        documents states it where a reader of that artifact TYPE meets
+        the question. That is not a curator's call to make alone. The
+        roster is kept because it is green and catches something real;
+        if the owning WP rules for `unmarked_values`' position, deleting
+        it is one line and this comment is the reason to cite.
         """
         root = Path(canvas.__file__).parent.parent
         marked, bare = {}, {}
@@ -12309,8 +12327,14 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
                                    "findable; re-anchor this guard rather "
                                    "than deleting it")
         prose = said.group(1)
-        # the caveat spells the term out at reading length; the constant
-        # holds the token. Both are asserted so neither can move alone.
+        # EITHER SPELLING IS LEGITIMATE and the pin must not prefer one:
+        # the caveat may name the term canonically (as a live marker
+        # does) or spell it out at reading length in prose. Demanding
+        # the long form AND forbidding the short one, as the first
+        # version of this pin did, is a contradiction that fires on any
+        # honest move between them — which is how it read on a merge
+        # result where another branch had made the term a live value.
+        # What is invariant is that the caveat NAMES the term.
         aliases = {"the decoration text inside entities":
                    "the decoration text a domain seeder draws inside an "
                    "entity"}
@@ -12319,18 +12343,20 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
         self.assertTrue(carried, "no format-dependent term remains; the "
                                  "caveat should have gone with it")
         for label in carried:
-            self.assertIn(aliases.get(label, label), prose,
-                          "the `er` caveat does not name %r, which the "
-                          "filter carries under `er` and drops under "
-                          "every other form" % label)
+            spellings = [label] + ([aliases[label]] if label in aliases
+                                   else [])
+            self.assertTrue(any(s in prose for s in spellings),
+                            "the `er` caveat names none of %r, and that "
+                            "term is what the filter carries under `er` "
+                            "and drops under every other form"
+                            % (spellings,))
         for label, alias in sorted(aliases.items()):
             self.assertIn(label, set(canvas.MERMAID_DROP_LABELS.values()),
                           "alias kept for a label that no longer exists: "
                           "%r" % label)
-            self.assertNotIn(label, prose,
-                             "the caveat now spells %r verbatim — delete "
-                             "the alias rather than keeping a second name "
-                             "for one category alive" % alias)
+            if label in prose and alias in prose:
+                self.fail("the caveat carries BOTH spellings of %r — one "
+                          "of them is an unheld copy of the other" % label)
 
     def test_a_role_only_er_carries_is_never_dropped_under_er(self):
         """The caveat's behavioural half, so the prose pin is not alone.
