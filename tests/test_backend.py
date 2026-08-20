@@ -22948,15 +22948,40 @@ class TestShapeAwareLabelRoom(Base):
         The three caps are derived from the bundle's `_s` by hand rather
         than from the function under test, which could not otherwise
         notice itself being wrong.
+
+        THE HAND DERIVATION IS `Math.round` AND NOT `round` since
+        2026-08-20 (v0.9 WP4 review, I-2). It was Python's `round` —
+        banker's rounding, the exact divergence `js_round` was added to
+        remove — so a pin whose whole justification is "derived by hand
+        from the bundle" was transcribing the client's rule wrongly. It
+        happened to be mute at 160 (80 and 113.137 are not ties), which
+        is worse rather than better: what this check could SAY about
+        rounding was nothing at any width, and a revert of `js_round` to
+        `round` passed it at every one of the 495 `4k+1` widths in
+        20..2000. `math.floor(x + 0.5)` is the same half-toward-positive
+        -infinity spelling the sibling
+        `test_the_cap_rounds_a_half_the_way_the_client_rounds_it` uses,
+        which is what makes the old form a slip rather than a policy.
         """
+        def half_up(x):
+            """`Math.round`: half toward +Infinity (ECMA-262).
+
+            Args:
+                x: The value to round.
+
+            Returns:
+                The rounded value, as an int.
+            """
+            return math.floor(x + 0.5)
+
         text = "Escalate to the regional compliance desk for manual review"
         self.assertEqual(canvas.client_wrap_width(
             {"type": "rectangle", "width": 160}), 160 - 10)
         self.assertEqual(canvas.client_wrap_width(
-            {"type": "diamond", "width": 160}), round(160 / 2) - 10)
+            {"type": "diamond", "width": 160}), half_up(160 / 2) - 10)
         self.assertEqual(canvas.client_wrap_width(
             {"type": "ellipse", "width": 160}),
-            round(160 / 2 * math.sqrt(2)) - 10)
+            half_up(160 / 2 * math.sqrt(2)) - 10)
         cont = {"id": "n1", "type": "rectangle", "x": 0, "y": 0,
                 "width": 160, "height": 60}
         lbl = {"id": "t1", "type": "text", "text": text,
