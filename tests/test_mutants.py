@@ -16138,52 +16138,71 @@ def _over_wide_token(height: int) -> list[dict]:
                originalText=text)]
 
 
-def _half_pixel_rhombus(text: str) -> list[dict]:
+def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
+                        font_size: int = 16) -> list[dict]:
     """A rhombus whose cap lands on a HALF PIXEL, carrying `text`.
 
-    181 IS THE WHOLE CONSTRUCTION and no other width in this file would
-    do. The client's `_s` (index-DpKP4sIE.js @555833, read verbatim) is
-    `Math.round(n/2) - Yn*2` on a diamond, and `client_wrap_width`
-    (canvas.py) transcribes that as `round(w / 2) - pad`. The two agree
-    everywhere except where `w / 2` lands exactly on `.5`: `Math.round`
-    is half-UP and Python's `round` is half-to-EVEN, so an odd width
-    whose half floors to an even number splits them. At 181 the client
-    allows **81px** and this file allows **80**.
+    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `_s`
+    (index-DpKP4sIE.js @555833, read verbatim) is `Math.round(n/2) -
+    Yn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
+    as `round(w / 2) - pad`. `Math.round` is half-UP — confirmed in a JS
+    engine, not assumed, and `floor(x + 0.5)` reproduces it on every
+    `w / 2` from 2 to 4000 — while Python's `round` is half-to-EVEN. So
+    they part exactly where `w / 2` is a tie AND its floor is even,
+    which is **w = 4k+1 and nothing else**: 495 of the 1981 integer
+    widths in 20..2000, half the odd ones. At 181 the client allows
+    **81px** and this file allows **80**.
 
-    That is a one-pixel disagreement, which is exactly why the label is
-    chosen to paint 81px: anything wider fails under both readings and
-    anything narrower passes under both, and the defect is invisible
-    from every width but the boundary. The tolerance the rest of the
-    catalogue relies on cannot see a pixel, so the SCENE has to place it.
+    A LATENT DIVERGENCE, NOT A LIVE SYMPTOM, and a reader should not go
+    looking for the corpus instance: the frozen corpus holds exactly one
+    distinct diamond, 200x80, and neither number is 4k+1. Every affected
+    width has to be chosen on purpose, which is why 181 is written here
+    rather than lifted from a fixture.
 
-    Both poles share this container, deliberately. Moving the width to
-    build the other pole would move the rounding too, and the neighbour
-    would then prove the check fires at some OTHER cap rather than at
-    the half-pixel cap under test. Only the text moves.
+    The ellipse arm carries the identical `round` and is UNREACHABLE:
+    `w / 2 * sqrt(2)` is irrational, lands on a tie for no integer width
+    in that range, and disagrees **0** times. There is no ellipse scene
+    to build, and a pin asserting one would be asserting nothing.
 
-    The height is 200 — an even number, so `client_text_headroom` rounds
-    `100` cleanly and the height arm carries none of the defect. The
-    label sits centred, where a 181x200 rhombus is 163px across, so the
-    shape-placement check next door has nothing to say about either pole
-    and cannot colour the verdict.
+    The label paints exactly the boundary pixel because nothing coarser
+    can see this: anything wider fails under both readings, anything
+    narrower passes under both. The tolerance bands the rest of the
+    catalogue leans on cannot resolve one pixel, so the SCENE has to
+    place it.
+
+    Poles built from this share a container and move only the TEXT.
+    Moving the width instead would move the rounding with it, and the
+    neighbour would then prove the check fires at some other cap rather
+    than at the half-pixel cap under test.
 
     Args:
-        text: The bound label's content. `'acceptance'` paints 81px,
-            the pixel that separates the two roundings; anything much
-            wider is over the cap under either.
+        text: The bound label's content.
+        width: The rhombus's width. 181 is `4k+1`, so the wrap cap is
+            split; the height-arm poles pass an even width instead, to
+            keep that arm quiet while the other one is measured.
+        height: The rhombus's height. 200 halves cleanly, so the
+            headroom carries none of the defect; 69 is `4k+1` and
+            splits it the same way the width does.
+        font_size: The label's size. 16 leaves the HEIGHT arm mute
+            whatever the text does — `text_dims` returns
+            `int(lines * fs * 1.25)`, which at 16 is `20 * lines` and
+            always even, while a visible one-pixel headroom gap needs an
+            odd height. That is why the height arm has never been seen,
+            and why its pole is set at 20.
 
     Returns:
         The two-element scene: node `n1`, then its bound label `t1`.
     """
-    ink = canvas.text_ink_width(text, 16)
-    return [el(id="n1", type="diamond", x=0, y=0, width=181, height=200,
-               customData={"role": "node"},
+    ink = canvas.text_ink_width(text, font_size)
+    box_h = canvas.text_dims(text, font_size)[1]
+    return [el(id="n1", type="diamond", x=0, y=0, width=width,
+               height=height, customData={"role": "node"},
                boundElements=[{"id": "t1", "type": "text"}]),
-            el(id="t1", type="text", x=(181 - ink) // 2, y=90, width=ink,
-               height=20, text=text, fontSize=16,
-               fontFamily=canvas.FONT_LEGIBLE, textAlign="center",
-               verticalAlign="middle", containerId="n1",
-               originalText=text)]
+            el(id="t1", type="text", x=(width - ink) // 2,
+               y=(height - box_h) // 2, width=ink, height=box_h, text=text,
+               fontSize=font_size, fontFamily=canvas.FONT_LEGIBLE,
+               textAlign="center", verticalAlign="middle",
+               containerId="n1", originalText=text)]
 
 
 def _foreign_corner_stage() -> list[dict]:
@@ -18524,24 +18543,46 @@ _register(Mutant(
 # half-to-EVEN. On a 181px rhombus the client allows 81px and this file
 # allows 80, so a label painting exactly 81 is called `too wide` about a
 # picture that fits. Silent everywhere else, which is what makes it worth a
-# scene rather than a comment: the arms agree at every width except the
-# ones where `w / 2` lands on a half, and nothing in the corpus or the
-# tolerance bands can see one pixel.
+# scene rather than a comment: measured against a real JS engine over
+# 20..2000, the two part on **495 of 1981 widths, every one of them 4k+1**
+# and no others — not on every odd width, which is the looser claim this
+# entry was first written with and which the count refuted.
 #
-# THE FIX THAT FLIPS THIS is `math.floor(x + 0.5)` at the two `round(w / 2)`
-# sites — `client_wrap_width` and `client_text_headroom`, which share the
-# defect. `math.ceil(w / 2)` also flips it and is WRONG: it agrees with
-# `Math.round` on every integer width and parts from it on fractional ones
-# (`Math.round(90.2)` is 90, `ceil` is 91), which Excalidraw produces every
-# time a user drags a corner. This pair cannot see that — a mutant's magnitude
-# lives at the boundary and a boundary cannot also be wide — so it is written
-# down here instead of watched: whoever takes the fix owes the fractional
-# case its own scene, or owes a reason it does not need one.
+# THE FIX THAT FLIPS THIS is `math.floor(x + 0.5)`, and it belongs at all
+# FIVE transcribed `Math.round` sites and not at the two that can currently
+# bite — the two diamond arms, the two ellipse arms, and
+# `client_grown_extent`'s. (This entry first said "the two `round(w / 2)`
+# sites"; that was counted wrong, and the count is the whole argument: a rule
+# typed at five places where only three can be wrong is how the fourth gets
+# it back.)
 #
-# The ellipse arm carries the same `round` and is NOT reachable: its
-# `w / 2 * sqrt(2)` is irrational for every integer width, so it never lands
-# on a half and there is no scene to build. `client_grown_extent`'s ellipse
-# arm is irrational for the same reason.
+# `math.ceil(w / 2)` also flips this pair and is WRONG: it agrees with
+# `Math.round` on every one of the 1981 integer widths and parts from it on
+# 1710 of 3800 fractional ones (`Math.round(90.2)` is 90, `ceil` is 91),
+# which Excalidraw produces every time a user drags a corner. This pair
+# cannot see that — a mutant's magnitude lives at the boundary and a boundary
+# cannot also be wide — so it was written down here as a debt rather than
+# left as false coverage. THE DEBT IS PAID, not inherited:
+# `TestShapeAwareLabelRoom.test_the_cap_rounds_a_half_the_way_the_client_
+# rounds_it` (test_backend.py) sweeps tenths across 20.0..400.0 for both the
+# wrap cap and the headroom, and fails on `round`, fails on `ceil`, and
+# passes only on `floor(x + 0.5)`. The fractional case is genuinely
+# reachable, traced rather than assumed: an agent op carrying `width: 180.4`
+# reaches `client_wrap_width` AS 180.4 during `apply_batch`, because the
+# fitter runs before `normalize_element` snaps the stored value.
+#
+# THE OTHER `round` SITES, counted rather than characterised, because a
+# set of wrong CAPS is not a set of reachable FINDINGS:
+#   * the ELLIPSE arms of both functions are numerically identical and
+#     disagree **0** times over 20..2000 — `w / 2 * sqrt(2)` is irrational
+#     and lands on no tie — so there is no scene to build and a pin
+#     asserting one would assert nothing. `client_grown_extent`'s ellipse
+#     arm is irrational for the same reason.
+#   * the HEIGHT arm (`client_text_headroom`) disagrees on exactly the same
+#     495 values, and IS reachable — but only where `text_dims` returns an
+#     odd height, and at fontSize 16 it returns `20 * lines`, always even.
+#     That is why nobody has seen it. `rhombus_half_pixel_headroom` below
+#     is that arm, and it is the reason this pair is two mutants and not one.
 #
 # Origin: found during the bound-text padding investigation (curator, routed
 # by v0.9 WP4-AND-GUARDS), 2026-08-19 — the one defect left standing after
@@ -18568,6 +18609,62 @@ _register(Mutant(
                         FindingSpec("text_overflow", element="n1",
                                     magnitude=(121, 0.10),
                                     direction="wide"))))
+
+# A THIRD KIND OF ZERO, and the sentence worth keeping when the pin is
+# gone. This wave has now catalogued three: a zero over an EMPTY
+# population, a zero over the WRONG population, and this one — a zero
+# produced by the DEFAULT PARAMETER, where the defect is live at every
+# other value of it. A survey run at the default finds nothing and is
+# not wrong, merely blind.
+#
+# ONE ARM AT A TIME is the method and not an accident of this scene: the
+# dimension under test takes a `4k+1` value so its rounding splits, and
+# the OTHER takes an even one so its arm stays quiet. Let both split and
+# the message reads `too wide and too tall`, at which point neither
+# number is attributable to either site.
+#
+# THE HEIGHT TWIN of the entry above, and the arm the coordinator asked to be
+# counted rather than assumed. `client_text_headroom` carries the same
+# `round(h / 2)` and disagrees on the same 495 values — but a wrong CAP is
+# only a finding where something can land in the one-pixel gap, and `over_h`
+# is `th > room_h` where `th` is `text_dims`' quantized `int(lines * fs *
+# 1.25)`. Firing here needs `th == room_h + 1` exactly, which needs `th` ODD,
+# and at fontSize **16 it is always even** (`20 * lines`) for every line count
+# there is. So the arm is numerically wrong on 495 heights and MUTE on all of
+# them at the default size — which is the whole reason it has gone unseen,
+# and why "the height arm nobody has looked at" was worth a count instead of
+# a shrug.
+#
+# It is reachable: exhaustively, 19 (fontSize, line count) combinations
+# produce an odd `th`, and 10 of them use a size the frozen corpus actually
+# carries — the corpus runs 12, 14, 16, 20 and 24, of which 12, 14 and 20
+# reach it and 16 and 24 cannot. This scene takes the smallest honest one:
+# fontSize 20, one line, `th = 25`, in a rhombus 69px tall (`4k+1`), where
+# the client allows **25px** of headroom and this file allows **24**.
+#
+# The width is 400 — EVEN, so the wrap cap halves cleanly and that arm carries
+# none of the defect. One arm at a time, or the message says `too wide and
+# too tall` and neither number is attributable.
+_register(Mutant(
+    "rhombus_half_pixel_headroom",
+    build=lambda: _half_pixel_rhombus("Escalate to desk", width=400,
+                                      height=69, font_size=20),
+    op="unchanged", args={},
+    # SILENCE: 25px of text in the 25px the client actually grants it.
+    expect=Silence("text_overflow"),
+    # A FIRING neighbour in the SAME container: a phrase that wraps to two
+    # lines, 50px against 24 or 25, over the headroom under either reading.
+    # The magnitude is the wrapped block's width, 149px — band [134.1,
+    # 163.9], which excludes 190 (room_w), 50 (the needed height), and both
+    # 24 and 25 (room_h under either reading). Every word is under 190, so
+    # `over_w` stays quiet and the DIRECTION is `tall` — the opposite axis
+    # to the entry above, which is what makes this a second mutant rather
+    # than a second width.
+    neighbour=Neighbour(
+        lambda: _half_pixel_rhombus("route to the risk desk for sign-off",
+                                    width=400, height=69, font_size=20),
+        FindingSpec("text_overflow", element="n1", magnitude=(149, 0.10),
+                    direction="tall"))))
 
 _register(Mutant(
     "stale_label_width_hides_collision",
@@ -22052,6 +22149,19 @@ class TestMutantCatalogue(unittest.TestCase):
         """A 121px word in the SAME rhombus is over the cap either way."""
         self._run_neighbour("rhombus_half_pixel_cap")
 
+    @unittest.expectedFailure
+    def test_mutant_rhombus_half_pixel_headroom(self) -> None:
+        """A label the client gives 25px of room, called too tall for 24."""
+        # RED: the same banker's rounding one function down, on HEIGHT.
+        # It has gone unseen because `text_dims` returns an even height at
+        # fontSize 16 whatever the text does, so nothing can land in the
+        # one-pixel gap there; this scene uses 20, where it can.
+        self._run("rhombus_half_pixel_headroom")
+
+    def test_neighbour_rhombus_half_pixel_headroom(self) -> None:
+        """Two lines in the SAME 69px rhombus overrun it either way."""
+        self._run_neighbour("rhombus_half_pixel_headroom")
+
     def test_mutant_straddle_reads_the_worse_of_two_grounds(self) -> None:
         """Half a white word on cream paper reads 1.06:1, not 14.22:1."""
         # Green: the arm fires and is right to. What had never been
@@ -23282,7 +23392,8 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"rhombus_half_pixel_cap"}
+CATALOGUE_RED_IDS: set[str] = {"rhombus_half_pixel_cap",
+                               "rhombus_half_pixel_headroom"}
 # `rhombus_half_pixel_cap` ARRIVED on 2026-08-19 (curator, routed by v0.9
 # WP4-AND-GUARDS), and like the entry below it is NOT red by absence:
 # `text_overflow` is `proven`, speaks on this scene, and says `too wide`
