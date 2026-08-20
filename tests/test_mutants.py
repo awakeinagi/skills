@@ -22135,27 +22135,30 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same unbreakable word in a 200px box is wide and no more."""
         self._run_neighbour("chopped_token_reads_as_one_line")
 
-    @unittest.expectedFailure
     def test_mutant_rhombus_half_pixel_cap(self) -> None:
-        """A label the client gives 81px, called too wide for 80."""
-        # RED: `client_wrap_width` rounds `181 / 2` to even where the
-        # client rounds it up, so the check complains about a label that
-        # fits. Flips on `math.floor(x + 0.5)` at that site and at
-        # `client_text_headroom`'s twin — see the entry for the `ceil`
-        # near-miss the pair deliberately cannot see.
+        """A label the client gives 81px is no longer called too wide."""
+        # FLIPPED GREEN 2026-08-19 by v0.9 WP4-AND-GUARDS. `canvas.js_round`
+        # is now the rounding at all FIVE sites that transcribe a
+        # `Math.round` out of the bundle — including the two ellipse arms
+        # that cannot currently reach a half, because a rule typed five
+        # times where only three can be wrong is how the fourth gets it
+        # back.
+        # THE `ceil` NEAR-MISS THIS PAIR CANNOT SEE is watched by
+        # `TestShapeAwareLabelRoom.test_the_cap_rounds_a_half_the_way_the_
+        # client_rounds_it` in test_backend.py, which sweeps FRACTIONAL
+        # widths — the debt this entry recorded, paid rather than passed on.
         self._run("rhombus_half_pixel_cap")
 
     def test_neighbour_rhombus_half_pixel_cap(self) -> None:
         """A 121px word in the SAME rhombus is over the cap either way."""
         self._run_neighbour("rhombus_half_pixel_cap")
 
-    @unittest.expectedFailure
     def test_mutant_rhombus_half_pixel_headroom(self) -> None:
-        """A label the client gives 25px of room, called too tall for 24."""
-        # RED: the same banker's rounding one function down, on HEIGHT.
-        # It has gone unseen because `text_dims` returns an even height at
-        # fontSize 16 whatever the text does, so nothing can land in the
-        # one-pixel gap there; this scene uses 20, where it can.
+        """A label the client gives 25px of room is no longer too tall."""
+        # FLIPPED GREEN 2026-08-19 by v0.9 WP4-AND-GUARDS, in the same
+        # change and by the same one-line helper as its width twin — which
+        # is the whole argument for `js_round` existing rather than the
+        # rounding being corrected at the site that happened to bite.
         self._run("rhombus_half_pixel_headroom")
 
     def test_neighbour_rhombus_half_pixel_headroom(self) -> None:
@@ -23392,8 +23395,33 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"rhombus_half_pixel_cap",
-                               "rhombus_half_pixel_headroom"}
+CATALOGUE_RED_IDS: set[str] = set()
+# BOTH LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one commit after the pair
+# arrived, flipped together by a single helper: `canvas.js_round`,
+# `math.floor(x + 0.5)`, now the rounding at all FIVE sites transcribing a
+# `Math.round` out of the shipped bundle — two diamond arms, two ellipse
+# arms and `client_grown_extent`'s. The ellipse arms cannot currently reach
+# a half (`w/2*sqrt(2)` is irrational for every rational `w`) and were
+# changed anyway: a rule typed at five sites where only three can be wrong
+# is how the fourth gets it back. Both pairs flip on that one line, which
+# is the argument for the helper over a correction at the site that bit.
+# THE DEBT THE ENTRY BELOW RECORDED IS PAID, not passed on. `math.ceil`
+# also flips both mutants and is WRONG, and the pair structurally cannot
+# see it — ceil and `Math.round` agree on all 1981 integer widths in
+# 20..2000 and part on 1710 of 3800 fractional ones.
+# `TestShapeAwareLabelRoom.test_the_cap_rounds_a_half_the_way_the_client_
+# rounds_it` (test_backend.py) sweeps tenths across 20.0..400.0, for the
+# wrap cap AND the headroom, against a hand-transcribed `Math.round`. It
+# fails on `round`, fails on `ceil`, and passes on nothing else —
+# established by monkeypatching all three, not by reading it.
+# AND THE FRACTIONAL CASE IS REACHABLE, which is why the sweep was owed
+# rather than waived. "The corpus has no fractional container widths" is
+# TRUE — 0 of 291 — and would have been the wrong reason to skip it: the
+# corpus surveys STORED state and this defect lives IN FLIGHT. Traced
+# instead: an op carrying `width: 180.4` reaches `client_wrap_width` AS
+# 180.4 during `apply_batch`, because the fitter runs before
+# `normalize_element` snaps the stored value to 180. `Math.round(90.2)` is
+# 90 and `ceil` is 91 — one pixel, on the agent's own write path.
 # `rhombus_half_pixel_cap` ARRIVED on 2026-08-19 (curator, routed by v0.9
 # WP4-AND-GUARDS), and like the entry below it is NOT red by absence:
 # `text_overflow` is `proven`, speaks on this scene, and says `too wide`

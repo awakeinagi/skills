@@ -21851,6 +21851,70 @@ class TestShapeAwareLabelRoom(Base):
             canvas.shape_band_width(dict(dia, type="rectangle"), 40, 60),
             200.0)
 
+    def test_the_cap_rounds_a_half_the_way_the_client_rounds_it(self):
+        """A fractional container width, which no mutant here can watch.
+
+        THE DEBT `rhombus_half_pixel_cap` LEFT ON PURPOSE. That pair
+        pins the integer half-pixel case — a 181px rhombus, where the
+        client allows 81 and Python's banker's `round` allowed 80 — and
+        it CANNOT distinguish the fix from its nearest miss. `math.ceil`
+        silences that mutant too, because ceil and `Math.round` agree on
+        every one of the 1981 integer widths in 20..2000 and part only
+        on fractional ones. A mutant's magnitude lives at a boundary and
+        a boundary cannot also be wide, so the curator wrote the hole
+        down rather than pretending to watch it. This is the scene it
+        asked whoever took the fix to owe.
+
+        FRACTIONAL WIDTHS REACH THE RULE, which is what makes this a
+        debt rather than a tidiness point. Traced end to end: an agent op
+        carrying `width: 180.4` reaches `client_wrap_width` AS 180.4
+        during `apply_batch` — the fitter runs before `normalize_element`
+        snaps the stored value to 180 — so the cap the label is fitted
+        to is computed from the fraction. There `Math.round(90.2)` is 90
+        and `ceil` is 91: one pixel, on the agent's own write path, and
+        the corpus cannot show it because every fixture width is whole.
+
+        The expectation is `Math.round` transcribed by hand — half toward
+        positive infinity, ECMA-262 — and not `canvas.js_round`, which is
+        the thing under test.
+        """
+        def half_up(x):
+            """`Math.round`: half toward +Infinity.
+
+            Args:
+                x: The value to round.
+
+            Returns:
+                The rounded value.
+            """
+            return math.floor(x + 0.5)
+
+        pad = canvas.BOUND_TEXT_PADDING * 2
+        # tenths across a range wide enough that both roundings' disagreement
+        # patterns repeat many times over, rather than one lucky width
+        widths = [w / 10.0 for w in range(200, 4001)]
+        self.assertEqual(
+            [w for w in widths
+             if canvas.client_wrap_width({"type": "diamond", "width": w})
+             != half_up(w / 2) - pad], [],
+            "the wrap cap parted from Math.round on a fractional width")
+        self.assertEqual(
+            [h for h in widths
+             if canvas.client_text_headroom({"type": "diamond", "height": h})
+             != half_up(h / 2) - pad], [],
+            "the headroom carries the same rounding and must agree too")
+        # the near-miss, named: `ceil` passes the catalogue pair and fails
+        # here, which is the whole reason this test exists
+        self.assertEqual(
+            [w for w in widths if math.ceil(w / 2) != half_up(w / 2)] != [],
+            True, "ceil and Math.round must differ somewhere in this range, "
+                  "or this test cannot see the near-miss it is written for")
+        self.assertEqual(canvas.client_wrap_width(
+            {"type": "diamond", "width": 180.4}), 80)   # ceil would say 81
+        # and the integer half the catalogue does watch, so the two agree
+        self.assertEqual(canvas.client_wrap_width(
+            {"type": "diamond", "width": 181}), 81)
+
     def test_the_fitter_ignores_the_width_the_label_arrives_with(self):
         """The width we store is not an input to the width we store.
 

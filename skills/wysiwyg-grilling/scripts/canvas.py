@@ -11315,6 +11315,38 @@ def shape_band_width(el, y0, y1):
 BOUND_TEXT_PADDING = 5
 
 
+def js_round(x):
+    """`Math.round`, which Python's `round` is not.
+
+    ECMA-262 rounds a half toward POSITIVE INFINITY; Python rounds a
+    half to EVEN. They agree everywhere except on an exact `.5`, and
+    every rule below transcribes a `Math.round` out of the shipped
+    bundle — so `round` was the wrong function at five sites and wrong
+    only at the boundary, which is the hardest place for anything to
+    notice (`rhombus_half_pixel_cap`, curator, 2026-08-19).
+
+    Measured: on a 181px rhombus the client allows 81px and `round`
+    allowed 80, so a label painting exactly 81 was called too wide about
+    a picture that fits. The diamond arms disagree on `w = 4k+1` — 495
+    of the 1981 integer widths in 20..2000, half the odd ones, because
+    the two roundings agree whenever `floor(w/2)` is odd.
+
+    ONE HELPER AT EVERY SITE RATHER THAN A FIX AT THE ONE THAT BIT.
+    The ellipse arms cannot reach a half — `w/2*sqrt(2)` is irrational
+    for every rational `w`, since `w*sqrt(2) = 2k+1` would make `sqrt(2)`
+    a ratio of integers — so they are unreachable today and changed
+    anyway. A rule transcribed at five sites where only three can
+    currently be wrong is exactly how the third site gets it back.
+
+    Args:
+        x: The value to round.
+
+    Returns:
+        The half-up rounding, as an `int`.
+    """
+    return math.floor(x + 0.5)
+
+
 def client_wrap_width(container):
     """Width the CLIENT will wrap a bound label to, whatever we store.
 
@@ -11361,9 +11393,9 @@ def client_wrap_width(container):
     pad = BOUND_TEXT_PADDING * 2
     kind = container.get("type")
     if kind == "ellipse":
-        return max(0.0, round(w / 2 * math.sqrt(2)) - pad)
+        return max(0.0, js_round(w / 2 * math.sqrt(2)) - pad)
     if kind == "diamond":
-        return max(0.0, round(w / 2) - pad)
+        return max(0.0, js_round(w / 2) - pad)
     return max(0.0, w - pad)
 
 
@@ -11385,9 +11417,9 @@ def client_text_headroom(container):
     pad = BOUND_TEXT_PADDING * 2
     kind = container.get("type")
     if kind == "ellipse":
-        return max(0.0, round(h / 2 * math.sqrt(2)) - pad)
+        return max(0.0, js_round(h / 2 * math.sqrt(2)) - pad)
     if kind == "diamond":
-        return max(0.0, round(h / 2) - pad)
+        return max(0.0, js_round(h / 2) - pad)
     return max(0.0, h - pad)
 
 
@@ -11410,7 +11442,7 @@ def client_grown_extent(extent, kind):
     e = math.ceil(extent)
     pad = BOUND_TEXT_PADDING * 2
     if kind == "ellipse":
-        return round((e + pad) / math.sqrt(2) * 2)
+        return js_round((e + pad) / math.sqrt(2) * 2)
     if kind == "arrow":
         return e + pad * 8
     if kind == "diamond":
