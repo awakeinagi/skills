@@ -24055,7 +24055,28 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # not the one the handover named; a note here that had transcribed the
 # named repair would have described a tree that does not exist. Read the
 # class, not the paragraph that commissioned it.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# NOT EMPTY FOR LONG — TWO BACK on 2026-08-20 (CURATOR BATCH 42), the same
+# day, and the value was READ OFF the guard the same way: the two reds were
+# written, `test_the_hand_authored_red_classes_are_the_ones_that_exist` was
+# run against an empty declaration, it reported `measured
+# {'TestTheHalfPixelProseStatesTheSpacingItMeasures': 2}`, and the measured
+# side was transcribed.
+#
+# WHAT THEY ARE, because the fold that reads this dict has a release
+# decision to make and the entry above is where it will look. They are NOT
+# a product defect and nothing in `canvas.py` is red: the shipped code has
+# measured text at each element's own `lineHeight` since the line-height
+# stream landed. They are the HARNESS'S OWN PROSE — three blocks around the
+# half-pixel pair still describing the superseded 1.25 regime, one of which
+# is the recorded reason an arm of `text_overflow` was believed unreachable
+# at fontSize 16, which it is not. The repair is three sentences and a
+# re-derived count; it belongs to the owner of that pair, which is why this
+# curator filed them rather than fixing them. See the class for the flip
+# proof — both flip together under two independently worded repairs.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheHalfPixelProseStatesTheSpacingItMeasures": 2,
+}
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
 # `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
@@ -32347,6 +32368,778 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
             % (helper_top, helper_bottom, top, bottom,
                abs(helper_bottom - bottom),
                scene[0]["y"] + scene[0]["height"]))
+
+
+# ---------------------------------------------------------------------------
+# CURATOR BATCH 42 — THE PROSE THAT STATES A SPACING (2026-08-20).
+#
+# THE DEFECT IS ONE ARITHMETIC ERROR COMMITTED FIVE TIMES IN PROSE, and the
+# handback that started this batch is the fifth: measuring a text block at
+# `text_dims`' DEFAULT multiplier (`NUNITO_LINE_HEIGHT`, 1.35 — family 6)
+# when the reader in question passes `line_height_of(el)`, which is 1.25 for
+# a family-1 label. The block depths, and every chord and overhang derived
+# from them, come out wrong by `(1.35 - lh) * fontSize` per line. In one day
+# it was committed by a curator's script, by a controller's brief, by the
+# helper `_drawn_ink_band`, and by `lint_layout`'s own emitter comment — the
+# last of which an implementer corrected by hand and then reported that
+# NOTHING WOULD FAIL IF IT ROTTED AGAIN. That report is this section.
+#
+# THE INSTRUMENT IS A GUARD AND NOT A LIVEDOC MARKER, and the choice was
+# argued from `tests/livedoc.py` rather than preferred. Two reasons, either
+# sufficient:
+#
+#   * livedoc's scan surface is `git ls-files -- '*.md'`
+#     (`tracked_prose_files`). It cannot see a comment inside a `.py` file
+#     at all, so "use livedoc" here means widening that surface to source —
+#     which would put `refresh` in the business of rewriting `canvas.py`.
+#   * even if it could, this paragraph is on the CENSUS side of livedoc's
+#     own header boundary. A marker promises "you never have to think about
+#     this number"; the paragraph is an ARGUMENT — that the band's top edge
+#     collapses onto the label's `y`, so a label above the waist cannot
+#     witness a change to `drawn_h` — and its figures are the evidence for
+#     it. If they move, the argument may have stopped holding, and `refresh`
+#     would silently repair the one paragraph whose staleness should send a
+#     human to read it. That is the failure this class exists to prevent,
+#     and it is the failure a marker would automate.
+#
+# WHAT IS PINNED IS THE RELATION AND NEVER THE SCENE'S LITERALS. Every
+# figure on the right of every assertion below is derived by OBSERVING
+# `lint_layout` probe `shape_band_span` (`_check_band_probe`), on the very
+# scene the paragraph names, read out of the paragraph itself. There is no
+# 20, 40, 80, 100, 60, 72 or 112 anywhere in this section: a hardcoded-number
+# defect repaired by hardcoding the numbers into a test is the same defect
+# one level up, which is exactly how it reached `_drawn_ink_band`.
+#
+# THE HUNT FOUND MORE, and the second class below is the first-class half of
+# this batch: the SAME error, inverted, live in `tests/test_mutants.py` and
+# `tests/test_mutants_render.py` — prose stating 1.25 where the shipped
+# reader takes 1.35. See `TestTheHalfPixelProseStatesTheSpacingItMeasures`.
+# ---------------------------------------------------------------------------
+
+# The paragraph, anchored on a phrase that carries its ARGUMENT rather than
+# any of its numbers: a rewording that keeps the figures and loses the claim
+# should fail here as loudly as a rewording that keeps the claim and lets the
+# figures rot. Required to appear exactly once, so a copy-pasted second
+# emitter comment cannot let this guard measure whichever one it met first.
+_EMITTER_BAND_ANCHOR = "WHICH EDGE OF THE BAND DECIDES"
+
+# The scene, taken from the prose so the pin measures what the prose claims
+# to have measured. `rhombus` and the two `y`s are the only inputs; every
+# figure compared below is derived, never read.
+_EMITTER_SCENE = re.compile(
+    r"a (?P<w>\d+)x(?P<h>\d+) rhombus with its label at y=(?P<above>\d+)")
+_EMITTER_ABOVE = re.compile(
+    r"reads an (?P<chord>\d+)px chord whether the block is (?P<shallow>\d+)"
+    r"\s+or (?P<deep>\d+)px deep")
+_EMITTER_BELOW = re.compile(
+    r"at y=(?P<y>\d+):\s+(?P<chord_shallow>\d+)px chord and "
+    r"(?P<over_shallow>\d+)px of overhang at (?P<shallow>\d+)px\s+deep, "
+    r"(?P<chord_deep>\d+)px and (?P<over_deep>\d+)px at (?P<deep>\d+)px\)")
+
+
+def _emitter_band_prose() -> str:
+    """The emitter paragraph in `lint_layout`, de-commented and unwrapped.
+
+    Refuses rather than returns empty when the anchor is missing or
+    doubled. A guard whose subject has been deleted must not report
+    "nothing has drifted" — that is the shape nineteen instruments in
+    this tree were caught in, and a guard over a COMMENT is the one most
+    able to hide in it, because deleting a comment breaks nothing else.
+
+    Returns:
+        The paragraph as one whitespace-collapsed line, from the anchor
+        to the end of the comment block that carries it.
+
+    Raises:
+        AssertionError: If `canvas.py` is not in this tree, or if the
+            anchor appears any number of times other than once.
+    """
+    if not _CANVAS_SRC.is_file():
+        raise AssertionError(
+            "%s is not in this tree, so the emitter's prose cannot be "
+            "compared against what the emitter measures. This is a "
+            "finding about the checkout, not about the paragraph"
+            % _CANVAS_SRC)
+    lines = _CANVAS_SRC.read_text(encoding="utf-8").splitlines()
+    at = [i for i, ln in enumerate(lines) if _EMITTER_BAND_ANCHOR in ln]
+    if len(at) != 1:
+        raise AssertionError(
+            "%r appears %d times in canvas.py and this guard needs "
+            "exactly one. Zero means the paragraph it watches has been "
+            "deleted or reworded past its anchor — the figures are then "
+            "unwatched, which is the state this class was written to end. "
+            "More than one means the guard would measure whichever copy "
+            "it met first" % (_EMITTER_BAND_ANCHOR, len(at)))
+    body: list[str] = []
+    for raw in lines[at[0]:]:
+        stripped = raw.strip()
+        if not stripped.startswith("#"):
+            break
+        body.append(stripped.lstrip("#").strip())
+    return " ".join(" ".join(body).split())
+
+
+def _emitter_figure(pattern: re.Pattern[str], what: str) -> dict[str, int]:
+    """Pull one of the paragraph's claims out, or say which one is gone.
+
+    Args:
+        pattern: A named-group regex over the collapsed paragraph.
+        what: How to name the claim in the failure, for a reader who has
+            to decide whether the sentence moved or the guard did.
+
+    Returns:
+        The named groups, as ints.
+
+    Raises:
+        AssertionError: If the claim does not appear exactly once. Same
+            reasoning as `_emitter_band_prose`: a claim that has been
+            reworded out of recognition is an UNWATCHED claim, and the
+            guard says so rather than passing over a paragraph it can no
+            longer parse.
+    """
+    found = pattern.findall(_emitter_band_prose())
+    if len(found) != 1:
+        raise AssertionError(
+            "the emitter paragraph states its %s %d times and this guard "
+            "needs exactly once. The sentence has been reworded past "
+            "%r, so its figures are no longer compared against anything "
+            "— restate it or re-point this pattern, but do not leave the "
+            "numbers behind unwatched" % (what, len(found), pattern.pattern))
+    return {k: int(v)
+            for k, v in pattern.search(_emitter_band_prose()).groupdict()
+            .items()}
+
+
+def _emitter_rhombus(y: int, text: str, width: int,
+                     height: int) -> list[dict]:
+    """The paragraph's own scene: a rhombus carrying one bound label.
+
+    FAMILY 1 AND NOT THIS FILE'S OWN FONT, which is the whole reason the
+    scene can witness anything. `text_dims` defaults to
+    `NUNITO_LINE_HEIGHT` (family 6, 1.35); a family-1 label lays out at
+    1.25, so the two readings of one block differ by `0.10 * fontSize`
+    per line and the paragraph's figures are only reproducible at one of
+    them. Mint this label in family 6 and the pin goes quietly inert —
+    which `test_the_scene_can_still_tell_the_two_spacings_apart` is
+    there to refuse.
+
+    Args:
+        y: The label's stored top. The paragraph names two, one above
+            the rhombus's waist and one below it, and the contrast
+            between them is its claim.
+        text: The label's content. One whitespace-free token, so
+            `wrap_label_text` emits it whole while `client_wrapped_lines`
+            chops it — which is how one scene yields both a one-line and
+            a two-line block without varying anything else.
+        width: The rhombus's width, read from the paragraph.
+        height: The rhombus's height, read from the paragraph.
+
+    Returns:
+        The two-element scene: the node `n1`, then its bound label `t1`.
+    """
+    return [el(id="n1", type="diamond", x=0, y=0, width=width,
+               height=height, customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=45, y=y, width=110, height=20,
+               text=text, fontSize=16, fontFamily=1, textAlign="center",
+               verticalAlign="middle", containerId="n1",
+               originalText=text)]
+
+
+# One line under a 200-wide rhombus's 90px cap, and one token that fits
+# nowhere. Which token does not matter and no figure below depends on it —
+# what matters is that the client paints one line of the first and two of the
+# second, so the observed bands ARE the shallow and deep blocks the paragraph
+# names. `test_the_two_labels_really_paint_one_line_and_two` holds that.
+_EMITTER_ONE_LINE = "Ack"
+_EMITTER_TWO_LINE = "Acknowledged"
+
+
+def _emitter_band(y: int, text: str, width: int,
+                  height: int) -> tuple[float, float]:
+    """The band `lint_layout` really probes, on the paragraph's scene.
+
+    OBSERVED THROUGH THE CHECK, not re-derived beside it. A second
+    transcription of `lint_layout`'s two lines would drift from them in
+    exactly the way the paragraph drifted, and would then agree with a
+    rotted paragraph about a band nothing is drawn at. `_check_band_probe`
+    watches the call.
+
+    Args:
+        y: The label's stored top.
+        text: The label's content.
+        width: The rhombus's width.
+        height: The rhombus's height.
+
+    Returns:
+        `(band_top, band_bottom)` in scene coordinates.
+    """
+    return _check_band_probe(
+        _emitter_rhombus(y, text, width, height))[1:]
+
+
+def _emitter_chord(y: int, text: str, width: int, height: int) -> float:
+    """How wide the rhombus is across the band that label's block occupies.
+
+    Args:
+        y: The label's stored top.
+        text: The label's content.
+        width: The rhombus's width.
+        height: The rhombus's height.
+
+    Returns:
+        The narrowest chord's width in px.
+
+    Raises:
+        AssertionError: If the band misses the body, where there is no
+            chord to report and the paragraph's premise is gone.
+    """
+    scene = _emitter_rhombus(y, text, width, height)
+    span = canvas.shape_band_span(scene[0], *_emitter_band(y, text, width,
+                                                           height))
+    if span is None:
+        raise AssertionError(
+            "the band a %r label occupies at y=%d misses a %dx%d rhombus "
+            "altogether, so there is no chord for the paragraph to be "
+            "right or wrong about" % (text, y, width, height))
+    return span[1] - span[0]
+
+
+class TestTheEmitterProseMeasuresTheSpacingItDescribes(unittest.TestCase):
+    """`lint_layout`'s band paragraph, against what `lint_layout` measures.
+
+    GREEN ON ARRIVAL, and it is green because an implementer corrected
+    the paragraph by hand on 2026-08-20 (TASK-INKBAND-SPACING) — the
+    fourth commit of one arithmetic error and the first correction of it.
+    Nothing failed when they made that correction and nothing would have
+    failed if they had got it wrong, which is the whole reason this
+    class exists.
+
+    EVERY FIGURE WAS RE-DERIVED RATHER THAN ACCEPTED, because the error's
+    own history says a corrected number is not a checked one: the
+    handback's table was verified against the shipped code before this
+    was written, and all five figures reproduce — one line 20px, two
+    lines 40, an 80px chord above the waist under both, and 100 -> 60
+    below it. The two OVERHANGS are the exception and are pinned
+    differently; see the last method for why the paragraph cannot support
+    a stronger claim about them than it does.
+
+    PROVEN GREEN FOR ITS OWN REASON, not merely observed green. Restore
+    `drawn_h = text_dims(drawn, fs)` in `lint_layout` — the default
+    multiplier, which is what produced the figures this paragraph
+    carried until 2026-08-20 — and the depth and chord methods below
+    fail with 22/44 against the prose's 20/40 and 96/52 against 100/60.
+    Delete the paragraph and every method errors on the anchor instead of
+    passing, which is the property a guard over a COMMENT most needs and
+    least often has.
+    """
+
+    def test_the_paragraph_is_where_this_guard_thinks_it_is(self) -> None:
+        """The subject exists, exactly once, and still parses.
+
+        First because it is the failure the other methods cannot make:
+        each of them raises from `_emitter_figure` when its sentence is
+        gone, and an error under a suite that also carries expected
+        failures is easy to read as noise. This one says plainly which
+        of the three claims went missing.
+        """
+        prose = _emitter_band_prose()
+        self.assertIn(
+            "px chord", prose,
+            "the emitter paragraph no longer states a chord in px, so "
+            "there is nothing here for the check's own reading to be "
+            "compared against: %r" % prose[:200])
+        for pattern, what in ((_EMITTER_SCENE, "scene"),
+                              (_EMITTER_ABOVE, "above-the-waist claim"),
+                              (_EMITTER_BELOW, "below-the-waist claim")):
+            with self.subTest(claim=what):
+                _emitter_figure(pattern, what)
+
+    def test_the_scene_can_still_tell_the_two_spacings_apart(self) -> None:
+        """The premise: this label's own spacing is not `text_dims`' default.
+
+        The paragraph's figures are only wrong at one multiplier and
+        right at another, so a scene where the two coincide would make
+        every assertion below pass without distinguishing them — the
+        inert-verification trap, which this repo has now met on both the
+        fix side and the pin side of the same defect. Asserted as the
+        INEQUALITY rather than as 1.25 against 1.35, so it keeps saying
+        "this scene can witness the error" if either constant moves.
+        """
+        scene = _emitter_rhombus(40, _EMITTER_ONE_LINE, 200, 200)
+        self.assertNotEqual(
+            canvas.line_height_of(scene[1]), canvas.NUNITO_LINE_HEIGHT,
+            "this label now lays out at `text_dims`' own default "
+            "(%g), so measuring it at the default and measuring it at "
+            "its own spacing give the same answer and nothing below can "
+            "tell a paragraph written at the wrong one from a paragraph "
+            "written at the right one"
+            % canvas.line_height_of(scene[1]))
+
+    def test_the_two_labels_really_paint_one_line_and_two(self) -> None:
+        """The other premise: the scene yields both depths it is asked for.
+
+        The paragraph contrasts a shallow block with a deep one, and
+        this class produces the pair by swapping the token rather than
+        by computing a second depth from the first. If a wider cap or a
+        chop-aware wrap ever made both tokens paint the same number of
+        lines, the two "different" depths would be one depth and the
+        contrast the paragraph draws would be untestable — so it fails
+        here, where the message is about the stage, rather than silently
+        below.
+        """
+        node = _emitter_rhombus(40, _EMITTER_ONE_LINE, 200, 200)[0]
+        cap = int(canvas.client_wrap_width(node))
+        painted = [len(canvas.client_wrapped_lines(text, cap, 16))
+                   for text in (_EMITTER_ONE_LINE, _EMITTER_TWO_LINE)]
+        self.assertEqual(
+            painted, [1, 2],
+            "the client paints %r lines of %r and %r, not one and two — "
+            "the stage no longer produces the shallow and deep blocks "
+            "the paragraph contrasts"
+            % (painted, _EMITTER_ONE_LINE, _EMITTER_TWO_LINE))
+
+    def test_the_block_depths_are_the_ones_the_check_measures(self) -> None:
+        """The paragraph's "20 or 40px deep", against the probed bands.
+
+        The two depths are read off the interval `lint_layout` hands
+        `shape_band_span`, so what is compared is the paragraph against
+        the check and not the paragraph against a second copy of the
+        check. This is the assertion that fails at 22 and 44 the moment
+        anything measures this label at `text_dims`' default again.
+        """
+        scene = _emitter_figure(_EMITTER_SCENE, "scene")
+        said = _emitter_figure(_EMITTER_ABOVE, "above-the-waist claim")
+        got = tuple(
+            round(bottom - top) for top, bottom in
+            (_emitter_band(scene["above"], text, scene["w"], scene["h"])
+             for text in (_EMITTER_ONE_LINE, _EMITTER_TWO_LINE)))
+        self.assertEqual(
+            got, (said["shallow"], said["deep"]),
+            "the paragraph says the block is %dpx or %dpx deep and the "
+            "check measures %dpx and %dpx — a %dpx and %dpx disagreement, "
+            "which is what measuring this label at %g instead of its own "
+            "%g costs per reading"
+            % (said["shallow"], said["deep"], got[0], got[1],
+               got[0] - said["shallow"], got[1] - said["deep"],
+               canvas.NUNITO_LINE_HEIGHT,
+               canvas.line_height_of(
+                   _emitter_rhombus(scene["above"], _EMITTER_ONE_LINE,
+                                    scene["w"], scene["h"])[1])))
+
+    def test_the_chord_above_the_waist_is_inert_and_is_quoted_right(
+            self) -> None:
+        """The claim ITSELF — one chord under both depths — and its value.
+
+        Two assertions and not one, because the paragraph makes two
+        claims here and only one of them is a number. The INERTNESS is
+        the argument ("a label above the waist keeps its chord however
+        the block deepens"), and it is asserted as the equality of the
+        two readings rather than as a figure, so it goes on meaning the
+        same thing if the metrics move. The FIGURE is then compared
+        against the shared reading. A paragraph that got the argument
+        right and the number wrong, or the number right and the argument
+        wrong, fails one of the two.
+        """
+        scene = _emitter_figure(_EMITTER_SCENE, "scene")
+        said = _emitter_figure(_EMITTER_ABOVE, "above-the-waist claim")
+        chords = [_emitter_chord(scene["above"], text, scene["w"],
+                                 scene["h"])
+                  for text in (_EMITTER_ONE_LINE, _EMITTER_TWO_LINE)]
+        self.assertEqual(
+            chords[0], chords[1],
+            "a label above the waist now reads a %gpx chord on the "
+            "shallow block and %gpx on the deep one, so the paragraph's "
+            "argument — that this edge cannot witness a change to "
+            "`drawn_h` — has stopped being true and its figures are the "
+            "smaller half of what is wrong" % (chords[0], chords[1]))
+        self.assertEqual(
+            round(chords[0]), said["chord"],
+            "the paragraph quotes a %dpx chord above the waist and the "
+            "check reads %gpx" % (said["chord"], chords[0]))
+
+    def test_the_chords_below_the_waist_are_the_ones_quoted(self) -> None:
+        """The paragraph's "100px chord ... 60px", against the probe.
+
+        The pair, asserted as a pair: the deep block's chord is the one
+        the paragraph names AND is not the shallow block's, because
+        either half alone passes in a world where the two collapse — and
+        a world where they collapse is a world where the paragraph's
+        whole point ("only a label at or BELOW the waist can witness a
+        change to `drawn_h`") is false.
+        """
+        scene = _emitter_figure(_EMITTER_SCENE, "scene")
+        said = _emitter_figure(_EMITTER_BELOW, "below-the-waist claim")
+        shallow, deep = (
+            _emitter_chord(said["y"], text, scene["w"], scene["h"])
+            for text in (_EMITTER_ONE_LINE, _EMITTER_TWO_LINE))
+        self.assertEqual(
+            (round(shallow), round(deep)),
+            (said["chord_shallow"], said["chord_deep"]),
+            "the paragraph says the chord runs %dpx -> %dpx as the block "
+            "deepens from %dpx to %dpx, and the check reads %gpx -> %gpx"
+            % (said["chord_shallow"], said["chord_deep"], said["shallow"],
+               said["deep"], shallow, deep))
+        self.assertGreater(
+            shallow, deep,
+            "the chord no longer NARROWS as the block deepens (%gpx -> "
+            "%gpx), so this label is not below the waist any more and "
+            "the paragraph is contrasting two readings of one edge"
+            % (shallow, deep))
+
+    def test_the_two_overhangs_agree_on_one_ink_width(self) -> None:
+        """The overhang pair, pinned as far as the paragraph allows.
+
+        THE PARAGRAPH NEVER NAMES ITS LABEL, and that is a real weakness
+        of the prose rather than of this pin: the chords depend only on
+        the band, so they are derivable from the scene as written, but
+        an overhang is `ink - chord` and the ink is whatever token the
+        author happened to use. Reported and not repaired — the
+        paragraph is product prose and belongs to the arm's owner — so
+        what is asserted here is the strongest claim its own words
+        support: both overhangs must be the same ink measured against
+        the two chords THIS pin derives.
+
+        That is not a weak assertion. It is exactly the assertion that
+        catches the half-update, which is the shape the error has taken
+        every time it has recurred: correct the chords to the label's own
+        spacing and leave the overhangs at the default's, and the two
+        implied inks part by the difference between the two spacings.
+        Measured on the paragraph as it stood before 2026-08-20 — chords
+        96/52, overhangs 76/120 — the implied ink is one number; put
+        today's chords under yesterday's overhangs and it is two.
+
+        The DIRECTION is asserted beside the magnitude, because an ink
+        narrower than either chord would make both overhangs zero and
+        the agreement vacuous.
+        """
+        said = _emitter_figure(_EMITTER_BELOW, "below-the-waist claim")
+        scene = _emitter_figure(_EMITTER_SCENE, "scene")
+        chords = {
+            said["shallow"]: _emitter_chord(said["y"], _EMITTER_ONE_LINE,
+                                            scene["w"], scene["h"]),
+            said["deep"]: _emitter_chord(said["y"], _EMITTER_TWO_LINE,
+                                         scene["w"], scene["h"])}
+        implied = [chords[said["shallow"]] + said["over_shallow"],
+                   chords[said["deep"]] + said["over_deep"]]
+        self.assertEqual(
+            implied[0], implied[1],
+            "the paragraph's two overhangs imply two different labels — "
+            "%gpx of ink over the %gpx chord and %gpx over the %gpx one. "
+            "One of the pair has been re-derived and the other left at "
+            "the multiplier it was first read at, which is this error's "
+            "signature" % (implied[0], chords[said["shallow"]],
+                           implied[1], chords[said["deep"]]))
+        self.assertGreater(
+            implied[0], max(chords.values()),
+            "the ink the paragraph's overhangs imply (%gpx) is no wider "
+            "than the widest chord it quotes (%gpx), so both overhangs "
+            "would be zero and their agreement says nothing"
+            % (implied[0], max(chords.values())))
+
+
+# ---------------------------------------------------------------------------
+# THE FOURTH SITE, AND THE FIFTH AND SIXTH. The batch that produced the class
+# above was also asked to hunt for another live instance of the same error,
+# and found three — all in the harness's own prose, all the same class
+# INVERTED: 1.25 written where the shipped reader takes 1.35.
+#
+# THE ONE PINNED HERE is the load-bearing one, because it is not merely a
+# stale figure — it is the recorded REASON an arm of a detector was believed
+# unreachable. Three blocks say it, and NONE of them is quoted verbatim
+# here: the reds below find their subjects by pattern, and a section comment
+# that reproduced the false sentences would be two more copies of the defect
+# for those patterns to find, keeping the reds alive after the owner had
+# repaired every real one. Read them at their own sites —
+# `_half_pixel_rhombus`'s `font_size` Arg docstring, the half-pixel pair's
+# section comment, and `rhombus_half_pixel_headroom`'s own entry. Each
+# states a per-line quantum at a font size, and the third also enumerates
+# which of the corpus's sizes can reach the arm at all.
+#
+# MEASURED ON THE SHIPPED TREE, at the spacing that fixture's own label
+# carries: at the size those blocks name, one to six lines reserve 22, 44,
+# 65, 87, 108 and 130px. That is not a fixed quantum per line, and it is NOT
+# always even — three lines is odd. Every one of the five sizes the third
+# block enumerates reaches the arm, including the two it says cannot. Feed
+# the same measurement 1.25 instead and the blocks' structure reproduces
+# exactly, down to which two sizes come out mute — which is how the figures
+# were got and is the same defect the class above describes.
+#
+# WHAT IT COSTS, said plainly rather than inflated. No mutant is broken:
+# `rhombus_half_pixel_headroom` still builds at fontSize 20 and still pins
+# the rounding. What is wrong is the CATALOGUE'S OWN ACCOUNT of why that
+# pole was chosen, and the `Args:` line that tells the next author of a
+# half-pixel scene that fontSize 16 cannot reach the height arm. A reader
+# who believes it will not look — which is the entire mechanism by which
+# this arm went unseen in the first place, now re-committed in the note
+# explaining it.
+#
+# NOT REPAIRED HERE. The curator charter is to encode a defect and never to
+# fix it, and these three blocks belong to the half-pixel pair's owner. The
+# reds below are the handover. The entry the fix must also re-derive is the
+# "19 (fontSize, line count) combinations" figure beside them: it is stated
+# over a range the prose never gives, reproduces at neither spacing over any
+# range tried here, and so is not pinned — named instead, because an
+# unreproducible number left unnamed is how the next reader inherits it.
+#
+# THE OTHER TWO SITES ARE NAMED AND LEFT, in `tests/test_mutants_render.py`,
+# which is a gated tier this section does not own: `last_baseline = 16 * 0.85
+# + (_WRAPPED_LINES - 1) * 16 * 1.25` reads 73.6 where `paint` — which lays
+# out at `fs * line_height_of(e)` and resolves 1.35 for that element — puts
+# it at 78.4, and `ink_bottom = 16 * 1.25 * _WRAPPED_LINES` reads 80 against
+# 86.4. Both are `assertGreater`/`assertGreaterEqual`, so the wrong figure
+# makes them LOOSER rather than failing; both still pass on the real frame
+# (127px), so they are weakened assertions and not live failures. Two other
+# claims in that same file state 1.35 correctly, four lines from the two that
+# do not.
+# ---------------------------------------------------------------------------
+
+# Which sizes the enumeration names, and which of them it says reach the
+# arm. Anchored on the enumeration's own words rather than on a count, so a
+# fourth size added to the corpus changes what this measures instead of
+# breaking the pattern.
+#
+# `all of them` IS AN ACCEPTED SPELLING and the reason is a flaw this pin
+# was caught in before it landed. The measured answer today is that EVERY
+# corpus size reaches the arm, so the honest repair has no mute list to
+# name and would naturally drop that clause — and the first version of this
+# pattern REQUIRED the clause, which meant the red could not flip under the
+# very repair it is asking for. A red that only flips under repairs whose
+# wording it dictates is prescribing the sentence rather than checking it.
+# So the mute clause is out of the anchor entirely and the mute set is
+# derived; a sentence naming an all-reaching corpus in either spelling
+# matches.
+_HALF_PIXEL_SIZES = re.compile(
+    r"the corpus runs (?P<all>[\d, ]+and \d+), of which "
+    r"(?P<reach>all of them|[\d, ]*(?:and )?\d+) reach it")
+# The quantum claims — `N * lines` beside the fontSize they are claimed at.
+# Two spellings today, one per block, and both are matched rather than
+# normalised: a guard that only found the wording it was written against
+# would go quiet on the block that was reworded.
+_HALF_PIXEL_QUANTUM = re.compile(
+    r"(?:at|fontSize) \*?\*?(?P<fs>\d+)\*?\*?[^.]{0,80}?`(?P<q>\d+) \* lines`")
+# How many lines to look over. Six is past every block the half-pixel scenes
+# build and past the point the parity settles either way; the claim under
+# test is "for every line count there is", so any counterexample is a
+# counterexample and the ceiling only bounds the search.
+_HALF_PIXEL_LINES = 6
+
+
+def _half_pixel_heights(font_size: int, lines: int) -> list[int]:
+    """What `text_dims` reserves for 1..`lines` lines at that size.
+
+    Measured at the spacing `_half_pixel_rhombus`'s own label carries,
+    read off the element rather than written down — which is the single
+    thing all three prose blocks got wrong, so a helper that wrote a
+    multiplier in would be committing the defect inside the guard for it.
+
+    Args:
+        font_size: The label's size in px.
+        lines: How many line counts to measure, starting at one.
+
+    Returns:
+        The reserved height for each line count, in order.
+    """
+    label = _half_pixel_rhombus("x", font_size=font_size)[1]
+    spacing = canvas.line_height_of(label)
+    return [canvas.text_dims("\n".join(["x"] * n), font_size, spacing)[1]
+            for n in range(1, lines + 1)]
+
+
+def _half_pixel_reaches(font_size: int) -> bool:
+    """Whether the height arm can fire at all at that font size.
+
+    `text_overflow`'s height arm is `th > room_h`, and the half-pixel
+    rounding moves `room_h` by exactly one — so the arm can only witness
+    the rounding where `th` is ODD. That is the claim the prose makes
+    about fontSize 16 and the claim measured here.
+
+    Args:
+        font_size: The label's size in px.
+
+    Returns:
+        True if some line count up to `_HALF_PIXEL_LINES` reserves an
+        odd height at that size.
+    """
+    return any(h % 2 for h in _half_pixel_heights(font_size,
+                                                  _HALF_PIXEL_LINES))
+
+
+def _harness_prose() -> str:
+    """This file's own text with comment markers gone and wrapping undone.
+
+    The enumeration below is a sentence that wraps across three comment
+    lines, and a pattern matched line by line would never see it whole —
+    which is how a guard ends up reporting "no claim found" about a
+    claim that is right there. Deliberately applied to the WHOLE file
+    rather than to a located block: the patterns run over it are
+    prose-shaped and match no code, and a locator would be a second
+    thing to keep pointed at the right place.
+
+    Returns:
+        The file as one whitespace-collapsed line.
+    """
+    text = Path(__file__).read_text(encoding="utf-8")
+    return " ".join(re.sub(r"\n\s*#", " ", text).split())
+
+
+def _half_pixel_claim() -> tuple[list[int], list[int]]:
+    """The enumeration's two lists: the corpus's sizes, and the reaching ones.
+
+    Returns:
+        `(corpus_sizes, said_to_reach)`, both sorted. `all of them`
+        resolves to the corpus list, which is what it means.
+
+    Raises:
+        AssertionError: If the sentence does not appear exactly once —
+            it has been reworded past its anchor, or copied, and the
+            sizes it names are then compared against nothing or against
+            whichever copy this met first.
+    """
+    found = list(_HALF_PIXEL_SIZES.finditer(_harness_prose()))
+    if len(found) != 1:
+        raise AssertionError(
+            "the half-pixel size enumeration appears %d time(s) in this "
+            "file and this guard needs exactly one. Zero means the "
+            "catalogue entry has been reworded past %r — restate which "
+            "sizes reach the height arm or drop the claim, but do not "
+            "leave a list of sizes behind with nothing measuring it"
+            % (len(found), _HALF_PIXEL_SIZES.pattern))
+    sizes = sorted(int(n) for n in re.findall(r"\d+", found[0]["all"]))
+    said = found[0]["reach"]
+    return (sizes, sizes if said == "all of them"
+            else sorted(int(n) for n in re.findall(r"\d+", said)))
+
+
+class TestTheHalfPixelProseStatesTheSpacingItMeasures(unittest.TestCase):
+    """The half-pixel pair's account of its own reachability, measured.
+
+    TWO REDS, and they are the first-class finding of curator batch 42
+    rather than a side note: this is the same one-multiplier error as the
+    class above, live, in the file that exists to catch errors like it.
+    Found while hunting a fourth commit of the defect the emitter comment
+    carried (2026-08-20).
+
+    THE LIVE HALF IS FIRST AND IS UNGATED, for the reason every mutant
+    carries a neighbour: `expectedFailure` swallows errors as well as
+    failures, so a `text_dims` that raised — or a `_half_pixel_rhombus`
+    that stopped minting a label at all — would read as two healthy reds.
+    `test_the_height_arm_is_reachable_at_the_size_the_scene_defaults_to`
+    asserts the substantive fact positively and stays true under every
+    repair of the prose, including deleting the claim outright. It is
+    what this section still knows if all three sentences go away.
+
+    WHAT FLIPS THESE. Correcting the three prose blocks to the spacing
+    the fixture's label actually carries, which the owner of the
+    half-pixel pair should do together with re-deriving the "19
+    combinations" figure beside them. Nothing in `canvas.py` need move —
+    the shipped code is right and has been since the line-height stream
+    landed; it is the notes about it that are three days stale.
+    """
+
+    def test_the_height_arm_is_reachable_at_the_size_the_scene_defaults_to(
+            self) -> None:
+        """GREEN: at the default size some line count reserves odd height.
+
+        The positive fact all three prose blocks deny, asserted on its
+        own so that neither red below is the only thing keeping it in
+        the tree. It also proves the instrument: a `text_dims` that had
+        stopped varying with its spacing argument would make this fail
+        here rather than hide inside the reds.
+        """
+        size = inspect.signature(
+            _half_pixel_rhombus).parameters["font_size"].default
+        heights = _half_pixel_heights(size, _HALF_PIXEL_LINES)
+        odd = [(n, h) for n, h in enumerate(heights, 1) if h % 2]
+        self.assertTrue(
+            odd,
+            "no line count up to %d reserves an odd height at fontSize "
+            "%d (%r), so the height arm really is mute there and the "
+            "reds below have lost their subject — re-derive them rather "
+            "than deleting them" % (_HALF_PIXEL_LINES, size, heights))
+
+    def test_the_enumeration_is_still_in_this_file_and_still_parses(
+            self) -> None:
+        """The subject exists, appears once, and names sizes the corpus has.
+
+        Separated from the red below so that a DELETED sentence and a
+        WRONG sentence are two different failures. Under
+        `expectedFailure` they would be one, and "the claim was removed"
+        would read exactly like "the claim is still false".
+
+        The containment check is the second half: an entry naming a
+        reaching size the corpus does not carry is describing some other
+        population, and the red below would compare a list against a
+        list neither of them is about.
+        """
+        sizes, reach = _half_pixel_claim()
+        self.assertTrue(
+            set(reach) <= set(sizes),
+            "the enumeration says %r reach the height arm but names the "
+            "corpus as %r — %r is not a size the corpus carries, so the "
+            "two lists are about different populations"
+            % (reach, sizes, sorted(set(reach) - set(sizes))))
+
+    @unittest.expectedFailure
+    def test_the_sizes_said_to_reach_the_arm_are_the_ones_that_do(
+            self) -> None:
+        """RED: it says 16 and 24 cannot, and at the shipped spacing both do.
+
+        The invariant and not the list: whatever the corpus carries and
+        whatever the metrics do next, the sizes the entry says reach the
+        height arm must be the sizes that reach it, measured at the
+        label's own spacing. Today the entry names three of five and all
+        five reach it — the two it excludes are exactly the two whose
+        heights are `20 * lines` at 1.25 and are not at 1.35, which is
+        the whole diagnosis.
+
+        The DIRECTION matters and is what the message prints: the error
+        is an UNDER-count of reachability, so it argues an arm is
+        unreachable when it is not. The opposite error would waste a
+        reader's time; this one tells them not to look.
+        """
+        sizes, said = _half_pixel_claim()
+        measured_reach = [s for s in sizes if _half_pixel_reaches(s)]
+        self.assertEqual(
+            measured_reach, sorted(said),
+            "the entry says %r of the corpus's %r reach the height arm; "
+            "measured at each label's own spacing, %r do. The sizes it "
+            "wrongly calls mute are %r, and calling an arm unreachable "
+            "is the direction that stops anyone looking at it"
+            % (sorted(said), sizes, measured_reach,
+               sorted(set(measured_reach) - set(said))))
+
+    @unittest.expectedFailure
+    def test_no_quantum_claim_in_this_file_contradicts_text_dims(
+            self) -> None:
+        """RED: a fixed quantum per line, where `text_dims` gives 22, 44, 65.
+
+        One assertion over every block that states a per-line quantum,
+        rather than one per block, because the three sentences are three
+        copies of one arithmetic error and a fix that corrected two of
+        them should still be red. The quantum and the size are both read
+        out of the prose; only the heights are measured.
+
+        Zero matches is a legitimate green — it means the claim was
+        retracted rather than corrected, which is a real repair — and it
+        is safe because
+        `test_the_height_arm_is_reachable_at_the_size_the_scene_defaults
+        _to` goes on asserting the fact positively either way.
+        """
+        wrong = []
+        for match in _HALF_PIXEL_QUANTUM.finditer(_harness_prose()):
+            size, quantum = int(match["fs"]), int(match["q"])
+            heights = _half_pixel_heights(size, _HALF_PIXEL_LINES)
+            want = [quantum * n for n in range(1, _HALF_PIXEL_LINES + 1)]
+            if heights != want:
+                wrong.append((size, quantum, want, heights))
+        self.assertEqual(
+            wrong, [],
+            "prose in this file claims a per-line quantum `text_dims` "
+            "does not produce: %s. Each entry is (fontSize, claimed "
+            "quantum, the heights that claim implies, the heights "
+            "measured at the label's own spacing)"
+            % "; ".join(repr(w) for w in wrong))
 
 
 class TestCoverage(unittest.TestCase):
