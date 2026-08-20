@@ -23989,7 +23989,34 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # so no repair closes one door's line and leaves the other's — whichever
 # the owner picks has to reach both `_tidy_pass` and `apply_ops`, and the
 # mod class's two reds flip together under every scope choice.
+#
+# ONE JOINED on 2026-08-20 (curator-band-spacing), and it is the SECOND
+# entry here filed against an instrument rather than against a drawing —
+# `TestTheWideEndOfTheBandIsStillTheNode`'s author found it, refused to
+# repair another curator's helper, and handed it over. `_drawn_ink_band`
+# promises "by the check's own rule" and measures the block at
+# `text_dims`' default 1.35 where the check passes `line_height_of(t)`,
+# 1.25 for these fixtures. Read off `red_bearing_classes()` through this
+# section's own guard rather than typed.
+#
+# THE ENTRY IS NOT ABOUT A WRONG ANSWER, which is what makes it worth a
+# line. All three assertions standing on that helper PASS today and pass
+# under every repair of it: on the apex stage it reads the band as
+# 40..105 where the check reads 40..100, and 105 clears the apex as
+# surely as 100 does. It is satisfied by a number the check never
+# computes — the 108px trap's family, an assertion passing for a reason
+# unrelated to what it claims to watch.
+#
+# WHAT TO EXPECT: this leaves as a LINE. The class carries one red over
+# two green poles, and all three honest repairs of the helper flip it
+# (pass `line_height_of(lbl)`; `ceil(nlines * fs * lh)`; measure
+# `client_wrapped_lines`' own block at the same spacing) — measured, by
+# running the method against each. Whoever takes it owns re-deriving
+# `TestABandTouchingTheApexIsNotAMiss`'s three assertions against a band
+# ending at 100; all three were measured still passing under all three
+# repairs, so that is a re-derivation and not a repair of its own.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheInkBandHelperMeasuresTheCheckItQuotes": 1,
     "TestTheLoadPathNamesABoundLineWhateverItsRole": 1,
 }
 
@@ -31453,6 +31480,737 @@ class TestTheWideEndOfTheBandIsStillTheNode(unittest.TestCase):
             "reads y %.0f..%.0f — the two have come apart, so the poles "
             "above are measuring a height nothing is drawn at"
             % (top, bottom, cy - check_h / 2.0, cy + check_h / 2.0))
+
+
+# ---------------------------------------------------------------------------
+# CURATOR-BAND-SPACING (2026-08-20). Two items handed over together, and
+# they are ONE SUBJECT: A BAND MEASURED AT THE WRONG SPACING. `lint_layout`
+# reads the shape's width AT the label's drawn height, so every reader of
+# that band — the check itself, and any instrument claiming to reproduce it
+# — has to agree on how deep the block is. Where two of them disagree, one
+# of them is scoring the ink against a chord nothing is painted at.
+#
+# ITEM 1 was handed over by `wp4-roomrule-fixes` with its own honest
+# confession: I-3 shipped, and the suite was GREEN UNDER A REVERT OF IT.
+# Four pins below, one per thing the fold changed that nothing watched.
+#
+# ITEM 2 is the same defect one level up, in an INSTRUMENT:
+# `_drawn_ink_band` promises "by the check's own rule" and measures at
+# `text_dims`' default. That is the last class here and the only red.
+#
+# THE FIGURES RELAYED WITH THE HANDOVER WERE MEASURED AT 1.35 AND ARE
+# CORRECTED HERE, which is the whole reason this section exists. The
+# discriminating scene was quoted as "chord 96 -> 52px, overhang 76 ->
+# 120px". At `line_height_of(t)` — 1.25 for a family-1 label, which is
+# what the check passes — the block is 20px deep on the server's wrap and
+# 40px on the client's, not 22 and 44, so the chord moves 100 -> 60. The
+# same arithmetic is in canvas.py's own emitter comment ("whether the
+# block is 22 or 44px deep ... 96px chord and 76px of overhang at 22px
+# deep, 52px and 120px at 44px"): those four numbers are read at 1.35 and
+# the shipped code reads 1.25. NOT REPAIRED HERE — it is product prose and
+# belongs to the arm's owner — but named, because it is item 2's defect
+# committed in the documentation of item 1's fix.
+#
+# WHAT WAS VERIFIED RATHER THAN CORRECTED: the TRAP is exactly as
+# described. `cy` comes from `max(box_h, drawn_h)`, so once the painted
+# block is at least as deep as the stored box the band's TOP edge collapses
+# onto the label's own `y`, and on a rhombus above the waist the narrowest
+# chord sits at that top edge. Measured on the stage below at t.y=40: 80px
+# chord and 30px of overhang under BOTH wraps. A centred label is inert
+# here, and a verification run on one would have shown the fix doing
+# nothing.
+#
+# WHO FLIPS WHAT: nothing, if the tree stays as it is. Four of these five
+# classes are GREEN ON ARRIVAL and are proven against reverted worlds
+# rather than against the future — see each class for which line to put
+# back. The fifth is red and its repair is in `_drawn_ink_band`, a
+# helper this section does not own.
+# ---------------------------------------------------------------------------
+
+
+def _check_band_probe(scene: list[dict]) -> tuple[dict, float, float]:
+    """The body and the y-interval `lint_layout` hands `shape_band_span`.
+
+    OBSERVED, NOT RE-DERIVED, and that is the point of the helper. Every
+    other way of asking "what band does the check read" is a second
+    transcription of the check's own two lines, and a second
+    transcription is what item 2 below is about. This one cannot drift:
+    it watches the call.
+
+    Args:
+        scene: A two-element `[owner, label]` scene with exactly one
+            bound label, so the FIRST call is the label's own band.
+
+    Returns:
+        `(body, band_top, band_bottom)` — the container dict the check
+        scored against, which is not always the one stored, and the
+        interval it scored over.
+
+    Raises:
+        AssertionError: If the check never reached `shape_band_span`, so
+            there is no band to report and the caller's premise is gone.
+    """
+    seen: list[tuple[dict, float, float]] = []
+    real = canvas.shape_band_span
+
+    def spy(el_: dict, y0: float, y1: float) -> tuple[float, float] | None:
+        seen.append((dict(el_), y0, y1))
+        return real(el_, y0, y1)
+
+    with mock.patch.object(canvas, "shape_band_span", spy):
+        canvas.lint_layout([dict(e) for e in scene])
+    if not seen:
+        raise AssertionError(
+            "`label_overflows_shape` never probed a band on this scene — "
+            "the container is a rectangle, the label is empty, or the "
+            "gate above the loop rejected it, and nothing below is "
+            "measuring what it claims to")
+    return seen[0]
+
+
+def _painted_ink(scene: list[dict]) -> tuple[float, float]:
+    """The x-interval of ink, on the WIDTH rule the check keeps.
+
+    `wrap_label_text` and not `client_wrapped_lines`, because the width
+    arm deliberately stayed on the whitespace wrap: the magnitude the
+    check prints has to be one a reader can act on, and the widest
+    chopped chunk is under the cap by construction.
+
+    Args:
+        scene: A two-element `[owner, label]` scene.
+
+    Returns:
+        `(ink_left, ink_right)` in scene coordinates.
+    """
+    owner, lbl = scene[0], scene[1]
+    fs = lbl["fontSize"]
+    drawn = canvas.wrap_label_text(lbl["text"].replace("\n", " "),
+                                   int(canvas.client_wrap_width(owner)), fs)
+    width = canvas.text_ink_width(drawn, fs)
+    centre = lbl["x"] + max(float(lbl["width"]), width) / 2.0
+    return centre - width / 2.0, centre + width / 2.0
+
+
+def _block_depth(scene: list[dict], chopped: bool) -> float:
+    """How deep the block is, at the label's OWN spacing either way.
+
+    The one axis these classes vary. `chopped=True` is the block the
+    browser paints — `client_wrapped_lines` breaks a token that fits
+    nowhere — and `chopped=False` is the block `wrap_label_text` counts,
+    which leaves that token whole on one line. Both measured at
+    `line_height_of`, so the difference is the WRAP and never the
+    spacing: measuring one of them at `text_dims`' default would put a
+    line-height error inside the comparison a line-height error is being
+    used to expose.
+
+    Args:
+        scene: A two-element `[owner, label]` scene.
+        chopped: Whether to count the client's lines or the server's.
+
+    Returns:
+        The block's height in px.
+    """
+    owner, lbl = scene[0], scene[1]
+    fs, flat = lbl["fontSize"], lbl["text"].replace("\n", " ")
+    cap = int(canvas.client_wrap_width(owner))
+    block = ("\n".join(canvas.client_wrapped_lines(flat, cap, fs))
+             if chopped else canvas.wrap_label_text(flat, cap, fs))
+    return canvas.text_dims(block, fs, canvas.line_height_of(lbl))[1]
+
+
+def _band_at_depth(lbl: dict, depth: float) -> tuple[float, float]:
+    """The band a block that deep occupies, by the check's own centring.
+
+    Args:
+        lbl: The bound label element.
+        depth: The block's height in px.
+
+    Returns:
+        `(band_top, band_bottom)` in scene coordinates.
+    """
+    cy = lbl["y"] + max(float(lbl["height"]), depth) / 2.0
+    return cy - depth / 2.0, cy + depth / 2.0
+
+
+def _overhang(ink: tuple[float, float],
+              chord: tuple[float, float]) -> float:
+    """The check's overhang: ink past the chord, both sides, summed.
+
+    Args:
+        ink: `(left, right)` of the painted ink.
+        chord: `(left, right)` of the chord it is scored against.
+
+    Returns:
+        The total overhang in px.
+    """
+    return max(chord[0] - ink[0], 0.0) + max(ink[1] - chord[1], 0.0)
+
+
+def _chopped_token_rhombus(y: int) -> list[dict]:
+    """A 200x200 rhombus whose bound label is one word too wide for it.
+
+    THE OVER-WIDE TOKEN IS THE WHOLE CONSTRUCTION, and it is the only
+    thing that makes the two wraps disagree at all: `wrap_label_text`
+    splits on whitespace, so a token that fits nowhere is emitted whole
+    and counted as ONE line, while the client walks it glyph by glyph
+    and paints TWO. `'Acknowledged'` in a 90px cap is that word, and it
+    is the same word `_over_wide_token` uses for the same reason — the
+    chop was confirmed in chromium there rather than transcribed.
+
+    200x200 IS CHOSEN SO NOTHING GROWS. `client_text_headroom` gives 90
+    against a 40px block, so the body stays 200 tall and this stage
+    varies ONE thing: how deep the band is. The growth axis is the next
+    class's, and mixing them would make either pin unable to say which
+    change it was watching.
+
+    `y` IS THE POLE. On a rhombus above the waist the narrowest chord in
+    the band sits at the band's TOP edge, which `max(box_h, drawn_h)`
+    pins to the label's own `y` — so no depth can move it and the scene
+    is inert. Below the waist the narrowest chord sits at the BOTTOM
+    edge, which is the only edge a deeper block moves.
+
+    Args:
+        y: The label's stored top. 40 is above the waist and cannot
+            witness the wrap; 130 is below it and can.
+
+    Returns:
+        The two-element scene: the node `n1`, then its bound label `t1`.
+    """
+    text = "Acknowledged"
+    return [el(id="n1", type="diamond", x=0, y=0, width=200, height=200,
+               customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=45, y=y, width=110, height=20,
+               text=text, fontSize=16, fontFamily=1, textAlign="center",
+               verticalAlign="middle", containerId="n1",
+               originalText=text)]
+
+
+def _grown_ellipse(text: str) -> list[dict]:
+    """A 160x64 ellipse the client REDRAWS 71px tall to hold its label.
+
+    The fold's own discriminating shape, re-derived rather than
+    inherited. `client_text_headroom` gives 35px; the chopped block is
+    40px deep; `client_grown_extent` answers 71 — so the ellipse the
+    reader sees is 160x71 and the ellipse on disk is 160x64. Scoring the
+    band against the stored one reads a chord of 85.9px where the drawn
+    body gives 132.2px, and reports ink on empty canvas that is not.
+
+    THE LABEL IS RE-CENTRED WITH THE BODY, which is what the client does
+    after it grows a container, and it is why the stored `y` of 5 does
+    not appear in either reading: the check puts the band at the grown
+    body's middle, 15.5..55.5, not at 5..45.
+
+    Args:
+        text: The label's single over-wide token. `'Acknowledged'` (110px
+            of ink) fits the grown chord and must be silent;
+            `'Counterintelligence'` (142px) does not and must fire — one
+            axis apart, so silence here is never mistakable for a dead
+            check.
+
+    Returns:
+        The two-element scene: the node `n1`, then its bound label `t1`.
+    """
+    width = canvas.text_dims(text, 16)[0]
+    return [el(id="n1", type="ellipse", x=0, y=0, width=160, height=64,
+               customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=int((160 - width) / 2), y=5,
+               width=width, height=20, text=text, fontSize=16,
+               fontFamily=1, textAlign="center", verticalAlign="middle",
+               containerId="n1", originalText=text)]
+
+
+class TestTheBandIsReadAtTheDepthTheClientPaints(unittest.TestCase):
+    """I-3's height half, and the scene that can witness it.
+
+    `label_overflows_shape` used to pick its band from
+    `wrap_label_text`'s block, which counts an over-wide token as one
+    line where the browser paints two. A band one line too shallow is
+    scored against a WIDER chord than the ink really sits on, so the
+    check under-reports an overhang the reader can see.
+
+    GREEN ON ARRIVAL and proven against the reverted world rather than
+    assumed. RESTORATION: put `drawn_h = text_dims(drawn, fs,
+    line_height_of(t))[1]` back in `lint_layout` — I-3's height half and
+    nothing else — and the last method fails by assertion.
+
+    THE FIRST TWO METHODS ARE WHY THIS CLASS HAS A SCENE AT ALL. The
+    handover named the trap it nearly fell into: verified on a CENTRED
+    label the fix is inert, and an inert verification reads exactly like
+    a working one. So the inert pole is asserted here as a pole, not
+    avoided as a hazard — if a future change makes t.y=40 start moving,
+    that is news about the band's centring and this says so.
+    """
+
+    def test_the_two_wraps_disagree_about_this_label(self) -> None:
+        """The premise: one word, two line counts, one spacing.
+
+        Everything below is a claim that the check took the client's
+        reading rather than the server's. If the two ever agree — a
+        wider cap, a chop-aware `wrap_label_text`, a shorter word — the
+        claim becomes untestable and the pins would pass by having
+        nothing to distinguish. Measured, so the day that happens this
+        fails here instead of going quietly green.
+        """
+        scene = _chopped_token_rhombus(130)
+        served, painted = (_block_depth(scene, False),
+                           _block_depth(scene, True))
+        self.assertLess(
+            served, painted,
+            "`wrap_label_text` and `client_wrapped_lines` now agree on "
+            "this label (%.0fpx against %.0fpx at the label's own "
+            "spacing), so the stage cannot tell the two readings apart "
+            "and the pins below are asserting nothing"
+            % (served, painted))
+
+    def test_the_class_probes_the_band_the_check_probes(self) -> None:
+        """The instrument agrees with its subject, asserted not assumed.
+
+        The pins derive a band from `_band_at_depth` and `_block_depth`;
+        the check derives its own. Two derivations that agree today are
+        the exact shape of the defect item 2 files against
+        `_drawn_ink_band`, so this compares MY derivation against the
+        interval `lint_layout` really passes, taken from the call rather
+        than from a copy of the code.
+        """
+        scene = _chopped_token_rhombus(130)
+        body, top, bottom = _check_band_probe(scene)
+        self.assertEqual(
+            (top, bottom), _band_at_depth(scene[1],
+                                          _block_depth(scene, True)),
+            "this class reads the band as %r and the check probes %r — "
+            "they have come apart, so every magnitude below is measured "
+            "at a height nothing is drawn at"
+            % (_band_at_depth(scene[1], _block_depth(scene, True)),
+               (top, bottom)))
+        self.assertEqual(
+            body["height"], scene[0]["height"],
+            "the check grew this body to %r, so the stage is exercising "
+            "the growth axis as well as the depth axis and neither pin "
+            "can say which one it caught" % (body["height"],))
+
+    def test_a_label_above_the_waist_cannot_witness_the_wrap(self) -> None:
+        """The inert pole: at t.y=40 the answer is the same either way.
+
+        Not a control for the fix — it is the shape of the trap. The
+        narrowest chord in the band sits at whichever edge is further
+        from the waist, and above the waist that is the TOP edge, which
+        `max(box_h, drawn_h)` has already collapsed onto the label's own
+        `y`. So a deeper block moves the band's bottom and moves nothing
+        the check reads: 80px of chord and 30px of overhang under both
+        wraps.
+
+        Asserted as the EQUALITY of the two readings rather than as 80
+        and 30, so it keeps saying "this scene is inert" if the metrics
+        move rather than turning into a stale literal.
+        """
+        scene = _chopped_token_rhombus(40)
+        ink = _painted_ink(scene)
+        chords = [canvas.shape_band_span(
+            scene[0], *_band_at_depth(scene[1], _block_depth(scene, chop)))
+            for chop in (False, True)]
+        self.assertEqual(
+            chords[0], chords[1],
+            "a label above the waist now reads chord %r on the server's "
+            "wrap and %r on the client's, so the centred stage HAS "
+            "become able to witness I-3 and the trap this pole records "
+            "no longer exists" % (chords[0], chords[1]))
+        self.assertEqual(_overhang(ink, chords[0]),
+                         _overhang(ink, chords[1]))
+
+    def test_a_label_below_the_waist_is_scored_at_the_painted_depth(
+            self) -> None:
+        """The pin: the chord under the CLIENT's block, not the server's.
+
+        At t.y=130 the band's bottom edge is the far one, so the depth
+        decides the chord: 60px under the two lines the browser paints,
+        100px under the one line the whitespace wrap counts. The ink is
+        110px wide and centred, so the check owes the reader 50px of
+        overhang and the pre-I-3 code told them 10.
+
+        Both readings are derived from the scene and asserted as a PAIR
+        — the emitted number is the painted one AND is not the served
+        one — because either half alone passes in a world where the two
+        collapse together.
+        """
+        scene = _chopped_token_rhombus(130)
+        ink = _painted_ink(scene)
+        painted, served = [
+            _overhang(ink, canvas.shape_band_span(
+                scene[0], *_band_at_depth(scene[1],
+                                          _block_depth(scene, chop))))
+            for chop in (True, False)]
+        got = [f["magnitude"] for f in collect_findings(scene)
+               if f["check"] == "label_overflows_shape"
+               and f["element"] == "t1"]
+        self.assertEqual(
+            got, [round(painted)],
+            "the check quotes %r where the ink overruns the chord under "
+            "the block the browser paints by %.1fpx. The block the "
+            "whitespace wrap counts would put it at %.1fpx, which is the "
+            "reading I-3 replaced" % (got, painted, served))
+        self.assertNotEqual(
+            round(painted), round(served),
+            "the painted and served readings have converged at %.1fpx, "
+            "so this scene no longer separates them" % painted)
+
+
+class TestTheBandIsScoredOnTheBodyTheClientDraws(unittest.TestCase):
+    """The half of the same fold that no single control could see.
+
+    I-3 made the band deep enough to run off the body, and the body on
+    disk is not always the body the browser paints: `ai` (@553053) grows
+    a container whose bound label outgrows its headroom. Scoring a
+    client-wrapped block against a STORED height turns true sizing
+    findings into pinched ones that are false about the picture.
+
+    The fold shipped it with three liveness controls that catch its
+    absence only IN COMBINATION — each of them flips under I-3 alone as
+    well — so nothing in the suite named the body as the thing it was
+    watching. These two poles do, on one shape, one word apart.
+
+    GREEN ON ARRIVAL. RESTORATION: collapse the growth branch in
+    `lint_layout` to `body = owner` and leave I-3 in place; both poles
+    fail by assertion, at 56px against 10 and at 24px against silence.
+
+    THIS CLASS ALONE DOES NOT ISOLATE THE BODY, said here rather than
+    left for a reader to discover: both poles also fail under a revert
+    of I-3, because a shallower band on the stored body reads the same
+    85.9px chord. It is the PAIR that separates them — revert I-3 and
+    the class above goes red too; revert the body and it stays green.
+    Neither class was written to carry that on its own.
+    """
+
+    def test_the_client_redraws_this_node_taller_than_it_is_stored(
+            self) -> None:
+        """The premise, and the reason this stage is not the last one.
+
+        Two things have to be true or neither pole is about the body:
+        the painted block must outrun the headroom (so the client grows
+        the node at all), and the two bodies must give DIFFERENT chords
+        under the band (so the check's answer can depend on which one it
+        read). A change to the room rule or to `client_grown_extent`
+        that quietly took either away would leave both poles passing
+        about nothing.
+        """
+        scene = _grown_ellipse("Acknowledged")
+        owner, depth = scene[0], _block_depth(scene, True)
+        grown = canvas.client_grown_extent(depth, owner["type"])
+        self.assertGreater(
+            depth, canvas.client_text_headroom(owner),
+            "the %.0fpx block now fits this node's headroom, so the "
+            "client draws it as stored and there is no second body to "
+            "choose between" % depth)
+        self.assertGreater(grown, float(owner["height"]))
+        stored = canvas.shape_band_span(
+            owner, *_band_at_depth(scene[1], depth))
+        drawn = canvas.shape_band_span(
+            dict(owner, height=grown),
+            grown / 2.0 - depth / 2.0, grown / 2.0 + depth / 2.0)
+        self.assertNotEqual(
+            stored, drawn,
+            "the stored body and the drawn one give the same chord %r "
+            "under this band, so this stage cannot say which one the "
+            "check read" % (stored,))
+
+    def test_the_overhang_is_measured_on_the_body_the_reader_sees(
+            self) -> None:
+        """The firing pole: a real spill, sized on the drawn ellipse.
+
+        `'Counterintelligence'` is 142px of ink against the 132.2px the
+        grown ellipse gives under the band, so 10px really is painted
+        past the outline and the check is right to say so. Read against
+        the stored 64px body the same ink reads 56px, which is a number
+        about a drawing the browser never paints.
+
+        This pole carries the magnitude the silent one structurally
+        cannot, and it is what stops the silence below being read as a
+        dead check: same shape, same growth, one word apart.
+        """
+        scene = _grown_ellipse("Counterintelligence")
+        owner, depth = scene[0], _block_depth(scene, True)
+        grown = canvas.client_grown_extent(depth, owner["type"])
+        want = _overhang(_painted_ink(scene), canvas.shape_band_span(
+            dict(owner, height=grown),
+            grown / 2.0 - depth / 2.0, grown / 2.0 + depth / 2.0))
+        got = [f["magnitude"] for f in collect_findings(scene)
+               if f["check"] == "label_overflows_shape"]
+        self.assertEqual(
+            got, [round(want)],
+            "the check quotes %r where the ink overruns the chord of the "
+            "%.0fpx ellipse the client draws by %.1fpx" % (got, grown, want))
+
+    def test_a_label_the_drawn_body_holds_is_not_called_a_spill(
+            self) -> None:
+        """The silent pole: 110px of ink inside a 132px chord.
+
+        The same ellipse, the same growth, a word that fits. Nothing
+        overhangs anything in the picture the reader sees, and a check
+        reading the stored 64px body announces 24px of text on empty
+        canvas — the wrong-direction failure the fold exists to close,
+        arriving under the sizing arm's wording.
+
+        Asserted as silence on this check only. `text_overflow` still
+        speaks here and must: the stored node IS 7px shorter than the
+        one the browser draws, and that divergence is its arm to report.
+        """
+        scene = _grown_ellipse("Acknowledged")
+        ink = _painted_ink(scene)
+        owner, depth = scene[0], _block_depth(scene, True)
+        stored = canvas.shape_band_span(
+            owner, *_band_at_depth(scene[1], depth))
+        got = [f["raw"] for f in collect_findings(scene)
+               if f["check"] in ("label_overflows_shape", "label_adrift",
+                                 "label_spills_past_body")]
+        self.assertEqual(
+            got, [],
+            "ink running %.1f..%.1f sits inside the %.1fpx chord the "
+            "client's own 160x%.0f ellipse gives it, and the check says "
+            "%r — which is the reading the stored body's %.1fpx chord "
+            "produces"
+            % (ink[0], ink[1],
+               *(lambda g: (canvas.shape_band_span(
+                   dict(owner, height=g), g / 2.0 - depth / 2.0,
+                   g / 2.0 + depth / 2.0)[1] - canvas.shape_band_span(
+                   dict(owner, height=g), g / 2.0 - depth / 2.0,
+                   g / 2.0 + depth / 2.0)[0], g))(
+                       canvas.client_grown_extent(depth, owner["type"])),
+               got, stored[1] - stored[0]))
+
+
+class TestTheGrowthSentenceIsTheOneAPureHeightOverrunGets(unittest.TestCase):
+    """I-1's remedy, which the fold shipped with nothing asserting it.
+
+    `text_overflow`'s height arm used to tell the reader "widen the box,
+    shorten the text, or move the detail to a tooltip" — three remedies
+    for a clip that never happens, because the client GROWS a container
+    whose bound label outruns its headroom. The finding was kept and
+    only the remedy moved, and no pin held the remedy.
+
+    A REMEDY GETS A SENTENCE AND A SENTENCE GETS A PIN, which is this
+    file's own rule and the reason the split below is by REMEDY rather
+    than by magnitude: `_TEXT_OVERFLOW_RE` captures the needed width and
+    is identical on both poles, so nothing in the catalogue can tell the
+    two apart.
+
+    GREEN ON ARRIVAL. RESTORATION: collapse `grows` to `None` in
+    `lint_layout`'s height arm and the first method fails by assertion,
+    while the second is unmoved — which is what makes the second a
+    control rather than a second reading of the same line.
+    """
+
+    def test_a_pure_height_overrun_is_told_the_node_will_grow(self) -> None:
+        """The pin, with both numbers derived from the client's own rule.
+
+        A 200x100 rhombus caps its label at 90px, so three lines and a
+        60px block against 40px of headroom — too tall, not too wide,
+        which is the only case where "the client will not clip this" is
+        the whole truth. The sentence has to carry the height the
+        browser draws and the shortfall against the stored one, because
+        those are what a reader stores instead of shortening the text.
+        """
+        scene = _labelled_shape("diamond", 200, 100)
+        owner = scene[0]
+        grown = canvas.client_grown_extent(_block_depth(scene, True),
+                                           owner["type"])
+        said = [m for m in canvas.lint_layout(scene)["warnings"]
+                if "does not fit" in m]
+        self.assertEqual(len(said), 1, "expected one sizing sentence, got %r"
+                                       % (said,))
+        self.assertIn("%dx%dpx" % (owner["width"], grown), said[0])
+        self.assertIn("%dpx shorter" % (grown - owner["height"]), said[0])
+        self.assertNotIn("widen the box", said[0])
+
+    def test_a_label_wrong_on_both_axes_keeps_the_clip_remedy(self) -> None:
+        """The other pole: growth is not the answer to an over-wide token.
+
+        Where the label is too wide as well as too tall the client chops
+        a token AND grows the box, the picture is wrong on two axes, and
+        "shorten the text" is once again advice that works. A repair
+        that printed the growth sentence everywhere would satisfy the
+        pin above and be wrong here, so the pole is asserted rather than
+        described.
+        """
+        said = [m for m in canvas.lint_layout(
+            _over_wide_token(height=40))["warnings"] if "does not fit" in m]
+        self.assertEqual(len(said), 1, "expected one sizing sentence, got %r"
+                                       % (said,))
+        self.assertIn("too wide and too tall", said[0])
+        self.assertIn("widen the box, shorten the text", said[0])
+        self.assertNotIn("it grows the box", said[0])
+
+
+class TestSeventeenPixelsHasADerivationUnderIt(unittest.TestCase):
+    """What `diamond_label_overflows_shape`'s ±30% band cannot see.
+
+    That mutant asserts 17px on `_labelled_shape("diamond", 240, 220)`
+    with a ±30% band, and its own entry records the failure this pins:
+    the band "was wide enough that the entry went on asserting 11 while
+    the check emitted 12". A magnitude band is a tolerance on the
+    ANSWER; it says nothing about the picture the answer came from.
+
+    MEASURED, not argued. Two wrong worlds emit 17px unchanged and would
+    leave that mutant green: a cap padded 6px tighter (110 → 104, which
+    happens to leave this wrap intact) and the check measuring its block
+    at `text_dims`' DEFAULT spacing (40 → 44px deep — item 2's defect
+    moved into the check itself). Both fail the first method here.
+
+    GREEN ON ARRIVAL, and inert under both of the fold's reverts, which
+    is why the fold handed these figures over instead of pinning them:
+    the narrowest chord in this band sits at the band's TOP edge, so no
+    change of depth reaches it.
+    """
+
+    def test_the_chain_that_produces_the_overhang(self) -> None:
+        """Every step between the node's width and the printed number.
+
+        Cap 110 from `round(240/2) - 10`; two lines, `'Send for'` over
+        `'second review'`; 104px of ink; a 40px block at the label's own
+        1.25 spacing; a narrowest chord of 87.27px at the band's top
+        edge; 17px of ink past it. The literals belong HERE — the
+        catalogue entry asserts the invariant with a tolerance, and a
+        neighbour holding absolute numbers is what that tolerance is
+        allowed to lean on.
+
+        One of them is a correction: the entry's prose says "two lines
+        of 106px ink", and 106 is `text_dims`, which carries a 2px
+        reservation this arm does not read. The check measures 104.
+        """
+        scene = _labelled_shape("diamond", 240, 220)
+        owner, lbl = scene[0], scene[1]
+        cap = int(canvas.client_wrap_width(owner))
+        drawn = canvas.wrap_label_text(lbl["text"], cap, 16)
+        self.assertEqual(cap, 110)
+        self.assertEqual(drawn.split("\n"), ["Send for", "second review"])
+        self.assertEqual(canvas.text_ink_width(drawn, 16), 104)
+        _, top, bottom = _check_band_probe(scene)
+        self.assertEqual(_block_depth(scene, True), 40)
+        self.assertEqual(
+            bottom - top, 40,
+            "the check reads a %.0fpx block here where the client paints "
+            "40px at this label's own spacing" % (bottom - top))
+        chord = canvas.shape_band_span(owner, top, bottom)
+        self.assertAlmostEqual(chord[1] - chord[0], 87.27, places=2)
+        self.assertEqual(
+            [f["magnitude"] for f in collect_findings(scene)
+             if f["check"] == "label_overflows_shape"],
+            [round(_overhang(_painted_ink(scene), chord))])
+
+    def test_the_control_is_silent_because_the_chord_holds_the_ink(
+            self) -> None:
+        """Why 240x180 is quiet, which its `Silence` cannot say.
+
+        The mutant's neighbour asserts silence there, and a silence is
+        satisfied equally by a check that has stopped answering. The
+        reason it is quiet is that the identical 104px of ink sits
+        inside a 106.67px chord — one axis apart from the pole above,
+        with 2.67px to spare. If that margin ever closes, the neighbour
+        would go on passing about a scene that had become a firing one.
+        """
+        scene = _labelled_shape("diamond", 240, 180)
+        ink = _painted_ink(scene)
+        _, top, bottom = _check_band_probe(scene)
+        chord = canvas.shape_band_span(scene[0], top, bottom)
+        self.assertAlmostEqual(chord[1] - chord[0], 106.67, places=2)
+        self.assertLess(
+            _overhang(ink, chord), 1.0,
+            "the control's ink (%.1f..%.1f) now overruns its %.2fpx "
+            "chord, so the mutant's neighbour is asserting silence on a "
+            "scene that has a finding in it"
+            % (ink[0], ink[1], chord[1] - chord[0]))
+
+
+class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
+    """ITEM 2: `_drawn_ink_band` promises the check's rule and breaks it.
+
+    Its docstring says "by the check's own rule" and it calls
+    `text_dims(drawn, fs)` — the DEFAULT 1.35 — while the check passes
+    `line_height_of(t)`, 1.25 for these family-1 fixtures. So on
+    `_apex_band_stage` it reads the band as 40..105 where the check
+    reads 40..100, and that stage's whole subject is a band GRAZING THE
+    APEX AT y=100.
+
+    NOT WRONG TODAY, WHICH IS THE POINT. Every assertion standing on the
+    helper still passes, because 105 clears the apex as surely as 100
+    does. It is satisfied by a number the check never computes — the
+    same family as the 108px trap, where a magnitude passed for a reason
+    unrelated to what it claimed to watch. An instrument that silently
+    disagrees with its subject is the failure class this harness exists
+    for.
+
+    REPAIR NOT MINE. It was named by the curator who found it —
+    `text_dims(drawn, fs, canvas.line_height_of(lbl))` — and whoever
+    takes it owns re-deriving batch 39's apex assertions against a band
+    ending at 100. Three honest repairs were measured flipping the red
+    below: the named one, `ceil(lines * fs * line_height_of(lbl))`, and
+    measuring `client_wrapped_lines`' block at the same spacing. A red
+    that flipped under only one would have prescribed it.
+    """
+
+    def test_the_stage_still_puts_the_band_on_the_apex(self) -> None:
+        """The premise: this is a band-grazes-the-apex stage or nothing.
+
+        The divergence only matters because of what the helper is used
+        FOR. If the wrap, the metrics or the room rule ever move so that
+        the band stops reaching y=100, the helper's 5px would be an
+        academic disagreement rather than a load-bearing one, and the
+        red below would need re-deriving instead of flipping.
+        """
+        scene = _apex_band_stage()
+        _, _, bottom = _check_band_probe(scene)
+        self.assertEqual(
+            bottom, scene[0]["y"] + scene[0]["height"],
+            "the check's band ends at %.1f and the rhombus's apex is at "
+            "%.1f, so this stage no longer poses the question the helper "
+            "is read for" % (bottom, scene[0]["y"] + scene[0]["height"]))
+
+    def test_the_check_itself_measures_at_the_labels_own_spacing(
+            self) -> None:
+        """The live pole, ungated: the CHECK is right and stays right.
+
+        The red below says two readings disagree, and a disagreement can
+        be closed from either side. This pins which side is correct, so
+        a repair that dragged the check onto `text_dims`' default to
+        make the helper agree would fail here rather than pass there —
+        and it fails loudly, because `line_height_of` is the client's own
+        runtime rule and a stored value always wins.
+        """
+        scene = _apex_band_stage()
+        lbl = scene[1]
+        _, top, bottom = _check_band_probe(scene)
+        self.assertEqual(
+            bottom - top,
+            canvas.text_dims("\n".join(canvas.client_wrapped_lines(
+                lbl["text"], int(canvas.client_wrap_width(scene[0])), 16)),
+                16, canvas.line_height_of(lbl))[1],
+            "the check's band is %.1fpx deep, which is not the block the "
+            "client paints at this label's own lineHeight"
+            % (bottom - top))
+
+    @unittest.expectedFailure
+    def test_the_helper_reads_the_band_the_check_reads(self) -> None:
+        """RED: 40..105 against 40..100, on the apex stage itself.
+
+        The invariant, not either literal: whatever the wrap and the
+        metrics do next, an instrument that claims to reproduce the
+        check's band has to reproduce it. Asserted against the interval
+        `lint_layout` really passes `shape_band_span`, taken from the
+        call — comparing two derivations is what let this drift in the
+        first place.
+        """
+        scene = _apex_band_stage()
+        _, top, bottom = _check_band_probe(scene)
+        _, _, helper_top, helper_bottom = _drawn_ink_band(scene)
+        self.assertEqual(
+            (helper_top, helper_bottom), (top, bottom),
+            "`_drawn_ink_band` reads the band as %.1f..%.1f and the "
+            "check probes %.1f..%.1f — a %.1fpx disagreement, on a stage "
+            "whose subject is a band grazing the apex at y=%.0f. Its "
+            "docstring says 'by the check's own rule'"
+            % (helper_top, helper_bottom, top, bottom,
+               abs(helper_bottom - bottom),
+               scene[0]["y"] + scene[0]["height"]))
 
 
 class TestCoverage(unittest.TestCase):
