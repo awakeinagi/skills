@@ -390,6 +390,74 @@ def run_one(old: str, new: str, n: int, test: str, original: str) -> str:
         SRC.write_text(original, encoding="utf-8")
 
 
+def assert_roster_populated() -> None:
+    """Refuse to answer anything at all while `GUARDS` is empty.
+
+    THE GATE PASSED OVER NOTHING. Every function in this file walks the
+    roster and reports what it found, and an empty walk finds nothing
+    wrong: `--check` printed "0 mutants, every anchor applies and every
+    named test resolves" and exited 0, the sweep printed "0/0 guards
+    observed by their named test" and exited 0, and `assert_pristine`
+    had no anchor left to miss — it returned quietly against a string
+    with no `canvas.py` in it at all. So a roster emptied or truncated
+    by a bad merge left the every-commit hook, the manual sweep and the
+    suite all reporting success. That is this repo's signature defect
+    turned on the instrument built to hunt it: a check that passes when
+    its subject is absent is not a check.
+
+    NOT A COUNT, DELIBERATELY. `len(GUARDS) == 23` would go red the day
+    somebody adds a twenty-fourth guard — on correct work — and the
+    fix would be to bump the literal without reading it, which is how a
+    check becomes a transcription. The invariant is that the instrument
+    HAS subjects; the magnitude is published once, by SKILL.md's
+    `live:pin_guard_sites`, and derived there rather than asserted here.
+
+    WHAT `livedoc` ALREADY CAUGHT. This is defence in depth and not the
+    difference between caught and uncaught, which is worth stating
+    plainly because the brief that commissioned it said otherwise. At
+    `7170b3d` an emptied roster was ALREADY blocked on every commit:
+    `pin_guard_sites` raises at `n == 0` and takes the livedoc hook down
+    with it — no remedy printed, `SKILL.md` unwritten, exit 1, and
+    `refresh` raises before writing just as `check` does. The claim that
+    only the guard-mutants hook stood here was true of THAT HOOK and
+    false of the GATE. What this function adds is a second door, a
+    status that means refuse-to-run rather than a traceback out of a
+    docs checker, and a sentence that names the roster instead of a
+    marker.
+
+    THE LINE IS THE CALCULATOR, NOT THE CHECK. A drift check is a floor
+    exactly where its calculator REFUSES instead of deriving, and only
+    there — the blanket form, "a drift check cannot be a floor", is one
+    notch too strong and this file used to say it. `pin_guard_sites`
+    refuses at zero and derives at two, so the gate holds on an emptied
+    roster and launders a truncated one: measured 2026-08-20, truncate
+    to two entries, run the `livedoc refresh` its drift line prints, and
+    "Twenty-three" becomes "2" at exit 0 with twenty-one guards silently
+    gone. That truncation case is NOT closed here. The same insight
+    about a different number sits three lines under the live value this
+    commit moved, in `frontends/wysiwyg-grilling/tests/e2e/README.md`:
+    red-by-intent counts are deliberately not live, being "a guard whose
+    whole value is failing loudly when a red moves, which an auto-repair
+    would disarm".
+
+    Raises:
+        SystemExit: Always, when the roster is empty. Status 2, the
+            refuse-to-run code `assert_pristine` already uses, kept
+            distinct from the 1 that means the subjects are merely
+            broken and can be re-pointed.
+    """
+    if GUARDS:
+        return
+    sys.stderr.write(
+        "REFUSING TO RUN: tests/guard_mutants.py lists no guards. Its "
+        "GUARDS roster is empty, so there is nothing to mutate and "
+        "every answer this instrument could give would be about "
+        "nothing. An empty roster is the pin-guard census being GONE, "
+        "not the guards being clean — restore it from git before "
+        "trusting any result from this tree.\n")
+    raise SystemExit(2)
+
+
 def assert_pristine(original: str) -> None:
     """Refuse to start if a previous sweep left a mutation standing.
 
@@ -419,9 +487,13 @@ def assert_pristine(original: str) -> None:
         original: The source as read at the start of this run.
 
     Raises:
-        SystemExit: If any guard anchor is missing or its occurrence
-            count no longer matches what the roster claims.
+        SystemExit: If the roster is empty (see
+            `assert_roster_populated` — with no entries there is no
+            anchor to be missing, so both checks below are vacuous), or
+            if any guard anchor is missing, or if its occurrence count
+            no longer matches what the roster claims.
     """
+    assert_roster_populated()
     claimed: dict[str, int] = {}
     labelled: dict[str, list[str]] = {}
     for label, old, _new, n, _t in GUARDS:
@@ -475,10 +547,21 @@ def check_subjects() -> list[str]:
          its absence is indistinguishable from a kill unless somebody
          looks — and now somebody does, before any process starts.
 
+    AN EMPTY ROSTER NEVER REACHES THE WALK BELOW — it leaves through
+    `assert_roster_populated`, which exits 2. A list with no entries has
+    no broken subject to complain about, so the honest answer is not
+    `[]`; it is that there is nothing here to ask. That refusal is this
+    gate's floor and the reason the walk may assume it has subjects.
+    Said in prose and not under `Raises:` because ruff's DOC502 rejects
+    documenting an exception a function does not raise DIRECTLY, and
+    this one is raised in the callee — the section was written first and
+    failed the gate. Same reason in `main`.
+
     Returns:
         One human-readable complaint per broken subject; empty when the
         instrument still has everything it needs to be honest.
     """
+    assert_roster_populated()
     src = SRC.read_text(encoding="utf-8")
     bad = []
     for label, old, new, n, _test in GUARDS:
@@ -507,8 +590,20 @@ def check_subjects() -> list[str]:
 def main() -> int:
     """Run every mutation and report.
 
+    NO EMPTY-ROSTER CHECK OF ITS OWN, deliberately: every path out of
+    this function reaches one already. `--check` goes through
+    `check_subjects` and the sweep through `assert_pristine`, and both
+    refuse. A third call here was written and removed — it was strictly
+    redundant, and the argument that justifies the other two does not
+    reach it. That argument is separate reachability: the suite and the
+    sweep call those two DIRECTLY, so a precondition held only by this
+    entry point would not be held for them. Nothing calls `main` but the
+    command line.
+
     Returns:
-        0 when every guard was killed by its named test, else 1.
+        0 when every guard was killed by its named test, else 1. An
+        empty roster does not return at all — it exits 2 through
+        whichever of the two guarded callees this run reaches.
     """
     argv = sys.argv[1:]
     if "--check" in argv:
