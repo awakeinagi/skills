@@ -187,6 +187,46 @@ _LABEL_SHAPE_RE = re.compile(
 _LABEL_ADRIFT_RE = re.compile(
     r"label (?P<element>[\w-]+) is drawn (?P<mag>\d+)px clear of "
     r"[\w-]+.*? — it is bound to that (?:diamond|ellipse)")
+# TASK-BAND-APEX review I-1, the check's THIRD reading, and registered
+# separately for exactly the reason the pair above gives. The apex fix
+# opened a branch where the band pinches to nothing inside the body: the
+# ink partly lands, so the adrift sentence is false, and the narrowest
+# chord is 0, so the sizing sentence's "only Npx across at the label's
+# own height" could only be told by quoting the WIDEST chord instead —
+# which made it self-refuting (a 32px overhang on 62px of ink inside a
+# body it called 67px across). The remedy differs from both: no
+# shortening puts a block deeper than the body back inside it, and the
+# text does land, so "move it back over its node" is not the whole
+# story either. MAGNITUDE is the ink lying beyond the body's widest
+# extent in the band — the pixels that are on empty canvas at EVERY
+# height, which is the number the remedy is judged against. Head-anchored
+# rather than tail-anchored: the label's own text is quoted DOWNSTREAM of
+# the number here, so it cannot supply a rival `NNpx`.
+#
+# A THIRD SENTENCE AND NOT A WIDENING OF THE OTHER TWO, and the difference
+# is not stylistic. Widening `_LABEL_SHAPE_RE`'s room clause to admit this
+# message would have made one regex match a sizing fault and a placement
+# fault alike, which is the failure its own comment names — and which is
+# this very defect one level up, since I-1 exists because a placement
+# fault was printed in the sizing fault's words. The three templates are
+# byte-distinct at their heads (`overhangs ... by`, `is drawn ... clear
+# of`, `spills ... past`), so the three remedies stay separately matchable.
+#
+# WHY THE PAIRING MATTERS, AND WHY A REGEX CHANGE IS NEVER LOCAL HERE.
+# When a message moves out from under its regex, the two halves of a
+# mutant pair fail in OPPOSITE and unequal ways: the `FindingSpec` half
+# goes loudly red, and the `Silence` half goes VACUOUSLY GREEN — a
+# `Silence` on a check whose regex has stopped matching is
+# indistinguishable from a `Silence` on a check that is correctly quiet.
+# Only the mandatory neighbour separates them, and only because
+# `diamond_label_overflows_shape` and `label_dragged_clear_of_its_owner`
+# carry their `Silence` and their `FindingSpec` on OPPOSITE halves, which
+# is what guards these sentences from both directions at once. Anyone
+# widening one of these three should expect a green to be the dangerous
+# result, not the reassuring one.
+_LABEL_SPILL_RE = re.compile(
+    r"label (?P<element>[\w-]+) spills (?P<mag>\d+)px past [\w-]+.*? — "
+    r"its text block is \d+px deep")
 # v0.9 whole-branch review M-4. The magnitude is the distance to the
 # pin's OWN TARGET and not to the rival, because that is the number the
 # check is complaining about — a pin 8px from its target is fine and a
@@ -592,6 +632,13 @@ DETECTORS: dict[str, dict] = {
     # author: the entry exists so a curator's `Silence("label_adrift")`
     # asserts something, and the proving mutant is theirs to write.
     "label_adrift": {"lint_re": _LABEL_ADRIFT_RE},
+    # TASK-BAND-APEX review I-1, and the same shape a fourth time: the
+    # sentence lands with the fix that made it necessary, the row in
+    # `UNCOVERED` names it as unproven, and the proving pair is a
+    # curator's because a fix and its acceptance test from one pair of
+    # hands is what this file exists to prevent. What that pair has to
+    # assert is written out in the `UNCOVERED` reason.
+    "label_spills_past_body": {"lint_re": _LABEL_SPILL_RE},
     # v0.9 whole-branch review M-4, and the third arrival of this shape
     # in one change. Registered with the check so a mutant can name it;
     # the mutant is a curator's.
@@ -22990,6 +23037,32 @@ UNCOVERED: dict[str, str] = {
     # ended up beside. Each was watched go red under ablation before it
     # was believed, because a green mutant on a working detector is
     # indistinguishable from a green mutant on a dead one.
+    # Added 2026-08-20 (TASK-BAND-APEX, review I-1) with the template
+    # itself — the fourth time this file has taken a check NAMED as
+    # unproven from the hands that wrote it. WHAT THE PROVING PAIR MUST
+    # ASSERT, so the row can be drained without re-deriving it:
+    #   * the MUTANT — a bound label on a diamond or ellipse whose drawn
+    #     band pinches the body to nothing while part of its ink still
+    #     lands on the body. `_labelled_shape("diamond")` at 200x60 with
+    #     the label at x=-20, y=50 is one: band 50..110 against a body of
+    #     0..60, ink 35..97 (62px), widest chord in the band 66.7px, so
+    #     32px spills. It must assert `label_spills_past_body` on `t1`
+    #     with that magnitude, and it must assert the OTHER TWO ARE
+    #     SILENT — that is the whole content of the row, because before
+    #     I-1 this scene printed the sizing sentence and the number under
+    #     it was the widest chord, not the narrowest one the sentence
+    #     names.
+    #   * the NEIGHBOUR — the same label and the same ink one axis away,
+    #     on geometry deep enough that the band does not pinch, where
+    #     `Silence("label_spills_past_body")` is TRUE rather than merely
+    #     absent, and `label_overflows_shape` is the correct reading.
+    # The arms are distinguishable and both live: over a 4,320-scene
+    # sweep of this check, 745 scenes print the spill sentence, 1,998 the
+    # adrift one and 701 the overhang one.
+    "label_spills_past_body":
+        "landed 2026-08-20 (TASK-BAND-APEX I-1) with its template; no "
+        "CATALOGUE mutant — the pair is a curator's, and what it must "
+        "assert is spelled out above this row",
     "half_unbound_endpoint":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unbound_arrow":
@@ -28659,6 +28732,18 @@ class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
 # CHORD — `shape_band_reach`, the widest extent in the band — to answer the
 # placement question the narrowest chord was never able to answer. The two
 # reds' own docstrings carry the arithmetic that forces that shape.
+#
+# AND THE SECOND CHORD NEEDED A THIRD SENTENCE (the band-apex review, I-1).
+# The branch it opened printed the WIDEST chord under the sizing sentence's
+# "only Npx across AT THE LABEL'S OWN HEIGHT", which names the narrowest —
+# so on a 200x60 rhombus it read "overhangs by 32px, the diamond is only
+# 67px across" about 62px of ink, and a reader doing that arithmetic
+# concludes the label fits. `label_spills_past_body` is that case saying
+# what is true of it instead, registered in DETECTORS with an `UNCOVERED`
+# row naming what its proving pair has to assert. The lesson is the one
+# this wave keeps re-learning from the other side: the encoding changed and
+# the prose did not, and here the prose was a sentence the fix inherited
+# rather than wrote.
 # ---------------------------------------------------------------------------
 
 
@@ -28841,14 +28926,27 @@ class TestABandTouchingTheApexIsNotAMiss(unittest.TestCase):
         fails at 62, because the span comes back DEGENERATE here and a
         chord 0px across yields the ink's own width all over again. That
         is the same false sentence under the other arm's wording, which
-        is exactly the dodge this pole was written to catch. No
-        single-chord formula escapes it either: the same check must read
-        17px against the 87px chord `diamond_label_overflows_shape`
-        stands on and nothing against a 0px one, and no monotone function
-        of chord width does both. So the degenerate case is answered
-        against `shape_band_reach` instead, which on this scene is the
-        whole 200px body and leaves nothing to report. The height fault
-        is real and `text_overflow` keeps it: this scene still says
+        is exactly the dodge this pole was written to catch.
+
+        AND ONE CHORD CANNOT SERVE BOTH PLACES. The proof is two scenes
+        `shape_band_span` cannot tell apart: this stage, and a 200x60
+        rhombus with its label at y=55. Same container width, so the
+        client's cap, the wrap and the ink are byte-identical — the same
+        three lines, 62px of ink at 68.5..130.5 — and the span answers
+        `(100.0, 100.0)` for both. This one is drawn
+        squarely on its node and must be silent; the other sits under a
+        body 33px across and spills 29px onto empty canvas. No function
+        of `(span, ink)` is right about both, and that INCLUDES the rule
+        "degenerate means silent", which would mute the second. (An
+        earlier draft of this paragraph argued instead that no MONOTONE
+        function of chord width could do it — true, and too weak: it
+        leaves `degenerate -> silence` standing. Corrected by the
+        band-apex review, M-2.)
+
+        So the degenerate case is answered against `shape_band_reach`,
+        the widest chord in the band, which on this scene is the whole
+        200px body and leaves nothing to report. The height fault is
+        real and `text_overflow` keeps it: this scene still says
         `needs ~62x60px, the box gives 90x40px (too tall)`.
         """
         scene = _apex_band_stage()
@@ -29726,13 +29824,23 @@ class TestCoverage(unittest.TestCase):
         appears in both ledgers this pin guards — the count here and the
         reason there — and the row names the mutant-curator handoff that
         will drain it.
+
+        69 -> 70 on 2026-08-20 (TASK-BAND-APEX, review I-1): the third
+        reading of the label-overhang check, `label_spills_past_body`.
+        This one takes the ORDINARY shape — a `DETECTORS` row landing
+        with the template and an `UNCOVERED` row naming it as unproven —
+        and it is a new sentence rather than a widened population,
+        because its remedy is neither of the two the other arms give.
+        This pin is what made that bookkeeping impossible to skip: the
+        append landed, the count moved, and the ledger had to be
+        re-enumerated before anything went green again.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 69,
+        self.assertEqual(sites, 70,
                          "canvas.py lint_layout append-site count changed "
-                         "(69 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(70 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 
