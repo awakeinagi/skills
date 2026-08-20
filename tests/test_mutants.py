@@ -11,10 +11,13 @@ never take down a run — they surface as `detector-error` findings.
 from __future__ import annotations
 
 import argparse
+import ast
+import builtins
 import contextlib
 import copy
 import datetime
 import hashlib
+import importlib.util
 import inspect
 import io
 import json
@@ -22548,8 +22551,24 @@ def coverage_table() -> list[tuple[str, str, str]]:
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestTheEntityNameClearsItsOwnAttributeRows": 2,
     "TestOneLineHeightHasTwoReaders": 2,
+    "TestTheEmptySaveGuardIsCoupledToItsOwnWording": 2,
+    "TestOneComposedPartPredicateHasThreeSites": 2,
 }
 
+# TWO JOINED on 2026-08-19 (curator batch 39), and they are the first
+# entries here about a rule written down twice rather than about a picture
+# or a record. `TestOneComposedPartPredicateHasThreeSites` is the SYMMETRIC
+# case and joins `TestOneLineHeightHasTwoReaders`' family directly — one
+# predicate, three sites, copies that agree today.
+# `TestTheEmptySaveGuardIsCoupledToItsOwnWording` is the ASYMMETRIC one and
+# opens a family: one site EMITS a sentence and one site MATCHES it, so the
+# failure mode is not disagreement but silent disarmament, and neither
+# author would recognise the other's line as a copy of theirs. Its two reds
+# have DIFFERENT owners on purpose — the coupling and the change count the
+# guard quotes are separate repairs — so this class will lose a number
+# before it loses its line, which is the shape the entry above warned about
+# and got right.
+#
 # EMPTY on 2026-08-18 (the v0.9 FINAL FIX ROUND) for the first time since
 # this dict was written. `TestAFreedrawKeepsTheGeometryItWasGiven` left it
 # the day after curator batch 33 filed it, with both of its reds flipped by
@@ -24671,6 +24690,720 @@ class TestALineDecorationRemeasureIsNotAUserEdit(unittest.TestCase):
             {"saved_no_changes": 1},
             "a save that posted the client's scene back byte for byte "
             "narrated a restack the user never made")
+
+
+# ---------------------------------------------------------------------------
+# CURATOR BATCH 39 (2026-08-19). A GUARD COUPLED TO A SENTENCE, AND A RULE
+# TYPED AT THREE SITES. Found while prototyping a detector for this wave's
+# signature failure; handed over rather than fixed, per the curator charter.
+#
+# WHY THESE TWO SIT TOGETHER AND WHY THEY ARE STILL TWO CLASSES. Both are
+# one rule written down more than once, and the family they belong to is
+# `TestOneLineHeightHasTwoReaders` above. They are NOT the same defect
+# shape, and the difference is the whole reason the first one shipped:
+#
+#   * `lineHeight`, and the composed-part predicate below, are SYMMETRIC.
+#     Two readers of one field, or one predicate typed at three sites; the
+#     copies are the same KIND of thing, so an author looking at either
+#     would recognise the other as a duplicate of theirs, and the failure
+#     mode is that the copies disagree — which something eventually sees.
+#   * The empty-save sentence is ASYMMETRIC. One site EMITS it and one
+#     site MATCHES it. Neither author is writing what the other wrote:
+#     one is output, one is a predicate. The failure mode is not
+#     disagreement, it is SILENT DISARMAMENT — reword the producer and
+#     the guard stops enforcing its rule with nothing to notice.
+#
+# MEASURED, 2026-08-19, on this tip: rewording the sentence at the producer
+# and carrying the reword into the tests and docs that quote it — which is
+# exactly what a rewording wave does — leaves all 1713 tests GREEN with the
+# guard dead. That is the number that makes this worth a red rather than a
+# comment.
+#
+# THE MUTANT MUST NOT BE COUPLED TO THE STRING IT IS ABOUT, which would be
+# the defect committed inside the pin for it. Nothing below writes the
+# sentence down. It is asked of the module (`empty_save_sentence`), the
+# site that PRODUCES it is located by shape rather than by spelling
+# (`produced_sentence_nodes`), and the assertions compare against whatever
+# the mutated module then says. That is also what lets one red span a fix
+# whose shape is not yet decided: a producer that becomes a module-level
+# constant is still the one non-matching literal, so the operator finds it
+# without being retaught.
+# ---------------------------------------------------------------------------
+_EMPTY_SAVE_FACT: dict[str, Any] = {"fact": "saved_no_changes",
+                                    "element": None}
+_CANVAS_SRC = (Path(__file__).resolve().parents[1] / "skills" /
+               "wysiwyg-grilling" / "scripts" / "canvas.py")
+# Plain ASCII and not a substring of anything the guard's own replacement
+# says, so "the guard stayed silent" cannot be confused with "the guard
+# fired and its output happens to contain this".
+_REWORDED_EMPTY_SAVE = "this revision holds no change I can name"
+
+
+def empty_save_sentence(mod: Any) -> str:
+    """Ask a canvas module what its empty-save headline says.
+
+    Args:
+        mod: A canvas module — the imported one, or a reworded copy.
+
+    Returns:
+        The sentence its `saved_no_changes` arm renders.
+    """
+    return mod.headline_for(dict(_EMPTY_SAVE_FACT))
+
+
+def produced_sentence_nodes(source: str, sentence: str) -> list[ast.Constant]:
+    """Every literal that EMITS `sentence`, as against ones that match it.
+
+    The producer is wherever the sentence is written down in order to be
+    said. Today that is a `return` inside `headline_for`; after a repair
+    that gives both sites one constant it is a module-level assignment.
+    Locating it by SHAPE rather than by position is what lets the reword
+    operator survive the fix it is asking for: docstrings drop out by
+    position, matching-position literals drop out by their parent
+    `Compare`, and whatever is left is the thing that speaks.
+
+    Args:
+        source: canvas.py's text.
+        sentence: The sentence, derived from the module rather than
+            written down here.
+
+    Returns:
+        The producing constant nodes, in walk order.
+    """
+    tree = ast.parse(source)
+    skip: set[int] = set()
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                             ast.AsyncFunctionDef)) and body:
+            first = body[0]
+            if isinstance(first, ast.Expr) and \
+                    isinstance(first.value, ast.Constant):
+                skip.add(id(first.value))
+        if isinstance(node, ast.Compare):
+            for side in [node.left, *node.comparators]:
+                if isinstance(side, ast.Constant):
+                    skip.add(id(side))
+    return [n for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and id(n) not in skip
+            and isinstance(n.value, str) and n.value == sentence]
+
+
+def reword_one_literal(source: str, node: ast.Constant, new: str) -> str:
+    """Replace one string literal in `source`, by its own source span.
+
+    Splices through UTF-8 bytes because `col_offset` counts bytes and
+    canvas.py's prose is not ASCII — a character-offset splice lands
+    mid-sentence on any line carrying an em dash.
+
+    Args:
+        source: The file text.
+        node: The literal to replace, with its span.
+        new: The replacement string's VALUE (rendered with `repr`).
+
+    Returns:
+        The file text with that one literal replaced.
+    """
+    lines = source.splitlines(keepends=True)
+    start, end = node.lineno - 1, node.end_lineno - 1
+    head = lines[start].encode("utf-8")[:node.col_offset].decode("utf-8")
+    tail = lines[end].encode("utf-8")[node.end_col_offset:].decode("utf-8")
+    return "".join([*lines[:start], head + repr(new) + tail,
+                    *lines[end + 1:]])
+
+
+def canvas_with_a_reworded_empty_save(into: Path) -> Any:
+    """Import a canvas whose empty-save sentence is reworded, and only that.
+
+    ONE MUTATION. The single producing literal changes; the guard, its
+    comment, every test and every doc stay exactly as they are — which is
+    the point, since a rewording wave updates the sentence's quoters and
+    has no reason to look at a predicate it does not know exists.
+
+    Args:
+        into: A directory the mutated source may be written into.
+
+    Returns:
+        The imported module, whose `headline_for` now says
+        `_REWORDED_EMPTY_SAVE` for an empty save.
+
+    Raises:
+        EngineError: If the sentence is not produced at exactly one site,
+            or the reworded module does not in fact say the new sentence.
+            Either means the operator did not land, and an operator that
+            silently no-ops is the same silence in a new costume.
+    """
+    source = _CANVAS_SRC.read_text(encoding="utf-8")
+    found = produced_sentence_nodes(source, empty_save_sentence(canvas))
+    if len(found) != 1:
+        raise EngineError(
+            "the empty-save sentence is produced at %d sites, not 1 — the "
+            "reword operator cannot say which one speaks. Re-derive "
+            "`produced_sentence_nodes` before reading any colour below"
+            % len(found))
+    dst = into / "canvas_reworded_empty_save.py"
+    dst.write_text(reword_one_literal(source, found[0], _REWORDED_EMPTY_SAVE),
+                   encoding="utf-8")
+    spec = importlib.util.spec_from_file_location(dst.stem, dst)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if empty_save_sentence(mod) != _REWORDED_EMPTY_SAVE:
+        raise EngineError(
+            "the reworded canvas still says %r for an empty save, so the "
+            "mutation did not land" % empty_save_sentence(mod))
+    return mod
+
+
+def unfacted_drift(mod: Any, root: Path) -> tuple[dict, list[str]]:
+    """Reconcile a project whose only on-disk drift produces no facts.
+
+    THE SMALLEST SCENE THAT REACHES THE GUARD, and its shape is forced.
+    The guard's arm is entered exactly when the diff yields no facts at
+    all, so the drift has to be a field `content_fingerprint` reads and
+    the differ does not. `lineHeight` is one: the fingerprint skips only
+    `VOLATILE_ATTRS`, `boundElements` and `roundness`, and
+    `DEFAULT_SIGNIFICANT_ATTRS` has no entry for it — so a text element
+    that has been through another editor's round trip diverges with
+    nothing to narrate. One artifact, one element, one changed field.
+
+    Args:
+        mod: The canvas module to run the whole path through, so a
+            reworded copy is exercised end to end rather than patched.
+        root: An empty directory to build the project in.
+
+    Returns:
+        `(record, drifted)` — the reconciliation `catch_up` committed,
+        and the ids this operator wrote a change into.
+    """
+    project = mod.Project(root)
+    project.ensure_tree()
+    mod.Store(project).apply_batch({
+        "base_revn": 0,
+        "create": {"id": "f", "type": "flow", "concept": "c", "name": "F"},
+        "ops": [{"op": "add", "element": {
+            "id": "n1", "type": "text", "x": 0, "y": 0, "width": 100,
+            "height": 20, "text": "A", "originalText": "A"}}]})
+    path = root / "project_knowledge" / "artifacts" / "f.excalidraw"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    drifted = []
+    for e in doc["elements"]:
+        if e["id"] == "n1":
+            e["lineHeight"] = 1.5
+            drifted.append(e["id"])
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    return mod.Store(project).catch_up(), drifted
+
+
+class TestTheEmptySaveGuardIsCoupledToItsOwnWording(unittest.TestCase):
+    """`headline_for` says a sentence; `catch_up` matches it as a substring.
+
+    One arm of the fact renderer produces the empty-save headline. Some
+    ten thousand lines away, `catch_up` tests a committed reconciliation's
+    headline for that same sentence in order to enforce a rule its own
+    comment states: *a committed reconciliation may never claim nothing
+    happened*. The two are joined by string equality and by nothing else.
+
+    THE SILENCE IS THE FINDING. Rewording the producer does not make the
+    guard wrong, it makes the guard absent — the `elif` never matches, the
+    headline is never rewritten, and a reconciliation that committed a
+    revision goes out saying nothing happened. Measured on this tip: the
+    reword plus the reword of every test and doc that quotes the sentence
+    leaves the whole suite green.
+
+    WHO FLIPS THIS: whoever owns `catch_up`'s reconciliation arm. The
+    honest repair is one named constant that `headline_for` returns and
+    the guard reads, so the coupling becomes an identifier the interpreter
+    checks instead of a sentence nobody re-greps. The first red flips on
+    that and asks nothing more of it — it deliberately does not prejudge
+    whether the constant lives at module scope or in a small vocabulary
+    beside `SALIENCE`.
+
+    THE SECOND RED IS A DIFFERENT OWNER and is here because it was found
+    by minimizing the first. The rewrite the guard substitutes quotes a
+    change count taken from the record's `changes`, and this arm is
+    reached exactly when that list is empty — so the guard trades one
+    sentence claiming nothing happened for another one, in the only case
+    it ever runs. A repair to the coupling will not touch it.
+    """
+
+    def setUp(self) -> None:
+        """Give each test its own project root and its own module copy."""
+        self.root = Path(tempfile.mkdtemp(prefix="c39-empty-save-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def test_the_drift_scene_reaches_the_guard_with_nothing_to_narrate(
+            self) -> None:
+        """The referee: this scene really does arrive with no facts.
+
+        Both reds below say something about what the guard does on a
+        fact-empty reconciliation, and both would pass vacuously the day
+        `lineHeight` becomes significant to the differ, or the loader
+        starts repairing it away, or `catch_up` stops reconciling at all.
+        This asserts the premise instead of assuming it, so a scene that
+        stopped reaching the arm fails HERE with a name for why.
+        """
+        record, drifted = unfacted_drift(canvas, self.root)
+        self.assertIsNotNone(
+            record, "the drifted scene no longer reconciles at all, so "
+                    "nothing below reaches the guard")
+        self.assertEqual(drifted, ["n1"])
+        self.assertTrue(record.get("reconciliation"))
+        self.assertEqual(record["author"], "out-of-session")
+        self.assertEqual(
+            [f["fact"] for part in record["artifacts"].values()
+             for f in part["facts"]], ["saved_no_changes"],
+            "the drift now produces facts, so the empty-save sentence is "
+            "not the headline and the guard's arm is never entered")
+
+    def test_a_committed_reconciliation_refuses_to_claim_nothing_happened(
+            self) -> None:
+        """The live pole, ungated: on this tip the guard does its job.
+
+        The neighbour the reds need. A red that says "the guard went
+        silent" passes the day the guard is deleted, and cannot tell that
+        from the coupling it is about. This runs the same scene through
+        the untouched module and asserts the rule holds — so the red
+        below is about the WORDING and not about a corpse.
+        """
+        record, _ = unfacted_drift(canvas, self.root)
+        self.assertNotIn(
+            empty_save_sentence(canvas), record["summary"]["headline"],
+            "a committed reconciliation is claiming nothing happened on "
+            "the untouched module, so the guard is already gone and the "
+            "red below is measuring the wrong thing")
+
+    def test_the_reword_operator_changes_exactly_one_producing_site(
+            self) -> None:
+        """The anti-error-red referee, run outside the mask.
+
+        `@unittest.expectedFailure` swallows errors as well as failures,
+        so a reword that found no site, found three, or produced a module
+        that will not import would read as a healthy red. Everything that
+        can raise inside the operator raises `EngineError` with a reason;
+        this calls it here, ungated, and adds the one thing the operator
+        cannot check about itself — that it changed the file by exactly
+        one line.
+        """
+        mod = canvas_with_a_reworded_empty_save(self.root)
+        self.assertEqual(empty_save_sentence(mod), _REWORDED_EMPTY_SAVE)
+        before = _CANVAS_SRC.read_text(encoding="utf-8").splitlines()
+        after = (self.root / "canvas_reworded_empty_save.py").read_text(
+            encoding="utf-8").splitlines()
+        self.assertEqual(len(before), len(after))
+        self.assertEqual(
+            sum(1 for a, b in zip(before, after) if a != b), 1,
+            "the reword operator touched more than the one literal it is "
+            "allowed to touch")
+
+    @unittest.expectedFailure
+    def test_the_guard_survives_a_reword_of_the_sentence_it_matches(
+            self) -> None:
+        """The red: reword the producer and the rule stops being enforced.
+
+        ONE MUTATION, at the only site that speaks. The guard is not
+        touched — neither its condition, nor its comment, nor the
+        substring it tests for. It simply stops matching, and a
+        reconciliation that committed a revision headlines that nothing
+        happened.
+
+        Asserted against what the MUTATED module says rather than against
+        a literal, so the pin keeps asking the same question whatever the
+        sentence becomes, and flips the day producer and consumer read
+        one name instead of two copies of one string.
+        """
+        mod = canvas_with_a_reworded_empty_save(self.root)
+        record, _ = unfacted_drift(mod, self.root / "project")
+        self.assertNotIn(
+            empty_save_sentence(mod), record["summary"]["headline"],
+            "the reconciliation committed revision %s and headlined %r — "
+            "the rule `catch_up` states in its own comment, that a "
+            "committed reconciliation may never claim nothing happened, "
+            "is no longer enforced, and the only thing that changed was "
+            "the wording of a sentence ten thousand lines away"
+            % (record.get("revn"), record["summary"]["headline"]))
+
+    @unittest.expectedFailure
+    def test_the_reconciliation_names_the_drift_it_committed(self) -> None:
+        """The magnitude arm: the guard's own rewrite quotes a zero.
+
+        The pole a repair to the coupling would not answer. When the
+        guard does fire it substitutes `"... %d change(s) differ from
+        history"`, counting the record's `changes` — and its arm is
+        entered exactly when that list is empty, because an empty diff is
+        what mints the empty-save fact in the first place. So the
+        substitute sentence says nothing happened too, in the only case
+        the guard ever runs, and it can never say anything else.
+
+        MEASURED 2026-08-19: one artifact, one element, one field changed
+        on disk; the headline quotes 0. Expected at least the 1 element
+        the operator drifted — the direction is understatement, and the
+        number a reader is given to go looking with is the one number
+        that cannot be right.
+        """
+        record, drifted = unfacted_drift(canvas, self.root)
+        quoted = [int(m) for m in re.findall(
+            r"(\d+) change\(s\) differ", record["summary"]["headline"])]
+        self.assertEqual(
+            quoted, [len(drifted)],
+            "the reconciliation headlined %r over %d drifted element(s): "
+            "the guard replaced one sentence claiming nothing happened "
+            "with another one" % (record["summary"]["headline"],
+                                  len(drifted)))
+
+
+# ---------------------------------------------------------------------------
+# ONE COMPOSED-PART PREDICATE, THREE SITES, AND NO AUTHOR. Handed over by
+# the v0.9 coordinator, 2026-08-19: `_composed_part` was extracted by one
+# stream specifically to be the single reader of "does this element carry a
+# composed-part tag", while two other functions open-code the same test
+# inline. The merge that put them in one file created the copies; neither
+# author could see the other's branch.
+#
+# THE EQUIVALENCE IS DERIVED HERE AND NOT TAKEN ON ANYONE'S READING, which
+# was the condition the handover attached to the item: if the copies differ
+# from the reader on any input then they are not duplicates and the right
+# outcome is a comment recording the distinction, not a merge. The census
+# below reads the copies OUT OF THE SOURCE and evaluates them, so it cannot
+# go stale against a copy someone edits, and it answers 0 sites once they
+# are gone.
+#
+# THE MUTANT IS BEHAVIOURAL, not a grep for the expression. Neutralise the
+# single reader and every site that claims to ask its question must change
+# its answer; a site that open-codes the predicate does not notice, and
+# that is the finding. A source-level "this expression appears once" check
+# would be evaded by re-inlining it with different whitespace, and would
+# say nothing about whether the copy still agrees.
+# ---------------------------------------------------------------------------
+_PART_TAG_VALUES: tuple[Any, ...] = (None, "", 0, False, [], {}, "sl", 1,
+                                     True, {"a": 1}, 0.0)
+
+
+def open_coded_part_predicates() -> list[tuple[str, str]]:
+    """Every open-coded copy of the composed-part predicate, from source.
+
+    A copy is a comprehension over `COMPOSED_PART_KEYS` that reaches for
+    `customData` itself — which is what separates a copy of
+    `_composed_part` (asked about an element) from the reader's own body
+    (asked about a `customData` mapping already in hand) and from
+    `part_owner_id`, which asks a different question with a statement
+    loop.
+
+    Returns:
+        `[(enclosing_def, expression_source)]`, sorted, empty once every
+        site calls the single reader.
+    """
+    tree = ast.parse(_CANVAS_SRC.read_text(encoding="utf-8"))
+    owner: dict[int, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for child in ast.walk(node):
+                owner.setdefault(id(child), node.name)
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.GeneratorExp, ast.ListComp,
+                                 ast.SetComp)):
+            continue
+        iters = {ast.unparse(g.iter) for g in node.generators}
+        if "COMPOSED_PART_KEYS" not in iters:
+            continue
+        src = ast.unparse(node.elt)
+        if "customData" not in src:
+            continue
+        out.append((owner.get(id(node), "<module>"),
+                    "any(%s)" % ast.unparse(node)))
+    return sorted(out)
+
+
+def part_tag_shapes() -> list[dict[str, Any] | None]:
+    """Every `customData` shape that can reach the predicate, enumerated.
+
+    Falsy tag values, unrelated keys, a missing mapping and two tags at
+    once — the inputs on which a copy and its original could plausibly
+    disagree, which is what the handover asked to be measured rather than
+    read.
+
+    Returns:
+        The shapes, `None` meaning the element carries no `customData`.
+    """
+    shapes: list[dict[str, Any] | None] = [None, {}, {"unrelated": "x"}]
+    for key in canvas.COMPOSED_PART_KEYS:
+        for value in _PART_TAG_VALUES:
+            shapes.append({key: value})
+            shapes.append({key: value, "unrelated": "x"})
+    first, last = canvas.COMPOSED_PART_KEYS[0], canvas.COMPOSED_PART_KEYS[-1]
+    shapes.append({first: "x", last: None})
+    shapes.append({first: None, last: "x"})
+    return shapes
+
+
+def element_name_in(expression: str) -> str:
+    """Which local an open-coded copy calls the element it is asked about.
+
+    Derived rather than assumed: the two copies both happen to say `e`
+    today, and a mutant that hardcoded that would break on a site written
+    with any other variable name — which is the same coupling this batch
+    exists to stop. The subject is the one loaded name that is neither a
+    builtin, nor `COMPOSED_PART_KEYS`, nor a comprehension target.
+
+    Args:
+        expression: An `any(... for k in COMPOSED_PART_KEYS)` source.
+
+    Returns:
+        The name bound to the element under evaluation.
+
+    Raises:
+        EngineError: If the expression does not have exactly one such
+            name, which means it is not the shape this census assumes.
+    """
+    tree = ast.parse(expression)
+    bound = {t.id for node in ast.walk(tree)
+             if isinstance(node, ast.comprehension)
+             for t in ast.walk(node.target) if isinstance(t, ast.Name)}
+    free = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)
+            and n.id not in bound and n.id != "COMPOSED_PART_KEYS"
+            and not hasattr(builtins, n.id)}
+    if len(free) != 1:
+        raise EngineError(
+            "the open-coded predicate %r reads %d free names, not 1, so "
+            "the census cannot say which one is the element" % (expression,
+                                                                len(free)))
+    return free.pop()
+
+
+def _tagged_part(part_of: str | None = "sl") -> dict[str, Any]:
+    """A composed decoration whose geometry a host owns.
+
+    Args:
+        part_of: The owner id the backlink names, or None for no tag.
+
+    Returns:
+        One element carrying `role: decoration` and, unless `part_of` is
+        None, the `track_of` backlink that makes it a PART rather than a
+        standalone backdrop.
+    """
+    data: dict[str, Any] = {"role": "decoration"}
+    if part_of is not None:
+        data["track_of"] = part_of
+    return {"id": "trk", "type": "rectangle", "x": 0, "y": 0,
+            "width": 100, "height": 8, "customData": data}
+
+
+def _slider_and_part() -> list[dict]:
+    """A widget body and its backlinked part, sharing no group.
+
+    Returns:
+        Two elements: the body `sl` and the decoration `trk` that names
+        it. No shared `groupIds`, which is the state every site below
+        has an opinion about.
+    """
+    return [{"id": "sl", "type": "rectangle", "x": 0, "y": 0, "width": 160,
+             "height": 44, "customData": {"role": "widget"}}, _tagged_part()]
+
+
+def _label_beside_a_tagged_part() -> list[dict]:
+    """The scene on which the two predicates give different answers.
+
+    A plain labelled box and a backlinked part, and NEITHER owner carries
+    a group. That last clause is the whole scene: `composed_group_gaps`
+    reports on `tagged or theirs`, so an owner that IS grouped reports its
+    stray label through `theirs` whatever the predicate answers, and a
+    scene built that way is green under every spelling — it looks like it
+    discriminates and does not. Ungrouped owners take `theirs` out of the
+    sentence and leave the predicate as the only thing deciding.
+
+    Returns:
+        Four elements: `box` with its bound label `box-t`, and `sl` with
+        its `track_of`-tagged part `trk`.
+    """
+    return [
+        {"id": "box", "type": "rectangle", "x": 0, "y": 0, "width": 100,
+         "height": 40},
+        {"id": "box-t", "type": "text", "x": 0, "y": 0, "width": 80,
+         "height": 20, "text": "A", "containerId": "box"},
+        {"id": "sl", "type": "rectangle", "x": 0, "y": 100, "width": 160,
+         "height": 44},
+        {"id": "trk", "type": "rectangle", "x": 0, "y": 100, "width": 100,
+         "height": 8, "customData": {"track_of": "sl"}},
+    ]
+
+
+class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
+    """`_composed_part` is the single reader; two functions type it again.
+
+    `normalize_z_order` and `_geometry_derived` call it — a part is banded
+    above its owner and its geometry is the host's, a standalone backdrop
+    is banded beneath everything and its geometry is the author's own.
+    `_close_widget_group` and `composed_group_gaps` ask the same question
+    with the same expression written out inline, and so they are blind to
+    any change in the answer.
+
+    THE COPIES ARE EQUIVALENT TODAY, derived below over 237 `customData`
+    shapes rather than read off the page — so this is duplication and not
+    a distinction, and the merge is safe. That check was the handover's
+    own precondition on the item and it is kept as a standing green
+    rather than spent once.
+
+    WHO FLIPS THESE: `impl-pin-backend`, which authors the sites that
+    should change. Each red names one surviving site, so a repair that
+    routes one of them leaves the other red instead of reporting the
+    class done. The mutation is one thing — neutralise the reader — and
+    the reds differ only in where they look for the consequence.
+
+    THE DANGEROUS EDIT IS NOT THE ONE THE REDS CATCH, and the last green
+    here is the reason this class outlives them. Re-inlining the copy is
+    the harmless revert; the edit that costs something is the next
+    person's tidy-up pointing `_composed_part` at `part_owner_id`, which
+    reads like the same question and passes every test that existed
+    before this class. It is not the same question. Derived over 1350
+    element shapes on 2026-08-19, the two disagree on exactly one class —
+    a bound label, which answers `containerId` there and False here — and
+    `composed_group_gaps` turns on precisely that gap: a tagged part is a
+    gap always, a label only when its owner is grouped. One class and no
+    wider, so the invariant is pinned exactly that wide.
+    """
+
+    def test_the_open_coded_copies_answer_exactly_as_the_single_reader(
+            self) -> None:
+        """The handover's precondition, measured rather than read.
+
+        Each copy is lifted out of canvas.py and evaluated, so a copy
+        someone edits is re-measured instead of compared against a
+        transcription that went stale. A disagreement on any shape would
+        mean the two are not duplicates at all and the reds below are
+        asking for the wrong repair.
+
+        This stays green through the fix — with no copies left there is
+        nothing to disagree — and that is deliberate: it records WHY the
+        merge was allowed, which is a fact a later reader needs and the
+        reds do not carry.
+        """
+        copies = open_coded_part_predicates()
+        shapes = part_tag_shapes()
+        for where, expression in copies:
+            subject = element_name_in(expression)
+            for shape in shapes:
+                element: dict[str, Any] = {"id": "e"}
+                if shape is not None:
+                    element["customData"] = shape
+                # ONE namespace, not globals-plus-locals: the copy is a
+                # generator expression, and a genexp's body runs in its
+                # own frame that sees the enclosing GLOBALS only — split
+                # them and the element name is unresolvable inside it.
+                # `eval` of THIS REPO'S OWN SOURCE, read out of the file
+                # under test: the alternative is transcribing the copy
+                # here, and a transcription goes stale against the copy
+                # silently — which is the defect class this batch is
+                # about, committed inside the pin for it.
+                copied = bool(eval(
+                    expression,
+                    {"COMPOSED_PART_KEYS": canvas.COMPOSED_PART_KEYS,
+                     subject: element}))
+                reader = bool(canvas._composed_part(
+                    element.get("customData") or {}))
+                self.assertEqual(
+                    copied, reader,
+                    "the copy in %s disagrees with `_composed_part` on "
+                    "customData=%r (copy says %r, reader says %r), so "
+                    "these are not duplicates and the reds below are "
+                    "asking for the wrong repair — record the distinction "
+                    "instead" % (where, shape, copied, reader))
+
+    def test_neutralising_the_single_reader_is_visible_where_it_is_called(
+            self) -> None:
+        """The live pole, ungated: the operator lands and is observable.
+
+        Without this, a red saying "site X did not notice" passes the day
+        the mutation stops working, and cannot tell that from the copy it
+        is about. Both real callers are asserted here on the same
+        elements the reds use: the decoration drops out of the parts band
+        into the backdrop band, and its geometry stops being derived.
+        """
+        pristine = [e["id"] for e in
+                    canvas.normalize_z_order(copy.deepcopy(_slider_and_part()))]
+        self.assertEqual(pristine, ["sl", "trk"])
+        self.assertTrue(canvas._geometry_derived(_tagged_part()))
+        with mock.patch.object(canvas, "_composed_part", lambda cd: False):
+            neutral = [e["id"] for e in canvas.normalize_z_order(
+                copy.deepcopy(_slider_and_part()))]
+            self.assertEqual(
+                neutral, ["trk", "sl"],
+                "`normalize_z_order` no longer reads `_composed_part`, so "
+                "the mutation below is not observable anywhere and the "
+                "reds are measuring nothing")
+            self.assertFalse(
+                canvas._geometry_derived(_tagged_part()),
+                "`_geometry_derived` no longer reads `_composed_part`")
+
+    @unittest.expectedFailure
+    def test_the_gap_report_asks_the_single_reader(self) -> None:
+        """The red: `composed_group_gaps` types the predicate itself.
+
+        Its `tagged` local is the extracted expression written out again.
+        With the reader neutralised the report should have nothing tagged
+        left to find on a part whose owner carries no group of its own —
+        the one case its own docstring says the tag decides — and it
+        answers exactly as before.
+        """
+        with mock.patch.object(canvas, "_composed_part", lambda cd: False):
+            gaps = canvas.composed_group_gaps(copy.deepcopy(_slider_and_part()))
+        self.assertEqual(
+            gaps, [],
+            "`composed_group_gaps` still reports %r with the single reader "
+            "neutralised: it open-codes `_composed_part` rather than "
+            "calling it, so the extraction that exists to keep this "
+            "question in one place does not reach it" % (gaps,))
+
+    @unittest.expectedFailure
+    def test_the_group_closer_asks_the_single_reader(self) -> None:
+        """The red: `_close_widget_group` types the predicate too.
+
+        The site the handover did not name, found by re-deriving the
+        family rather than taking the list. Same expression, same keys,
+        same blindness: with the reader neutralised nothing in the scene
+        is a composed part, so there is no composite to close a group
+        around, and it groups them anyway.
+        """
+        with mock.patch.object(canvas, "_composed_part", lambda cd: False):
+            out = copy.deepcopy(_slider_and_part())
+            canvas._close_widget_group(out)
+        self.assertEqual(
+            sorted(g for e in out for g in (e.get("groupIds") or [])), [],
+            "`_close_widget_group` still minted a group with the single "
+            "reader neutralised: it open-codes `_composed_part`, so it is "
+            "the third site of a rule the extraction put in one place")
+
+    def test_a_bound_label_is_not_a_part_the_way_a_tagged_one_is(self) -> None:
+        """The standing green: the distinction a de-duplication would eat.
+
+        `part_owner_id` is the near neighbour — same keys, same file, one
+        function apart — and pointing the single reader at it is the tidy
+        the reds above would wave through, because a revert and a
+        simplification look identical from a census of who calls what.
+        This is the behavioural difference between them, on the one scene
+        where the predicate is the only thing deciding.
+
+        NEITHER OWNER IS GROUPED, and that is not incidental. The
+        obvious construction — a label whose owner IS grouped — reads as
+        the discriminating case and is not one: the report fires on
+        `tagged or theirs`, so a grouped owner reports its stray label
+        through `theirs` under every spelling of the predicate, and the
+        assertion would be green against the very edit it was written to
+        catch. Measured both ways on 2026-08-19 before this was written.
+
+        A revert to the open-coded form keeps this green — that failure
+        has its own reds above. This one goes red only when the two
+        questions are merged into one.
+        """
+        gaps = canvas.composed_group_gaps(
+            copy.deepcopy(_label_beside_a_tagged_part()))
+        self.assertEqual(
+            gaps, [("trk", "sl")],
+            "the gap report no longer separates a bound label from a "
+            "tagged part on ungrouped owners: it answered %r where only "
+            "the tagged part is a gap. If `_composed_part` has been "
+            "pointed at `part_owner_id`, that is the merge this pins "
+            "against — the two agree on every element shape but this "
+            "one, and this one is what the report turns on" % (gaps,))
 
 
 class TestCoverage(unittest.TestCase):
