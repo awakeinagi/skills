@@ -15271,8 +15271,19 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
     def _two_nodes_and_a(etype, extra=()):
         """Two bound nodes joined by a connector of `etype`.
 
-        Built through `apply_ops`, so the bindings are the ones the
-        shipped op path really writes.
+        The ARROW is built through `apply_ops`, so its bindings are the
+        ones the shipped op path really writes.
+
+        THE LINE IS RETYPED AFTERWARDS, because the op path no longer
+        mints one: only arrows connect shapes, and `from`/`to` on a
+        `line` is a hard error there (the v0.9 ruling). That does not
+        make this fixture synthetic. Bound lines are on disk — earlier
+        versions of the op path accepted exactly this batch and shipped
+        — and a legacy scene holding one must stay loadable, savable
+        and lintable, which is why the refusal was scoped to the op
+        path and kept out of `Store.commit`. Naming such a connector
+        correctly is this class's whole subject, and the population it
+        speaks about is now precisely the legacy one.
 
         Args:
             etype: `arrow` or `line`.
@@ -15288,8 +15299,14 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
             {"op": "add", "id": "n2", "type": "rectangle", "x": 400,
              "y": 0, "width": 120, "height": 60, "role": "node",
              "label": "B"},
-            {"op": "add", "id": "c1", "type": etype, "from": "n1",
+            {"op": "add", "id": "c1", "type": "arrow", "from": "n1",
              "to": "n2"}, *extra], errs)
+        if etype != "arrow":
+            for e in els:
+                if e["id"] == "c1":
+                    e["type"] = etype
+                    e.pop("startArrowhead", None)
+                    e.pop("endArrowhead", None)
         return els, errs
 
     def _mod_errors(self, etype, attrs):
@@ -15308,12 +15325,21 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
                          errs)
         return errs
 
-    def test_a_line_binds_through_from_to_at_all(self):
+    def test_a_bound_line_is_a_scene_these_surfaces_must_still_read(self):
         """The reachability every other pole in both classes rests on.
 
-        If `add type: line from/to` did not bind, the whole family would
-        be theoretical and the corpus's silence would be the end of it.
-        It binds: same routing call, same `startBinding`/`endBinding`.
+        It USED to rest on `add type: line from/to` binding, which the
+        v0.9 ruling refuses: only arrows connect shapes. The family is
+        not thereby theoretical — the reachability simply moved. Older
+        shipped versions of that op path wrote exactly these bindings,
+        so bound lines exist on disk, and the refusal was deliberately
+        confined to the op path so those scenes stay readable rather
+        than locking their owner out. This pins that the fixture the
+        rest of the class reads is a genuine one: a `line` element
+        carrying two real bindings.
+
+        The inverse pole — that the op path now REFUSES to mint one —
+        is a separate concern and is not asserted here.
         """
         els, errs = self._two_nodes_and_a("line")
         self.assertEqual(errs, [])
@@ -15373,11 +15399,19 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
                 self.assertIn("%s d1 at (" % etype, said[0])
 
     def test_the_op_errors_name_the_element_they_refuse(self):
-        """Three `apply_ops` refusals, each reached with either type.
+        """`apply_ops` refusals name the element they are about.
 
         A validation error is the one message an agent is certain to
         read, because its batch was rejected whole and it has to fix
         exactly this.
+
+        Two of these three are reachable with either type — `points`
+        and `roundness` are edited on decoration lines constantly. The
+        HALF-REWIRE is arrow-only, and not by an upstream filter: under
+        the v0.9 ruling `from`/`to` on a line is refused outright, so a
+        line can never get far enough to be told that one of its ends
+        is unbound. Asserting it for a line would be asserting a
+        sentence the code can no longer emit.
         """
         for etype in ("arrow", "line"):
             with self.subTest(etype=etype):
@@ -15389,22 +15423,27 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
                     "on a server-routed %s is derived" % etype,
                     " ".join(self._mod_errors(etype,
                                               {"roundness": {"type": 2}})))
-                els, _ = self._two_nodes_and_a(etype)
-                for e in els:
-                    if e["id"] == "c1":
-                        e["startBinding"] = None
-                errs: list = []
-                canvas.apply_ops(els, [{"op": "mod", "id": "c1",
-                                        "attrs": {"to": "n2"}}], errs)
-                self.assertIn("the %s's start" % etype, " ".join(errs))
+        els, _ = self._two_nodes_and_a("arrow")
+        for e in els:
+            if e["id"] == "c1":
+                e["startBinding"] = None
+        errs: list = []
+        canvas.apply_ops(els, [{"op": "mod", "id": "c1",
+                                "attrs": {"to": "n2"}}], errs)
+        self.assertIn("the arrow's start", " ".join(errs))
 
     def test_the_rewire_guard_states_the_set_it_enforces(self):
         """No connector in hand, so the set is named as a literal.
 
         The branch fires on the element that is NOT a connector, so
-        there is nothing to ask `connector_noun` about — and the set it
-        was stating was narrower than the one the code accepts, which
-        teaches an agent a rule that does not exist.
+        there is nothing to ask `connector_noun` about. The set it
+        states has to be the set the code actually accepts: it once
+        read "arrows and lines" while the code took only arrows, and
+        then read "arrows and lines" truthfully for one version, and
+        under the v0.9 ruling — only arrows connect shapes — it is
+        "arrows" again. A sentence that restates an encoding has to be
+        re-checked every time the encoding moves, which is what this
+        pins.
         """
         errs: list = []
         canvas.apply_ops(
@@ -15413,8 +15452,8 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
                                   "height": 10}, set(), [], 0)[0]],
             [{"op": "mod", "id": "b1", "attrs": {"from": "x", "to": "y"}}],
             errs)
-        self.assertIn("'from'/'to' only apply to arrows and lines",
-                      " ".join(errs))
+        self.assertIn("'from'/'to' only apply to arrows", " ".join(errs))
+        self.assertNotIn("and lines", " ".join(errs))
 
     def test_the_orphan_fact_carries_the_noun_its_readers_cannot_derive(
             self):
@@ -15425,11 +15464,19 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
         "arrow". The emitter knows, so the emitter records it. The
         default keeps records ALREADY ON DISK, written before the key
         existed, narrating exactly as they always did.
+
+        The `line` leg reaches the store as a SAVE rather than an op,
+        which is the only door left to it and deliberately so: the
+        v0.9 ruling refuses `from`/`to` on a line in the op path but
+        keeps `Store.commit` open, so that a legacy scene already
+        holding one is never made unsavable. This leg therefore also
+        demonstrates that door is in fact still open.
         """
         for etype in ("arrow", "line"):
+            aid = "orph-%s" % etype
             self.store.apply_batch({
                 "base_revn": self.store.head_revn(),
-                "create": {"id": "orph-%s" % etype, "type": "flow",
+                "create": {"id": aid, "type": "flow",
                            "name": "O", "concept": "c"},
                 "ops": [
                     {"op": "add", "id": "n1", "type": "rectangle", "x": 0,
@@ -15438,8 +15485,16 @@ class TestTheOpAndEchoSurfacesCallALineALine(Base):
                     {"op": "add", "id": "n2", "type": "rectangle",
                      "x": 400, "y": 0, "width": 120, "height": 60,
                      "role": "node", "label": "B"},
-                    {"op": "add", "id": "c1", "type": etype,
+                    {"op": "add", "id": "c1", "type": "arrow",
                      "from": "n1", "to": "n2"}]})
+            if etype != "arrow":
+                retyped = [dict(e) for e in self.store.scenes[aid]]
+                for e in retyped:
+                    if e["id"] == "c1":
+                        e["type"] = etype
+                        e.pop("startArrowhead", None)
+                        e.pop("endArrowhead", None)
+                self.store.commit(author="user", new_scenes={aid: retyped})
             rec, _ = self.store.apply_batch({
                 "base_revn": self.store.head_revn(),
                 "artifact": "orph-%s" % etype,
