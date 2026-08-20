@@ -3288,7 +3288,145 @@ def _honour_ungroup(els, el, ungrouped_by_user):
     _close_widget_group([el, *parts])
 
 
-def _interpret_user_composites(new_els, old_els):
+def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
+                             old_ix: dict[str, dict[str, Any]]) -> None:
+    """Point a duplicated part's `*_of` backlink at its OWN host.
+
+    THE ONE CROSS-ELEMENT REFERENCE EXCALIDRAW CANNOT KNOW TO FIX.
+    `duplicateElements` remaps `id`, `groupIds`, `containerId`,
+    `boundElements`, `startBinding`, `endBinding` and `frameId` through
+    one per-operation map, and `customData` rides through
+    `_deepCopyElement` verbatim (0.18.1
+    `chunk-4FTI6OG3.js:15396`; `restoreElement` copies it the same way
+    at 15084). Our composed backlinks live in `customData`, so every
+    part of a duplicated widget lands on the canvas still claiming the
+    ORIGINAL as its host — and `reconcile_composed` finds its targets by
+    exactly those backlinks.
+
+    What that cost, measured over all eight composed kinds before this
+    existed: a duplicate damaged 8 of 8. The original silently absorbed
+    the copy's parts (an entity with two attributes came back with four,
+    the same two twice), the copy came back empty, and for `entity` and
+    `body` — the two arms that delete-and-remint by backlink — the
+    save DELETED elements the user had just posted. The narration then
+    billed them for it: duplicating one `Trade` emitted two
+    `attribute_added` facts against the ORIGINAL Trade, which reads back
+    to the user as "Trade gained attribute 'id: uuid'" for an edit they
+    never made. Nothing reported any of it — `lint_layout` returned `[]`
+    on both damaged scenes, and `composed_group_gaps` sees a part
+    outside its host's group but never a host with no parts.
+
+    THE INVARIANT RESTORED HERE IS `_close_widget_group`'S, NOT A NEW
+    ONE: every composed part shares its host's group. Mint time
+    establishes it; a browser duplicate is the one gesture that breaks
+    it while leaving both halves internally consistent, because the
+    group ids ARE remapped — so the group is the witness that says which
+    host a copied part now belongs to, and no scan of `customData` alone
+    could. Keyed on the part's FIRST group (`groupIds[0]`), which is
+    USUALLY the widget group but is not guaranteed to be, and the rule
+    does not rest on its being so — it rests on that group naming
+    exactly one host.
+
+    IT IS NOT ALWAYS THE WIDGET GROUP, and an earlier draft of this
+    docstring claimed otherwise. Excalidraw's half is right — its
+    `addToGroup` splices a later hand-made Ctrl+G in at the END — but
+    that reasoning misses OUR OWN writer: `_close_widget_group` appends
+    `gid` at the end too, so a widget that was ungrouped and then
+    re-grouped by the user comes back with the USER's group first
+    (measured: `w1-box` at `['mine', 'w1-grp']`). The witness inverts,
+    and the rule still holds, because `'mine'` names one host as
+    readily as `'w1-grp'` does. What would break it is a group holding
+    two hosts, and that degrades to the fallback below rather than to a
+    guess.
+
+    RE-POINTED, NOT DROPPED, and the difference is the user's ink.
+    Dropping the stale key is simpler and lets `reconcile_composed`
+    remint from the host — but the parts the user posted are still on
+    the canvas, so reminting draws a SECOND set beside them: a
+    duplicated body block came back with three cloned waves plus three
+    fresh ones. Re-pointing keeps exactly the elements the user made and
+    lets the reconciler re-derive their geometry, which is what "the
+    drawing is the truth" means when the drawing and the backlink
+    disagree.
+
+    DROPPING IS THE FALLBACK FOR AMBIGUITY, NOT ONLY FOR ABSENCE, and
+    it is a residual rather than a clean answer. `len(pick) == 1` fails
+    on TWO shapes: a group naming no host (an ungrouped widget, whose
+    parts carry no group at all), and a group naming two or more. Both
+    then strip the backlink, and the cost is visible on
+    `Ctrl+Shift+G` then `Ctrl+D` — the copy's parts are untagged, so
+    the arms that remint draw the doubled ink this very paragraph
+    argues against (a 5-wave body copy drew 10 wave lines; a checkbox
+    copy drew two check strokes), and the arms that only re-derive
+    leave the copy a DEAD WIDGET whose parts no longer drag with it.
+    Kept anyway, deliberately: the base behaviour is worse — it DELETES
+    those parts outright — and the alternative to dropping is guessing
+    a host from geometry, which would put a user's ink somewhere they
+    did not draw it. A save may not delete what a user just drew, and
+    it may not invent an owner for it either.
+
+    Only parts ABSENT FROM THE BASE are touched. An existing part whose
+    backlink looks odd is the blessed ungroup gesture, or a pin, and
+    rewriting it here would break the one liberty this design grants.
+
+    Args:
+        new_els: The incoming normalized user scene, mutated in place.
+        old_ix: id -> element for the base state, read to tell a part
+            the user just posted from one that was already standing.
+    """
+    fresh = [e for e in new_els
+             if isinstance(e, dict) and not e.get("isDeleted")
+             and e.get("id") not in old_ix
+             and _composed_part(e.get("customData") or {})]
+    if not fresh:
+        return
+    # Candidate hosts, indexed under EVERY group they belong to: a host
+    # carrying an agent-authored group as well as its widget group would
+    # otherwise not be found under the one its parts name.
+    hosts: dict[str, list[str]] = {}
+    for e in new_els:
+        if not isinstance(e, dict) or e.get("isDeleted"):
+            continue
+        if part_owner_id(e) is not None:
+            continue        # a part, or a bound label — never a host
+        for g in e.get("groupIds") or []:
+            hosts.setdefault(g, []).append(e["id"])
+    for e in fresh:
+        gids = e.get("groupIds") or []
+        owners = hosts.get(gids[0], []) if gids else []
+        # A COPY BELONGS TO THE COPY — a belt this file has not yet
+        # proved it needs. Ctrl+D reaches the SINGULAR
+        # `duplicateElement(appState.editingGroupId, ...)`, and
+        # `getNewGroupIdsForDuplication` regenerates every id strictly
+        # BELOW the editing group's index, so the widget group is always
+        # freshly minted and names exactly one host: measured over the
+        # duplicate-inside-an-editing-group gesture, this tie-break is
+        # never reached. Kept because it costs one line and the arm it
+        # guards — two hosts under one group — otherwise degrades to
+        # dropping a user's backlink, which is the expensive answer.
+        minted = [o for o in owners if o not in old_ix]
+        pick = minted or owners
+        # Ambiguity degrades to DROP, never to a guess. Both `len == 0`
+        # and `len >= 2` land here; see the docstring for what that
+        # costs and why it is still the right trade.
+        host = pick[0] if len(pick) == 1 else None
+        cd = dict(e["customData"])
+        changed = False
+        for k in COMPOSED_PART_KEYS:
+            v = cd.get(k)
+            if not v or v == host:
+                continue
+            if host is None:
+                del cd[k]
+            else:
+                cd[k] = host
+            changed = True
+        if changed:
+            e["customData"] = cd
+
+
+def _interpret_user_composites(new_els: list[dict[str, Any]],
+                               old_els: list[dict[str, Any]]) -> None:
     """Read a user's composite-part edits as STATE, then normalize.
 
     Delta-based, never state-based (a state-only rule would emit
@@ -3345,8 +3483,25 @@ def _interpret_user_composites(new_els, old_els):
     old_ix = {e["id"]: e for e in old_els}
     new_ix = {e["id"]: e for e in new_els
               if isinstance(e, dict) and not e.get("isDeleted")}
+    # BEFORE ANY RECONCILE READS A BACKLINK. A duplicated part still
+    # names the original as its host, and the loop below hands every
+    # host to a function that finds its targets by that name — so the
+    # original eats the copy's parts unless the backlinks are put right
+    # first. Never after: by then the ink is gone.
+    _rehost_duplicated_parts(new_els, old_ix)
 
-    def part_of(els_ix, tag, host_id):
+    def part_of(els_ix: dict[str, dict[str, Any]], tag: str,
+                host_id: str) -> dict[str, Any] | None:
+        """Find the part of `host_id` carrying backlink key `tag`.
+
+        Args:
+            els_ix: id -> element index to search.
+            tag: A `COMPOSED_PART_KEYS` member, e.g. `"chk_of"`.
+            host_id: The host whose part is wanted.
+
+        Returns:
+            The part element, or None when the host has no such part.
+        """
         return next((t for t in els_ix.values()
                      if (t.get("customData") or {}).get(tag) == host_id),
                     None)
@@ -3366,8 +3521,18 @@ def _interpret_user_composites(new_els, old_els):
         if el["id"] not in old_ix:
             # a NEW host (paste, template insert, pre-compose add): parts
             # absent in both scenes → recompose silently, no gesture
+            #
+            # ALL EIGHT COMPOSED KINDS, and the enumeration is the one
+            # the `add` path composes: image, entity, kpi, checkbox,
+            # toggle, input, slider, body. `body` was missing here from
+            # the day this gate was written while `reconcile_composed`
+            # carried a working `elif kind == "body":` arm the whole
+            # time, so a body block that arrived by any route but `add`
+            # — pasted, template-inserted — drew as an EMPTY rectangle
+            # with no waves in it, and nothing said so. Add a kind here
+            # when you add an arm there; the two lists are one list.
             if kind in ("checkbox", "toggle", "slider", "kpi", "input",
-                        "image", "entity"):
+                        "image", "entity", "body"):
                 reconcile_composed(new_els, None, None, el)
                 _honour_ungroup(new_els, el, False)
             continue
@@ -9185,7 +9350,26 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # other verb. Cheap on every other kind: the parts are
             # derived from a host whose geometry did not move, so they
             # come back where they were.
-            if ("width" in attrs or "height" in attrs or "label" in attrs):
+            #
+            # `kind` IS THE FOURTH DOOR, and the widest of them: it does
+            # not change an input to a derivation, it changes WHAT THE
+            # PARTS ARE. `mod {"kind": "body"}` wrote the terse
+            # customData key and stopped — a plain rectangle became a
+            # body block with no waves in it, and the agent's only way
+            # to get the waves was to send a `height` it did not want to
+            # change (`{"kind": "body"}` → 0 waves, `{"kind": "body",
+            # "height": 64}` → 4). The same silence as the gate in
+            # `_interpret_user_composites`, reached by the agent rather
+            # than the user, and independent of it.
+            #
+            # THREE KINDS COMPOSE THROUGH THIS DOOR, not just `body`:
+            # measured on a bare rectangle, `body` 0→4 parts, `kpi` and
+            # `input` 0→1. Those are exactly the arms of
+            # `reconcile_composed` that MINT unconditionally; the other
+            # five re-derive parts that must already exist, so they are
+            # correctly unmoved by a bare `kind` write.
+            if ("width" in attrs or "height" in attrs or "label" in attrs
+                    or "kind" in attrs):
                 reconcile_composed(els, index, existing, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
