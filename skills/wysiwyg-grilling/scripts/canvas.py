@@ -8357,7 +8357,15 @@ def _pin_kin(els, pid):
         if e.get("type") in ("arrow", "line") and pid in (
                 (e.get("startBinding") or {}).get("elementId"),
                 (e.get("endBinding") or {}).get("elementId")):
-            out[eid] = "is an arrow bound to"
+            # `connector`, NOT `arrow` (2026-08-20). The gate one line up
+            # is `("arrow", "line")` and this phrase was hardcoded to
+            # `arrow`, so pinning a node and touching a bound LINE in the
+            # same batch said "op 0 names c1, which is an arrow bound to
+            # the pinned n1" of an element whose type is `line` —
+            # measured through `apply_batch`. Same defect as the two
+            # housekeeping lines below and as `Store.reroute`'s noun, in
+            # the one sentence a user reads when their op did not apply.
+            out[eid] = "is a connector bound to"
         elif pg and set(e.get("groupIds") or []) & pg:
             out[eid] = "is grouped with"
         elif e.get("containerId") == pid:
@@ -9393,14 +9401,21 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                        "it is" if len(held_parts) == 1 else "they are",
                        "it" if len(held_parts) == 1 else "them",
                        "it" if len(held_parts) == 1 else "them"))
-            # THE PINNED ARROW WHOSE SHAPE WALKED AWAY. A pin on an arrow
-            # does not freeze the nodes it binds (`_pin_kin` states why),
-            # so an op may legitimately move a node out from under a path
-            # the router is no longer allowed to redraw. That is the one
-            # place honouring a pin can make the drawing WORSE, and the
-            # only acceptable version of it is the one that says so in
-            # the same breath: silence here would be the pin quietly
-            # producing the detached arrow the repairs exist to prevent.
+            # THE PINNED CONNECTOR WHOSE SHAPE WALKED AWAY. A pin on a
+            # connector does not freeze the nodes it binds (`_pin_kin`
+            # states why), so an op may legitimately move a node out from
+            # under a path the router is no longer allowed to redraw.
+            # That is the one place honouring a pin can make the drawing
+            # WORSE, and the only acceptable version of it is the one
+            # that says so in the same breath: silence here would be the
+            # pin quietly producing the detached connector the repairs
+            # exist to prevent.
+            #
+            # `connector(s)`, NOT `arrow(s)` (2026-08-20). Third of the
+            # three sentences in this file that counted the wide
+            # `("arrow", "line")` population under the narrow word;
+            # reproduced with a pinned LINE and a node move as "1 pinned
+            # arrow(s) (c1) bind a shape this batch moved".
             stranded = sorted(
                 e["id"] for e in els
                 if e.get("type") in ("arrow", "line") and pinned_to_canvas(e)
@@ -9408,10 +9423,10 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                         for k in ("startBinding", "endBinding")))
             if stranded:
                 housekeeping.append(
-                    "%d pinned arrow(s) (%s) bind a shape this batch moved. "
-                    "They have NOT been re-routed — they are pinned — so "
-                    "they may no longer meet it. Unpin to let the router "
-                    "redraw them, or move them by hand."
+                    "%d pinned connector(s) (%s) bind a shape this batch "
+                    "moved. They have NOT been re-routed — they are pinned "
+                    "— so they may no longer meet it. Unpin to let the "
+                    "router redraw them, or move them by hand."
                     % (len(stranded), ", ".join(stranded)))
     return els
 
@@ -22462,10 +22477,19 @@ class Store:
                     # a cycle: every state in it is one the next press
                     # undoes, so committing any of them just moves the
                     # problem. Say what is happening instead.
+                    # `connectors`: the oscillation is between the router
+                    # loop and the fan, and the FAN moves bound lines, so
+                    # the set whose paths keep being undone is the wide
+                    # one this method's own note already counts (found by
+                    # sweep, 2026-08-20). Reachability of a LINE-driven
+                    # cycle is unproven — see the report — but the word
+                    # is wrong either way and `mod points` is the remedy
+                    # for both types.
                     return noop(
-                        "tidy could not settle — re-routing these arrows "
-                        "keeps undoing the attach-point fan. Author the "
-                        "paths with `mod points`, or move the nodes apart")
+                        "tidy could not settle — re-routing these "
+                        "connectors keeps undoing the attach-point fan. "
+                        "Author the paths with `mod points`, or move the "
+                        "nodes apart")
                 seen.add(h)
                 els, snapped, connectors = nxt, snapped + s2, \
                     connectors | r2
@@ -24024,7 +24048,11 @@ class ServerApp:
                             "headline": declined["summary"]["headline"]}
                 entry = self.queue_pending(
                     {"artifact": aid, "reroute": True,
-                     "note": "re-route %s's legacy arrows" % aid}, False)
+                     # `connectors`: this note names the verb whose own
+                     # record says "server-routed connector(s)", and that
+                     # population holds bound lines (sweep, 2026-08-20).
+                     "note": "re-route %s's legacy connectors" % aid},
+                    False)
                 self.events.append("agent_pending", pending_id=entry["id"],
                                    pin_only=False, reroute=True,
                                    reason="dirty canvas" if self.dirty
@@ -27807,9 +27835,11 @@ def main(argv=None):
                                     "(status shows only the counts)")
     p.add_argument("--artifact", default=None,
                    help="limit to one artifact id")
+    # `connectors`, matching what the verb's own record prints — the
+    # reroute population holds bound lines (sweep, 2026-08-20).
     p = sub.add_parser("reroute", help="report (and with --apply, accept) a "
-                                       "re-route of arrows an older router "
-                                       "drew — dry run by default")
+                                       "re-route of connectors an older "
+                                       "router drew — dry run by default")
     p.add_argument("--artifact", default=None,
                    help="limit to one artifact id (required with --apply: "
                         "consent is given one drawing at a time)")

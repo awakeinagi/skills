@@ -23863,7 +23863,43 @@ class TestPinnedRefusesAgentOps(Base):
         self.assertTrue(any(e["id"] == "cart"
                             for e in self.store.scenes["checkout-flow"]))
 
-    def test_dependent_ops_sink_and_unrelated_ones_do_not(self):
+    def _sank(self, etype):
+        """Pin `cart`, then touch the connector bound to it and one that
+        is not.
+
+        THE TYPE IS THE ONLY THING THAT VARIES between the two callers,
+        which is the point: `_pin_kin` gates on `("arrow", "line")` and
+        the sentence it returns used to be hardcoded to "arrow", so a
+        pin_held line said "c1 ... is an arrow bound to" of a `line`
+        (2026-08-20). This test asserted that string and passed, because
+        it only ever built the arrow arm — a guard that can see one of
+        the two cases its subject covers.
+
+        THE RE-TYPE IS ASSERTED BEFORE THE BATCH RUNS, because a pin
+        narrating the wrong noun must not be read off a scene that never
+        held the type under test — a `line` arm that quietly stayed an
+        arrow would pass for the wrong reason.
+
+        Args:
+            etype: `"arrow"` or `"line"` for `t1`, applied through an
+                ordinary user save, which is the only door that mints a
+                bare `line`.
+
+        Returns:
+            `(record, elements_by_id)` after the held batch.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            if e["id"] == "t1":
+                e["type"] = etype
+        self.store.commit(author="user",
+                          new_scenes={"checkout-flow": els},
+                          base_revn=self.store.head_revn())
+        got = next(e for e in self.store.scenes["checkout-flow"]
+                   if e["id"] == "t1")["type"]
+        self.assertEqual(got, etype,
+                         "t1 is %r, so this arm is not measuring %r"
+                         % (got, etype))
         _pin(self.store, "checkout-flow", "cart")
         rec, _ = self.store.apply_batch(
             {"base_revn": self.store.head_revn(), "artifact": "checkout-flow",
@@ -23871,13 +23907,38 @@ class TestPinnedRefusesAgentOps(Base):
                       "attrs": {"strokeColor": "#ff0000"}},
                      {"op": "mod", "id": "t3",
                       "attrs": {"strokeColor": "#00ff00"}}]})
-        by_id = {e["id"]: e for e in self.store.scenes["checkout-flow"]}
+        return rec, {e["id"]: e for e in self.store.scenes["checkout-flow"]}
+
+    def test_dependent_ops_sink_and_unrelated_ones_do_not(self):
+        rec, by_id = self._sank("arrow")
         self.assertNotEqual(by_id["t1"]["strokeColor"], "#ff0000",
                             "an arrow bound to a pin was not held")
         self.assertEqual(by_id["t3"]["strokeColor"], "#00ff00",
                          "an unrelated arrow was held")
-        self.assertIn("is an arrow bound to",
+        self.assertIn("is a connector bound to",
                       "\n".join(rec.get("pin_held") or []))
+
+    def test_a_bound_line_sinks_under_the_same_sentence_an_arrow_does(self):
+        """The arm the noun defect lived in, and the invariant that kills it.
+
+        The two poles are asserted EQUAL rather than each matched
+        against a literal: the whole finding was that one type was
+        narrated in the other's word, so "both poles say the same thing"
+        is the claim, and it stays true through any future re-wording.
+        `arrow` must not appear at all — a repair that widened the word
+        to "arrow or connector" would still be naming a type this
+        element does not have.
+        """
+        rec, by_id = self._sank("line")
+        self.assertEqual(by_id["t1"]["type"], "line")
+        self.assertNotEqual(by_id["t1"]["strokeColor"], "#ff0000",
+                            "a LINE bound to a pin was not held, so this "
+                            "arm never reached the sentence under test")
+        said = "\n".join(rec.get("pin_held") or [])
+        self.assertIn("is a connector bound to", said)
+        self.assertNotIn("arrow", said,
+                         "the pin narration calls a `line` an arrow: %r"
+                         % said)
 
     def test_a_batch_with_nothing_left_is_refused_outright(self):
         _pin(self.store, "checkout-flow", "cart")
