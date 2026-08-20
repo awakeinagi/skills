@@ -23915,19 +23915,22 @@ class TestPinnedRefusesAgentOps(Base):
                             "an arrow bound to a pin was not held")
         self.assertEqual(by_id["t3"]["strokeColor"], "#00ff00",
                          "an unrelated arrow was held")
-        self.assertIn("is a connector bound to",
+        self.assertIn("is an arrow bound to",
                       "\n".join(rec.get("pin_held") or []))
 
     def test_a_bound_line_sinks_under_the_same_sentence_an_arrow_does(self):
-        """The arm the noun defect lived in, and the invariant that kills it.
+        """The arm the noun defect lived in, and what the repair may not cost.
 
-        The two poles are asserted EQUAL rather than each matched
-        against a literal: the whole finding was that one type was
-        narrated in the other's word, so "both poles say the same thing"
-        is the claim, and it stays true through any future re-wording.
-        `arrow` must not appear at all — a repair that widened the word
-        to "arrow or connector" would still be naming a type this
-        element does not have.
+        THE CLAIM IS THAT THE NOUN IS NOT FALSIFIED, not that any
+        particular word appears: `arrow` must not survive over a `line`,
+        and a repair that split the sentence by type or dropped the noun
+        would satisfy this as readily as `connector_noun` does.
+
+        AND THE ARROW POLE ABOVE IS HALF OF IT. That one still asserts
+        "an arrow", because on an arrow "arrow" is the true word — a
+        flat "connector" everywhere would clear this arm by going vague
+        on the other, which is the trade `apply_ops`' housekeeping
+        freshness guard exists to refuse.
         """
         rec, by_id = self._sank("line")
         self.assertEqual(by_id["t1"]["type"], "line")
@@ -23935,7 +23938,7 @@ class TestPinnedRefusesAgentOps(Base):
                             "a LINE bound to a pin was not held, so this "
                             "arm never reached the sentence under test")
         said = "\n".join(rec.get("pin_held") or [])
-        self.assertIn("is a connector bound to", said)
+        self.assertIn("bound to", said)
         self.assertNotIn("arrow", said,
                          "the pin narration calls a `line` an arrow: %r"
                          % said)

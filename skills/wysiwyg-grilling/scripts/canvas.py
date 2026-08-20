@@ -8357,15 +8357,23 @@ def _pin_kin(els, pid):
         if e.get("type") in ("arrow", "line") and pid in (
                 (e.get("startBinding") or {}).get("elementId"),
                 (e.get("endBinding") or {}).get("elementId")):
-            # `connector`, NOT `arrow` (2026-08-20). The gate one line up
-            # is `("arrow", "line")` and this phrase was hardcoded to
-            # `arrow`, so pinning a node and touching a bound LINE in the
-            # same batch said "op 0 names c1, which is an arrow bound to
-            # the pinned n1" of an element whose type is `line` —
-            # measured through `apply_batch`. Same defect as the two
-            # housekeeping lines below and as `Store.reroute`'s noun, in
-            # the one sentence a user reads when their op did not apply.
-            out[eid] = "is a connector bound to"
+            # `connector_noun`, NOT a hardcoded `arrow` (2026-08-20). The
+            # gate one line up is `("arrow", "line")` and this phrase
+            # said `arrow`, so pinning a node and touching a bound LINE
+            # in the same batch said "op 0 names c1, which is an arrow
+            # bound to the pinned n1" of an element whose type is `line`
+            # — measured through `apply_batch`.
+            #
+            # AND NOT A FLAT "connector" EITHER, which was this repair's
+            # first draft. This sentence names ONE element the user can
+            # see, so the honest word is that element's own: a blanket
+            # `connector` would stop lying about lines and start being
+            # vague about arrows — a second imprecise sentence bought
+            # with the repair of the first. `connector_noun` is where
+            # this repo already made that choice.
+            out[eid] = "is %s %s bound to" % (
+                "an" if connector_noun(e)[0] in "aeiou" else "a",
+                connector_noun(e))
         elif pg and set(e.get("groupIds") or []) & pg:
             out[eid] = "is grouped with"
         elif e.get("containerId") == pid:
@@ -9377,19 +9385,33 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # sentence bought with the repair of the first". The count
             # was right, the noun was the defect, and the two sibling
             # doors had both been re-nouned a day earlier.
+            #
+            # `connector_noun` OVER THE ELEMENTS THEMSELVES, not a flat
+            # "connector(s)", which was this repair's first draft and
+            # what `test_the_arrow_pole_says_a_true_sentence` caught. The
+            # sentence NAMES its elements, so the reader can check the
+            # word against them: on an all-arrow drift it says "arrow(s)"
+            # as it always did, on all lines "line(s)", and only a MIXED
+            # drift falls back to the neutral word. A blanket "connector"
+            # would have bought the line pole's honesty with vagueness on
+            # the arrow pole — the same trade this file argues against
+            # one door over, running the other way.
             drifted = sorted(
-                e["id"] for e in els
-                if e.get("type") in ("arrow", "line")
-                and e["id"] in pre_geom and e["id"] not in named
-                and pre_geom[e["id"]] != (e.get("x"), e.get("y"),
-                                          json.dumps(e.get("points") or [])))
+                (e for e in els
+                 if e.get("type") in ("arrow", "line")
+                 and e["id"] in pre_geom and e["id"] not in named
+                 and pre_geom[e["id"]] != (e.get("x"), e.get("y"),
+                                           json.dumps(e.get("points") or []))),
+                key=lambda e: e["id"])
             if drifted:
+                ids = [e["id"] for e in drifted]
                 housekeeping.append(
-                    "housekeeping: re-routed %d connector(s) no op named (%s) "
+                    "housekeeping: re-routed %d %s(s) no op named (%s) "
                     "so they still meet the shapes they bind — none of them "
                     "is pinned"
-                    % (len(drifted), ", ".join(drifted[:6])
-                       + (", …" if len(drifted) > 6 else "")))
+                    % (len(drifted), connector_noun(*drifted),
+                       ", ".join(ids[:6])
+                       + (", …" if len(ids) > 6 else "")))
             if skipped:
                 housekeeping.append("housekeeping: " + pinned_clause(skipped))
             if held_parts:
@@ -9411,23 +9433,27 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # pin quietly producing the detached connector the repairs
             # exist to prevent.
             #
-            # `connector(s)`, NOT `arrow(s)` (2026-08-20). Third of the
+            # `connector_noun`, NOT `arrow(s)` (2026-08-20). Third of the
             # three sentences in this file that counted the wide
             # `("arrow", "line")` population under the narrow word;
             # reproduced with a pinned LINE and a node move as "1 pinned
-            # arrow(s) (c1) bind a shape this batch moved".
+            # arrow(s) (c1) bind a shape this batch moved". It names its
+            # elements, so it takes their own word for the same reason
+            # the drifted line above does.
             stranded = sorted(
-                e["id"] for e in els
-                if e.get("type") in ("arrow", "line") and pinned_to_canvas(e)
-                and any((e.get(k) or {}).get("elementId") in moved
-                        for k in ("startBinding", "endBinding")))
+                (e for e in els
+                 if e.get("type") in ("arrow", "line") and pinned_to_canvas(e)
+                 and any((e.get(k) or {}).get("elementId") in moved
+                         for k in ("startBinding", "endBinding"))),
+                key=lambda e: e["id"])
             if stranded:
                 housekeeping.append(
-                    "%d pinned connector(s) (%s) bind a shape this batch "
+                    "%d pinned %s(s) (%s) bind a shape this batch "
                     "moved. They have NOT been re-routed — they are pinned "
                     "— so they may no longer meet it. Unpin to let the "
                     "router redraw them, or move them by hand."
-                    % (len(stranded), ", ".join(stranded)))
+                    % (len(stranded), connector_noun(*stranded),
+                       ", ".join(e["id"] for e in stranded)))
     return els
 
 
