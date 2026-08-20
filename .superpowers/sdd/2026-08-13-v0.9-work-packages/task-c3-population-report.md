@@ -339,3 +339,101 @@ does not have.
 
 **Both poles proved to fail under ablation** before being kept: flipping the
 phrase back to `"is an arrow bound to"` reds both; restoring greens both.
+
+---
+
+# Rebase onto `271e519` — the flips, and the arrow-pole question
+
+**Head `85c9b8e`.** Suite **1784 passed / 46 skipped / 2 xfailed / 810 subtests**;
+`uvx pre-commit run --all-files` all 17 hooks green. Base was 1780 / 46 / 5 —
+three reds flipped, plus the one line pole I added.
+
+## Bookkeeping — done
+
+Rebased onto `271e519` (two live-value conflicts, both resolved to the base's
+value and re-derived by `livedoc.py refresh` afterwards). Dropped the three
+`@unittest.expectedFailure` markers **in the same commit as the fix**.
+
+`HAND_AUTHORED_RED_CLASSES` **re-derived by its own guard, not edited from a
+count** — I dropped the markers first, ran the guard, and took the dict it
+printed:
+
+```
+measured {'TestOneComposedPartPredicateHasThreeSites': 2}
+```
+
+All three classes carried exactly one red, so each **leaves the dict entirely**
+— 4 entries to 1, three *lines* and not three *numbers*, which is precisely the
+shape that guard's own message warns about. A count-based edit would have
+written zeros.
+
+One repair closed all three: C-1 and I-1 are the loud and quiet halves of the
+same `server_routed_connectors` predicate, so widening it covered both doors;
+the third was the noun.
+
+## The fourth failure — the guard was right, and my fix was half-right
+
+**Answer: when every connector is an arrow, the sentence should say
+"arrow(s)".** The guard's expectation was **not stale**, and I did not touch it.
+
+**Establishing which the fixture builds, since the ids read as lines.**
+`_fan_store` names its connectors `l1`/`l2` on **both** poles — the ids are the
+shared builder's, not a type claim. Measured:
+
+```
+arrow pole: l1.type=arrow  l2.type=arrow   connector_noun(l1,l2)='arrow'
+line  pole: l1.type=line   l2.type=line    connector_noun(l1,l2)='line'
+```
+
+So the arrow pole's population really is 100% arrows. My previous commit
+printed `connector(s)` unconditionally, and the guard fired exactly as
+designed. It was right to: **a blanket noun buys the line pole's honesty with
+vagueness on the arrow pole** — a second imprecise sentence for the repair of a
+false one, which is the trade this file argues against one door over, running
+the other way. `connector` is not *false* of an arrow, but it is less than the
+sentence knows, and the sentence names its elements so a reader can check the
+word against them.
+
+**The repair is `connector_noun`** — this repo's existing one-site answer to
+exactly this question, whose docstring already records the same defect on the
+lint surface. All three branches measured through `apply_batch`:
+
+| population | sentence |
+|---|---|
+| all arrows | `re-routed 2 **arrow(s)** no op named (l1, l2)` |
+| all lines | `re-routed 2 **line(s)** no op named (l1, l2)` |
+| mixed | `re-routed 2 **connector(s)** no op named (c1, c2)` |
+
+Applied at the three sites that **name their elements**: `_pin_kin`'s relation
+phrase, housekeeping `drifted`, housekeeping `stranded`.
+
+**Both the guard and the red now pass, neither relaxed.** The guard asserts
+`"re-routed 2 arrow(s)"` on the arrow pole — true again. The red asserts
+`assertNotIn("arrow(s)")` on the line pole — the sentence says `line(s)`.
+
+## What deliberately keeps a fixed noun
+
+Not everything should be dynamic, and the distinction is the one
+`connector_noun`'s docstring draws against `noun_of`:
+
+* **`re-routed N of M server-routed connector(s)`** (both N-of-M doors) — names
+  a **population**, a category, not the types of specific elements.
+  `_FAN_NOTE_RE` pins that wording deliberately and its comment says why.
+  Unchanged.
+* **`Store.tidy`'s could-not-settle noop, the queued-pending note, the CLI
+  subcommand help** — no population is in hand at any of them; they describe a
+  mechanism or a capability. They keep the neutral "connectors".
+
+I also updated my own line-pole test to match the rule rather than pin a
+literal: it now asserts the noun is not *falsified* (`assertNotIn("arrow")`)
+instead of demanding the word `connector`, and the arrow pole asserts
+`"is an arrow bound to"` — back to the string it always had, because on an
+arrow that string is true.
+
+## Untouched, as instructed
+
+* The curator's C-1 red asserts coherence only and stays silent about coverage;
+  its docstring documenting the trap for whoever narrows the numerator later is
+  unchanged.
+* No check loosened, no control scene moved.
+* The live-disarmament finding above still stands and is still not mine to fix.
