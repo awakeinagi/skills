@@ -23621,7 +23621,12 @@ GEOMETRY_WRITERS: dict[str, tuple[int, str]] = {
                          "the CLI standing in for a drag, and a pin protects "
                          "position against the TOOL, never against the "
                          "person who set it"),
-    "make_element": (5, "EXEMPT — mints NEW elements; nothing can have "
+    # 5 -> 4 on 2026-08-20: the entity seeder's `out[1]["y"] = ...`
+    # left this function when the attribute-row layout was folded
+    # into `_compose_attribute_rows`, which re-aligns the label
+    # through `recenter_label` (already classified) instead of
+    # writing the coordinate itself. A site left; none arrived.
+    "make_element": (4, "EXEMPT — mints NEW elements; nothing can have "
                         "pinned an id that did not exist a line ago"),
     "normalize_element": (1, "EXEMPT — rounds `points` to storable precision "
                              "on every read and write. It changes no "

@@ -24277,12 +24277,18 @@ class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
         scene = _entity_rows_scene(seeded=True)
         label = next(e for e in scene if e["id"] == "E1-label")
         top, bottom = _row_band(scene, "E1-label")
+        # both numbers DERIVED from the rule rather than written
+        # down, which is what let this pin survive `text_dims`
+        # dropping its floor (F3, 2026-08-20): the name went 21px ->
+        # 22px and the header band 32 -> 36 with it, and the only
+        # thing that needed saying was that they still move together
+        band = canvas.text_dims(label["text"], label["fontSize"],
+                                label["lineHeight"])[1]
+        header = max(32, -(-(11 + band) // 4) * 4)
         self.assertEqual(
             (label.get("verticalAlign"), top, bottom,
              _row_band(scene, "E1-attr-1")),
-            ("top", 106, 106 + canvas.text_dims(
-                label["text"], label["fontSize"],
-                label["lineHeight"])[1], (132, 148)),
+            ("top", 106, 106 + band, (100 + header, 100 + header + 16)),
             "the `add` path's own geometry has moved, so the poles below "
             "no longer differ by the label re-alignment alone")
 
@@ -24450,9 +24456,11 @@ class TestEachFamilyIsMeasuredAtItsOwnSpacing(unittest.TestCase):
     One of those ten is `_labelled_shape`, the catalogue's diamond
     scene, and that is why `diamond_label_overflows_shape`'s magnitude
     moved 11 -> 15 for a day under a font-blind `text_dims` and moved
-    back. It must keep `fontFamily=1`: it is the only catalogue scene
-    standing on this divergence, and tidying it to 6 would delete the
-    evidence.
+    back. (It reads 12 since the estimator became the vendored face's
+    own metrics — the label's ink is 172 rather than 171 — which is
+    curator batch 36's correction and a different axis entirely.) It
+    must keep `fontFamily=1`: it is the only catalogue scene standing on
+    this divergence, and tidying it to 6 would delete the evidence.
     """
 
     def test_the_diamond_label_is_read_at_virgils_spacing(self) -> None:
@@ -24476,24 +24484,29 @@ class TestEachFamilyIsMeasuredAtItsOwnSpacing(unittest.TestCase):
                                                cy + band / 2.0)),
             (20, 50.0, 160.0),
             "the font-aware reading of this scene has moved; the "
-            "catalogue's 11px magnitude is derived from it")
+            "catalogue's 12px magnitude is derived from it")
 
     def test_reading_it_at_our_own_fonts_spacing_moves_the_finding(self
                                                                    ) -> None:
         """And what the server computed while it was font-blind: 15px.
 
         The same label, the same box, ONE field's interpretation apart.
-        At Nunito's 1.35 the band is 21 rather than 20, so `cy` lands
-        half a pixel lower and the rhombus is read at a narrower chord —
-        156 instead of 160 — and the overhang comes out 15 instead of
-        11. Neither number is wrong arithmetic; they are answers to two
-        different questions, and only one of them is the picture.
+        At Nunito's 1.35 the band is 22 rather than 20, so `cy` lands a
+        pixel lower and the rhombus is read at a much narrower chord —
+        152 instead of 160 — and the overhang comes out 19 where a
+        reader sees 11. Neither number is wrong arithmetic; they are
+        answers to two different questions, and only one of them is the
+        picture.
 
-        The neighbour is the part worth keeping in view: at 220px wide
-        the check must stay QUIET, and the font-blind reading left that
-        silence 0.6px of margin where the font-aware one leaves 5. A
-        second blind pixel would have taken the catalogue's own control
-        with it.
+        THE NEIGHBOUR IS THE PART WORTH KEEPING IN VIEW, and it got
+        worse rather than better while this was unfolded. At 220px wide
+        the check must stay QUIET. The font-blind reading left that
+        silence 0.6px of margin when this pin was written; on the merged
+        tree — where the estimator measures the vendored face and the
+        line box is no longer floored — the blind chord is 167.2 against
+        a 171px label, so the blind route does not merely crowd the
+        catalogue's control, it FIRES on it. A control that reports is
+        not a control, and the pair would have been proving nothing.
         """
         scene = _labelled_shape("diamond")
         node, lbl = scene
@@ -24503,18 +24516,18 @@ class TestEachFamilyIsMeasuredAtItsOwnSpacing(unittest.TestCase):
         chord = canvas.shape_band_width(node, cy - blind / 2.0,
                                         cy + blind / 2.0)
         self.assertEqual(
-            (blind, cy, chord, lbl["width"] - chord), (21, 50.5, 156.0, 15.0),
+            (blind, cy, chord, lbl["width"] - chord), (22, 51.0, 152, 19),
             "the font-blind reading of this scene has moved, so the gap "
-            "this pin holds — 15 computed against 11 seen — no longer "
-            "measures what a blind `text_dims` costs")
+            "this pin holds — 19 computed against the 11 a reader sees — "
+            "no longer measures what a blind `text_dims` costs")
         wide = _labelled_shape("diamond", width=220)
         margin = canvas.shape_band_width(
             wide[0], cy - blind / 2.0, cy + blind / 2.0) - wide[1]["width"]
         self.assertLess(
-            margin, 1.0,
-            "the font-blind reading no longer crowds the neighbour's "
-            "silence, so this pin has stopped recording why one more "
-            "blind pixel would have cost the control")
+            margin, 0.0,
+            "the font-blind reading no longer costs the catalogue its "
+            "control, so this pin has stopped recording what the blindness "
+            "was worth")
 
     def test_the_field_is_stamped_by_us_and_by_the_load_path(self) -> None:
         """Every text carries the field: ours by minting, theirs on load.
@@ -24657,7 +24670,9 @@ class TestTheLoadPathStampsWhatTheClientWouldResolve(unittest.TestCase):
         """The sharp edge: a face neither we nor the client knows.
 
         DERIVED, not chosen. The bundle's `getLineHeight` ends
-        `|| wm[dn.Excalifont].metrics`, and its font registry is keyed by
+        `|| <table>[<enum>.Excalifont].metrics` — matched by
+        SHAPE, since the minifier renames both on every build —
+        and its font registry is keyed by
         the same `dn` enum the metrics table is — so a family number
         outside that enum is unregistered for the client too, and
         Excalifont's row is what it will use. That is what we stamp.
@@ -24673,8 +24688,8 @@ class TestTheLoadPathStampsWhatTheClientWouldResolve(unittest.TestCase):
                          (web / "index.html").read_text(encoding="utf-8"))[0]
         bundle = (web / "assets" / src).read_text(encoding="utf-8",
                                                   errors="replace")
-        self.assertIn(
-            "||wm[dn.Excalifont].metrics", bundle,
+        self.assertRegex(
+            bundle, r"\|\|[A-Za-z_$][\w$]*\[[A-Za-z_$][\w$]*\.Excalifont\]\.metrics",
             "the client's line-height fallback for an unregistered "
             "family has moved; re-derive it from %s before trusting the "
             "stamp below" % src)
@@ -24807,7 +24822,9 @@ class TestTheLoadPathStampsWhatTheClientWouldResolve(unittest.TestCase):
         bundle = (web / "assets" / src).read_text(encoding="utf-8",
                                                   errors="replace")
         restore = re.search(
-            r'lineHeight\|\|\(\w+\.height\?(\w+\$?)\(\w+\):Hc\(\w+\.fontFamily\)\)',
+            r'lineHeight\|\|\(\w+\.height\?'
+            r'([A-Za-z_$][\w$]*)\(\w+\):'
+            r'[A-Za-z_$][\w$]*\(\w+\.fontFamily\)\)',
             bundle)
         self.assertIsNotNone(
             restore, "the client's restore path no longer resolves "
@@ -25204,10 +25221,22 @@ _CLIENT_FONT_METRICS = re.compile(
 # the font's name (`[dn.Nunito]`, or `[dn["Lilita One"]]` where the name
 # has a space) and `dn` itself maps those names to the `fontFamily`
 # integers our elements carry.
+# BY SHAPE, NEVER BY MINIFIED NAME. Every identifier in these
+# patterns is reassigned on each bundle build: the font enum was
+# `dn` and is now `un`, its metrics map `wm` -> `Vm`,
+# `getLineHeight` `Hc` -> `bd`, `detectLineHeight` `x$` -> `_$`,
+# all four moving in the 2026-08-20 font-readiness rebuild alone. A
+# pin that spells one of them fails on the next `npm run build` and
+# teaches its owner to re-baseline rather than to read. The enum is
+# found by its own CONTENT — a map carrying Virgil and Nunito — and
+# the rows by their shape, with the table identifier captured
+# rather than assumed.
 _CLIENT_METRICS_ROW = re.compile(
-    r'\[dn(?:\.|\[")([\w ]+?)(?:"\])?\]:\{metrics:\{unitsPerEm:([\de.]+),'
-    r'ascender:(-?\d+),descender:(-?\d+),lineHeight:([\d.]+)\}')
-_CLIENT_FAMILY_ENUM = re.compile(r'dn=\{([^}]*Excalifont:5[^}]*)\}')
+    r'\[[A-Za-z_$][\w$]*(?:\.|\[")([\w ]+?)(?:"\])?\]:\{metrics:\{'
+    r'unitsPerEm:([\de.]+),ascender:(-?\d+),descender:(-?\d+),'
+    r'lineHeight:([\d.]+)\}')
+_CLIENT_FAMILY_ENUM = re.compile(
+    r'[A-Za-z_$][\w$]*=\{(Virgil:\d+,[^{}]*Nunito:\d+[^{}]*)\}')
 
 
 def _drawn_block(scene: list[dict]) -> int:
@@ -27092,7 +27121,13 @@ class TestABoundArrowLabelCannotBeDraggedOffItsArrow(unittest.TestCase):
 
         MEASURED 2026-08-18: `t1-label` goes from (182, 130) to
         (242, 90) — 60px right and 40px up, clear of the arrow it
-        belongs to — the position survives a reload from disk, and the
+        belongs to. RE-MEASURED 2026-08-20 at (242, 89): the label mints
+        2px taller now that `text_dims` reserves Nunito's own 1.35 and
+        stopped flooring the line box, so a centred bound label sits one
+        pixel higher. The DEFECT is untouched by that — what this pin
+        holds is the conjunction below — but the coordinate is asserted,
+        so it is re-derived rather than loosened. The position survives a
+        reload from disk, and the
         summary is `{"saved_no_changes": 1}` under "saved without
         changing anything". Both halves in one assertion, because the
         finding is their conjunction: either alone is ordinary.
@@ -27110,7 +27145,7 @@ class TestABoundArrowLabelCannotBeDraggedOffItsArrow(unittest.TestCase):
                       if e["id"] == "t1-label")
         self.assertEqual(
             ((landed["x"], landed["y"]), record["summary"]),
-            ((242, 90),
+            ((242, 89),
              {"verb_counts": {"saved_no_changes": 1},
               "headline": "saved without changing anything",
               "suppressed": 0}),

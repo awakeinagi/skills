@@ -2538,15 +2538,20 @@ def _compose_attribute_rows(el, els, rows, existing_ids):
     label = next((t for t in els if t.get("type") == "text"
                   and t.get("containerId") == eid), None)
     # THE HEADER BAND IS AS DEEP AS THE NAME IN IT. 32px was written in
-    # and is the depth a ONE-LINE name needs — 6px inset, a 21px line,
-    # 5px of air — so an entity whose term wraps to two lines had a 43px
-    # name in a 32px band and was drawn straight across its own first
-    # attribute, on BOTH verbs, with the fold in place and the lint
-    # silent ("Settlement Instruction Record" in a 160px box, v0.9
-    # whole-branch review of the fold itself). Deriving the band from
-    # the label keeps the one-line geometry EXACTLY as it was — 6 + 21 +
-    # 5 is 32 — and gives a longer term the room it needs instead of the
-    # room the shortest term needed.
+    # and was the depth a one-line name needed when a 16px line box
+    # measured 21px — 6px inset, the line, 5px of air — so an entity
+    # whose term wraps to two lines had a 43px name in a 32px band and
+    # was drawn straight across its own first attribute, on BOTH verbs,
+    # with the fold in place and the lint silent ("Settlement Instruction
+    # Record" in a 160px box, v0.9 whole-branch review of the fold
+    # itself).
+    #
+    # DERIVED IS THE POINT, and the 2026-08-20 fold is what proved it:
+    # `text_dims` stopped flooring the line box (F3), so a 16px Nunito
+    # line is 22px and not 21, and this band answered 36 without anybody
+    # editing it. A written-in 32 would have gone on describing a name
+    # that no longer fits it — silently, since 4px of air still looks
+    # like a gap until the term is one character longer.
     # ...rounded UP to the 4px grid this file's own lint asks drawings to
     # sit on: 32 and 20 are both on it, so an unrounded band was the one
     # part of an entity that could take the whole element off the grid
@@ -11899,6 +11904,16 @@ def _reset_attribute_rows(els, index, existing, el, rows):
     for row in _compose_attribute_rows(el, els, rows, existing):
         els.append(row)
         index[row["id"]] = row
+    # ...and the SAME closing pass the `add` seeder ends with, because
+    # "every composed part shares its body's group" is one rule and this
+    # is its other door. Caught by `test_both_verbs_draw_the_same_entity`
+    # on the 2026-08-20 fold: `_close_widget_group` landed on the mint
+    # path only, so an entity reached by `add` had its name in `E1-grp`
+    # and the same entity reached by `mod attributes` had it in no group
+    # at all — the label draggable off its own rows on one path and not
+    # the other. One function, both verbs, exactly as the rows are.
+    _close_widget_group([el, *[e for e in els
+                               if part_owner_id(e) == eid]])
 
 
 def _set_label(els, index, existing, el, value):
