@@ -40,13 +40,15 @@ literals. AGENTS.md's suite-runtime figure is deliberately one of these.
 
 THE BOUNDARY WITH THE CENSUS — read this before adding a calculator that
 counts reds, mutants or catalogue rows, and read it as a line that MOVED
-rather than one that was always here. `SESSION-HANDOVER.md` has five
-guards over it (`handover_catalogue_reds`, `handover_coverage_totals`,
-`handover_durable_counts`, `handover_render_reds`, and the render-row
-derivation beside them, all in `tests/test_mutants.py`), each requiring
-its subject to appear EXACTLY ONCE. Until 2026-08-18 all five subjects
-were hand-typed literals and this section said so at length. Two of them
-are now live and three are not, and WHICH two is the whole rule:
+rather than one that was always here. `SESSION-HANDOVER.md` has one guard
+per census subject — every `handover_*` reader in `tests/test_mutants.py`,
+plus the render-row derivation beside them — each requiring its subject to
+appear EXACTLY ONCE. THE COUNT IS DELIBERATELY NOT WRITTEN HERE: this
+sentence said "five" from 2026-08-18 until the sixth guard landed on
+2026-08-20, which is the failure this whole file is about, arriving in the
+file that is about it. Until 2026-08-18 every subject was a hand-typed
+literal and this section said so at length. Exactly TWO are now live and
+the rest are not, and WHICH two is the whole rule:
 
   - a livedoc marker promises "you never have to think about this number";
   - a census guard promises "when this number moves, STOP AND LOOK",

@@ -150,23 +150,45 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog reds live in `TestLoadFindingsReachTheAgent` (4),
-`TestBatchPathIntegrity` (3), `TestBoundsLoopReadsTheLineHeight` (1),
-`TestCornerBiasReadsVerticesNotTurns` (1),
-`TestInkExtentIsRotationBlind` (1) and
-`TestLabelledGhostKeepsItsCaption` (1) — enumerated with reasons at the
-`CATALOGUE` pointer in tests/test_mutants.py. That is the SEVENTH and
-EIGHTH recorded staleness of this transcription, both found on 2026-08-16
-by v0.9 Task 52 while here to delete one entry: `TestReplayOrderFidelity`
-(2) had drained and left, and batch 25's three arrivals — the two that
-took `TestBatchPathIntegrity` to 3, plus `TestInkExtentIsRotationBlind`
-and `TestLabelledGhostKeepsItsCaption` — had never been transcribed at
-all. Read the dict, not this sentence. `TestSnapshotTierOne` was a
-fifth, and the only one outside `tests/test_mutants.py`; it left on
-2026-08-16 when the self-report task recovered the tier-1 ceiling. Note
-that it was never in `HAND_AUTHORED_RED_CLASSES`, which scans one file and
-could not have seen it — the one red in this repo that no derived guard
-covered was the one this sentence had to be edited by hand for.
+Non-catalog red classes: *none* — every class has drained.
+
+**That line is the SIXTH census guard's subject and is now CHECKED.**
+`TestCoverage.test_the_handover_transcribes_the_hand_authored_red_classes`
+parses it out of this file and compares it to the live decorators, so a
+class arriving or leaving fails the default suite in the commit that moved
+it. The grammar is fixed and small: `` `TestClassName` (N) `` entries
+separated by commas, or the literal `*none*` when there are none. Anything
+else on that line is a PARSE ERROR and not an empty read — at zero reds a
+correct transcription and a garbled one both enumerate nothing, so the
+guard cannot be allowed to accept "nothing found" as agreement. Deleting
+the line fails too. Everything after this paragraph is history; the roster
+itself lives on that one line and nowhere else.
+
+WHY IT TOOK NINE STALENESSES. This transcription kept its own casualty
+list and the list grew to eight while the sentence beside it said *"Read
+the dict, not this sentence"* — an instruction to distrust the words,
+issued by the words, with nothing behind it. The dict was guarded from
+batch 16 on; the paragraph describing the dict never was, so every drift
+had to be found by a human who happened to read both. The ninth is the one
+that made the point unarguable: `HAND_AUTHORED_RED_CLASSES` went to `{}` at
+TASK-INKBAND-SPACING on 2026-08-20 and the paragraph went on naming six
+classes and eleven reds over a tree that has none. **A pointer at a checked
+fact is not a check.** The eight before it, kept for the shape: five by
+2026-08-16, then the seventh and eighth together that day when Task 52
+arrived to delete one entry and found `TestReplayOrderFidelity` (2) had
+drained and left while batch 25's three arrivals had never been transcribed
+at all — a flip and an addition in the same window, which is the motion
+that leaves a total right and a roster wrong.
+
+`TestSnapshotTierOne` was the fifth and the only one outside
+`tests/test_mutants.py`; it left on 2026-08-16 when the self-report task
+recovered the tier-1 ceiling. It was never in `HAND_AUTHORED_RED_CLASSES`,
+which scans one module and could not have seen it. **That residual
+survives this fix**: the new guard derives from the same single-module
+scan, so a red in `tests/test_backend.py` or `tests/test_mutants_render.py`
+is invisible to it. Those two files have their own guards — the durable
+counts and the render row — and the gap is the union of what none of them
+name, stated here rather than discovered a tenth time.
 Export, Store and PaintOrder have all drained to zero and left that list,
 ShapeBlind joined them on 2026-08-15 (Task 56) and LabelAnchor on the
 curves fold-in.
@@ -329,22 +351,28 @@ flip or an addition that does not edit the row fails the default suite.
 That guard exists because this hand copy went stale a FIFTH time — batch
 22 added `CATALOGUE_RED_IDS` and its comment claimed to force this table
 through the same edit, which it never did, and the row sat two ids short
-underneath it. The render row below is still an unchecked hand copy
-(its entries are method names outside `CATALOGUE`, with nothing to derive
-them from), so the warning still applies to that one:
+underneath it. The render row joined it as CHECKED at curator batch 26
+(2026-08-16): `render_red_method_names` derives that file's decorated
+method NAMES and
+`TestCoverage.test_the_handover_transcribes_the_render_rows_reds` compares
+the row to them. The `other` row is the one hand copy left in this table
+— `durable_red_counts` derives its NUMBER and nothing derives its names —
+so the warning applies to that one and only that one:
 
 | tier | red mutants |
 |---|---|
 | model (default suite) | *none* — emptied 2026-08-25 by the lint the one entry was waiting for. composed_host_stripped_is_invisible (spelled without backticks now that it is green, for the reason at the end of this row) was filed by curator batch 45 on 2026-08-20 from the duplicate-backlink data loss, and it was red for a reason no entry in this row has had before: its CHECK did not exist. The composed-group-gaps lint walks composed PARTS, so a host with no parts yielded nothing to walk — the blindness was structural, not a short-circuit, which is why the repair is a SECOND walk with the host as its subject rather than a widening of that one. composed_part_floor derives what a kind's own stored geometry owes and composed_host_gaps compares it against what the scene draws; lint_layout files the difference as an ERROR, tier chosen by the doctrine at the top of that function — a slider with no track and no thumb is a drawing that does not say what the agent meant, not a legibility defect. The carve-out the neighbour holds down falls out of the design rather than being bolted on: an entity's rows ARE the storage for its attribute list, so entity has no floor and is silent by construction. Review found the input floor resting on a false premise — make_element read the spec's top-level value while the lint read the stored customData.value, so add with a customData value stored the datum, drew no row, and raised an ERROR whose remedy reproduced it. Fixed by making the two read the same thing and by adding customData as a fifth door on the post-mod reconcile gate, not by rewording the message: naming the escape documents the trap and leaves it, and the op layer still returns zero errors for a batch the ERROR tier then condemns. All 1054 backend tests pass on both changes. Zero findings on the frozen corpus, measured — 67 composed hosts, 27 of them entities and exempt, and all 40 with a floor draw what they owe, so the corpus census does not move. WHAT IT DOES NOT COVER, named here so nobody reads it as the whole class: part-shaped decoration owned by nobody, where a duplicated body or checkbox gets a full set of fresh parts and the orphaned untagged strokes beside them read 5 == 5 against the floor. That is a second instrument and it is unwritten. The half-pixel pair was filed by a curator on 2026-08-19 and drained by v0.9 WP4-AND-GUARDS one commit later. canvas.py computed the client's own bound-text cap and headroom with Python's round, which breaks halves to EVEN, where Math.round in the shipped bundle breaks them UP; they part only where the halved extent is a tie AND its floor is even, which is w = 4k+1 and nothing else. Flipped by floor(x + 0.5) at all five transcribed Math.round sites, not the two first reported. The chopped-token red before them was filed and drained the same day by the same task. Any id listed here is a live red owned by its own fix task. This row states what is red, never how many drains it has seen — the count is derived below and the narrative is not, so a claim about the row's *history* is one nothing checks. (Backtick an id here ONLY as a live red: the guard below harvests every backticked token in the row, so a backticked function name reads as a live red id) |
 | render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
-| other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and only the model row is guarded, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold) |
+| other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and it is the one row of this table whose NAMES nothing derives, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold; the claim that only the model row was guarded outlived batch 26 and was corrected on 2026-08-20) |
 
-The unchecked row proved the warning above it the same day it was
-written: v0.9 TASK-24-FOLLOW-UP flipped two of the render row's three in
-one commit and the guarded model row and the durable counts both failed
-in that commit while THIS row sat two entries stale until the next one.
-Nothing derives it, so nothing said so — which is the argument for
-deriving it, not for transcribing it more carefully.
+The render row proved the warning above it the same day it was
+written, back when it was the unchecked one: v0.9 TASK-24-FOLLOW-UP
+flipped two of its three in one commit and the guarded model row and the
+durable counts both failed in that commit while THAT row sat two entries
+stale until the next one. Nothing derived it, so nothing said so — which
+was the argument for deriving it rather than transcribing it more
+carefully, and batch 26 took that argument. It now applies unchanged to
+the `other` row.
 
 The bottom two rows are `@unittest.expectedFailure` method names rather
 than catalog ids because they sit outside `CATALOGUE`. The render row was

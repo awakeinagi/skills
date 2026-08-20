@@ -1,6 +1,6 @@
 """Prove the census guards fail when their subject drifts. Run by hand.
 
-WHY THIS FILE EXISTS. The five guards in `TestCoverage` that compare
+WHY THIS FILE EXISTS. The guards in `TestCoverage` that compare
 SESSION-HANDOVER.md against derived facts are the only thing standing
 between the census and a prose copy that has quietly stopped being true.
 A guard like that is exactly the shape doctrine §1 warns about: it is
@@ -269,6 +269,98 @@ PROBES: dict[str, dict[str, str]] = {
         "old": "**Event taxonomy** — all ",
         "new": "**Event taxonomy** — all three types (a stale copy).\n\n"
                "**Event taxonomy** — all ",
+    },
+    # THE SIXTH CENSUS GUARD, added 2026-08-20 with the guard itself: the
+    # handover's roster of non-catalogue red CLASSES. It drifted nine
+    # recorded times as unguarded prose, and the paragraph holding it
+    # published its own casualty list and the instruction "Read the dict,
+    # not this sentence" — a pointer at a checked fact, which is not a
+    # check. The four probes below take one hazard each, and the last two
+    # exist because THIS SUBJECT IS EMPTY TODAY.
+    #
+    # AN EMPTY SUBJECT IS THE HARD CASE and it is why there are four
+    # probes here where the other guards have one or two. At zero reds the
+    # honest transcription enumerates nothing, so a reader that simply
+    # collected `Test...` names would return `{}` for the correct line,
+    # for a deleted line and for a line replaced with a shopping list —
+    # green over all three, saying the same thing about a healthy
+    # paragraph and a destroyed one. `roster-deleted` and
+    # `roster-garbled` are the two probes that would catch that reader,
+    # and neither of them can be satisfied by the roster's own drift back
+    # to non-empty: whatever the classes are, a line that is GONE and a
+    # line that is UNPARSEABLE are still gone and unparseable.
+    #
+    # ANCHORED ON THE LABEL, per this file's rule — the DECLARATION
+    # `Non-catalog red classes:` rather than any class name or count in
+    # it, because the contents of a container that exists to change is
+    # the anchor that has died five times above.
+    "roster-phantom-class": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "the roster names a class the live decorators do not carry "
+               "— a flip nobody transcribed, the OVER-reporting pole the "
+               "flip contract cannot see",
+        "old": "Non-catalog red classes: *none*",
+        "new": "Non-catalog red classes: `TestNobodyFlippedThis` (2)",
+    },
+    "roster-deleted": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "THE SUBJECT IS ABSENT: the roster line is reworded away. A "
+               "check that passes when its subject is gone is not a check, "
+               "and at zero reds gone and correct both enumerate nothing",
+        "old": "Non-catalog red classes:",
+        "new": "Non-catalogue red-bearing classes are:",
+    },
+    "roster-garbled": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "NON-DISCRIMINATION: the line survives but says something "
+               "the grammar cannot read. A reader that parsed this to an "
+               "empty roster would agree with it and with the truth alike",
+        "old": "Non-catalog red classes: *none*",
+        "new": "Non-catalog red classes: see the dict",
+    },
+    # THE OTHER POLE, and it is perturbed in the CODE rather than in the
+    # prose because that is the only place it can happen: a red that
+    # ARRIVES and is never transcribed. The four probes above all break
+    # the sentence; this one leaves the sentence alone and breaks the
+    # world it describes, which is the motion that actually produced six
+    # of the nine recorded stalenesses. It also proves the guard reads
+    # LIVE DECORATORS and not `HAND_AUTHORED_RED_CLASSES` — injecting into
+    # the dict would leave this guard green, because the dict is the
+    # sibling's subject and prose-versus-constant would only have chained
+    # two hand copies together.
+    #
+    # Anchored on the column-zero declaration for the reason five comments
+    # above give, and the injected class is a whole definition prepended
+    # to it, so it works whatever the dict currently holds.
+    "roster-undisclosed-red": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "tests/test_mutants.py",
+        "why": "a red class ARRIVES in the code and the roster never "
+               "mentions it — the under-reporting pole, perturbed in the "
+               "code because the prose cannot express it",
+        "old": "\nHAND_AUTHORED_RED_CLASSES",
+        "new": "\nclass TestAnArrivalNobodyTranscribed(unittest.TestCase):\n"
+               '    """A red injected by a census probe. Never committed."""\n'
+               "\n"
+               "    @unittest.expectedFailure\n"
+               "    def test_red_the_roster_does_not_name(self) -> None:\n"
+               '        """Fails on purpose, so the class carries a red."""\n'
+               '        self.fail("census probe")\n'
+               "\n"
+               "\nHAND_AUTHORED_RED_CLASSES",
+    },
+    "roster-duplicate": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "THE SILENT DIRECTION: a correct copy above a stale "
+               "original. A first-match-wins reader agrees with the copy "
+               "while the human reads the original",
+        "old": "Non-catalog red classes:",
+        "new": "Non-catalog red classes: *none*\n"
+               "Non-catalog red classes:",
     },
 }
 
