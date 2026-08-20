@@ -1,9 +1,16 @@
 # Flow — first-class type reference
 
 *The question a flow answers:* **"Is THIS the order things happen in?"**
-Flow is the **hub type**: default-mapped to wireframes (screen↔step,
-button↔transition) and domain diagrams (entity↔steps acting on it). Create
-those element links eagerly as you draw the pairs.
+Flow is the **hub type**: link it eagerly to wireframes (screen↔step,
+button↔transition) and to domain diagrams (entity↔steps acting on it) as you
+draw. Eager linking is a habit you owe the drawing — it buys narration and
+tripwires on every pair. It does **not** buy strict cross-artifact linting on
+every pair: 3.2.4 and 3.3.7 join
+<!-- live:cross_lint_join -->wireframe × flow<!-- /live:cross_lint_join -->
+only — derived from `CROSS_LINT_JOIN` in `canvas.py`, not typed here. One
+cross-artifact check is not type-scoped at all: the unmapped-KPI note counts
+a wireframe KPI tile as mapped if it appears in **any** mapping, whatever
+that mapping joins it to.
 
 ## Primitives
 

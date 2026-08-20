@@ -548,6 +548,102 @@ def first_class_types() -> str:
                      for t in _types_in_tier("first-class"))
 
 
+@calculator("mermaid_dropped")
+def mermaid_dropped() -> str:
+    """The categories a `--format mermaid` export leaves behind.
+
+    THE THIRD COPY. This rule was written by hand in three places — the
+    filter, the runtime `NOTE=` line, and SKILL.md's export paragraph.
+    The `NOTE=` line had drifted; SKILL.md had not, which made it the
+    dangerous one: correct prose with nothing holding it there is one
+    edit from being wrong and reads identically either way. Both are
+    now derived from `canvas.MERMAID_DROP_LABELS` via the same function
+    the CLI prints with, so the sentence and the filter cannot disagree.
+
+    `mermaid` and not `er` because SKILL.md states the wider set and
+    then names the `er` exception separately — see `mermaid_er_carries`,
+    which covers that term. Publishing the whole `er` list here as well
+    would put most of the same words on the page twice.
+
+    Returns:
+        The comma-joined category list, as the CLI would print it.
+    """
+    canvas = _canvas()
+    return canvas._mermaid_dropped_names(canvas.mermaid_dropped_roles(
+        "mermaid"))
+
+
+@calculator("mermaid_er_carries")
+def mermaid_er_carries() -> str:
+    """What `--format er` carries that every other mermaid form drops.
+
+    THE TERM THAT ACTUALLY DRIFTED. `mermaid_dropped` publishes the
+    wider list, and the `er` exception was left in hand-written prose
+    beside it — so moving `decoration` out of
+    `MERMAID_DROP_ROLES_NON_ER` would make SKILL.md's `er` sentence
+    false while the published string stayed byte-identical and the hook
+    stayed green. That is not a hypothetical: `decoration`-under-`er` is
+    precisely what the original `NOTE=` line got wrong. Deriving the
+    wider list while typing the exception left the one term with a
+    proven failure history as the only unheld part of the paragraph.
+
+    Returns:
+        The comma-joined categories `er` carries and other forms drop.
+
+    Raises:
+        AssertionError: If nothing is `er`-exclusive. The prose says
+            `er` is "the one form that carries" something; with the
+            tuple empty that sentence has no subject, and refreshing it
+            to an empty string would leave a sentence that reads fine
+            and claims nothing.
+    """
+    canvas = _canvas()
+    exclusive = canvas.MERMAID_DROP_ROLES_NON_ER
+    if not exclusive:
+        raise AssertionError(
+            "canvas.MERMAID_DROP_ROLES_NON_ER is empty, so no form-specific "
+            "carry exists and SKILL.md's `--format er` exception describes "
+            "nothing — the sentence needs deleting, not refreshing")
+    # not `_mermaid_dropped_names`: that one appends the TYPE half, which
+    # `er` drops like every other form. Same label map, same dedupe.
+    return ", ".join(dict.fromkeys(
+        canvas.MERMAID_DROP_LABELS[t] for t in exclusive))
+
+
+@calculator("cross_lint_join")
+def cross_lint_join() -> str:
+    """The artifact-type pair `cross_lint`'s mapped-element checks join.
+
+    A live value precisely because the sentence it fills is the one that
+    rotted: SKILL.md said "default-mapped pairs" and named three, while
+    3.2.4 and 3.3.7 have only ever joined one — a set stated in prose
+    with nothing binding it, which is the shape two sweeps found 28 times
+    this week. `canvas.CROSS_LINT_JOIN` is load-bearing (the collector
+    reads it), so widening the join in a future version rewrites this
+    sentence or fails the hook, and neither can happen alone.
+
+    This deliberately does NOT cover the tripwire half, which is
+    type-blind and therefore has no pair to name.
+
+    Returns:
+        e.g. `wireframe × flow`.
+
+    Raises:
+        AssertionError: If the constant is not a 2-tuple of type names.
+            Anything else means the join stopped being one pair, and
+            publishing its first two entries would print a narrower
+            claim than the code makes.
+    """
+    join = _canvas().CROSS_LINT_JOIN
+    if not isinstance(join, tuple) or len(join) != 2 or \
+            not all(isinstance(t, str) and t for t in join):
+        raise AssertionError(
+            "canvas.CROSS_LINT_JOIN is %r, not a 2-tuple of type names — "
+            "the prose it fills says the strict checks join exactly one "
+            "pair, and that is no longer what the code says" % (join,))
+    return "%s × %s" % join
+
+
 @calculator("extended_types")
 def extended_types() -> str:
     """The types that draw fine and narrate generically, in priority order.
@@ -1319,6 +1415,146 @@ def unplaced_calculators(paths: Sequence[Path]) -> list[str]:
     return sorted(set(CALCULATORS) - used)
 
 
+def _is_distinctive(value: str) -> bool:
+    """Is this value specific enough that a second copy means a COPY?
+
+    `unmarked_values` needs to tell "someone pasted the derived phrase"
+    from "the digit 9 appears in prose", and the honest separator is how
+    likely a coincidence is. A multi-word value carrying letters
+    (`wireframe × flow`) cannot occur twice by chance; `9`, `1010` and
+    `~28.8k` occur all over a repo that talks about counts and sizes, so
+    scanning for them would cry wolf until somebody deleted the check.
+
+    Args:
+        value: A calculator's current derived value.
+
+    Returns:
+        True when the value should never appear outside a marker.
+    """
+    return " " in value.strip() and any(c.isalpha() for c in value)
+
+
+_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+
+
+def _fenced_spans(text: str) -> list[tuple[int, int]]:
+    """Character ranges covered by fenced code blocks, fences included.
+
+    A fenced block is SAMPLE OUTPUT, not prose making a claim, and the
+    two remedies `unmarked_values` offers are both unavailable inside
+    one: an HTML comment renders literally in a fence, so the marker
+    pair would corrupt the sample, and "reword" means falsifying a
+    transcript of what the CLI actually printed. Reporting there is a
+    finding whose advice cannot be taken — the defect this repo keeps
+    naming — so the scan skips fences entirely.
+
+    Inline code spans are deliberately NOT skipped: a marker pair sits
+    around `` `text` `` perfectly well, so the remedy is available and
+    a backticked copy is still an unheld copy.
+
+    Args:
+        text: One file's whole contents.
+
+    Returns:
+        `(start, end)` pairs, in order, one per fenced block. An
+        unclosed fence runs to end of file, which is how a renderer
+        treats it.
+    """
+    spans, opener, start, pos = [], None, 0, 0
+    for line in text.splitlines(keepends=True):
+        hit = _FENCE.match(line)
+        if opener is None:
+            if hit:
+                opener, start = hit.group(1), pos
+        elif hit and hit.group(1)[0] == opener[0] and \
+                len(hit.group(1)) >= len(opener):
+            spans.append((start, pos + len(line)))
+            opener = None
+        pos += len(line)
+    if opener is not None:
+        spans.append((start, len(text)))
+    return spans
+
+
+def unmarked_values(paths: Sequence[Path]) -> list[str]:
+    """Derived values sitting in prose as bare literals.
+
+    WHY THIS IS NOT THE SAME CHECK AS `unplaced_calculators`, and why
+    that one was not enough. `unplaced_calculators` compares a set of
+    NAMES, so ONE surviving marker satisfies it however many the prose
+    once had. When `cross_lint_join` went to five markers, deleting four
+    of them became invisible: the words stayed on the page, the hook
+    stayed green, and the sentence was back to being hand-typed. That is
+    a regression this file introduced by fixing a different defect, and
+    it lands the prose in exactly the state the export comment calls the
+    more dangerous one — correct, and held by nothing.
+
+    Counting markers per name cannot fix it without STORING the expected
+    count, which is a hand-typed number guarding against hand-typed
+    numbers. So the rule is the invariant the module actually wants: a
+    derived value must never appear in tracked prose as a literal. Delete
+    a marker and leave the words, and the words are now an unmarked copy.
+    Rewrite the sentence and delete both, and there is no false claim
+    left to catch — which is the correct outcome, not a miss.
+
+    WHAT IT CAN HOLD, said plainly because the paragraph above reads
+    like a whole-module invariant and it is not one. Only DISTINCTIVE
+    values are scanned (`_is_distinctive`): 7 of the 20 calculators
+    today. A one-word value like `1896` or `Twenty-three` is skipped,
+    so a duplicate marker for one of those could still be deleted
+    unseen. That hole needs markers > 1 AND a non-distinctive value,
+    and there are zero such cases — every calculator but
+    `cross_lint_join` has exactly one marker, and for a single-marker
+    calculator `unplaced_calculators` already catches deletion. Re-read
+    this if you ever give a numeric calculator a second marker.
+
+    Marker spans are excluded whatever their NAME, not just the
+    matching one: a shorter derived value sitting inside a longer
+    derived value's marker (`mermaid_er_carries` inside
+    `mermaid_dropped`) is held by that marker and refreshes with it.
+
+    Args:
+        paths: The files that constitute the whole scan surface.
+
+    Returns:
+        One message per bare occurrence, sorted, naming file and line.
+    """
+    values = {}
+    for name in CALCULATORS:
+        value = CALCULATORS[name]()
+        if _is_distinctive(value):
+            values[name] = value
+    problems = []
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        skip = [(m.start, m.end) for m in scan(text, str(path))]
+        skip += _fenced_spans(text)
+        hits = []
+        for name, value in values.items():
+            idx = text.find(value)
+            while idx >= 0:
+                if not any(a <= idx < b for a, b in skip):
+                    hits.append((idx, idx + len(value), name))
+                idx = text.find(value, idx + 1)
+        # ONE BARE PHRASE IS ONE FINDING. `mermaid_er_carries`' value is a
+        # substring of `mermaid_dropped`'s, so an unmarked copy of the long
+        # one matched both and reported the same words twice under two
+        # names — two messages, one place, one fix. The longer match is the
+        # one that describes what is actually on the page.
+        for start, end, name in sorted(hits, key=lambda h: h[0] - h[1]):
+            if any(a <= start and end <= b for a, b, _ in hits
+                   if (a, b) != (start, end)):
+                continue
+            problems.append(
+                "%s:%d: the live:%s value is written out here as a "
+                "literal — wrap it in the marker pair or reword, "
+                "because a copy outside the marker is exactly the "
+                "prose that rots silently"
+                % (path.relative_to(REPO), text[:start].count("\n") + 1,
+                   name))
+    return sorted(problems)
+
+
 _USAGE = """\
 usage: python3 tests/livedoc.py {check|refresh}
 
@@ -1342,22 +1578,67 @@ def main(argv: Sequence[str]) -> int:
         sys.stderr.write(_USAGE)
         return 2
     paths = tracked_prose_files()
-    if argv[0] == "refresh":
+    try:
+        return _run(argv[0], paths)
+    except AssertionError as e:
+        # A DERIVATION REFUSING IS A RESULT, NOT A CRASH. `AssertionError`
+        # is this module's declared "my subject is gone" signal — every
+        # calculator raises it rather than falling through to the stored
+        # value — so it is the one exception that means the tool worked.
+        # Reaching the reader as a traceback made it read as "livedoc is
+        # broken" next to siblings that print `file:line: problem`, and a
+        # check read as flaky is a check about to be ignored. Anything
+        # else still tracebacks: an AttributeError from a typo is a bug in
+        # here and must not be dressed up as a finding.
+        print("a derivation refuses to publish a value:\n  %s" % e)
+        print("\nThis is not drift and `refresh` will not clear it — the "
+              "prose it fills is describing something that no longer "
+              "exists. Fix the sentence or the constant behind it.")
+        return 1
+
+
+def _run(verb: str, paths: Sequence[Path]) -> int:
+    """Do one verb's work, letting a refusing derivation propagate.
+
+    Split from `main` so the `AssertionError` handler wraps `refresh`
+    too — a calculator that refuses must not leave `refresh` writing
+    some values and abandoning others halfway with a traceback.
+
+    Args:
+        verb: `"check"` or `"refresh"`, already validated.
+        paths: The files that constitute the whole scan surface.
+
+    Returns:
+        The process exit code.
+    """
+    if verb == "refresh":
         changed = refresh_files(paths)
         for line in changed:
             print(line)
         print("refreshed %d value(s) across %d tracked markdown file(s)"
               % (len(changed), len(paths)))
         return 0
-    problems = check_files(paths)
-    problems += ["no marker in tracked markdown uses live:%s — place it or "
+    drifted = check_files(paths)
+    # NOT REPAIRABLE BY `refresh`, and the summary used to say they were.
+    # `refresh` rewrites what is between two comments; it cannot place a
+    # missing marker or wrap a literal somebody typed. Sending a reader to
+    # a command that exits 0 and changes nothing is how a check gets read
+    # as flaky and then ignored.
+    placement = ["no marker in tracked markdown uses live:%s — place it or "
                  "delete the calculator" % n
                  for n in unplaced_calculators(paths)]
+    placement += unmarked_values(paths)
+    problems = drifted + placement
     for line in problems:
         print(line)
     if problems:
-        print("\n%d live value(s) have drifted from their derivation. "
-              "Repair: python3 tests/livedoc.py refresh" % len(problems))
+        if drifted:
+            print("\n%d live value(s) have drifted from their derivation. "
+                  "Repair: python3 tests/livedoc.py refresh" % len(drifted))
+        if placement:
+            print("\n%d marker placement problem(s) — `refresh` cannot fix "
+                  "these: edit the prose so every derived value sits inside "
+                  "its marker pair." % len(placement))
         return 1
     print("%d live value(s) current across %d tracked markdown file(s)"
           % (len(_scan_all(paths)), len(paths)))

@@ -94,13 +94,11 @@ your next move. In order:
    channel is bookkeeping drift — sweep it in your next batch.
    **The user can now pin questions at you** (❓ ask in the app) and drop
    sticky notes: user pins are frontier input and get answered FIRST;
-   their notes read as requirements. **Which pins are theirs is not on
-   the `PIN_DEBT=` line** — `apply` and `status` both print id, status,
-   age and target-edit count and nothing else. `direction` (`user` or
-   `agent`) is computed and carried in `GET /api/state`'s `pin_debt`,
-   and that is the only place it is readable, so "theirs first" is a
-   rule you have to open the state for. Every apply/status also restates
-   the standing nags —
+   their notes read as requirements. **Which pins are theirs is on the
+   `PIN_DEBT=` line** — theirs read `pin-pay(user, open, age 2r, target
+   edited 1×)` and yours carry no marker, so "theirs first" is
+   answerable from the nag itself and costs no state read. Every
+   apply/status also restates the standing nags —
    `PIN_DEBT` (open questions with age + target-edit counts) and
    `LINT_DEBT` (cross-artifact lint drift, including artifacts your batch
    never touched) — sweep what's aging, or say why it stays.
@@ -477,9 +475,29 @@ first complex batch of a session):
   a mapping member pointing at one is a **WARNING**, and a note whose
   anchor is gone is a **NOTE** (deliberately, because a tombstone left
   on purpose is legitimate).
-- Default-mapped pairs: wireframe↔flow, domain↔flow, and sequence↔flow
-  (flow is the hub) — create element links **eagerly as you draw those
-  pairs**. Domain↔wireframe stays inference-only.
+- **Link eagerly across the hub pairs** — wireframe↔flow, domain↔flow,
+  sequence↔flow (flow is the hub). That is a habit *you* owe the
+  drawing, not a promise the tool keeps: **the strict cross-artifact
+  checks (3.2.4, 3.3.7) join
+  <!-- live:cross_lint_join -->wireframe × flow<!-- /live:cross_lint_join -->
+  and nothing else.** A mapping member of any other type is skipped in
+  silence, so a domain↔flow link buys you narration and tripwires, not
+  strict linting. (That sentence is derived from `CROSS_LINT_JOIN` in
+  `canvas.py`, not typed — if the join widens, it rewrites itself.)
+  **One cross-artifact check is not type-scoped at all**: the
+  unmapped-KPI note counts a wireframe KPI tile as mapped when it appears
+  in **any** mapping, whatever that mapping joins it to — so a
+  domain↔wireframe mapping over a KPI tile silences the nag whose whole
+  reason for existing is that an unmapped tile is a drift detector nobody
+  armed. Declaring a mapping is never inert.
+- **Tripwires are type-blind, and that is the ruling, not an oversight**
+  (user, 2026-08-20): every mapping you declare arms "you changed one
+  side and not the other" regardless of what types it joins.
+  `add_mapping` type-checks **nothing** — a domain↔wireframe mapping is
+  accepted, fires tripwires like any other, and is then skipped by every
+  strict check. So domain↔wireframe is **inference-only by convention**:
+  nothing stops you declaring one, and Q12 (whose-word) already joins
+  domain entity labels to wireframe labels with no mapping at all.
 
 **Mermaid seeding (v0.8)** — **seed, then drag.** For a first draft,
 write mermaid instead of coordinates:
@@ -723,10 +741,14 @@ Wireframes and sequences refuse by name, each with its own reason.
 **The mermaid and `er` exports** carry a first line stamping themselves
 `%% wysiwyg-grilling: <id> at revn N — a SNAPSHOT of the drawing, never
 read back`, and print a `DROPPED=` count of everything with no mermaid
-form: pins, annotations, notes, frames, freehand, images, plain lines,
-and — except under `--format er`, which is the one form that carries
-them — the decoration text a domain seeder draws inside an entity. Say
-that count out loud: an export is one-way.
+form:
+<!-- live:mermaid_dropped -->pins, annotations, notes, the decoration text inside entities, frames, plain lines, freehand, images<!-- /live:mermaid_dropped -->.
+`--format er` is the one form that carries
+<!-- live:mermaid_er_carries -->the decoration text inside entities<!-- /live:mermaid_er_carries -->,
+so under `er` that term drops off the list and everything else on it
+still goes. Say the count out loud: an export is one-way. (Both the list
+and the exception are derived from `canvas.py`'s own drop filter, not
+typed here — the list is the same string the CLI prints.)
 
 **The SVG export has neither**, and don't infer a clean sheet from the
 silence: no stamp goes in the file and no `DROPPED=` is printed, so the

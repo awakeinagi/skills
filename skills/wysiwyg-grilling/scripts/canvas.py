@@ -19692,6 +19692,42 @@ def flow_reachable(els, cap=200):
     return out
 
 
+# THE ONE PAIR THE MAPPED-ELEMENT CHECKS JOIN, named so the docs can be
+# derived from it rather than transcribe it. The doctrine said "default-
+# mapped pairs" (wireframe↔flow, domain↔flow, sequence↔flow) and 3.2.4 /
+# 3.3.7 have only ever run on the first: the other two members are
+# collected into no bucket and fall out of `pairs` in silence. The user
+# ruled on 2026-08-20 that the doctrine is a DRAWING HABIT the agent owes
+# and not a contract the tool owes, so the wording moves and the join
+# does not — widening it is blocked, not merely costly (3.2.4's premise
+# is "mapped members share a name", which is false BY DESIGN for
+# `entity ↔ the steps that act on it`; 3.3.7 reads `frameId` and
+# `kind == "input"`, which domain and sequence scenes have no analogue
+# for). See docs/todo for the invariants a future version should build
+# instead. `tests/livedoc.py:cross_lint_join` publishes this tuple into
+# the prose, so a change here rewrites the sentences or fails the hook.
+#
+# THIS CONSTANT IS NOT THE WIDENING POINT, and reading it as one is the
+# mistake it is shaped to catch. The collector below unpacks it into
+# exactly two buckets, so a third type here does not add a join — it
+# breaks the unpack. Widening means designing new checks (the premises of
+# 3.2.4 and 3.3.7 are wireframe/flow-specific), then teaching the
+# collector, then editing this. The check below makes that refusal say so
+# in words, at import, instead of surfacing as a ValueError several
+# frames deep in a lint run with no mention of the prose it also breaks.
+CROSS_LINT_JOIN = ("wireframe", "flow")
+
+if not (isinstance(CROSS_LINT_JOIN, tuple) and len(CROSS_LINT_JOIN) == 2
+        and all(isinstance(t, str) and t for t in CROSS_LINT_JOIN)):
+    raise RuntimeError(
+        "CROSS_LINT_JOIN must be a 2-tuple of artifact-type names; got "
+        "%r. The mapped-element checks join exactly one pair and the "
+        "collector unpacks two buckets, so widening the join is a design "
+        "change (new checks, new collector), not an edit here — and the "
+        "skill prose that names this pair is derived from it"
+        % (CROSS_LINT_JOIN,))
+
+
 def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
     """Cross-artifact lints (v0.4 WP2) — the checks that need more than
     one scene: 3.3.7 redundant entry along a mapped flow path, 3.2.4
@@ -19745,7 +19781,11 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 return True
         return False
 
-    # mapping joins: every (wireframe member, flow member) pair
+    # mapping joins: every (wireframe member, flow member) pair. A member
+    # of any OTHER type lands in neither bucket and is skipped — that is
+    # the whole reach of 3.2.4/3.3.7, and `CROSS_LINT_JOIN` is where it
+    # is decided.
+    wf_type, fl_type = CROSS_LINT_JOIN
     pairs, divergent = [], set()
     for mi, m in enumerate((registry or {}).get("mappings") or []):
         wf, fl = [], []
@@ -19754,9 +19794,9 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
                 continue
             aid, eid = ref.split("#", 1)
             t = artifact_types.get(aid)
-            if t == "wireframe":
+            if t == wf_type:
                 wf.append((aid, eid))
-            elif t == "flow":
+            elif t == fl_type:
                 fl.append((aid, eid))
         mine = [(wa, we, fa, fe, mi) for wa, we in wf for fa, fe in fl]
         pairs.extend(mine)
@@ -22318,6 +22358,16 @@ class Store:
                 self.registry["pins"].append({
                     "id": p["id"], "artifact": aid, "element": p["target"],
                     "question": p["question"], "status": "open",
+                    # WRITTEN, NOT INFERRED. `pin_debt` defaults a missing
+                    # `direction` to "agent", so this path relied on the
+                    # default while the save ingest wrote "user" — two
+                    # writers, one explicit. `PIN_DEBT=` now marks the
+                    # user's pins and the docs promise "theirs first" is
+                    # answerable from the nag, so a third ingest path that
+                    # forgot the key would silently file the user's
+                    # questions as the agent's. With both writers explicit
+                    # the default covers only pre-v0.2 registries on disk.
+                    "direction": "agent",
                     "answer": None, "asked_at_revn": record["revn"],
                     "round": self.registry.get("round", 0),
                     "detail": p.get("detail"),
@@ -25287,6 +25337,38 @@ def print_kv(**kw):
         print("%s=%s" % (k.upper(), v))
 
 
+def pin_debt_entry(p: dict) -> str:
+    """Render one `PIN_DEBT=` member — the standing nag's unit.
+
+    WHOSE QUESTION IT IS RIDES HERE NOW. `direction` was computed in
+    `Store.pin_debt` from v0.2 and reached only `GET /api/state`, so the
+    one surface that says "answer the user's pins FIRST" every single
+    apply was also the one surface that could not tell you which pins
+    those were. The browser rail has shown a `yours`/`agent` chip on
+    every pin card the whole time: the human who does not need the
+    priority rule was told, and the agent that is held to it was not.
+
+    Only the user's are marked, on the `BRANCH=`-when-not-main
+    precedent: an agent's own question is the default case and adding
+    `agent,` to most of a line that prints on every apply buys noise,
+    not a fact. Anything unmarked is your own — which is only safe
+    because BOTH pin writers now set `direction` explicitly (the save
+    ingest to `user`, the op path to `agent`), leaving
+    `Store.pin_debt`'s `.get(..., "agent")` as a back-compat shim for
+    pre-v0.2 registries on disk and nothing else.
+
+    Args:
+        p: One `Store.pin_debt` entry — `id`, `status`, `age_rounds`,
+            `target_edits`, and `direction` (`user` or `agent`).
+
+    Returns:
+        e.g. ``pin-pay(user, open, age 2r, target edited 1×)``.
+    """
+    return "%s(%s%s, age %dr, target edited %d×)" % (
+        p["id"], "user, " if p.get("direction") == "user" else "",
+        p["status"], p["age_rounds"], p["target_edits"])
+
+
 def cadence_of(cfg):
     """Which canvas-update cadence a config puts in force.
 
@@ -25505,9 +25587,7 @@ def cmd_status(args):
                  for aid, c in sorted(
                      (st.get("lint_debt") or {}).items())) or "none",
              pin_debt="; ".join(
-                 "%s(%s, age %dr, target edited %d×)"
-                 % (p["id"], p["status"], p["age_rounds"],
-                    p["target_edits"])
+                 pin_debt_entry(p)
                  for p in st.get("pin_debt") or []) or "none",
              checkout_revn=st.get("checkout_revn"),
              rollback=st.get("rollback"),
@@ -25619,6 +25699,103 @@ def _mermaid_refusal(aid, kind):
             % (aid, kind))
 
 
+# WHAT THE MERMAID/ER EXPORT LEAVES BEHIND — the roles and types the drop
+# filter tests, and the words a reader is given for them. THREE COPIES OF
+# ONE RULE existed: this filter, the runtime `NOTE=` line, and SKILL.md's
+# export paragraph. Exactly ONE had drifted — the `NOTE=` line, which
+# omitted `line` and `image` outright and named `decoration` as left
+# behind even under `--format er`, the one form that carries it. SKILL.md
+# was correct but still hand-typed, which is the same defect one edit away
+# from happening; it is a live value now (`livedoc.mermaid_dropped`), so
+# all three derive from the constants below and none is transcribed.
+MERMAID_DROP_ROLES = ("pin", "annotation", "note", "note-text")
+# carried by `--format er` (an erDiagram holds attribute rows), dropped by
+# every other form — the one format-dependent term in the filter.
+MERMAID_DROP_ROLES_NON_ER = ("decoration",)
+MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")
+MERMAID_DROP_LABELS = {"pin": "pins", "annotation": "annotations",
+                       "note": "notes", "note-text": "notes",
+                       "decoration": "the decoration text inside entities",
+                       "frame": "frames", "line": "plain lines",
+                       "freedraw": "freehand", "image": "images"}
+
+# THE INVARIANT, CHECKED WHERE IT CAN ACTUALLY FAIL. `_mermaid_dropped_names`
+# raises `KeyError` on an unlabelled token, and that guarantee is what lets
+# the sentence be derived rather than typed — but it can never fire from a
+# CALL, because both token sources are the module constants directly above
+# and they are fully labelled. An unreachable guard proves nothing and
+# cannot be pinned. The real failure is a developer adding a token here and
+# forgetting its word, so the check runs at IMPORT, where that edit lands:
+# it fails the whole suite on the next run instead of waiting for someone to
+# export an artifact holding the new kind.
+_unlabelled = [t for t in
+               MERMAID_DROP_ROLES + MERMAID_DROP_ROLES_NON_ER
+               + MERMAID_DROP_TYPES if t not in MERMAID_DROP_LABELS]
+if _unlabelled:
+    raise RuntimeError(
+        "MERMAID_DROP_LABELS has no reader-facing word for %s, so the "
+        "export would drop it and not say so — the exact silence the "
+        "derived sentence exists to make impossible"
+        % ", ".join(repr(t) for t in _unlabelled))
+del _unlabelled
+
+
+def mermaid_dropped_roles(fmt: str) -> list[str]:
+    """The element ROLES the export drops, for one output format.
+
+    The single definition of the format-dependent half of the drop rule.
+    `_export_mermaid` filters on it and `livedoc.mermaid_dropped`
+    publishes it into SKILL.md, so the filter and the prose cannot
+    disagree about `decoration`.
+
+    Args:
+        fmt: The `--format` value. Only `"er"` is distinguished; every
+            other value (including `"mermaid"`) drops the wider set.
+
+    Returns:
+        Role tokens, all of them keys of `MERMAID_DROP_LABELS`.
+    """
+    roles = list(MERMAID_DROP_ROLES)
+    if fmt != "er":
+        roles.extend(MERMAID_DROP_ROLES_NON_ER)
+    return roles
+
+
+def _mermaid_dropped_names(silent: list[str]) -> str:
+    """Name the categories this export left behind, in filter order.
+
+    Args:
+        silent: The role tokens the caller's drop filter tests — format
+            dependent, so normally `mermaid_dropped_roles(fmt)`.
+
+    Returns:
+        A comma-joined phrase, deduplicated (`note` and `note-text` are
+        one word to a reader) and order-preserving.
+
+    Raises:
+        KeyError: If a token has no entry in `MERMAID_DROP_LABELS`.
+            Raised EXPLICITLY rather than left to the subscript, because
+            the whole derivation rests on it and an incidental failure
+            is one `.get(tok, "")` away from becoming a silent empty
+            word — and because ruff reads a bare subscript as no
+            contract at all (DOC501 sees nothing to document). It cannot
+            fire for the module's own constants: the import-time check
+            above proves every one of them is labelled. It is reachable
+            only for a caller that builds its own role list.
+    """
+    names = []
+    for tok in list(silent) + list(MERMAID_DROP_TYPES):
+        if tok not in MERMAID_DROP_LABELS:
+            raise KeyError(
+                "no reader-facing word for dropped token %r — naming the "
+                "count without naming the category is the defect this "
+                "function exists to prevent" % tok)
+        label = MERMAID_DROP_LABELS[tok]
+        if label not in names:
+            names.append(label)
+    return ", ".join(names)
+
+
 def _export_mermaid(args, store, aid, out):
     """Write one artifact out as mermaid text.
 
@@ -25644,6 +25821,21 @@ def _export_mermaid(args, store, aid, out):
     refusal = _mermaid_refusal(aid, kind)
     if refusal:
         die(refusal, 2)
+    # the attribute rows a domain seeder draws inside an entity are
+    # `decoration` text, and erDiagram is the one form that carries them.
+    # `note`/`note-text` are LEGACY and stay: nothing writes them any more
+    # (v0.9 WP8 aligned `_x_user_note` to the client's `annotation`/`label`,
+    # r5-7), but four assessment runs' worth of stickies carry them on
+    # disk, and dropping them here would start exporting those notes into
+    # mermaid as if they were nodes.
+    #
+    # NAMED BEFORE ANYTHING IS WRITTEN. `_mermaid_dropped_names` raises on
+    # a token with no label rather than under-naming it in silence, which
+    # is the whole point — but raising it after `out.write_text` would
+    # hand the user the file AND a traceback, and the file would be the
+    # one artifact of the run that survived. Refuse first, write second.
+    silent = mermaid_dropped_roles(args.format)
+    dropped_names = _mermaid_dropped_names(silent)
     if args.format == "er":
         if kind != "domain":
             die("ERROR=--format er reads entities and their cardinality; "
@@ -25677,26 +25869,21 @@ def _export_mermaid(args, store, aid, out):
     nodes = sum(1 for e in els
                 if e.get("type") in ("rectangle", "diamond", "ellipse")
                 and (e.get("customData") or {}).get("role") == "node")
-    # the attribute rows a domain seeder draws inside an entity are
-    # `decoration` text, and erDiagram is the one form that carries them.
-    # `note`/`note-text` are LEGACY and stay: nothing writes them any more
-    # (v0.9 WP8 aligned `_x_user_note` to the client's `annotation`/`label`,
-    # r5-7), but four assessment runs' worth of stickies carry them on
-    # disk, and dropping them here would start exporting those notes into
-    # mermaid as if they were nodes.
-    silent = ["pin", "annotation", "note", "note-text"]
-    if args.format != "er":
-        silent.append("decoration")
     dropped = sum(1 for e in els
                   if role_of(e) in silent
-                  or e.get("type") in ("frame", "line", "freedraw", "image"))
+                  or e.get("type") in MERMAID_DROP_TYPES)
     print_kv(artifact=aid, path=str(out), format=args.format, nodes=nodes,
              lines=len(text.splitlines()), dropped=dropped)
+    # THE COUNT WAS RIGHT AND THE NAMING WAS NOT, which is the worse of
+    # the two: a reader told `DROPPED=3` and given a six-word list that
+    # holds neither of the two lines they drew goes hunting for a third
+    # thing that was never there. Both halves now read `silent`, so the
+    # sentence and the count cannot disagree.
     print("NOTE=this file is a SNAPSHOT of the drawing at this revision "
           "and is never read back — `canvas.py mermaid` seeds NEW "
-          "artifacts only. %d element(s) with no mermaid form (pins, "
-          "annotations, notes, decorations, frames, freehand) were left "
-          "behind; the drawing is still the truth." % dropped)
+          "artifacts only. %d element(s) with no mermaid form (%s) were "
+          "left behind; the drawing is still the truth."
+          % (dropped, dropped_names))
     return 0
 
 
@@ -26436,10 +26623,7 @@ def _print_standing(resp):
                                      for k, v in c.items() if v))
             for aid, c in sorted(lint_debt.items())))
     if pin_debt:
-        print("PIN_DEBT=" + "; ".join(
-            "%s(%s, age %dr, target edited %d×)"
-            % (p["id"], p["status"], p["age_rounds"], p["target_edits"])
-            for p in pin_debt))
+        print("PIN_DEBT=" + "; ".join(pin_debt_entry(p) for p in pin_debt))
 
 
 def rasterize_svg(svg, out_png, want_w, want_h, tag, url=None):
