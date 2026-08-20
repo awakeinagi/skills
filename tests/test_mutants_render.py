@@ -7675,8 +7675,15 @@ class TestRenderParityRegime(unittest.TestCase):
         string; if the drawn left edge climbs back inside `x - SVG_PAD`
         the bounds loop's min side is no longer being asked for anything.
         """
+        # 22 and not 20, by two independent moves a week apart:
+        # `text_dims` defaults to this repo's own font's spacing
+        # (`canvas.NUNITO_LINE_HEIGHT`, 1.35) rather than the default
+        # font's 1.25, and it stopped FLOORING the line box (F3), so one
+        # 16px line reserves ceil(21.6) = 22. RE-MEASURED here, per this
+        # file's rule that a regime number is written down and checked
+        # rather than computed.
         self.assertEqual(canvas.text_dims(_WIDE_LABEL, 16),
-                         (_WIDE_LABEL_W, 20),
+                         (_WIDE_LABEL_W, 22),
                          "the font metrics moved: re-measure _WIDE_LABEL_W "
                          "— the drawn-left arithmetic below and in "
                          "test_the_bounds_loop_frames_the_centered_label_"
@@ -7762,11 +7769,17 @@ class TestRenderParityRegime(unittest.TestCase):
         `lineHeight` default change moves it without touching either
         number above.
         """
-        # 338 until TASK-TEXT-TRUTH; the face's real advances make it 339.
-        # The other two claims were re-derived rather than assumed: the
-        # greedy wrap still gives four lines (79/98/89/67px against the
-        # 100px bound) and the last baseline is still 73.6.
-        self.assertEqual(canvas.text_dims(_WRAPPED_LABEL, 16), (339, 20),
+        # 338 until TASK-TEXT-TRUTH; the face's real advances make
+        # it 339. The HEIGHT is 22 for two more reasons that landed the
+        # same week: `text_dims` defaults to this repo's own font's
+        # spacing (`NUNITO_LINE_HEIGHT`, 1.35) rather than the default
+        # font's 1.25, and it no longer floors the line box (F3) — the
+        # very move this docstring names as the one that would take
+        # this pin quietly, which is why all of them are written down.
+        # The other two claims were re-derived rather than assumed:
+        # the greedy wrap still gives four lines (79/98/89/67px
+        # against the 100px bound) and the last baseline is 73.6.
+        self.assertEqual(canvas.text_dims(_WRAPPED_LABEL, 16), (339, 22),
                          "the font metrics moved: re-measure the wrapped "
                          "scene's regime, and the frame arithmetic in "
                          "test_the_bounds_loop_frames_the_wrapped_text_it_"
@@ -7870,8 +7883,11 @@ class TestRenderParityRegime(unittest.TestCase):
         dims = _SVG_DIMS.search(svg)
         self.assertIsNotNone(dims, "cannot parse the <svg> tag")
         miny, height = float(dims.group(4)), float(dims.group(6))
+        # 22 = one 16px line at `canvas.NUNITO_LINE_HEIGHT`, unfloored:
+        # it was 20 at the old 1.25 default and 21 before F3 stopped
+        # flooring the line box (re-measured 2026-08-20)
         self.assertEqual(
-            (miny, height), (float(-SVG_PAD), float(20 + 2 * SVG_PAD)),
+            (miny, height), (float(-SVG_PAD), float(22 + 2 * SVG_PAD)),
             "an autoResize text's frame moved to (%g, %g): the wrap is "
             "being applied on the branch `paint` does not wrap on"
             % (miny, height))

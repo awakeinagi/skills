@@ -3752,6 +3752,21 @@ class TestLoadRepairRerouteAndConfess(Base):
     that made every note-bearing project repair itself on load."""
 
     LONG = "Escalate to the compliance review board immediately"
+    # The refitted label's height, DERIVED and not written down: the
+    # fitter wraps `LONG` into six lines inside a 120px box and reserves
+    # `6 * fontSize * lineHeight` for them, so this number moves with the
+    # spacing the client paints at. The wrap is width-driven and
+    # unchanged, which is why the LINE COUNT is what is written here.
+    #
+    # The spacing is the one the LOADER STAMPS, which for this fixture is
+    # the one the client would infer from the box it arrives in — 20px
+    # for one 16px line, so 1.25 — and not this file's font default.
+    # That is the whole point of the stamp: from the load path down,
+    # every reader is measuring the block the browser will draw.
+    FITTED_H = canvas.text_dims(
+        "\n".join(["x"] * 6), 16,
+        canvas.detected_line_height({"height": 20, "fontSize": 16,
+                                     "text": LONG}) or 1.25)[1]
 
     def oversized(self, arrows):
         """A 120x60 box with a 400px label, plus the given arrows.
@@ -3834,7 +3849,8 @@ class TestLoadRepairRerouteAndConfess(Base):
         _, issues = canvas.validate_scene(self.oversized([routed]), "a")
         self.assertEqual([i.code for i in issues], ["ART-011", "ART-012"])
         self.assertTrue(issues[1].repaired)
-        self.assertIn("resized n1 (120x60 to 120x136)", issues[1].msg)
+        self.assertIn("resized n1 (120x60 to 120x%d)" % (self.FITTED_H + 16),
+                      issues[1].msg)
         self.assertIn("re-routed a1", issues[1].msg)
 
     def test_a_refit_that_resizes_nothing_confesses_nothing(self):
@@ -3884,7 +3900,7 @@ class TestLoadRepairRerouteAndConfess(Base):
         self.assertEqual([i.code for i in issues2], ["ART-011", "ART-012"])
         t1 = next(e for e in doc2["elements"] if e["id"] == "t1")
         self.assertEqual((t1["x"], t1["y"], t1["width"], t1["height"]),
-                         (12, 8, 96, 120))
+                         (12, 8, 96, self.FITTED_H))
 
     def test_the_reroute_persists_instead_of_recurring(self):
         # The re-route is itself a load-time geometry change, which is
@@ -3925,6 +3941,52 @@ class TestLoadRepairRerouteAndConfess(Base):
             if "inside the shape" in w]
         self.assertEqual(warned, [])
 
+    def test_the_line_height_stamp_never_mints_a_revision(self):
+        """The stamp is bookkeeping, so history must not notice it.
+
+        THE PIN THAT WAS MISSING, and the one that caught the defect.
+        `validate_scene` writing a spacing onto every unstamped text is
+        idempotent in isolation — a pin over that function alone passed
+        happily — but the loader is not `validate_scene`, it is a Store,
+        and `content_fingerprint` compared a field
+        `DEFAULT_SIGNIFICANT_ATTRS` does not carry. Disk said "changed",
+        the differ said "nothing changed", and the pair minted an empty
+        `0 changes differ from history` record on load 2, 3, 4 and 5 of
+        any project that also had a load repair: r5-13 exactly, with a
+        new cause. Five loads, because two would have passed.
+        """
+        long_text = "Escalate to the compliance review board immediately"
+        els = self.oversized([
+            {"id": "a1", "type": "arrow", "x": 60, "y": 300, "width": 0,
+             "height": 240, "points": [[0, 0], [0, -240]],
+             "startBinding": {"elementId": "far2", "focus": 0, "gap": 1},
+             "endBinding": {"elementId": "n1", "focus": 0, "gap": 1}}])
+        self.assertNotIn("lineHeight", els["elements"][1],
+                         "the fixture's label now carries a spacing, so "
+                         "the stamp this test is about never runs")
+        self.store.commit(author="user", new_scenes={"f": els["elements"]},
+                          base_revn=0)
+        first = canvas.Store(self.project)
+        self.assertIsNotNone(first.catch_up(),
+                             "the load repairs stopped reconciling, so "
+                             "the loads below start from the wrong state")
+        for load in range(2, 6):
+            store = canvas.Store(self.project)
+            self.assertEqual(store.scene_repairs, [],
+                             "load %d repaired again" % load)
+            self.assertIsNone(
+                store.catch_up(),
+                "load %d minted a reconciliation. The spacing stamp is "
+                "bookkeeping — the value the client was already using, "
+                "written down — so it must be invisible to drift "
+                "detection, or every resume spends a revision on it"
+                % load)
+        settled = next(e for e in canvas.Store(self.project).scenes["f"]
+                       if e["id"] == "t1")
+        self.assertEqual(settled["lineHeight"], 20 / 1 / 16,
+                         "the settled scene lost the stamp")
+        self.assertEqual(settled["text"], long_text)
+
     def test_a_client_shaped_note_loads_untouched_twice(self):
         # The r5-13 constant, pinned by construction rather than by
         # fixture: this is exactly what `addStickyNote` posts — a 180x90
@@ -3932,12 +3994,22 @@ class TestLoadRepairRerouteAndConfess(Base):
         # nothing to say about it, on this load or any later one. If
         # anybody re-tightens the rule to w-24, the message names the
         # arithmetic instead of leaving a fixture count to be re-baselined.
+        #
+        # `lineHeight` IS PART OF "client-shaped" as of 2026-08-19: the
+        # browser writes the field on every text it serializes, and the
+        # load path now fills it in when it is missing (the user's
+        # safe-default ruling). A fixture without it was standing in for
+        # a note the client had posted while carrying a shape the client
+        # never posts — so the pin was passing on the strength of a
+        # scene that could not occur, and adding the field is what keeps
+        # it about the refit rule rather than about the stamp.
         note = [{"id": "note", "type": "rectangle", "x": 0, "y": 0,
                  "width": 180, "height": 90, "customData": {"role": "note"},
                  "boundElements": [{"id": "note-label", "type": "text"}]},
                 {"id": "note-label", "type": "text", "x": 8, "y": 8,
                  "width": 164, "height": 74, "text": "keep this as drawn",
                  "originalText": "keep this as drawn", "fontSize": 14,
+                 "lineHeight": 1.25,
                  "containerId": "note", "autoResize": False}]
         self.store.commit(author="user", new_scenes={"f": note},
                           base_revn=0)
@@ -8313,6 +8385,13 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         cannot reach. A new finding that writes its own waive literal
         instead of calling `waive_hint` fails here, in the change that
         adds it, rather than in a session six months later.
+
+        THE FIFTEENTH ARRIVED on 2026-08-18 and was born right, which is
+        the claim this pin exists to be able to make: `text_over_text`
+        (TASK-ENTITY-LINEHEIGHT) calls the formatter, and its own round
+        trip — key parsed back out of the emitted finding, fed to
+        `lint_layout` as a waive, finding silent — is in
+        `TestTextDrawnOnText`.
         """
         src = Path(canvas.__file__).read_text(encoding="utf-8")
         spellings = [ln for ln in src.splitlines() if "action: waive" in ln]
@@ -8323,8 +8402,8 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         self.assertTrue(spellings[-1].strip().startswith('return "waive {'),
                         spellings)
         self.assertEqual(
-            src.count("waive_hint("), 18,
-            "the waive call sites moved — 17 findings plus the "
+            src.count("waive_hint("), 19,
+            "the waive call sites moved — 18 findings plus the "
             "definition. Re-derive this count; do not relax it")
 
 
@@ -11790,8 +11869,12 @@ class TestStoredHeightMatchesThePaintedLineHeight(Base):
     every later reader inherits.
 
     The numbers throughout are batch 26's own, at fontSize 16: three
-    lines at `lineHeight: 2.0` is 96px and at the 1.25 default 60px, and
-    the 36px gap is exactly the under-measure that was filed.
+    lines at `lineHeight: 2.0` is 96px, and the gap against whatever the
+    default reads is exactly the under-measure that was filed. That
+    default was Excalidraw's generic 1.25 (60px, a 36px gap) until
+    2026-08-18 and is `canvas.NUNITO_LINE_HEIGHT` — this repo's own
+    font's 1.35, 64px, a 32px gap — since. The assertions below derive
+    both sides for that reason; the CLAIM is the gap, not either number.
     """
 
     TEXT = "aaa\nbbb\nccc"
@@ -11809,15 +11892,28 @@ class TestStoredHeightMatchesThePaintedLineHeight(Base):
             where: The site's name, for the failure message.
         """
         fs = el.get("fontSize", 16)
+        lines = len(self.TEXT.split("\n"))
         self.assertEqual(
             el.get("lineHeight"), 2.0,
             "%s overwrote the client's line height, so this measures the "
             "default twice" % where)
         self.assertEqual(
-            (el["height"], canvas.text_dims(self.TEXT, fs)[1]), (96, 60),
-            "%s stored %rpx where the paint draws 96 at lineHeight 2.0 "
-            "(the default reads 60) — batch 26's 36px under-measure"
-            % (where, el["height"]))
+            el["height"], int(lines * fs * 2.0),
+            "%s stored %rpx where the paint draws %dpx at lineHeight 2.0 "
+            "— batch 26's under-measure"
+            % (where, el["height"], int(lines * fs * 2.0)))
+        # ...and NOT the default's reading, which is the half that fails
+        # if `text_dims` stops varying with `line_height`. The default is
+        # `canvas.NUNITO_LINE_HEIGHT` and is no longer written down here:
+        # it read 60 against 96 while it was Excalidraw's generic 1.25 and
+        # reads 64 now that it is this repo's font's own 1.35
+        # (TASK-ENTITY-LINEHEIGHT, 2026-08-18). What the pin claims is the
+        # GAP, and the gap survives the constant moving.
+        self.assertNotEqual(
+            el["height"], canvas.text_dims(self.TEXT, fs)[1],
+            "%s stored the height the DEFAULT multiplier gives, so this "
+            "scene can no longer tell an element-aware reader from a "
+            "blind one" % where)
 
     def seed_text(self, tid="t1"):
         """Seed one text element and give it the client's double spacing.
@@ -19580,9 +19676,17 @@ class TestXAsUserFidelity(unittest.TestCase):
                          "the rename overwrote the client's line height, "
                          "so this measures the default twice")
         self.assertEqual(
-            (lbl["height"], canvas.text_dims(text, fs)[1]), (96, 60),
-            "`x-as-user rename` stored %rpx where the paint draws 96 at "
-            "lineHeight 2.0 (the default reads 60)" % (lbl["height"],))
+            lbl["height"], int(len(text.split("\n")) * fs * 2.0),
+            "`x-as-user rename` stored %rpx where the paint draws %dpx at "
+            "lineHeight 2.0" % (lbl["height"],
+                                int(len(text.split("\n")) * fs * 2.0)))
+        # the default's own reading, derived rather than written down —
+        # see `assert_reserved_at_double_spacing`, whose note explains why
+        # the number moved on 2026-08-18 and why the GAP is the claim
+        self.assertNotEqual(
+            lbl["height"], canvas.text_dims(text, fs)[1],
+            "`x-as-user rename` stored the DEFAULT multiplier's height, "
+            "so this scene no longer tells the two readers apart")
 
     def test_verbs_write_what_the_client_writes(self):
         # rename re-measures like the client does
@@ -22457,10 +22561,17 @@ class TestShapeAwareLabelRoom(Base):
         On a narrow rhombus the first shape-aware step lands on the 60px
         floor, skipping a budget between the two ends that beats both:
         a 90x100 diamond wrapping this label to the box rule's 66px
-        overhangs by 30px, and to the floor's 60px by 42px, because the
-        narrower wrap costs a fourth line and a rhombus charges for
+        overhangs by 33.6px, and to the floor's 60px by 45.9px, because
+        the narrower wrap costs a fourth line and a rhombus charges for
         height. Keeping `box` in the candidate set is what makes "never
         worse than the rule it replaces" true by construction.
+
+        The two overhangs were 30 and 42 while text was measured at
+        Excalidraw's generic 1.25; they are re-derived here at Nunito's
+        own 1.35, which is what this repo's font is painted at
+        (TASK-ENTITY-LINEHEIGHT, 2026-08-18). The ORDER — the reason
+        this test exists — is unchanged, and it is the order that is
+        being asserted; both numbers grew because both bands did.
         """
         text = "Send for second review"
         cont = {"id": "n1", "type": "diamond", "x": 0, "y": 0,
@@ -22470,9 +22581,29 @@ class TestShapeAwareLabelRoom(Base):
                "width": canvas.text_dims(text, 16)[0], "height": 20,
                "containerId": "n1"}
         canvas.fit_label_in(cont, lbl)
-        self.assertEqual((lbl["width"], lbl["height"]), (66, 60))  # 90 - 24
-        self.assertAlmostEqual(
-            lbl["width"] - canvas.label_room(cont, lbl["height"]), 30.0)
+        # the height is DERIVED at the label's own spacing, the way the
+        # sibling test above derives it: the walk's answer is the WIDTH
+        # (90 - 24), and the band that width forces follows from the line
+        # count and the multiplier the client paints at
+        self.assertEqual(
+            (lbl["width"], lbl["height"]),
+            (66, canvas.text_dims(canvas.wrap_label_text(text, 66, 16),
+                                  16)[1]))                  # 90 - 24
+        # and the overhang it bought, stated as the COMPARISON the walk
+        # exists to win rather than as a number: the 60px floor the first
+        # shape-aware step lands on costs a fourth line, and a rhombus
+        # charges for height. Written down it was 30 against 42, and it
+        # is 33.6 against 45.9 since the estimator moved to this repo's
+        # own font's spacing — the same fact at two calibrations, which
+        # is why the assertion is now the inequality
+        chosen = lbl["width"] - canvas.label_room(cont, lbl["height"])
+        floor_h = canvas.text_dims(canvas.wrap_label_text(text, 60, 16),
+                                   16)[1]
+        self.assertLess(
+            chosen, 60 - canvas.label_room(cont, floor_h),
+            "the walk's answer overhangs further than the 60px floor it "
+            "skipped, so keeping `box` in the candidate set has stopped "
+            "buying anything")
 
     def test_an_integer_wide_box_gives_an_integer_room(self):
         """Float dust off the clip must not reach a stored label width.
@@ -24032,7 +24163,12 @@ GEOMETRY_WRITERS: dict[str, tuple[int, str]] = {
                          "the CLI standing in for a drag, and a pin protects "
                          "position against the TOOL, never against the "
                          "person who set it"),
-    "make_element": (5, "EXEMPT — mints NEW elements; nothing can have "
+    # 5 -> 4 on 2026-08-20: the entity seeder's `out[1]["y"] = ...`
+    # left this function when the attribute-row layout was folded
+    # into `_compose_attribute_rows`, which re-aligns the label
+    # through `recenter_label` (already classified) instead of
+    # writing the coordinate itself. A site left; none arrived.
+    "make_element": (4, "EXEMPT — mints NEW elements; nothing can have "
                         "pinned an id that did not exist a line ago"),
     "normalize_element": (1, "EXEMPT — rounds `points` to storable precision "
                              "on every read and write. It changes no "

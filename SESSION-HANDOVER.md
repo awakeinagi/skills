@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**4 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**0 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
@@ -733,7 +733,7 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
   a reason. Coverage totals:
-  <!-- live:detector_coverage_totals -->**34 detectors, 31 proven, 3 render-tier, 0 UNCOVERED**<!-- /live:detector_coverage_totals -->
+  <!-- live:detector_coverage_totals -->**35 detectors, 31 proven, 3 render-tier, 1 UNCOVERED**<!-- /live:detector_coverage_totals -->
   — a LIVE VALUE as of 2026-08-18: `tests/livedoc.py refresh` writes it
   from `coverage_table()`, and it is still CHECKED (since v0.9 WP7 task 29)
   by `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
