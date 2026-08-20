@@ -23259,6 +23259,83 @@ RENDER_TIER = {
         "test_the_clip_instrument_still_sees_ink_leave_a_short_frame",
 }
 
+# The last recorded execution of the tests `RENDER_TIER` names.
+#
+# WHY THIS FILE EXISTS. The three rows above are reported "render-tier"
+# rather than UNCOVERED, so `test_every_detector_is_proven_or_named` — the
+# gate — passes over them. What backed that pass until 2026-08-20 was
+# `test_render_tier_evidence_resolves_to_real_tests`, which asserts the
+# dotted name RESOLVES and is `callable`. Neither says the test ever ran,
+# and it cannot: the render tier is gated behind `MUTANTS_RENDER=1`, no
+# hook in `.pre-commit-config.yaml` sets it, and there is no CI. Three
+# detectors were therefore counted as accounted-for on the strength of a
+# string that no run had ever exercised — and `callable` is a very low bar
+# besides, since a CLASS is callable, so an entry naming only
+# `TestRenderMutants` passed too.
+#
+# WHAT IT DOES NOT CLOSE, said here because a half-closed gap that reads
+# closed is worse than an open one. This proves each named test PASSED in
+# some recorded run, not that it passed against the tree you are reading.
+# Binding it to a hash of `canvas.py` and refusing the commit on a
+# mismatch was considered and rejected: every canvas.py edit would then
+# demand a browser, and the whole reason the tier is gated is that an
+# ordinary commit must not need one. So currency is REPORTED and not
+# enforced — `render_evidence_currency` computes it, `--coverage` prints
+# it, and `TestRenderTierEvidence` pins that the report can say "stale".
+# Re-record after touching `canvas.py`'s render path:
+#     MUTANTS_RENDER=1 python3 tests/test_mutants_render.py --record-evidence
+RENDER_RUN_RECORD = Path(__file__).parent / "mutants_render_run.json"
+
+
+def render_evidence_run() -> dict[str, Any]:
+    """Read the recorded render-tier evidence run.
+
+    Returns:
+        The record as written by `--record-evidence`, or `{}` when the
+        file is absent — absent is a state the gate reports, not one it
+        crashes on, so the message can name the command that fixes it.
+    """
+    if not RENDER_RUN_RECORD.exists():
+        return {}
+    return json.loads(RENDER_RUN_RECORD.read_text())
+
+
+def canvas_digest() -> str:
+    """Fingerprint the `canvas.py` the render tier would rasterize.
+
+    Returns:
+        The sha256 of `canvas.py`'s bytes, hex. This is the input the
+        recorded run's verdict is about; every other input the tier has
+        (the browser build, the system fonts) sits outside the repo and
+        is out of reach of any hash we could take here.
+    """
+    return hashlib.sha256(Path(canvas.__file__).read_bytes()).hexdigest()
+
+
+def render_evidence_currency() -> tuple[str, str]:
+    """Report whether the recorded render-tier run still describes this tree.
+
+    Returns:
+        `(state, detail)` where `state` is "missing" (no run recorded),
+        "stale" (recorded against a different `canvas.py`) or "current".
+        `detail` is a sentence naming the remedy or the run's date.
+    """
+    rec = render_evidence_run()
+    if not rec:
+        return ("missing",
+                "no render-tier run recorded — the three render-tier rows "
+                "rest on nothing. Run: MUTANTS_RENDER=1 python3 "
+                "tests/test_mutants_render.py --record-evidence")
+    if rec.get("canvas_sha256") != canvas_digest():
+        return ("stale",
+                "the recorded run (%s) is against a different canvas.py; "
+                "re-record with MUTANTS_RENDER=1 python3 "
+                "tests/test_mutants_render.py --record-evidence"
+                % rec.get("recorded", "undated"))
+    return ("current", "render-tier evidence last executed %s against this "
+                       "canvas.py" % rec.get("recorded", "undated"))
+
+
 # Check names a catalogue entry may name with no `DETECTORS` detector
 # behind them, mapped to why that is legitimate. Red-by-absence is a real
 # tactic — `phantom_passthrough_shared_attach` pinned a defect the lint
@@ -23729,6 +23806,16 @@ def coverage_table() -> list[tuple[str, str, str]]:
     in `RENDER_TIER` are reported "render-tier" instead: their proving
     mutants live in a separate env-gated catalogue (Task 8) that this
     function does not read, so they are never reported UNCOVERED.
+
+    WHAT "render-tier" IS WORTH, since the word carves three rows out of
+    the gate. Until 2026-08-20 it was worth the existence of a string:
+    nothing set `MUTANTS_RENDER=1` on any commit, so those three rows
+    were accounted-for on evidence no run had touched. They now rest on
+    `RENDER_RUN_RECORD` — a committed record of the named tests having
+    PASSED under the gate, asserted ungated by `TestRenderTierEvidence`.
+    The residue is currency and not existence: read
+    `render_evidence_currency`, which `--coverage` prints, for whether
+    that run was against the `canvas.py` you are holding.
 
     A RED mutant's own `expect` is not evidence, and this is the one rule
     here that is not obvious. A `FindingSpec` on a mutant marked
@@ -33974,6 +34061,11 @@ if __name__ == "__main__":
               "firing, not every disjunct held. A check can lose an arm "
               "with this table byte-identical — see coverage_table's "
               "docstring for the measured case.")
+        # The render-tier rows' currency rides the surface for the same
+        # reason the caveat above does: the reader this misleads is the
+        # one who ran `--coverage` and did not open the file. Reported
+        # rather than asserted — `RENDER_RUN_RECORD`'s comment has why.
+        print("\nrender-tier evidence: %s — %s" % render_evidence_currency())
     elif "--sweep" in sys.argv:
         raise SystemExit(run_sweep())
     else:

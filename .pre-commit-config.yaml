@@ -134,6 +134,31 @@ repos:
         always_run: true
         stages: [manual]
 
+  # ------------------------------------------------- render-tier evidence
+  # The three "render-tier" rows on `--coverage` are carved out of
+  # `test_every_detector_is_proven_or_named`, so what backs them has to be
+  # a RUN and not a string. `tests/mutants_render_run.json` is that run,
+  # written here; `TestRenderTierEvidence` asserts it ungated on every
+  # commit. MANUAL, and for the same two reasons the guard sweep is:
+  # it starts a headless browser (which an ordinary commit must never
+  # need — that is the whole point of the MUTANTS_RENDER gate), and the
+  # answer only moves when canvas.py's render path does. Re-record then:
+  #     uvx pre-commit run render-tier-evidence --hook-stage manual
+  # `always_run`, because a manual hook reporting "(no files to check)
+  # Skipped" is the silent-instrument defect this record exists to close,
+  # one level up.
+  - repo: local
+    hooks:
+      - id: render-tier-evidence
+        name: record render-tier evidence (manual stage, needs a browser)
+        entry: bash -c 'MUTANTS_RENDER=1 exec python3
+          tests/test_mutants_render.py --record-evidence'
+        language: system
+        pass_filenames: false
+        require_serial: true
+        always_run: true
+        stages: [manual]
+
   # ---------------------------------------------------------------- frontend
   # Both require `npm --prefix frontends/wysiwyg-grilling ci` once.
   # They fail loudly rather than skipping, so a missing install can never
