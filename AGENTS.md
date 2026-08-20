@@ -10,7 +10,7 @@ file; `CLAUDE.md` points here. Read it before writing code.
 | `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~28.6k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
 | `skills/wysiwyg-grilling/` | The shipped Claude Code skill (`SKILL.md` + `references/`). | Markdown |
 | `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. <!-- live:frontend_src_lines -->~4.9k<!-- /live:frontend_src_lines --> lines. | TypeScript / React 18 |
-| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->1010<!-- /live:test_backend_cases --> tests — the most of any module in a `tests/` tree that also holds the mutation harness and the render tier. (Most *tests*, not most lines: `test_mutants.py` is the bigger file.) | Python |
+| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->1011<!-- /live:test_backend_cases --> tests — the most of any module in a `tests/` tree that also holds the mutation harness and the render tier. (Most *tests*, not most lines: `test_mutants.py` is the bigger file.) | Python |
 | `tests/fixtures/` | The frozen corpus every check is measured against: real drawings from past sessions, byte-exact. Across <!-- live:corpus_projects -->5<!-- /live:corpus_projects --> projects it currently lints to <!-- live:corpus_census -->artifacts=24 scopes=28 errors=0 warnings=54 notes=88<!-- /live:corpus_census -->. | Excalidraw JSON |
 
 The frontend builds *into* the skill (`vite.config.ts` → `scripts/web/`), so a
