@@ -22326,6 +22326,16 @@ class Store:
                 self.registry["pins"].append({
                     "id": p["id"], "artifact": aid, "element": p["target"],
                     "question": p["question"], "status": "open",
+                    # WRITTEN, NOT INFERRED. `pin_debt` defaults a missing
+                    # `direction` to "agent", so this path relied on the
+                    # default while the save ingest wrote "user" — two
+                    # writers, one explicit. `PIN_DEBT=` now marks the
+                    # user's pins and the docs promise "theirs first" is
+                    # answerable from the nag, so a third ingest path that
+                    # forgot the key would silently file the user's
+                    # questions as the agent's. With both writers explicit
+                    # the default covers only pre-v0.2 registries on disk.
+                    "direction": "agent",
                     "answer": None, "asked_at_revn": record["revn"],
                     "round": self.registry.get("round", 0),
                     "detail": p.get("detail"),
@@ -25295,7 +25305,7 @@ def print_kv(**kw):
         print("%s=%s" % (k.upper(), v))
 
 
-def pin_debt_entry(p):
+def pin_debt_entry(p: dict) -> str:
     """Render one `PIN_DEBT=` member — the standing nag's unit.
 
     WHOSE QUESTION IT IS RIDES HERE NOW. `direction` was computed in
@@ -25309,7 +25319,11 @@ def pin_debt_entry(p):
     Only the user's are marked, on the `BRANCH=`-when-not-main
     precedent: an agent's own question is the default case and adding
     `agent,` to most of a line that prints on every apply buys noise,
-    not a fact. Anything unmarked is your own.
+    not a fact. Anything unmarked is your own — which is only safe
+    because BOTH pin writers now set `direction` explicitly (the save
+    ingest to `user`, the op path to `agent`), leaving
+    `Store.pin_debt`'s `.get(..., "agent")` as a back-compat shim for
+    pre-v0.2 registries on disk and nothing else.
 
     Args:
         p: One `Store.pin_debt` entry — `id`, `status`, `age_rounds`,
@@ -25653,36 +25667,97 @@ def _mermaid_refusal(aid, kind):
             % (aid, kind))
 
 
-# What the mermaid/er export leaves behind, keyed by the ROLE or TYPE the
-# drop filter in `_export_mermaid` actually tests. The list a reader gets
-# is derived from this map and from that filter's own inputs, never
-# transcribed: the same rule was written out by hand in three places
-# (SKILL.md, this module's NOTE= line, and the filter), and both copies
-# had drifted — `line` and `image` were dropped in silence, and
-# `decoration` was named as left behind even under `--format er`, the one
-# form that carries it. Add a token to the filter and the sentence grows
-# with it, or a KeyError says you forgot.
+# WHAT THE MERMAID/ER EXPORT LEAVES BEHIND — the roles and types the drop
+# filter tests, and the words a reader is given for them. THREE COPIES OF
+# ONE RULE existed: this filter, the runtime `NOTE=` line, and SKILL.md's
+# export paragraph. Exactly ONE had drifted — the `NOTE=` line, which
+# omitted `line` and `image` outright and named `decoration` as left
+# behind even under `--format er`, the one form that carries it. SKILL.md
+# was correct but still hand-typed, which is the same defect one edit away
+# from happening; it is a live value now (`livedoc.mermaid_dropped`), so
+# all three derive from the constants below and none is transcribed.
+MERMAID_DROP_ROLES = ("pin", "annotation", "note", "note-text")
+# carried by `--format er` (an erDiagram holds attribute rows), dropped by
+# every other form — the one format-dependent term in the filter.
+MERMAID_DROP_ROLES_NON_ER = ("decoration",)
+MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")
 MERMAID_DROP_LABELS = {"pin": "pins", "annotation": "annotations",
                        "note": "notes", "note-text": "notes",
                        "decoration": "the decoration text inside entities",
                        "frame": "frames", "line": "plain lines",
                        "freedraw": "freehand", "image": "images"}
-MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")
+
+# THE INVARIANT, CHECKED WHERE IT CAN ACTUALLY FAIL. `_mermaid_dropped_names`
+# raises `KeyError` on an unlabelled token, and that guarantee is what lets
+# the sentence be derived rather than typed — but it can never fire from a
+# CALL, because both token sources are the module constants directly above
+# and they are fully labelled. An unreachable guard proves nothing and
+# cannot be pinned. The real failure is a developer adding a token here and
+# forgetting its word, so the check runs at IMPORT, where that edit lands:
+# it fails the whole suite on the next run instead of waiting for someone to
+# export an artifact holding the new kind.
+_unlabelled = [t for t in
+               MERMAID_DROP_ROLES + MERMAID_DROP_ROLES_NON_ER
+               + MERMAID_DROP_TYPES if t not in MERMAID_DROP_LABELS]
+if _unlabelled:
+    raise RuntimeError(
+        "MERMAID_DROP_LABELS has no reader-facing word for %s, so the "
+        "export would drop it and not say so — the exact silence the "
+        "derived sentence exists to make impossible"
+        % ", ".join(repr(t) for t in _unlabelled))
+del _unlabelled
 
 
-def _mermaid_dropped_names(silent):
+def mermaid_dropped_roles(fmt: str) -> list[str]:
+    """The element ROLES the export drops, for one output format.
+
+    The single definition of the format-dependent half of the drop rule.
+    `_export_mermaid` filters on it and `livedoc.mermaid_dropped`
+    publishes it into SKILL.md, so the filter and the prose cannot
+    disagree about `decoration`.
+
+    Args:
+        fmt: The `--format` value. Only `"er"` is distinguished; every
+            other value (including `"mermaid"`) drops the wider set.
+
+    Returns:
+        Role tokens, all of them keys of `MERMAID_DROP_LABELS`.
+    """
+    roles = list(MERMAID_DROP_ROLES)
+    if fmt != "er":
+        roles.extend(MERMAID_DROP_ROLES_NON_ER)
+    return roles
+
+
+def _mermaid_dropped_names(silent: list[str]) -> str:
     """Name the categories this export left behind, in filter order.
 
     Args:
         silent: The role tokens the caller's drop filter tests — format
-            dependent, since ``--format er`` carries `decoration`.
+            dependent, so normally `mermaid_dropped_roles(fmt)`.
 
     Returns:
         A comma-joined phrase, deduplicated (`note` and `note-text` are
         one word to a reader) and order-preserving.
+
+    Raises:
+        KeyError: If a token has no entry in `MERMAID_DROP_LABELS`.
+            Raised EXPLICITLY rather than left to the subscript, because
+            the whole derivation rests on it and an incidental failure
+            is one `.get(tok, "")` away from becoming a silent empty
+            word — and because ruff reads a bare subscript as no
+            contract at all (DOC501 sees nothing to document). It cannot
+            fire for the module's own constants: the import-time check
+            above proves every one of them is labelled. It is reachable
+            only for a caller that builds its own role list.
     """
     names = []
     for tok in list(silent) + list(MERMAID_DROP_TYPES):
+        if tok not in MERMAID_DROP_LABELS:
+            raise KeyError(
+                "no reader-facing word for dropped token %r — naming the "
+                "count without naming the category is the defect this "
+                "function exists to prevent" % tok)
         label = MERMAID_DROP_LABELS[tok]
         if label not in names:
             names.append(label)
@@ -25727,9 +25802,7 @@ def _export_mermaid(args, store, aid, out):
     # is the whole point — but raising it after `out.write_text` would
     # hand the user the file AND a traceback, and the file would be the
     # one artifact of the run that survived. Refuse first, write second.
-    silent = ["pin", "annotation", "note", "note-text"]
-    if args.format != "er":
-        silent.append("decoration")
+    silent = mermaid_dropped_roles(args.format)
     dropped_names = _mermaid_dropped_names(silent)
     if args.format == "er":
         if kind != "domain":

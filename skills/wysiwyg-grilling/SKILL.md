@@ -735,10 +735,13 @@ Wireframes and sequences refuse by name, each with its own reason.
 **The mermaid and `er` exports** carry a first line stamping themselves
 `%% wysiwyg-grilling: <id> at revn N — a SNAPSHOT of the drawing, never
 read back`, and print a `DROPPED=` count of everything with no mermaid
-form: pins, annotations, notes, frames, freehand, images, plain lines,
-and — except under `--format er`, which is the one form that carries
-them — the decoration text a domain seeder draws inside an entity. Say
-that count out loud: an export is one-way.
+form:
+<!-- live:mermaid_dropped -->pins, annotations, notes, the decoration text inside entities, frames, plain lines, freehand, images<!-- /live:mermaid_dropped -->.
+`--format er` is the one form that carries the decoration text a domain
+seeder draws inside an entity, so under `er` that term drops off the
+list and everything else on it still goes. Say the count out loud: an
+export is one-way. (That list is derived from `canvas.py`'s own drop
+filter, not typed here — it is the same string the CLI prints.)
 
 **The SVG export has neither**, and don't infer a clean sheet from the
 silence: no stamp goes in the file and no `DROPPED=` is printed, so the

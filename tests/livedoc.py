@@ -548,6 +548,31 @@ def first_class_types() -> str:
                      for t in _types_in_tier("first-class"))
 
 
+@calculator("mermaid_dropped")
+def mermaid_dropped() -> str:
+    """The categories a `--format mermaid` export leaves behind.
+
+    THE THIRD COPY. This rule was written by hand in three places — the
+    filter, the runtime `NOTE=` line, and SKILL.md's export paragraph.
+    The `NOTE=` line had drifted; SKILL.md had not, which made it the
+    dangerous one: correct prose with nothing holding it there is one
+    edit from being wrong and reads identically either way. Both are
+    now derived from `canvas.MERMAID_DROP_LABELS` via the same function
+    the CLI prints with, so the sentence and the filter cannot disagree.
+
+    `mermaid` and not `er` because SKILL.md states the wider set and
+    then names the `er` exception in prose; the exception is one term
+    (`MERMAID_DROP_ROLES_NON_ER`) and stating it twice would reintroduce
+    exactly the transcription this removes.
+
+    Returns:
+        The comma-joined category list, as the CLI would print it.
+    """
+    canvas = _canvas()
+    return canvas._mermaid_dropped_names(canvas.mermaid_dropped_roles(
+        "mermaid"))
+
+
 @calculator("cross_lint_join")
 def cross_lint_join() -> str:
     """The artifact-type pair `cross_lint`'s mapped-element checks join.
