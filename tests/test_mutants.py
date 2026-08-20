@@ -24038,9 +24038,24 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # so no repair closes one door's line and leaves the other's — whichever
 # the owner picks has to reach both `_tidy_pass` and `apply_ops`, and the
 # mod class's two reds flip together under every scope choice.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheInkBandHelperMeasuresTheCheckItQuotes": 1,
-}
+#
+# EMPTY AGAIN on 2026-08-20 (TASK-INKBAND-SPACING), and this value was READ
+# OFF the guard rather than typed: the fix and the marker flip were made,
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` was run, it
+# reported `measured {} against a declared {'TestTheInkBandHelperMeasures
+# TheCheckItQuotes': 1}`, and the measured side was transcribed.
+# `TestTheInkBandHelperMeasuresTheCheckItQuotes` lost a LINE and not a
+# number — the eleventh time that has been the shape here — and it lost it
+# the day after it joined, with the class staying at four green tests.
+#
+# WHAT IT COST TO GET RIGHT is the part worth banking, because the entry
+# above says the guard exists to catch a curator who counts their own
+# decorators and this one was nearly the same defect one level along. The
+# red's own class named THREE honest repairs and the fix took the third,
+# not the one the handover named; a note here that had transcribed the
+# named repair would have described a tree that does not exist. Read the
+# class, not the paragraph that commissioned it.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
 # `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
@@ -30609,6 +30624,24 @@ def _drawn_ink_band(scene: list[dict]) -> tuple[float, float, float, float]:
     so a change to the wrap or the metrics moves this with it and the
     reds keep asking their question instead of guarding a literal.
 
+    TWO WRAPS AND TWO SPACINGS, because `label_overflows_shape` reads two
+    and this helper claims to reproduce it. The WIDTH comes off
+    `wrap_label_text` — the whitespace wrap, whose widest line is the
+    number the check's magnitude is actionable in — and the HEIGHT off
+    `client_wrapped_lines` at `line_height_of(lbl)`, which is the block
+    the browser paints. That is the check's own two lines and not a
+    paraphrase of them.
+
+    FIXED 2026-08-20 (CURATOR-BAND-SPACING item 2). This measured the
+    height with `text_dims(drawn, fs)` — the DEFAULT 1.35, where a
+    family-1 label is laid out at 1.25 — so on `_apex_band_stage` it
+    read the band as 40..105 where the check probes 40..100, on a stage
+    whose whole subject is a band grazing the apex at y=100. The wrap
+    axis agreed on that scene by luck (server and client both give three
+    lines there) and is moved onto the check's rule in the same edit,
+    since an agreement nothing enforces is the same defect waiting for a
+    chopped token.
+
     Args:
         scene: A two-element `[owner, label]` scene.
 
@@ -30618,10 +30651,11 @@ def _drawn_ink_band(scene: list[dict]) -> tuple[float, float, float, float]:
     """
     owner, lbl = scene[0], scene[1]
     fs = lbl["fontSize"]
-    drawn = canvas.wrap_label_text(lbl["text"].replace("\n", " "),
-                                   int(canvas.client_wrap_width(owner)), fs)
-    drawn_w = canvas.text_ink_width(drawn, fs)
-    drawn_h = canvas.text_dims(drawn, fs)[1]
+    flat = lbl["text"].replace("\n", " ")
+    cap = int(canvas.client_wrap_width(owner))
+    drawn_w = canvas.text_ink_width(canvas.wrap_label_text(flat, cap, fs), fs)
+    drawn_h = canvas.text_dims("\n".join(canvas.client_wrapped_lines(
+        flat, cap, fs)), fs, canvas.line_height_of(lbl))[1]
     cy = lbl["y"] + max(float(lbl["height"]), drawn_h) / 2.0
     ink_cx = lbl["x"] + max(float(lbl["width"]), drawn_w) / 2.0
     return (ink_cx - drawn_w / 2.0, ink_cx + drawn_w / 2.0,
@@ -31399,22 +31433,28 @@ class TestTheWideEndOfTheBandIsStillTheNode(unittest.TestCase):
     def _band(self, scene: list[dict]) -> tuple[float, float, float, float]:
         """Where the ink sits, at the spacing `lint_layout` itself uses.
 
-        NOT `_drawn_ink_band`, and the difference is 4px of band on this
-        scene. That helper measures the block with `text_dims(drawn,
-        fs)` — the DEFAULT multiplier, 1.35 — while the check passes
-        `line_height_of(t)`, which for these fixtures is family 1 at
-        1.25. So the helper reads this label as 44px tall where the
-        check reads 40px, and the chord it then probes is the chord at
+        NOT `_drawn_ink_band`, and the difference WAS 4px of band on
+        this scene. That helper measured the block with `text_dims(
+        drawn, fs)` — the DEFAULT multiplier, 1.35 — while the check
+        passes `line_height_of(t)`, which for these fixtures is family 1
+        at 1.25. So the helper read this label as 44px tall where the
+        check reads 40px, and the chord it then probed was the chord at
         the wrong height. Its docstring says "by the check's own rule",
-        and since the line-height stream landed that is no longer true.
+        and between the line-height stream landing and 2026-08-20 that
+        was not true.
 
-        Reported rather than repaired: `_drawn_ink_band` is curator
-        batch 39's, `TestABandTouchingTheApexIsNotAMiss` stands on it,
-        and on the apex stage the same divergence reads the band as
-        40..105 where the check reads 40..100 — load-bearing for a test
-        whose whole subject is a band grazing the apex at y=100. Fixing
-        a shared helper under another curator's pins is that curator's
-        call. What this method does is refuse to inherit the divergence.
+        Reported rather than repaired, and CLOSED SINCE by the owner it
+        was reported to (TASK-INKBAND-SPACING): `_drawn_ink_band` is
+        curator batch 39's, `TestABandTouchingTheApexIsNotAMiss` stands
+        on it, and on the apex stage the same divergence read the band
+        as 40..105 where the check reads 40..100 — load-bearing for a
+        test whose whole subject is a band grazing the apex at y=100.
+        Fixing a shared helper under another curator's pins was that
+        curator's call to accept, and it did. This method KEEPS its own
+        derivation rather than being folded into that helper: two
+        independent readings that must agree is what the green below
+        asserts, and collapsing them to one would delete the assertion
+        rather than satisfy it.
 
         Args:
             scene: A two-element `[owner, label]` scene.
@@ -31517,10 +31557,14 @@ class TestTheWideEndOfTheBandIsStillTheNode(unittest.TestCase):
         for, and it has already reached this file once.
 
         It is deliberately NOT an assertion that `_drawn_ink_band`
-        agrees: that helper currently does not, it belongs to curator
-        batch 39, and a red here about someone else's helper would be
-        this class reporting a defect it does not own. This pins MY
-        derivation only.
+        agrees. When this was written that helper did not, it belongs to
+        curator batch 39, and a red here about someone else's helper
+        would have been this class reporting a defect it does not own.
+        That helper agrees since 2026-08-20 and its OWN green asserts so
+        (`TestTheInkBandHelperMeasuresTheCheckItQuotes`); the scope here
+        is unchanged on purpose, because the two derivations are useful
+        to the harness precisely while they stay independent. This pins
+        MY derivation only.
         """
         scene = self._stage()
         _, _, top, bottom = self._band(scene)
@@ -31553,8 +31597,11 @@ class TestTheWideEndOfTheBandIsStillTheNode(unittest.TestCase):
 # Four pins below, one per thing the fold changed that nothing watched.
 #
 # ITEM 2 is the same defect one level up, in an INSTRUMENT:
-# `_drawn_ink_band` promises "by the check's own rule" and measures at
-# `text_dims`' default. That is the last class here and the only red.
+# `_drawn_ink_band` promised "by the check's own rule" and measured at
+# `text_dims`' default. That is the last class here, it was the only
+# red, and it went green on 2026-08-20 (TASK-INKBAND-SPACING) when the
+# helper took the check's height rule — `client_wrapped_lines` at
+# `line_height_of`. The section is now green throughout.
 #
 # THE FIGURES RELAYED WITH THE HANDOVER WERE MEASURED AT 1.35 AND ARE
 # CORRECTED HERE, which is the whole reason this section exists. The
@@ -31562,12 +31609,17 @@ class TestTheWideEndOfTheBandIsStillTheNode(unittest.TestCase):
 # 120px". At `line_height_of(t)` — 1.25 for a family-1 label, which is
 # what the check passes — the block is 20px deep on the server's wrap and
 # 40px on the client's, not 22 and 44, so the chord moves 100 -> 60. The
-# same arithmetic is in canvas.py's own emitter comment ("whether the
+# same arithmetic was in canvas.py's own emitter comment ("whether the
 # block is 22 or 44px deep ... 96px chord and 76px of overhang at 22px
-# deep, 52px and 120px at 44px"): those four numbers are read at 1.35 and
-# the shipped code reads 1.25. NOT REPAIRED HERE — it is product prose and
-# belongs to the arm's owner — but named, because it is item 2's defect
-# committed in the documentation of item 1's fix.
+# deep, 52px and 120px at 44px"): those four numbers were read at 1.35
+# and the shipped code reads 1.25. Named rather than repaired here — it
+# is product prose and belongs to the arm's owner — because it is item
+# 2's defect committed in the documentation of item 1's fix. THE ARM'S
+# OWNER TOOK IT on 2026-08-20 (TASK-INKBAND-SPACING) and the comment now
+# reads 20/40px deep and 100 -> 60. Re-derived there, not transcribed
+# from this paragraph: the block depths and both chords came off
+# `text_dims` and `shape_band_span` on that 200x200 scene, and the 1.35
+# figures were reproduced first to confirm how the wrong ones were got.
 #
 # WHAT WAS VERIFIED RATHER THAN CORRECTED: the TRAP is exactly as
 # described. `cy` comes from `max(box_h, drawn_h)`, so once the painted
@@ -31578,11 +31630,12 @@ class TestTheWideEndOfTheBandIsStillTheNode(unittest.TestCase):
 # here, and a verification run on one would have shown the fix doing
 # nothing.
 #
-# WHO FLIPS WHAT: nothing, if the tree stays as it is. Four of these five
-# classes are GREEN ON ARRIVAL and are proven against reverted worlds
-# rather than against the future — see each class for which line to put
-# back. The fifth is red and its repair is in `_drawn_ink_band`, a
-# helper this section does not own.
+# WHO FLIPS WHAT: nothing left. Four of these five classes were GREEN ON
+# ARRIVAL and are proven against reverted worlds rather than against the
+# future — see each class for which line to put back. The fifth was red
+# and its repair was in `_drawn_ink_band`, a helper this section does not
+# own; that owner took it the same day and the fifth is now proven the
+# same way, against a reverted `text_dims(drawn, fs)`.
 # ---------------------------------------------------------------------------
 
 
@@ -32204,6 +32257,27 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
     below: the named one, `ceil(lines * fs * line_height_of(lbl))`, and
     measuring `client_wrapped_lines`' block at the same spacing. A red
     that flipped under only one would have prescribed it.
+
+    GREEN since 2026-08-20 (TASK-INKBAND-SPACING), by the THIRD of those
+    three and not the named one, and the choice is the only part worth
+    an argument. All three agree on this stage, so all three flip the
+    red; they differ on a stage where a token has to be chopped, and
+    only the third reproduces the check on BOTH axes rather than
+    reproducing it on the spacing and agreeing with it on the wrap by
+    coincidence. Re-derived rather than inherited: the helper read
+    40..105 at 1.35 and the check reads 40..100 at
+    `line_height_of` = 1.25, the block being 65px against 60px, and the
+    apex is at y=100.
+
+    BATCH 39'S APEX ASSERTIONS WERE RE-DERIVED, NOT RELAXED, and there
+    was nothing to move. `test_the_band_really_does_overlap_the_body`
+    asserts `bottom >= apex` and the repaired band ends exactly ON the
+    apex, so 100 >= 100 stands on the boundary the class was written
+    about; its chord is probed at the band's TOP edge, which is y=40
+    under both readings because `cy` comes from `max(box_h, drawn_h)`
+    and both blocks exceed the 20px box. The other two call sites read
+    only the ink's x-interval, which this repair does not touch. Had the
+    honest re-derivation failed, that would have been a finding.
     """
 
     def test_the_stage_still_puts_the_band_on_the_apex(self) -> None:
@@ -32246,9 +32320,8 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
             "client paints at this label's own lineHeight"
             % (bottom - top))
 
-    @unittest.expectedFailure
     def test_the_helper_reads_the_band_the_check_reads(self) -> None:
-        """RED: 40..105 against 40..100, on the apex stage itself.
+        """WAS RED: 40..105 against 40..100, on the apex stage itself.
 
         The invariant, not either literal: whatever the wrap and the
         metrics do next, an instrument that claims to reproduce the
@@ -32256,6 +32329,11 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
         `lint_layout` really passes `shape_band_span`, taken from the
         call — comparing two derivations is what let this drift in the
         first place.
+
+        FLIPPED 2026-08-20 (TASK-INKBAND-SPACING) by `_drawn_ink_band`
+        taking the check's height rule. Proven by reverting: put back
+        `text_dims(drawn, fs)` and leave every other line of the fix
+        standing, and this fails again at 40..105 against 40..100.
         """
         scene = _apex_band_stage()
         _, top, bottom = _check_band_probe(scene)

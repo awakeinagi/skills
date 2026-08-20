@@ -18254,11 +18254,24 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # spacing. The narrowest chord sits at whichever edge is further
         # from the waist, so a label ABOVE the waist keeps its chord
         # however the block deepens — measured: a 200x200 rhombus with
-        # its label at y=40 reads an 80px chord whether the block is 22
-        # or 44px deep — and only a label at or BELOW the waist can
+        # its label at y=40 reads an 80px chord whether the block is 20
+        # or 40px deep — and only a label at or BELOW the waist can
         # witness a change to `drawn_h` at all (same rhombus at y=130:
-        # 96px chord and 76px of overhang at 22px deep, 52px and 120px
-        # at 44px).
+        # 100px chord and 72px of overhang at 20px deep, 60px and 112px
+        # at 40px).
+        #
+        # RE-DERIVED AT THE LABEL'S OWN SPACING 2026-08-20 (TASK-INKBAND-
+        # SPACING), because all four of those numbers were read at
+        # `text_dims`' default 1.35 and this check has passed
+        # `line_height_of(t)` since the line-height stream landed. A
+        # family-1 label lays out at 1.25, so one line is 20px and not
+        # 22, two are 40 and not 44, and the y=130 chords are 100 -> 60
+        # rather than 96 -> 52. The old figures reproduce exactly if you
+        # feed `text_dims` no line height, which is how they were got
+        # and is the same defect this paragraph is describing, committed
+        # in the prose that describes it. The 80px above is unchanged:
+        # the band's top edge is the deciding one there whatever the
+        # spacing, which is the whole point being made.
         # `or fit is None` KEEPS THE STRUCTURAL CASE LOUD. The gate
         # suppresses sub-pixel OVERHANGS, which are estimator noise. A
         # label whose band lies off the body altogether is not a
