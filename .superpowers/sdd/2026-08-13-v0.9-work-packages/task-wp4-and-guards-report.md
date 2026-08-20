@@ -325,6 +325,111 @@ disposition.
 | pre-commit, all hooks | all passed **except** `backend tests` (the three named reds) and the three frontend hooks, which fail on missing `node_modules` — provisioning, not code |
 | test count, `1b96bf7` → `109807a` | **1726 → 1726**, no loss |
 
+## 6b. THE SEVENTH, CONTINUED — and what my instrument got wrong
+
+Written after §5, which is left standing above exactly as first filed so
+the correction has something to be a correction *of*.
+
+### 6b.1 My framing was wrong, and so were my numbers
+
+**The check was never silent.** I routed this as an absence. `over_w` is
+`longest > room_w`, which is precisely the condition under which the
+client chops, so `text_overflow` **speaks on every scene in this class**.
+It was wrong about *direction* — `too wide` where the picture is too wide
+**and** too tall. That is worse than a silence, because a direction is
+what a reader acts on, and reporting it as a silence would have sent the
+next reader looking for missing code rather than a wrong term.
+
+**My headline case does not reproduce.** Re-rendered through the shipped
+client in my own tree: the 200x100 diamond with `'Acknowledged escalation'`
+paints **two** lines (`'Acknowledge'` / `'d escalation'`), not the three I
+predicted. Same line count as the server stores, so the stored height is
+right and `text_overflow` is **correct** on that scene. My second scene,
+the 90x100 rhombus, does reproduce — six painted lines against four
+stored.
+
+**The cause, and it is the wave's signature error in a new costume.**
+`probe_seventh.py` predicted the browser's chop by accumulating
+per-character advances **out of `canvas.NUNITO_ADVANCE`** — the server's
+own table, whose disagreement with the browser *is* the defect. The
+instrument was made of the thing under test. It was worse than a metric
+error: the chop *positions* were wrong in both scenes (`'Sen'`/`'d for'`
+where chromium draws `'Send'`/`'for'`), and the one count that matched
+matched **by luck**.
+
+### 6b.2 The fix
+
+`client_wrapped_lines` transcribes `Id` → `$$` → `z$`. `text_overflow`
+keeps its width on `wrap_label_text` and moves its height onto the new
+function. Corpus census unchanged at `warnings=56`, so the fix invents
+nothing: the server chops slightly earlier than chromium, but no corpus
+label carries a token near its cap.
+
+Commits: `aec24f5` (the curator's red, alone and still red, verified red
+**by assertion** in my tree first) then `0165ea3` (the flip). Red before
+fix, in that order, deliberately — a mutant that shares a commit with its
+fix is born green and proves nothing.
+
+### 6b.3 A NINTH: `BOUND_TEXT_PADDING` is wrong, and how it was caught
+
+Re-deriving the denominator in the browser, `'compliance'` refused to chop
+at a cap my code computes as 75 while chromium paints it at 81px of ink.
+That is impossible, so I stopped predicting the cap and **measured** it:
+one word, three shape arms, 1px width steps, container at `opacity: 0` so
+the only ink is the text.
+
+| shape | narrowest width keeping the word whole | shape term | minus advance |
+|---|---|---|---|
+| rectangle | w=84 | `w` = 84 | **2** |
+| diamond | w=167 | `round(w/2)` = 84 | **2** |
+| ellipse | w=119 | `round(w/2*sqrt(2))` = 84 | **2** |
+
+All three land on **exactly 84**. This **confirms the three shape arms by
+measurement** — the first check on them that is not a reading of minified
+source — and **falsifies the padding**: the client subtracts about 2 where
+`client_wrap_width` subtracts 10, so every cap is ~8px too narrow.
+
+**Root cause, and it is a family member of a rule this wave already
+wrote.** The transcription took `Yn = 5` from byte 248725 and `_s` from
+byte 555675 — **300KB apart in a minified bundle**, almost certainly
+different module scopes, and nothing checked they were the same binding.
+The wave's existing rule is *never pin a minified identifier, because the
+minifier renames it*. This is its sibling: **never assume two minified
+symbols from distant offsets share a scope.** Both are one error —
+treating a build artefact's incidental structure as if it carried meaning.
+
+**What caught it was reality declining to do something impossible.** I
+would not have found it if the browser had not refused to chop a word my
+arithmetic said it must.
+
+**Consequence, re-derived in the browser over all 291 bound single-line
+corpus labels** (each rendered in its own real container, painted lines
+counted off the raster, no cap consulted in the verdict): TASK-TEXT-TRUTH's
+headline *"14 of 14 are re-wrapped by the client"* is **8 of 291**, not
+14. `client_wrap_width` predicts 14; the six it over-predicts are all
+within 8px of the tight cap, which is the error itself. **The room rule is
+still right in kind — the halving is confirmed — and its case is weaker
+than stated.**
+
+Not fixed by me, per the coordinator's ruling: **a curator writes the red
+against the current constant and I flip it**, because I am the party that
+just measured the area and a re-calibration routed by that party is what
+burned this wave the same morning. Routed to `curator-boundpad` with both
+rigs and an explicit request to re-derive rather than believe me. It is
+confined to unfolded branches — `BOUND_TEXT_PADDING` has zero occurrences
+on the folded tip — so nothing shipped with it.
+
+### 6b.4 Numbers from §5 that are now withdrawn
+
+* the 200x100 diamond row — **wrong**, chromium paints two lines;
+* the chop positions in all three rows — **wrong**, server table;
+* "0 of 291" — **survives**, but re-derived: the 24 tightest were rendered
+  and none is chopped, and the rest sit at ≥66px of server margin, which
+  under-states the true margin because the table reads wide;
+* "tightest margin 16px" and "chopped on any diamond up to 182px" — both
+  **server-side numbers**. The browser's threshold for `'compliance'` is
+  **166px**, not 182. Neither figure should be quoted from §5.
+
 ## 7. Concerns
 
 1. **`shape_band_width` now has one caller and it is a test.** After
