@@ -16138,6 +16138,54 @@ def _over_wide_token(height: int) -> list[dict]:
                originalText=text)]
 
 
+def _half_pixel_rhombus(text: str) -> list[dict]:
+    """A rhombus whose cap lands on a HALF PIXEL, carrying `text`.
+
+    181 IS THE WHOLE CONSTRUCTION and no other width in this file would
+    do. The client's `_s` (index-DpKP4sIE.js @555833, read verbatim) is
+    `Math.round(n/2) - Yn*2` on a diamond, and `client_wrap_width`
+    (canvas.py) transcribes that as `round(w / 2) - pad`. The two agree
+    everywhere except where `w / 2` lands exactly on `.5`: `Math.round`
+    is half-UP and Python's `round` is half-to-EVEN, so an odd width
+    whose half floors to an even number splits them. At 181 the client
+    allows **81px** and this file allows **80**.
+
+    That is a one-pixel disagreement, which is exactly why the label is
+    chosen to paint 81px: anything wider fails under both readings and
+    anything narrower passes under both, and the defect is invisible
+    from every width but the boundary. The tolerance the rest of the
+    catalogue relies on cannot see a pixel, so the SCENE has to place it.
+
+    Both poles share this container, deliberately. Moving the width to
+    build the other pole would move the rounding too, and the neighbour
+    would then prove the check fires at some OTHER cap rather than at
+    the half-pixel cap under test. Only the text moves.
+
+    The height is 200 — an even number, so `client_text_headroom` rounds
+    `100` cleanly and the height arm carries none of the defect. The
+    label sits centred, where a 181x200 rhombus is 163px across, so the
+    shape-placement check next door has nothing to say about either pole
+    and cannot colour the verdict.
+
+    Args:
+        text: The bound label's content. `'acceptance'` paints 81px,
+            the pixel that separates the two roundings; anything much
+            wider is over the cap under either.
+
+    Returns:
+        The two-element scene: node `n1`, then its bound label `t1`.
+    """
+    ink = canvas.text_ink_width(text, 16)
+    return [el(id="n1", type="diamond", x=0, y=0, width=181, height=200,
+               customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=(181 - ink) // 2, y=90, width=ink,
+               height=20, text=text, fontSize=16,
+               fontFamily=canvas.FONT_LEGIBLE, textAlign="center",
+               verticalAlign="middle", containerId="n1",
+               originalText=text)]
+
+
 def _foreign_corner_stage() -> list[dict]:
     """The diamond stage plus an arrow threading its empty bbox corner.
 
@@ -18468,6 +18516,57 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _over_wide_token(height=200),
                         FindingSpec("text_overflow", element="n1",
                                     magnitude=(110, 0.10),
+                                    direction="wide"))))
+
+# The FOURTH arm, and a transcription defect rather than a modelling one:
+# `client_wrap_width` computes the client's own rule in a language that
+# rounds halves differently. `Math.round` is half-UP; Python's `round` is
+# half-to-EVEN. On a 181px rhombus the client allows 81px and this file
+# allows 80, so a label painting exactly 81 is called `too wide` about a
+# picture that fits. Silent everywhere else, which is what makes it worth a
+# scene rather than a comment: the arms agree at every width except the
+# ones where `w / 2` lands on a half, and nothing in the corpus or the
+# tolerance bands can see one pixel.
+#
+# THE FIX THAT FLIPS THIS is `math.floor(x + 0.5)` at the two `round(w / 2)`
+# sites — `client_wrap_width` and `client_text_headroom`, which share the
+# defect. `math.ceil(w / 2)` also flips it and is WRONG: it agrees with
+# `Math.round` on every integer width and parts from it on fractional ones
+# (`Math.round(90.2)` is 90, `ceil` is 91), which Excalidraw produces every
+# time a user drags a corner. This pair cannot see that — a mutant's magnitude
+# lives at the boundary and a boundary cannot also be wide — so it is written
+# down here instead of watched: whoever takes the fix owes the fractional
+# case its own scene, or owes a reason it does not need one.
+#
+# The ellipse arm carries the same `round` and is NOT reachable: its
+# `w / 2 * sqrt(2)` is irrational for every integer width, so it never lands
+# on a half and there is no scene to build. `client_grown_extent`'s ellipse
+# arm is irrational for the same reason.
+#
+# Origin: found during the bound-text padding investigation (curator, routed
+# by v0.9 WP4-AND-GUARDS), 2026-08-19 — the one defect left standing after
+# the padding, the shape arms and the advance table were each measured and
+# cleared. `_s` was read verbatim from the shipped bundle rather than
+# recalled, which is how the rounding was noticed at all.
+_register(Mutant(
+    "rhombus_half_pixel_cap",
+    build=lambda: _half_pixel_rhombus("acceptance"),
+    op="unchanged", args={},
+    # SILENCE, because the client's own arithmetic gives this label the
+    # pixel it needs. No magnitude to assert on an over-fire; the number is
+    # asserted on the neighbour, which shares the container and so pins the
+    # very same rounded cap.
+    expect=Silence("text_overflow"),
+    # A FIRING neighbour: same rhombus, same half-pixel cap, a word far
+    # enough over it that both roundings agree. 121px against a cap of 80
+    # or 81 — the ±10% band is [108.9, 133.1], which excludes 80 and 81
+    # (room_w under either reading), 90 (room_h) and 40 (the needed
+    # height), so a check that reported the allowance instead of the need,
+    # or transposed the axes, fails this spec. It also pins the HALVING:
+    # drop it and the cap becomes 171, over 121, and this goes silent.
+    neighbour=Neighbour(lambda: _half_pixel_rhombus("decommissioned"),
+                        FindingSpec("text_overflow", element="n1",
+                                    magnitude=(121, 0.10),
                                     direction="wide"))))
 
 _register(Mutant(
@@ -21939,6 +22038,20 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same unbreakable word in a 200px box is wide and no more."""
         self._run_neighbour("chopped_token_reads_as_one_line")
 
+    @unittest.expectedFailure
+    def test_mutant_rhombus_half_pixel_cap(self) -> None:
+        """A label the client gives 81px, called too wide for 80."""
+        # RED: `client_wrap_width` rounds `181 / 2` to even where the
+        # client rounds it up, so the check complains about a label that
+        # fits. Flips on `math.floor(x + 0.5)` at that site and at
+        # `client_text_headroom`'s twin — see the entry for the `ceil`
+        # near-miss the pair deliberately cannot see.
+        self._run("rhombus_half_pixel_cap")
+
+    def test_neighbour_rhombus_half_pixel_cap(self) -> None:
+        """A 121px word in the SAME rhombus is over the cap either way."""
+        self._run_neighbour("rhombus_half_pixel_cap")
+
     def test_mutant_straddle_reads_the_worse_of_two_grounds(self) -> None:
         """Half a white word on cream paper reads 1.06:1, not 14.22:1."""
         # Green: the arm fires and is right to. What had never been
@@ -23169,7 +23282,31 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"rhombus_half_pixel_cap"}
+# `rhombus_half_pixel_cap` ARRIVED on 2026-08-19 (curator, routed by v0.9
+# WP4-AND-GUARDS), and like the entry below it is NOT red by absence:
+# `text_overflow` is `proven`, speaks on this scene, and says `too wide`
+# about a label the client gives the pixel it needs. It is red for a
+# narrower reason than anything else this set has held — a TRANSCRIPTION
+# defect, `Math.round` being half-up where Python's `round` is half-to-even,
+# so the two arms agree at every width except the ones where `w / 2` lands
+# on a half. One pixel, and no tolerance band in this file can see one
+# pixel; only a scene placed on the boundary can, which is why 181 is
+# load-bearing and why the neighbour shares the container rather than
+# moving the width.
+# WHAT WILL EMPTY THIS AGAIN is `math.floor(x + 0.5)` at the two
+# `round(w / 2)` sites in canvas.py — `client_wrap_width` and
+# `client_text_headroom`. It belongs to whoever owns those, not here. The
+# entry records the `math.ceil` near-miss that would also flip this mutant
+# while staying wrong on fractional widths; a fix that takes that route
+# owes the fractional case its own scene.
+# WHAT IT IS NOT: this is the residue of an investigation that cleared
+# everything around it. The padding constant, the three shape arms and
+# `NUNITO_ADVANCE` were each measured and each found correct — the two
+# convergent padding measurements and the painted-advance fit are in that
+# task's report. Nothing else in this area is red, and this one pixel is
+# the whole of what survived.
+#
 # `chopped_token_reads_as_one_line` ARRIVED AND LEFT on 2026-08-19 (filed by
 # a curator, routed by v0.9 WP4-AND-GUARDS, flipped by the same task one
 # commit later), and it is the only id this set has ever held that was NOT
