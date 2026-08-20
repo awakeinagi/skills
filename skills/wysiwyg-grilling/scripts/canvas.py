@@ -3204,6 +3204,60 @@ def _slider_thumb_x(el, value):
     return el["x"] + 10 + (w - 20 - 12) * (float(value) / 100.0)
 
 
+def _honour_ungroup(els, el, ungrouped_by_user):
+    """Close a composite's group — unless the user just opened it.
+
+    DELTA-BASED, NEVER STATE-BASED, for the same reason the check-stroke
+    gesture above is: the two cases are INDISTINGUISHABLE in the new
+    scene alone. A widget the user pulled apart with Ctrl+Shift+G and a
+    widget that was never assembled at all — a paste, a template insert,
+    an agent `add` that ran before the compose blocks existed — both
+    arrive with no shared group and nothing to tell them apart. Only the
+    BASE scene separates them, which is why the rule lives in the one
+    pass that holds both and NOT in `reconcile_composed`: the agent and
+    seed paths call that with no base, and a state-based rule there
+    would emit a phantom "you ungrouped this" on every pasted widget
+    while fighting a real ungroup on every save.
+
+    `semantic_facts` has stated the ungroup half as product law since
+    the gesture existed — "LOUD, AND NEVER REPAIRED... silently
+    re-grouping would be the tool overruling the user's own hands, which
+    is the one thing this product may not do" — and the code repaired it
+    anyway. Measured 2026-08-20: a user who ungrouped a domain entity
+    and saved got it silently re-assembled by `_reset_attribute_rows`
+    AND was told `saved_no_changes`, because the repair put the group
+    back before the differ looked and `widget_ungrouped` tests the
+    scene it is handed. `kind: body` did half of it — five wave lines
+    re-minted into the group with the body left outside, which is a
+    state neither the user nor the composer asked for.
+
+    The other branch is not a belt on that brace. A host with no group
+    in EITHER scene is an unfinished assembly, and closing it silently
+    is what makes a pre-compose insert reach the canvas as one draggable
+    thing; it emits no fact because nothing about it is a user's claim.
+
+    Args:
+        els: The new scene, mutated in place.
+        el: The composed host.
+        ungrouped_by_user: The delta, READ BEFORE THE RECOMPOSITION RAN
+            — the base carried this widget's group and the posted scene
+            did not. It cannot be re-derived here: `_reset_attribute_rows`
+            has already put the entity's group back by the time this is
+            called, so a gate reading the live element would see a
+            grouped widget and close it again. (It did, in the first cut
+            of this function, and the entity case stayed broken while
+            every other kind went green — which is how it got caught.)
+    """
+    gid = el["id"] + "-grp"
+    parts = [e for e in els if part_owner_id(e) == el["id"]]
+    if ungrouped_by_user:
+        for e in [el, *parts]:
+            if gid in (e.get("groupIds") or []):
+                e["groupIds"] = [g for g in e["groupIds"] if g != gid]
+        return
+    _close_widget_group([el, *parts])
+
+
 def _interpret_user_composites(new_els, old_els):
     """Read a user's composite-part edits as STATE, then normalize.
 
@@ -3272,12 +3326,20 @@ def _interpret_user_composites(new_els, old_els):
             continue
         cd = el.get("customData") or {}
         kind = cd.get("kind")
+        # THE DELTA, read off the POSTED scene before anything below
+        # recomposes it — `_reset_attribute_rows` puts an entity's group
+        # back, so this cannot be asked again afterwards
+        gid = el["id"] + "-grp"
+        ungrouped_by_user = \
+            gid in ((old_ix.get(el["id"]) or {}).get("groupIds") or []) and \
+            gid not in (el.get("groupIds") or [])
         if el["id"] not in old_ix:
             # a NEW host (paste, template insert, pre-compose add): parts
             # absent in both scenes → recompose silently, no gesture
             if kind in ("checkbox", "toggle", "slider", "kpi", "input",
                         "image", "entity"):
                 reconcile_composed(new_els, None, None, el)
+                _honour_ungroup(new_els, el, False)
             continue
         if kind == "checkbox":
             had = part_of(old_ix, "chk_of", el["id"]) is not None
@@ -3307,6 +3369,7 @@ def _interpret_user_composites(new_els, old_els):
                 v = round(max(0.0, min(100.0, v)), 1)
                 el["customData"] = dict(cd, value=v)
         reconcile_composed(new_els, None, None, el)
+        _honour_ungroup(new_els, el, ungrouped_by_user)
     # Back into the posted seats. `sort` is stable and every part minted
     # during the pass misses `seats`, so they all score `len(seats)` and
     # keep the relative order the recomposition appended them in — the
