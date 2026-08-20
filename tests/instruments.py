@@ -97,6 +97,30 @@ WEIGHTS: dict[str, float] = {
 GATES = ("node_overlap",)
 
 
+def _role(el: dict) -> str:
+    """The element's declared role, defaulting exactly as `canvas.py` does.
+
+    Mirrors `canvas.py`'s `role_of` — including the default. An element
+    carrying no `customData.role` is "node", so a bare user-drawn line
+    bound to a shape counts as a connector rather than as furniture; a
+    default of "" here would silently re-open the false zero for the one
+    population that most needs it (the user's own hand).
+
+    `_nodes` deliberately does NOT use this: it tests `role == "node"`
+    against the raw value, so an element with no `customData` is
+    excluded there. Routing it through this default would widen the node
+    population, which is a different change with a different blast
+    radius and is not this one.
+
+    Args:
+        el: Any scene element.
+
+    Returns:
+        The `customData.role` string, or "node" when unset or blank.
+    """
+    return (el.get("customData") or {}).get("role") or "node"
+
+
 def _nodes(elements: list[dict]) -> list[dict]:
     """Select the diagram's node shapes.
 
@@ -112,15 +136,41 @@ def _nodes(elements: list[dict]) -> list[dict]:
 
 
 def _arrows(elements: list[dict]) -> list[dict]:
-    """Select the diagram's arrows.
+    """Select the diagram's connectors — arrows AND non-decorative lines.
+
+    ONE POPULATION, NOT TWO SPELLINGS OF IT. `canvas.py` calls a
+    connector `("arrow", "line")` everywhere it routes or lints one
+    (`server_routed_connectors`, `_scene_lane_cost`, `_router_owns`);
+    this module read `type == "arrow"` alone, so a scene whose relations
+    are `line`-typed came back with an empty arrow list and every
+    arrow-derived reading answered from it. That is worse than the
+    silence it looks like: `edge_crossings` returns a confident `0`, and
+    `crossings_count` reports "crossings=0" over a scene it never
+    examined. MEASURED 2026-08-20 on the 24 frozen artifacts: retype
+    each scene's relations to `line` and 18 true crossings across 6
+    artifacts are reported as 0 (enrichment-pipeline 12, enrichment-flow
+    2 + 1, daily-run 1, tearsheet-domain 1, tearsheet-pipeline 1).
+
+    AND NOT EVERY LINE, which is why this asks the role rather than only
+    the type. All 20 `line` elements in those 24 artifacts are
+    `role == "decoration"` — chart axes, slider tracks, checkbox ticks —
+    and admitting them manufactures crossings out of furniture:
+    measured at 6 new crossings over `dashboard` and
+    `dashboard-wireframe` (3 each), which reach `WEIGHTS["crossings"]`
+    and `WEIGHTS["crossing_angle"]` and would have moved 4 of the 24
+    scores. The role-aware population moves 0 of the 24 — the corpus
+    holds no non-decorative line today — so this widening is a false
+    zero closed with no reading disturbed.
 
     Args:
         elements: Full scene element list.
 
     Returns:
-        Every arrow element, in scene order.
+        Every arrow, plus every `line` not marked `role ==
+        "decoration"`, in scene order.
     """
-    return [e for e in elements if e["type"] == "arrow"]
+    return [e for e in elements if e["type"] == "arrow"
+            or (e["type"] == "line" and _role(e) != "decoration")]
 
 
 def _abs_points(el: dict) -> list[tuple[float, float]]:
