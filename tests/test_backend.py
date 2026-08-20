@@ -25050,8 +25050,11 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         livedoc, whose `pin_guard_sites` publishes the count into
         SKILL.md — and its prescribed repair, `livedoc refresh`, rewrote
         "Twenty-three" to "2" and went green with twenty-one guards
-        gone. A drift check cannot be this floor, because its repair is
-        to agree.
+        gone. Not "a drift check cannot be a floor", which is one notch
+        too strong and was corrected on this base: livedoc IS the floor
+        on an emptied roster, because `pin_guard_sites` refuses at zero
+        rather than deriving. It derives at two, and that is the range
+        this pin covers.
 
         SO THE OTHER SIDE OF THIS RELATION IS NOT THE ROSTER.
         `TestEachPinGuardIsObserved` holds one test per guard site — its
@@ -25068,6 +25071,19 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         in that class without an entry mutating the guard it observes,
         which is the class's own stated contract rather than a new rule.
 
+        WHERE IT REFUSES AND WHERE IT DERIVES, because that boundary is
+        the whole of what a relation like this is worth (ruling,
+        2026-08-20). `pin_guard_sites` REFUSES at a roster of zero and
+        DERIVES at a roster of two, and the derive range is exactly where
+        it launders. This one refuses on an absent `GUARDS`, on an absent
+        class, and on a class that declares no tests; it derives for
+        every roster from one entry up. So it is launderable in
+        principle — by deleting observation tests until the two sides
+        agree — and that costs one hand edit per guard, in the class
+        whose docstring says one test per guard site, with no command
+        that does it for you, ending at the floor below. `refresh` is one
+        word.
+
         The repair when it goes red is to restore the roster entry, or —
         if the guard truly left `canvas.py` — to delete its test in the
         same change and say why. Neither is a command anybody can run
@@ -25076,9 +25092,30 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         sys.path.insert(0, str(Path(canvas.__file__).resolve().parents[3]
                                / "tests"))
         import guard_mutants
-        cls = TestEachPinGuardIsObserved
+        # BOTH SIDES LOOKED UP, NOT REFERENCED, so that a side which is
+        # GONE reports as an assertion rather than as a NameError or an
+        # AttributeError. The colour is the same either way; the sentence
+        # is not, and "name 'TestEachPinGuardIsObserved' is not defined"
+        # sends the next reader looking for a typo instead of for the
+        # half of the census somebody deleted.
+        cls = getattr(sys.modules[__name__], "TestEachPinGuardIsObserved",
+                      None)
+        self.assertIsNotNone(
+            cls,
+            "TestEachPinGuardIsObserved is gone from this module — the "
+            "class that holds one test per guard site, and the half of "
+            "this relation the roster cannot edit. Its absence is not "
+            "agreement with a short roster; it is the observing half of "
+            "the pin-guard census deleted")
+        roster = getattr(guard_mutants, "GUARDS", None)
+        self.assertIsNotNone(
+            roster,
+            "guard_mutants.GUARDS is gone — not empty, ABSENT. "
+            "`assert_roster_populated` refuses on an empty roster and "
+            "cannot speak for a roster that no longer exists, so this "
+            "relation says it here")
         prefix = cls.__name__ + "."
-        watched = {test[len(prefix):] for *_rest, test in guard_mutants.GUARDS
+        watched = {test[len(prefix):] for *_rest, test in roster
                    if test.startswith(prefix)}
         declared = set(unittest.TestLoader().getTestCaseNames(cls))
         # THE VACUITY FLOOR, and it is not hypothetical: delete the class'
