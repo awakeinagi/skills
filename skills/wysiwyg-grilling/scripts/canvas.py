@@ -17809,17 +17809,72 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # extent the client re-derives can be overhung by real glyph
         # advance — but it can no longer make a 136px frame with 85px of
         # text in it read as 136px of ink (v0.9 WP4 review, F1).
-        drawn = wrap_label_text(txt.replace("\n", " "),
-                                int(client_wrap_width(owner)), fs)
+        #
+        # TWO WRAPS OF ONE LABEL, which is the split `text_overflow`
+        # makes three hundred lines above and for the same reason (v0.9
+        # WP4 review, I-3). The WIDTH stays on `wrap_label_text`, which
+        # breaks on whitespace only and leaves an over-wide token whole,
+        # because the number this check PRINTS has to be one a reader
+        # can act on: measure the width on the chopped block and the
+        # widest chunk is under the cap by construction, so the sentence
+        # would report an overhang smaller than the one the reader sees.
+        # The HEIGHT moves to `client_wrapped_lines`, the block the
+        # browser actually paints, because the height is what picks the
+        # BAND — and a band one line too shallow is scored against a
+        # wider chord than the ink really sits on. That was the
+        # under-report `chopped_token_reads_as_one_line` was filed
+        # about, still live on this arm after the sibling was fixed for
+        # it, and the argument the room-rule stream made for closing it
+        # there ("a rule typed at five sites where only three can be
+        # wrong is how the fourth gets it back") applies here unchanged.
+        flat = txt.replace("\n", " ")
+        cap = int(client_wrap_width(owner))
+        drawn = wrap_label_text(flat, cap, fs)
         drawn_w = text_ink_width(drawn, fs)
         # measured at the text's own `lineHeight`: the band this check
         # reads the shape's width AT is the label's drawn height, so a
         # block measured at the wrong spacing is scored against the wrong
         # chord of the rhombus
-        drawn_h = text_dims(drawn, fs, line_height_of(t))[1]
+        drawn_h = text_dims("\n".join(client_wrapped_lines(flat, cap, fs)),
+                            fs, line_height_of(t))[1]
         # the ink is centred in whatever box holds it, so the band it
         # occupies is its own height about that box's middle
         cy = t.get("y", 0) + max(box_h, drawn_h) / 2.0
+        # THE BODY THE CLIENT DRAWS, WHICH IS NOT ALWAYS THE ONE STORED,
+        # and it has to be settled here because I-3 above made the band
+        # deep enough to reach past it. Measured: on a 160x64 ellipse
+        # carrying one over-wide token the painted block is 44px against
+        # 35px of headroom, so the band [22, 66] runs off a body only
+        # 64px tall and `shape_band_span` pinches to nothing — and the
+        # check reports the pinched sentence about a drawing the browser
+        # never paints. `ai` (@553053) grows that ellipse to 160x76, and
+        # in the grown body the same band is [16, 60] over a 130.5px
+        # chord. The rhombus case is the same: 200x100 pinches, the
+        # 200x150 the client draws gives 113.3px.
+        #
+        # So this check reads the SHAPE the client draws for the same
+        # reason it already reads the WRAP the client draws (v0.9 WP4
+        # review, I-1 and I-3 are one decision — "does this file model
+        # the client's growth, or not?" — and `fit_label_in` and
+        # `text_overflow` have both now answered yes). Scoring a
+        # client-wrapped block against a stored height would turn true
+        # sizing findings into pinched ones that are false about the
+        # picture, which is the wrong-direction failure this review
+        # round exists to close, re-committed under another arm.
+        #
+        # The label is re-centred with the body because that is what the
+        # client does with a bound label after it grows the container;
+        # leaving it at its stored `y` would score the ink against a
+        # band the browser does not put it in. A DRAGGED label is not
+        # re-centred and must not be — `adrift` is the whole point of
+        # reading its stored `x` — but growth is vertical, and `x` is
+        # untouched here.
+        body = owner
+        if drawn_h > client_text_headroom(owner):
+            want = client_grown_extent(drawn_h, owner.get("type"))
+            if want > float(owner.get("height") or 0):
+                body = dict(owner, height=want)
+                cy = body.get("y", 0) + want / 2.0
         # WHERE THE INK IS, not merely how wide it is (v0.9 whole-branch
         # review, M-3). This compared `drawn_w` against `room` — two
         # widths — which is only the right question if the label and the
@@ -17837,7 +17892,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # outline anybody can see" — and reduces to the old arithmetic
         # exactly when the label is centred, which is why the fixture
         # numbers do not move.
-        span = shape_band_span(owner, cy - drawn_h / 2.0,
+        span = shape_band_span(body, cy - drawn_h / 2.0,
                                cy + drawn_h / 2.0)
         # TWO CHORDS, BECAUSE THERE ARE TWO QUESTIONS (curator batch 39).
         # `span` is the narrowest chord in the band — where a BOX this
@@ -17848,7 +17903,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # chord is what made a wrapped label whose band grazes a
         # rhombus's apex read as 62px of ink on empty canvas, when 160px
         # of rhombus is drawn under its own top edge.
-        reach = shape_band_reach(owner, cy - drawn_h / 2.0,
+        reach = shape_band_reach(body, cy - drawn_h / 2.0,
                                  cy + drawn_h / 2.0)
         ink_cx = t.get("x", 0) + max(box_w, drawn_w) / 2.0
         ink0, ink1 = ink_cx - drawn_w / 2.0, ink_cx + drawn_w / 2.0
@@ -17875,8 +17930,8 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             # there is a real separation to report, and it is measured
             # against the owner's BOX — the body is inside the box, so
             # this never overstates the gap to the outline.
-            ex, ey = owner.get("x", 0), owner.get("y", 0)
-            ew, eh = owner.get("width", 0), owner.get("height", 0)
+            ex, ey = body.get("x", 0), body.get("y", 0)
+            ew, eh = body.get("width", 0), body.get("height", 0)
             fit, adrift = None, True
             over = max(ey - (cy + drawn_h / 2.0), (cy - drawn_h / 2.0)
                        - (ey + eh), ex - ink1, ink0 - (ex + ew))
@@ -17910,10 +17965,43 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # sub-pixel overhang is estimator noise rather than a defect.
         # The number reported is the TOTAL overhang measured at the
         # label's own height, not at the shape's widest point and not
-        # per side — a 200x100 rhombus is 200px across at its centre
-        # line but 160px at the edges of a 20px label, so a 171px label
-        # overhangs by 11px (6 left, 5 right; the label sits half a
-        # pixel off centre).
+        # per side. RE-DERIVED on the merged tree 2026-08-20 (v0.9 WP4
+        # review): the example that stood here — "a 200x100 rhombus is
+        # 200px across at its centre line but 160px at the edges of a
+        # 20px label, so a 171px label overhangs by 11px (6 left, 5
+        # right)" — was edge arithmetic on a picture this check no
+        # longer measures, and every number in it was wrong. The ink of
+        # that string is 170, not 171 (`text_dims`' 172 carries a 2px
+        # reservation this arm does not read), so even on its own terms
+        # the overhang was 10 and the split 5.5/4.5. More to the point
+        # the check wraps to `client_wrap_width` BEFORE measuring, so on
+        # that 200x100 scene it paints three lines 62px wide in a body
+        # the client grows to 200x140, the chord under the band is
+        # 114.29px, and this check is correctly SILENT there — the only
+        # finding is `text_overflow`'s growth sentence.
+        #
+        # Replaced with a reading the shipped code emits: the same label
+        # on a 180x140 rhombus, where the 60px block is exactly the
+        # headroom so nothing grows. Cap 80, three lines, 62px of ink,
+        # band [60, 120], narrowest chord 51.43px, ink at 58.5..120.5 —
+        # 5.79 left and 4.79 right, `over` 10.57, and the sentence says
+        # 11px. The split is uneven because `ink_cx` centres on the
+        # stored 171px BOX and not on the 62px of ink inside it, which
+        # puts the ink half a pixel left of the node's centre line.
+        #
+        # WHICH EDGE OF THE BAND DECIDES, worth knowing before choosing
+        # a scene to test this arm on: `cy` comes from
+        # `max(box_h, drawn_h)`, so once the drawn block is at least as
+        # tall as the stored box the band's TOP edge collapses onto the
+        # label's own `y` and only the BOTTOM edge moves with the
+        # spacing. The narrowest chord sits at whichever edge is further
+        # from the waist, so a label ABOVE the waist keeps its chord
+        # however the block deepens — measured: a 200x200 rhombus with
+        # its label at y=40 reads an 80px chord whether the block is 22
+        # or 44px deep — and only a label at or BELOW the waist can
+        # witness a change to `drawn_h` at all (same rhombus at y=130:
+        # 96px chord and 76px of overhang at 22px deep, 52px and 120px
+        # at 44px).
         # `or fit is None` KEEPS THE STRUCTURAL CASE LOUD. The gate
         # suppresses sub-pixel OVERHANGS, which are estimator noise. A
         # label whose band lies off the body altogether is not a
