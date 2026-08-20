@@ -16093,6 +16093,51 @@ def _line_height_box(height: int, line_height: float) -> list[dict]:
     return scene
 
 
+def _over_wide_token(height: int) -> list[dict]:
+    """A box narrower than the ONE word its bound label carries.
+
+    `_boxed_label` next door is the arm where server and client agree
+    on how a phrase breaks and disagree only about the room. This is
+    the arm where they disagree about the LINE COUNT itself, because
+    only one of them can break a word. `wrap_label_text` (canvas.py) is
+    `split()` plus a greedy join, so a token that fits nowhere is
+    emitted whole on a line of its own and counted as one; the shipped
+    client chops it — `$$` hands a token that overflows an empty line
+    to `z$`, which walks it character by character and closes a chunk
+    the moment the next glyph would overrun the cap. Confirmed in
+    chromium through the client tier, not transcribed: `'Acknowledged'`
+    in this box paints as `'Acknowledge'` over `'d'`, two lines.
+
+    100px wide is the whole construction: `client_wrap_width` gives 90
+    against the 110px the word paints, so the single token overflows
+    and there is no second word to absorb the difference. Nothing else
+    about the scene is unusual — this is a node a user could shrink by
+    hand, which is why the base is FORGED rather than relabelled
+    through the write path. A `relabel` would re-mint the container
+    through `fit_label_in`, and a chop-aware `fit_label_in` would then
+    grow the box to hold the two lines and take the defect away with
+    it; this mutant is about what the CHECK makes of a box it did not
+    mint.
+
+    Args:
+        height: The container's height. `client_text_headroom` is this
+            minus 10, so 40 gives 30px of room — enough for the one
+            line the server counts, 10px short of the two the browser
+            paints — and 200 gives 190, which holds either reading.
+
+    Returns:
+        The two-element scene: node `n1`, then its bound label `t1`.
+    """
+    text = "Acknowledged"
+    return [el(id="n1", type="rectangle", x=0, y=0, width=100,
+               height=height, customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=5, y=5, width=110, height=20,
+               text=text, fontSize=16, textAlign="center",
+               verticalAlign="middle", containerId="n1",
+               originalText=text)]
+
+
 def _foreign_corner_stage() -> list[dict]:
     """The diamond stage plus an arrow threading its empty bbox corner.
 
@@ -18367,6 +18412,63 @@ _register(Mutant(
                        magnitude=(172, 0.10), direction="tall"),
     neighbour=Neighbour(lambda: _boxed_label(height=120),
                         Silence("text_overflow"))))
+
+# The THIRD arm of the same check, and the first of the three that is RED.
+# The drawing says the label is one line 20px tall; the browser paints two
+# lines 40px tall in 30px of room, because it breaks a word this file cannot
+# break. `text_overflow` is NOT silent about it — `over_w` is `longest >
+# room_w`, which is exactly the condition under which the client chops, so
+# the check speaks on every instance of this class. It says the wrong thing:
+# `too wide` where the picture is too wide AND too tall, off a height
+# measured on `wrap_label_text`'s un-chopped block. The fix that flips this
+# is a height term measured on the lines the CLIENT will paint; the width
+# term is already right and is pinned below so a fix cannot quietly trade
+# one for the other.
+#
+# Origin: routed by v0.9 WP4-AND-GUARDS on 2026-08-19 while closing four
+# label-fitting pins, one level below the wrap width TASK-TEXT-TRUTH had
+# just fixed — that stream settled WHERE the client breaks a line, this is
+# HOW it breaks a token that fits nowhere.
+#
+# THE DENOMINATOR, because an absence needs one: over the frozen corpus, 291
+# bound labels reach a shape or frame container and 0 of them carry a token
+# wider than their container's cap. This is a structural zero today, not a
+# live miscount — but the tightest margin in that population is 16px (a
+# 200px diamond, cap 90, whose widest token paints 74), and a plain
+# ten-character word is chopped on any diamond up to 182px wide. The corpus
+# is one longer word away from the class, which is why it is worth a mutant
+# and not a comment.
+_register(Mutant(
+    "chopped_token_reads_as_one_line",
+    build=lambda: _over_wide_token(height=40),
+    op="unchanged", args={},
+    # MAGNITUDE: 110px, the ink of the token that will not fit — which is
+    # also the number a reader can act on ("widen the box to 110"), and NOT
+    # the width of the widest chunk the client actually paints, which is
+    # under the 90px cap by construction. A fix reporting the chopped width
+    # would be telling the reader to widen a 90px box to something under
+    # 90. The ±10% band excludes 90 (room_w), 30 (room_h), the
+    # 20px height reported today and the 40px a fixed check would report.
+    # DIRECTION is where the red lives: `both`, against today's `wide`.
+    expect=FindingSpec("text_overflow", element="n1",
+                       magnitude=(110, 0.10), direction="both"),
+    # A FIRING neighbour, not the `Silence` this shape usually takes, and
+    # the reason is the defect's own poles: they are "the chopped block
+    # outruns the headroom" and "it does not", and only a scene that still
+    # carries the over-wide token can hold the second. Silencing it would
+    # mean deleting the construction under test, and would leave the `wide`
+    # arm — the arm that is RIGHT today — unpinned, so a fix could switch it
+    # off unnoticed. Height is the only thing that moves between the poles:
+    # same word, same box width, same 90px cap, 40 -> 200.
+    # Honest caveat, since it cannot be asserted: this neighbour's message
+    # also prints a needed height of 20 where the browser paints 40.
+    # `_TEXT_OVERFLOW_RE` captures the width alone, so no spec here can see
+    # that number, and it does not become right by going unwatched — the
+    # same fix corrects it on both poles.
+    neighbour=Neighbour(lambda: _over_wide_token(height=200),
+                        FindingSpec("text_overflow", element="n1",
+                                    magnitude=(110, 0.10),
+                                    direction="wide"))))
 
 _register(Mutant(
     "stale_label_width_hides_collision",
@@ -21823,6 +21925,18 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same label in a 120px box has room, and the check is quiet."""
         self._run_neighbour("wrapped_label_overflows_its_box")
 
+    @unittest.expectedFailure
+    def test_mutant_chopped_token_reads_as_one_line(self) -> None:
+        """A word the browser breaks in two, called one line 20px tall."""
+        # RED: the check speaks, and says `too wide` about a picture that
+        # is also 10px too tall. Flips when the height term is measured on
+        # the lines the client paints rather than on `wrap_label_text`'s.
+        self._run("chopped_token_reads_as_one_line")
+
+    def test_neighbour_chopped_token_reads_as_one_line(self) -> None:
+        """The same unbreakable word in a 200px box is wide and no more."""
+        self._run_neighbour("chopped_token_reads_as_one_line")
+
     def test_mutant_straddle_reads_the_worse_of_two_grounds(self) -> None:
         """Half a white word on cream paper reads 1.06:1, not 14.22:1."""
         # Green: the arm fires and is right to. What had never been
@@ -23053,7 +23167,18 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"chopped_token_reads_as_one_line"}
+# `chopped_token_reads_as_one_line` ARRIVED on 2026-08-19 (curator, routed
+# by v0.9 WP4-AND-GUARDS), and it is the first id here that is NOT red by
+# absence: `text_overflow` exists, is `proven`, and SPEAKS on every scene in
+# this class — it just says `too wide` about a picture that is also too
+# tall, because its height term is measured on a block `wrap_label_text`
+# never breaks and the browser does. The nearest precedent is the pair two
+# paragraphs down (`runs_on_node`, `shared_attach_point`): a detector can be
+# proven and still be wrong about a neighbouring magnitude, and the coverage
+# table cannot say so. The fix that empties this set again is a height term
+# read off the lines the CLIENT paints; it belongs to whoever owns
+# `text_overflow`, not here.
 # `grazing_arrival_reads_as_square` left on 2026-08-17 (v0.9
 # TASK-ARRIVALLINT), the last of the three the spike program put here and
 # the only red-by-absence among them. `arrival_through_side` became a
