@@ -27859,10 +27859,33 @@ class TestTheKindVocabularyHasOneOwner(unittest.TestCase):
     over markdown that silently stops matching would turn this into two
     empty sets agreeing with each other, which is the exact shape of
     check this repo keeps finding and calling mute.
+
+    IF YOU ARE EDITING ONE OF THE FOUR ARM REFERENCES, READ THIS. The
+    rule is: inside `wireframe.md`, `flow.md`, `sequence.md` and
+    `domain.md`, a `` `kind: X` `` span DECLARES that `X` belongs to that
+    arm. There is no citation form. Naming another arm's kind in that
+    shape will fail this test — twice in two days at the time of writing
+    (`domain.md`'s tripwire `"glossary"`, `sequence.md`'s cross-reference
+    to the wireframe `input`), and both were genuinely ambiguous prose
+    that got clearer when reworded. To MENTION a kind that is not this
+    arm's, name the arm and drop the `kind:` prefix — "the wireframe
+    `input` kind" — which is what both repairs did.
+
+    NARROWING THE REGEX TO TABLE ROWS WAS THE OTHER CANDIDATE AND IT IS
+    MEASURABLY WORSE. Only 21 of the 30 kinds are declared in a `|` row:
+    `fold` is declared in wireframe.md's output-mode prose, `system` and
+    `context` in a sequence.md bullet, and all six flow node kinds in a
+    paragraph. Table-only would go MUTE on nine real kinds — trading a
+    loud false positive for silence over a third of the vocabulary, which
+    is the trade this repo has twenty-one confirmed instruments regretting.
+    So the false positive is kept, and paid for by saying so here and in
+    the failure message rather than by weakening the check.
     """
 
     REFS = (Path(canvas.__file__).resolve().parent.parent / "references")
     #: One rule for all four arms: an inline `kind: a | b` code span.
+    #: A span in these four files is a DECLARATION — see the class
+    #: docstring for why there is deliberately no citation form.
     KIND_SPAN = re.compile(r"`kind:\s*([^`]+)`")
     #: (reference stem, the constant it is the prose for)
     ARMS = (("wireframe", "WIREFRAME_KINDS"), ("flow", "FLOW_ARM_KINDS"),
@@ -27895,14 +27918,27 @@ class TestTheKindVocabularyHasOneOwner(unittest.TestCase):
         for stem, const in self.ARMS:
             documented = self._documented(stem)
             implemented = set(getattr(canvas, const))
+            # The "unimplemented" half has two causes and they need
+            # opposite repairs, so the message names both rather than
+            # letting the reader assume the first. A kind that is another
+            # ARM's is almost always a citation written in declaration
+            # shape — the only two failures this guard has ever had.
+            strays = sorted(documented - implemented)
+            elsewhere = sorted(k for k in strays if k in canvas.KNOWN_KINDS)
             self.assertEqual(
                 documented, implemented,
                 "%s and references/%s.md disagree. Undocumented (live "
                 "code keys off a word no agent can find): %s. "
                 "Unimplemented (the doc promises a kind that draws as a "
-                "bare shape): %s"
+                "bare shape): %s.%s"
                 % (const, stem, sorted(implemented - documented) or "none",
-                   sorted(documented - implemented) or "none"))
+                   strays or "none",
+                   (" NOTE: %s already belong(s) to another arm, so this "
+                    "is probably a CITATION written in declaration shape. "
+                    "A `kind: X` span in an arm reference DECLARES X for "
+                    "that arm; there is no citation form. Name the arm and "
+                    "drop the prefix instead — \"the wireframe `input` "
+                    "kind\"." % elsewhere) if elsewhere else ""))
 
     def test_the_behaviour_sets_live_inside_the_vocabulary(self):
         """No gate may key off a kind the vocabulary does not hold.
@@ -27954,7 +27990,13 @@ class TestTheKindVocabularyHasOneOwner(unittest.TestCase):
                 "arrives on `kind_vocabulary` from /api/state." % named)
 
     def test_the_served_vocabulary_is_the_implemented_one(self):
-        """`/api/state` hands the client the same words the lints use."""
+        """`KINDS_BY_TYPE` and `KNOWN_KINDS` cover each other.
+
+        Constants against constants, deliberately — the WIRE is asserted
+        by `test_api_state_actually_serves_the_vocabulary` next door, and
+        the two must stay separate because they fail for different
+        reasons and have different repairs.
+        """
         served = {t: set(ks)
                   for t, ks in canvas.KINDS_BY_TYPE.items()}
         self.assertEqual(
@@ -27970,6 +28012,97 @@ class TestTheKindVocabularyHasOneOwner(unittest.TestCase):
                              tuple(getattr(canvas, const)),
                              "%s is served under a different order or "
                              "content than the constant" % t)
+
+
+class TestTheVocabularyReachesTheClient(Base):
+    """`/api/state` really carries `kind_vocabulary`.
+
+    THE COPY WAS DELETED AND REPLACED BY A WIRE, AND THE FIRST VERSION OF
+    THIS WORK PINNED THE COPY AND NOT THE WIRE. Deleting the two-line
+    `"kind_vocabulary"` entry from `api_state` left the ENTIRE suite
+    green — 1900 tests, exit 0 — while reintroducing the defect the whole
+    branch is about, one turn worse: `state.kind_vocabulary` undefined
+    means `kindVocabulary` is `{}`, `kindsFor` returns `[]`, and every
+    kind selector on every artifact offers `— none —` alone, with one
+    touch writing `kind: null`. The sibling class compares
+    `KINDS_BY_TYPE` against the four constants and never calls
+    `api_state()`, so it could not have noticed.
+
+    It lives OUTSIDE that class because it needs a real project on disk
+    (`Base`), and because a guard that shares a fixture with the thing it
+    is covering for is easy to delete together with it.
+    """
+
+    def _state(self):
+        """`api_state()` off a real `ServerApp`, without leaking its log.
+
+        Returns:
+            The `/api/state` payload this project would serve.
+        """
+        app = canvas.ServerApp(self.project)
+        try:
+            return app.api_state()
+        finally:
+            # `ServerApp` holds `log_file` precisely so a short-lived app
+            # can close it; not doing so leaves a ResourceWarning per test.
+            if getattr(app, "log_file", None) is not None:
+                app.log_file.close()
+
+    def _vocab(self):
+        """The served vocabulary, with its absence reported as a failure.
+
+        Returns:
+            `api_state()["kind_vocabulary"]`.
+        """
+        state = self._state()
+        self.assertIn(
+            "kind_vocabulary", state,
+            "/api/state carries no `kind_vocabulary`. The client holds no "
+            "list of its own by design, so this key missing means every "
+            "kind selector on every artifact offers nothing but "
+            "`— none —`, and one touch writes `kind: null`")
+        return state["kind_vocabulary"]
+
+    def test_api_state_actually_serves_the_vocabulary(self):
+        vocab = self._vocab()
+        self.assertEqual(
+            vocab, {t: list(ks) for t, ks in canvas.KINDS_BY_TYPE.items()},
+            "the served vocabulary is not the implemented one")
+        # JSON-shaped, not Python-shaped: `json.dumps` refuses a set and
+        # reorders nothing, but a tuple would round-trip to a list and
+        # silently pass an equality written against tuples.
+        wire = json.loads(json.dumps(vocab))
+        self.assertEqual(
+            wire["wireframe"], list(canvas.WIREFRAME_KINDS),
+            "the wireframe arm does not survive JSON in reference order")
+        for arm in ("wireframe", "flow", "sequence", "domain"):
+            self.assertIsInstance(wire.get(arm), list,
+                                  "%s is not a JSON array" % arm)
+
+    def test_the_two_kinds_the_old_client_dropped_are_on_the_wire(self):
+        """`body` and `fold` specifically, by name.
+
+        A set-equality assertion goes green on any two vocabularies that
+        happen to match, including a future one that has quietly lost the
+        two kinds this branch exists for. These two are named so the
+        regression cannot come back under a passing count.
+        """
+        served = self._vocab()
+        # `.get(arm) or []` and not `served[arm]`: an arm dropped from the
+        # wire is the SAME user-visible defect as a kind dropped from an
+        # arm — the client falls through to `vocabulary.flow` — so it has
+        # to read as this test's failure, not as a KeyError from its
+        # scaffolding.
+        for arm, kind in (("wireframe", "body"), ("wireframe", "fold"),
+                          ("sequence", "actor")):
+            self.assertIn(
+                kind, served.get(arm) or [],
+                "the %s arm does not carry %r on the wire. That kind is "
+                "either gone from the vocabulary or the whole arm is "
+                "missing from `kind_vocabulary`; either way the client "
+                "falls through to the flow list, which is the defect this "
+                "branch closed. Arms served: %s"
+                % (arm, kind, sorted(served) or "none"))
 
 
 if __name__ == "__main__":
