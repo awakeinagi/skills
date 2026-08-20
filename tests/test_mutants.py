@@ -23636,6 +23636,31 @@ UNCOVERED: dict[str, str] = {
     # does not repair scenes already written to disk, which `catch_up()`
     # re-reads on every load. A lint here has work to do the day it
     # lands and for as long as those files exist.
+    #
+    # THE SUBJECT IS LIVE ON HEAD TODAY, not only on scenes the old code
+    # wrote, and it is reachable by two ordinary gestures. Measured
+    # 2026-08-20 against the repair itself: `_rehost_duplicated_parts`
+    # picks a host with `pick[0] if len(pick) == 1 else None`, and BOTH
+    # "no owner" and "two owners" fall to the drop branch. Ctrl+Shift+G
+    # then Ctrl+D leaves the copy's parts naming nothing, so a `slider`
+    # and a `toggle` come back with 0 of the 2 parts their kind always
+    # mints — a dead widget, and exactly the finding the mutant asserts.
+    # Run over that real stored scene, the candidate rule names `hC` at
+    # (2, "missing") and stays silent on the healthy control.
+    #
+    # WHAT THIS CHECK DOES NOT COVER, measured in the same run rather
+    # than assumed, because a ledger row that overstates its check is
+    # the same disease one that hides one. The `body` and `checkbox`
+    # arms of that gesture are NOT this shape and this rule is SILENT on
+    # them: the copy host is new, so the paste gate composes it a full
+    # set of parts, and the damage is the ORPHANED UNTAGGED strokes left
+    # beside them — five wave lines where five belong, plus five more
+    # carrying no backlink at all. A floor-vs-tagged-parts comparison
+    # reads 5 == 5 and says nothing, and the `surplus` pole cannot see
+    # it either, because untagged ink is not counted as a part. That is
+    # a SECOND instrument — "part-shaped decoration owned by nobody" —
+    # and it is named here so the day this check lands nobody reads it
+    # as covering the whole class.
     "composed_host_stripped":
         "registered 2026-08-20 with its mutant and no lint behind it — "
         "the check is the owning WP's to write and the acceptance "
