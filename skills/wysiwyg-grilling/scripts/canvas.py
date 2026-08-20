@@ -18257,13 +18257,39 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # its label at y=40 reads an 80px chord whether the block is 20
         # or 40px deep — and only a label at or BELOW the waist can
         # witness a change to `drawn_h` at all (same rhombus at y=130:
-        # 100px chord and 72px of overhang at 20px deep, 60px and 112px
-        # at 40px).
+        # 100px chord at 20px deep, 60px at 40px).
+        #
+        # THE OVERHANG PAIR IS GONE, dropped 2026-08-20 rather than
+        # corrected, and the reason is worth more than the numbers were.
+        # It read "72px of overhang" against the shallow chord and
+        # "112px" against the deep one, and NEITHER is derivable from
+        # this paragraph: an overhang is `ink - chord`, the ink is
+        # whatever token the author used, and these sentences never say
+        # which label. A reviewer read 70 -> 110 out of them and a
+        # curator read 72 -> 112, both arithmetically right, because the
+        # sentence does not determine one. The chords need no label —
+        # they follow from the band and the shape — and they are what
+        # carries the point being made, so they stay and the pair goes.
+        #
+        # NAMING A LABEL WOULD NOT HAVE RESCUED IT, which is why this is
+        # a deletion and not a correction. Measured on this rhombus: the
+        # DEEP row is real at either value (a single token of 172px ink
+        # makes this arm emit 112, one of 170px emits 110, and every
+        # integer ink from 91 to 179 is reachable there), but the
+        # SHALLOW row is emitted by no label at all — of 282 texts that
+        # paint a 20px block on the centred arrangement, zero produce
+        # any overhang, because a 20px block sits on the 100px chord and
+        # nothing the client keeps on one line under an 90px cap is that
+        # wide. It is reachable only by moving the label off centre,
+        # where `over` stops being `ink - chord` — the one geometry
+        # found emitting 72 does it with 62px of ink — so the two rows
+        # would then be two different labels rather than one label's two
+        # readings.
         #
         # RE-DERIVED AT THE LABEL'S OWN SPACING 2026-08-20 (TASK-INKBAND-
-        # SPACING), because all four of those numbers were read at
-        # `text_dims`' default 1.35 and this check has passed
-        # `line_height_of(t)` since the line-height stream landed. A
+        # SPACING), because the numbers above were read at `text_dims`'
+        # default 1.35 and this check has passed `line_height_of(t)`
+        # since the line-height stream landed. A
         # family-1 label lays out at 1.25, so one line is 20px and not
         # 22, two are 40 and not 44, and the y=130 chords are 100 -> 60
         # rather than 96 -> 52. The old figures reproduce exactly if you
