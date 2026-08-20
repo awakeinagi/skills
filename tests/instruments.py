@@ -122,7 +122,34 @@ def _role(el: dict) -> str:
 
 
 def _nodes(elements: list[dict]) -> list[dict]:
-    """Select the diagram's node shapes.
+    """Select the diagram's node shapes, refusing an all-unroled scene.
+
+    IT REFUSES BECAUSE THE DAMAGED SCENE SCORED BETTER. Answering `[]`
+    is not a silence that costs a reading — it INVERTS one. Measured
+    2026-08-20 on `admin-console.excalidraw`: strip `role` from every
+    element and 27 nodes become 0, `node_overlap` goes 0.0370 -> 1.0000
+    and `gridiness` 0.9630 -> 1.0000, `enumerate_defects` goes 21 -> 0,
+    and `compare_layouts` hands the count verdict to the vandalised
+    copy 2-1. `node_overlap` is in `GATES`, so the healthy drawing is
+    the one DISQUALIFIED and the wreck is the one that passes clean.
+    An instrument that prefers the broken subject is worse than a mute
+    one, so this asks the scene a question it can fail.
+
+    THE REFUSAL IS ALL-OR-NOTHING, and deliberately narrow. It fires
+    only when the scene holds node-typed shapes and not one of them is
+    roled `node` — the shape that says a producer never wrote roles, or
+    wrote a vocabulary this module does not share. It cannot see a
+    PARTIAL loss: leave one of those 27 roled and the other 26 bare and
+    the population is 1, non-empty, and read without complaint. That is
+    a real limit and not a claim, so the message reports the tally it
+    saw rather than only the refusal.
+
+    Measured cost: 0 of the 24 frozen artifacts trip it (all 317
+    node-typed elements across them are roled — node 281, note 10,
+    decoration 26, unroled 0), so no corpus reading moves.
+
+    `_role`'s default is deliberately NOT used here; see its docstring
+    for why widening the population is a different change.
 
     Args:
         elements: Full scene element list.
@@ -130,9 +157,31 @@ def _nodes(elements: list[dict]) -> list[dict]:
     Returns:
         Elements of a node shape type carrying `customData.role ==
         "node"`, in scene order.
+
+    Raises:
+        ValueError: If the scene holds node-typed shapes and none of
+            them carries `customData.role == "node"`.
     """
-    return [e for e in elements if e["type"] in NODE_TYPES
-            and (e.get("customData") or {}).get("role") == "node"]
+    typed = [e for e in elements if e["type"] in NODE_TYPES]
+    nodes = [e for e in typed
+             if (e.get("customData") or {}).get("role") == "node"]
+    if typed and not nodes:
+        seen: dict[str, int] = {}
+        for e in typed:
+            role = (e.get("customData") or {}).get("role")
+            key = "<unroled>" if role is None or role == "" else str(role)
+            seen[key] = seen.get(key, 0) + 1
+        raise ValueError(
+            "%d node-typed shapes and not one roled `node` (%s). Every "
+            "node-derived reading below would be answered from an empty "
+            "population, and an empty population does not score WORSE "
+            "than a healthy scene, it scores BETTER: node_overlap and "
+            "gridiness both go to a perfect 1.0 and enumerate_defects "
+            "goes quiet. Roles are what this module reads a diagram by, "
+            "so a scene carrying none is refused rather than praised"
+            % (len(typed), ", ".join("%s=%d" % kv
+                                     for kv in sorted(seen.items()))))
+    return nodes
 
 
 def _arrows(elements: list[dict]) -> list[dict]:

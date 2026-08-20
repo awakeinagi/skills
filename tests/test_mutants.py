@@ -33864,24 +33864,111 @@ DISPOSITIONS: dict[str, tuple[str, str]] = {
 
 
 class TestDiscovery(unittest.TestCase):
-    """Spec §5: a survivor may be new once, never undispositioned twice."""
+    """Spec §5: a survivor may be new once, never undispositioned twice.
+
+    THREE OF THESE SIX WERE VACUOUS. Every assertion below is over a
+    list that is EMPTY when all is well, so a harness that discovers
+    nothing at all is indistinguishable from a harness that discovers
+    nothing WRONG. Built against a real empty-input case — every
+    correspondence predicate silent, the record refreshed from that
+    sweep, `DISPOSITIONS` empty — all six ran and three passed on
+    `[] == []`.
+
+    THE FIX IS NOT "REFUSE ON EMPTY". An empty `DISPOSITIONS` is the
+    DESIRABLE end-state: it means every discovered gap has been settled
+    and none is outstanding, and a test that went red on it would be a
+    ratchet pointing the wrong way. So each case below instead asserts
+    the LIVE POPULATION it depends on — the cells the sweep really ran,
+    the operators and bases a recorded id really names — which is this
+    repo's established shape for the same problem
+    (`test_the_reader_finds_the_hooks_this_repo_declares`: a floor on
+    named ids rather than on a count, because a count goes stale the
+    next time a cell is added and would be repaired by editing the
+    number).
+    """
+
+    def _cell_of(self, sid: str) -> tuple[str, str]:
+        """Split a survivor id into the operator and base it names.
+
+        Args:
+            sid: A survivor id, `op:base:hash` as `sweep_cells` mints it.
+
+        Returns:
+            The `(op, base)` pair the id claims to have come from, or
+            `("", "")` when it does not have three colon-separated parts.
+        """
+        parts = sid.split(":")
+        return (parts[0], parts[1]) if len(parts) == 3 else ("", "")
+
+    def assertNamesALiveCell(self, sid: str, whence: str) -> None:
+        """Require an id to name an operator and a base that still exist.
+
+        A survivor id outlives the thing it was minted from. Rename an
+        operator or retire a base and the id keeps its old spelling: the
+        row is then unmatchable by any future sweep, so it can never be
+        re-discovered and its verdict silently protects nothing. The
+        container checks cannot see this — the entry is present and
+        well-formed, it just no longer refers to anything.
+
+        Fails the calling case when the id is malformed, or when it names
+        an operator or a base this module no longer declares.
+
+        Args:
+            sid: The survivor id to check.
+            whence: Where the id came from, for the failure message.
+        """
+        op, base = self._cell_of(sid)
+        self.assertTrue(
+            op, "%s carries %r, which is not an `op:base:hash` survivor "
+                "id — nothing can match it back to a sweep cell"
+                % (whence, sid))
+        self.assertIn(
+            op, CORRESPONDENCE,
+            "%s names operator %r, which `CORRESPONDENCE` no longer has: "
+            "no sweep can mint this id again, so the row is dead weight "
+            "that reads as coverage" % (whence, op))
+        self.assertIn(
+            base, [name for name, _ in SWEEP_BASES],
+            "%s names base %r, which `SWEEP_BASES` no longer has: the "
+            "drawing this verdict was reached over is gone" % (whence, base))
 
     def test_recorded_sweep_is_fully_dispositioned(self) -> None:
-        """Every survivor in the committed sweep record carries a verdict."""
-        rec = json.loads(
-            (Path(__file__).parent / "mutants_sweep.json").read_text())
+        """Every survivor in the committed sweep record carries a verdict.
+
+        READ THROUGH `SWEEP_RECORD`, not through a second hand-built
+        path. This case used to open
+        `Path(__file__).parent / "mutants_sweep.json"` while every other
+        reader — `run_sweep`'s writer included — used the module
+        constant. Move the record and the two disagree: the writer puts
+        it in its new home and this test goes on reading whatever is
+        left at the old one, PASSING over a file nothing updates any
+        more. One name, so there is one file.
+        """
+        rec = json.loads(SWEEP_RECORD.read_text())
         missing = [s["id"] for s in rec["survivors"]
                    if s["id"] not in DISPOSITIONS]
         self.assertEqual(missing, [],
                          "undispositioned survivors from the last sweep — "
                          "run: python3 tests/test_mutants.py --sweep")
+        for s in rec["survivors"]:
+            with self.subTest(survivor=s["id"]):
+                self.assertNamesALiveCell(s["id"], "the sweep record")
 
     def test_dispositions_carry_reasons(self) -> None:
-        """Every disposition is a known verdict with a non-blank reason."""
+        """Every disposition is a known verdict with a non-blank reason.
+
+        The verdict/reason check is silent on an empty table and that is
+        correct, so the live half here is the KEYS: each must still name
+        a sweep cell that exists. That is the assertion an emptied
+        `CORRESPONDENCE` cannot satisfy while this table holds rows.
+        """
         bad = [k for k, (kind, why) in DISPOSITIONS.items()
                if kind not in ("promote", "allow", "bug")
                or not why.strip()]
         self.assertEqual(bad, [])
+        for sid in DISPOSITIONS:
+            with self.subTest(disposition=sid):
+                self.assertNamesALiveCell(sid, "DISPOSITIONS")
 
     def test_no_op_operator_fails_the_sweep_cell(self) -> None:
         """An operator that mutates nothing raises, naming its cell.
@@ -33929,9 +34016,37 @@ class TestDiscovery(unittest.TestCase):
         Without this the record is only a file: a detector that starts
         catching a recorded survivor — or stops catching something —
         would leave a stale json passing the currency test forever.
+
+        THE FLOOR COMES FIRST, and it is why this case is no longer
+        `[] == []`. The equality below is the whole test, and it is
+        satisfied by two sweeps that both found nothing — including a
+        sweep that found nothing because it RAN nothing. Every cell is
+        skippable by design (`sweep_args` returns a reason rather than
+        raising), so a base that loses its bindings or an operator whose
+        argument rule stops matching removes cells one at a time, in
+        silence, until the harness is an empty loop reporting a clean
+        drawing. The roster is named rather than counted: a count would
+        go stale the next time a cell becomes buildable and would be
+        repaired by editing the number, which teaches the reader to edit
+        numbers.
         """
+        survivors, skipped = sweep_cells()
+        ran = {"%s/%s" % (base, op)
+               for base, _ in SWEEP_BASES for op in CORRESPONDENCE} - {
+            "%s/%s" % (base, op) for base, op, _ in skipped}
+        for cell in ("chain/drop_edge", "chain/flip_direction",
+                     "chain/move_node_onto_rank", "chain/swap_endpoints",
+                     "diamond/drop_edge", "diamond/flip_direction",
+                     "diamond/rename_node", "opposed/drop_edge"):
+            with self.subTest(cell=cell):
+                self.assertIn(
+                    cell, ran,
+                    "the sweep no longer runs %r, so every correspondence "
+                    "it would have checked is unasked. A cell that stops "
+                    "being buildable is SKIPPED, not failed, so the sweep "
+                    "below reports a clean drawing for not having looked "
+                    "at one" % cell)
         rec = json.loads(SWEEP_RECORD.read_text())
-        survivors, _skipped = sweep_cells()
         self.assertEqual([s["id"] for s in survivors],
                          [s["id"] for s in rec["survivors"]],
                          "the recorded sweep is stale — "
