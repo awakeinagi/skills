@@ -25523,6 +25523,16 @@ def handover_render_reds() -> set[str]:
 _HANDOVER_HAND_AUTHORED = "Non-catalog red classes:"
 # One entry: a backticked class name followed by its red count in parens.
 _HAND_AUTHORED_ENTRY = re.compile(r"`(Test[A-Za-z0-9_]*)`\s*\((\d+)\)")
+# Everything the grammar reads lives inside backticks, so a class name that
+# LOST its backticks is invisible to both patterns above and to the `*none*`
+# contradiction check. Blanking the backticked spans and looking at what is
+# left is what makes "no class is named here" mean it.
+_TICKED_SPAN = re.compile(r"`[^`]*`")
+_BARE_CLASS = re.compile(r"\bTest[A-Z]\w*")
+# The names `_HAND_AUTHORED_ENTRY` can express, as a whole-string match. The
+# guard's two halves must agree on this or no legal line can satisfy it; see
+# the `unspellable` assertion in the test.
+_HAND_AUTHORED_SPELLABLE = re.compile(r"Test[A-Za-z0-9_]*\Z")
 # The positive spelling of "empty", which is the whole reason this reader is
 # longer than its four siblings. See the docstring.
 _HAND_AUTHORED_NONE = "*none*"
@@ -25563,6 +25573,25 @@ def handover_hand_authored_red_classes() -> dict[str, int]:
     parsing to nothing. That is also why a drift-repair tool could not
     have held this line as a floor: its repair is to agree with what it
     finds, and what it finds when the roster is gone is nothing.
+
+    THE HOLE THE FIRST DRAFT LEFT, kept because it is the same defect one
+    level in and it survived a review that this file's author passed.
+    Every check in the paragraph above reads what is INSIDE backticks —
+    `_HAND_AUTHORED_ENTRY` wants backticks plus a count, and the `*none*`
+    contradiction check wanted a backticked `Test...`. So a class name
+    that lost its backticks was read by NOTHING, and
+
+        Non-catalog red classes: *none* — TestBatchPathIntegrity (3)
+
+    parsed to `{}`, agreed with an empty tree and passed, with a human
+    reading a line that asserts emptiness while naming a class. That is
+    not a contrived shape: it is this line's own recorded history with
+    the backticks dropped, which one reflow or one paste from a
+    plain-text note produces. Thirteen of fifteen attack shapes raised;
+    these two did not. The fix blanks every backticked span and refuses
+    what is left if it looks like a class name — "no class is named
+    here" now means it, rather than meaning "no class is named here in
+    the one spelling I look at".
 
     RESIDUAL, stated rather than papered over, and it is inherited.
     `red_bearing_classes` scans THIS MODULE only, so this guard sees
@@ -25617,6 +25646,18 @@ def handover_hand_authored_red_classes() -> dict[str, int]:
     rest = lines[0][len(_HANDOVER_HAND_AUTHORED):].strip()
     entries = _HAND_AUTHORED_ENTRY.findall(rest)
     ticked = re.findall(r"`(Test[A-Za-z0-9_]*)`", rest)
+    bare = _BARE_CLASS.findall(_TICKED_SPAN.sub(" ", rest))
+    if bare:
+        raise AssertionError(
+            "the roster line in %s names %s outside backticks. Every "
+            "check below reads only what is INSIDE backticks, so an "
+            "unbackticked class name is read by nothing: the line "
+            "'%s %s TestSomeClass (3)' would parse to an empty roster, "
+            "agree with an empty tree, and pass while a human read it "
+            "naming a class. One reflow or one paste from a plain-text "
+            "note is all it takes. Backtick the name, or delete it"
+            % (HANDOVER.name, sorted(set(bare)), _HANDOVER_HAND_AUTHORED,
+               _HAND_AUTHORED_NONE))
     if rest.startswith(_HAND_AUTHORED_NONE):
         if entries or ticked:
             raise AssertionError(
@@ -25646,6 +25687,16 @@ def handover_hand_authored_red_classes() -> dict[str, int]:
             "the last count and hide the other"
             % (HANDOVER.name,
                sorted({n for n in names if names.count(n) > 1})))
+    drained = sorted(n for n, c in entries if int(c) == 0)
+    if drained:
+        raise AssertionError(
+            "the roster line in %s transcribes %s at (0). "
+            "`red_bearing_classes` never emits a zero — a class whose last "
+            "red flips LEAVES the roster rather than dropping to 0, which "
+            "is the one thing this line's own paragraph tells you. The "
+            "comparison below would have failed anyway; this refuses the "
+            "shape here so the message names the rule instead of two "
+            "dicts" % (HANDOVER.name, drained))
     return {name: int(count) for name, count in entries}
 
 
@@ -34692,6 +34743,20 @@ class TestCoverage(unittest.TestCase):
         transcribed = handover_hand_authored_red_classes()
         live = {k: v for k, v in red_bearing_classes().items()
                 if k != CATALOGUE_RED_CLASS}
+        unspellable = sorted(k for k in live
+                             if not _HAND_AUTHORED_SPELLABLE.match(k))
+        self.assertEqual(
+            unspellable, [],
+            "these red-bearing classes cannot be written in the roster's "
+            "grammar: %s. `red_bearing_classes` collects EVERY TestCase "
+            "subclass carrying a red and applies no name filter, while "
+            "`_HAND_AUTHORED_ENTRY` accepts only `Test...`, so the two "
+            "halves of this guard disagree about what a class name is — "
+            "and the disagreement makes it UNFIXABLY red, because no "
+            "accepted spelling of the line can satisfy it. Rename the "
+            "class, or widen both patterns in the same change. This is "
+            "checked before the comparison so the message says which of "
+            "the two problems you have" % (unspellable,))
         self.assertEqual(
             transcribed, live,
             "SESSION-HANDOVER.md's non-catalogue red roster says %s while "

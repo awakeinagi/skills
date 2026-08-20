@@ -352,6 +352,34 @@ PROBES: dict[str, dict[str, str]] = {
                "\n"
                "\nHAND_AUTHORED_RED_CLASSES",
     },
+    # THE TWO SHAPES THAT GOT THROUGH THE FIRST DRAFT, added with their
+    # fix. An independent review attacked the grammar with fifteen shapes;
+    # thirteen raised and these two parsed to an empty roster and PASSED,
+    # because every check read only what was inside backticks. Both are
+    # discriminating at zero reds in a way no other probe here is: the
+    # transcription and the live set are both empty, so the equality
+    # assertion agrees, and ONLY the unbackticked-name refusal can fail.
+    # A probe whose subject can be caught by two mechanisms proves neither.
+    "roster-bare-name-after-none": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "the roster says *none* and then names classes with the "
+               "BACKTICKS DROPPED — the line's own history after one "
+               "reflow, invisible to every check that reads inside ticks",
+        "old": "Non-catalog red classes: *none*",
+        "new": "Non-catalog red classes: *none* — TestBatchPathIntegrity "
+               "(3), TestLoadFindingsReachTheAgent (4)",
+    },
+    "roster-bare-name-in-prose": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "the same hole reached through ordinary prose rather than "
+               "through the entry grammar: a named exception to *none* "
+               "that carries no parenthesised count at all",
+        "old": "Non-catalog red classes: *none*",
+        "new": "Non-catalog red classes: *none* (except "
+               "TestLoadFindingsReachTheAgent, 4 reds)",
+    },
     "roster-duplicate": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
         "file": "SESSION-HANDOVER.md",
