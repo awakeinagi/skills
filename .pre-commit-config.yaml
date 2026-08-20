@@ -118,12 +118,20 @@ repos:
         require_serial: true
         always_run: true
 
+      # `always_run` ALONGSIDE `stages: [manual]`, and the two are not in
+      # tension: `stages` decides WHEN this hook is eligible, `always_run`
+      # decides whether it needs a changed file to bother. Without it,
+      # `pre-commit run guard-mutants-sweep --hook-stage manual` on a clean
+      # tree prints "(no files to check)Skipped" and exits 0 — a sweep
+      # somebody deliberately asked for, reporting success for not having
+      # run. Caught here by running the documented command.
       - id: guard-mutants-sweep
         name: guard census full sweep (manual stage, rewrites canvas.py)
         entry: python3 tests/guard_mutants.py
         language: system
         pass_filenames: false
         require_serial: true
+        always_run: true
         stages: [manual]
 
   # ---------------------------------------------------------------- frontend
@@ -175,6 +183,12 @@ repos:
   # Playwright E2E suite (WP8): starts real canvas.py servers per worker,
   # so it runs on demand, not on every commit:
   #   uvx pre-commit run e2e-tests --hook-stage manual
+  #
+  # `always_run` added 2026-08-20: the command written one line above was
+  # measured printing "(no files to check)Skipped", exit 0, on a tree with
+  # nothing staged. A manual hook is one somebody has gone out of their
+  # way to ask for, so "no file changed" is never the right answer to give
+  # them — it is the whole E2E suite reporting green for not having run.
   - repo: local
     hooks:
       - id: e2e-tests
@@ -182,4 +196,5 @@ repos:
         entry: bash -c 'cd frontends/wysiwyg-grilling && npm run test:e2e'
         language: system
         pass_filenames: false
+        always_run: true
         stages: [manual]

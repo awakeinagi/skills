@@ -9572,7 +9572,17 @@ class TestFanAttachPoints(unittest.TestCase):
         crossing, and none of the frozen 24 is one.
         """
         root = Path(__file__).resolve().parent / "fixtures"
-        for path in sorted(root.rglob("*.excalidraw")):
+        # A `for` over an empty glob is the canonical vacuous census, and
+        # this one was: measured 2026-08-20 in a tree copy with all 24
+        # `*.excalidraw` deleted, this reported "Ran 1 test in 0.002s",
+        # OK. The docstring above is careful about one thing this does
+        # not prove and was silent about the one that made it prove
+        # nothing at all.
+        artifacts = sorted(root.rglob("*.excalidraw"))
+        self.assertTrue(artifacts,
+                        "no frozen artifact under %s, so this scene-level "
+                        "census asserted nothing" % root)
+        for path in artifacts:
             base = json.loads(path.read_text(encoding="utf-8"))["elements"]
             fanned = copy.deepcopy(base)
             canvas.fan_attach_points(fanned)
@@ -21061,6 +21071,18 @@ class TestPhantomPassThrough(Base):
         root = Path(__file__).resolve().parent / "fixtures"
         scenes = [(p.name, json.loads(p.read_text()).get("elements") or [])
                   for p in sorted(root.rglob("*.excalidraw"))]
+        # THE FIRING POLE BELOW IS NOT A FLOOR ON THE CORPUS. The
+        # synthetic rank proves the lint still speaks; it says nothing
+        # about how many artifacts the zero above was measured over, and
+        # this docstring makes that zero load-bearing ("Zero here against
+        # 70 is the whole argument for the narrowing"). Measured
+        # 2026-08-20 in a tree copy with all 24 `*.excalidraw` deleted:
+        # this test still passed, publishing a zero it had derived from
+        # an empty list.
+        self.assertTrue(scenes,
+                        "no frozen artifact under %s, so the zero this "
+                        "test reports is a fact about an empty list and "
+                        "not about the corpus" % root)
         spoke: list[str] = []
         for name, els in [*scenes, (None, self._rank(200))]:
             hits = self._hits(els)

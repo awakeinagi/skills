@@ -755,9 +755,10 @@ def tracked_prose_files() -> list[Path]:
         Absolute paths, sorted and distinct, fixtures excluded.
 
     Raises:
-        AssertionError: If git cannot list the index, which means this is
-            not a checkout and the scan surface is unknown rather than
-            empty.
+        AssertionError: If git cannot list the index, or lists nothing.
+            Both mean the scan surface is unknown rather than empty, and
+            an unknown surface is the one input that makes every live
+            value pass by measuring nothing.
     """
     try:
         out = subprocess.run(
@@ -769,7 +770,26 @@ def tracked_prose_files() -> list[Path]:
             "scan surface would let every live value pass by measuring "
             "nothing" % (REPO, exc)) from exc
     names = [n for n in out.stdout.split("\0") if n]
-    return sorted({REPO / n for n in names if not n.startswith(_FIXTURES)})
+    files = sorted({REPO / n for n in names if not n.startswith(_FIXTURES)})
+    # THE SUCCESS PATH HAD THE HOLE THE FAILURE PATH DID NOT. The `except`
+    # above already names the consequence — "would let every live value
+    # pass by measuring nothing" — but `git ls-files` exits 0 and prints
+    # nothing for a checkout whose markdown is gone, untracked or excluded
+    # by a mis-set pathspec, and that reached here as a quiet empty list.
+    # `check` survived it downstream (`unplaced_calculators` complains that
+    # every registered name is unplaced); `refresh` did not, and answered
+    # "refreshed 0 value(s) across 0 tracked markdown file(s)", exit 0 —
+    # an instrument reporting success for having found nothing to do.
+    # The sibling that got this right is `census_probes.py`'s scratch-tree
+    # builder, which refuses "to build a scratch tree that would make every
+    # guard look silent" on the same condition.
+    if not files:
+        raise AssertionError(
+            "git tracks no markdown under %s outside %s, so the live-value "
+            "scan surface is empty. Refusing to report every value current "
+            "against nothing — this is a broken checkout, not a clean one"
+            % (REPO, _FIXTURES))
+    return files
 
 
 def _values(markers: Iterable[tuple[Path, Marker]]) -> dict[str, str]:

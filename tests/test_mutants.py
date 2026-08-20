@@ -20506,6 +20506,15 @@ class TestThePinHugSurvivesItsOwnContainer(unittest.TestCase):
         """
         corpus = sorted((Path(__file__).resolve().parent
                          / "fixtures").rglob("*.excalidraw"))
+        # A DENOMINATOR OF ZERO IS NOT A DENOMINATOR. This test's whole
+        # job is to say "no drawing can show it", and with the corpus
+        # gone it said exactly that, for the wrong reason — measured
+        # 2026-08-20 in a tree copy with all 24 artifacts deleted, still
+        # green. Its sibling one class over already floors its own walk
+        # ("the corpus's line count moved"); this one did not.
+        self.assertTrue(corpus,
+                        "the fixture corpus is empty, so 'no drawing can "
+                        "show it' is a claim about no drawings")
         dead = [(p.name, e.get("id")) for p in corpus
                 for e in json.loads(p.read_text(encoding="utf-8"))["elements"]
                 if e.get("isDeleted")
