@@ -11310,30 +11310,78 @@ class TestCrossLintJoinIsLoadBearing(CrossLintDriver, Base):
             canvas.cross_lint(self.store.scenes, self.types(),
                               self.store.registry)
 
-    def test_the_reference_docs_name_the_pair_the_constant_names(self):
-        """The hand-written copies the fold left behind.
+    def test_no_skill_doc_states_the_join_outside_a_live_marker(self):
+        """RE-ANCHORED AT `018e7a3`, which made all five copies live.
 
-        SKILL.md's sentence is a live marker and the livedoc hook owns
-        it. `domain.md`, `flow.md` and `sequence.md` are NOT — each
-        spells `join <a> × <b> only` in prose, three more copies of a
-        derived set, which is exactly the drift class this batch spent
-        its first half pinning one file over. Derived from the constant
-        rather than compared to a literal, so a legitimate future move
-        of the join reds these until the sentences follow it.
+        The earlier form of this pin compared three hand-written
+        sentences to the constant. All five files now carry
+        `live:cross_lint_join`, the livedoc hook owns every one, and the
+        pin correctly reported its subject gone rather than passing over
+        an empty scan.
+
+        WHAT A PER-FILE MARKER CANNOT SEE IS A SIXTH COPY. Nothing stops
+        the next writer typing `join wireframe × flow only` into a doc
+        that has no marker, and it would read as authoritative and rot
+        in silence — the state `SKILL.md` was in at `5c90b1a`: correct
+        prose with nothing holding it there, which reads identically to
+        correct prose that is held. So the pin is inverted: every
+        statement of the pair anywhere in the shipped skill must sit
+        INSIDE a marker. The hook keeps the marked ones true; this keeps
+        new unmarked ones from appearing.
         """
-        want = "%s × %s" % canvas.CROSS_LINT_JOIN
         root = Path(canvas.__file__).parent.parent
-        found = {}
+        marked, bare = {}, {}
         for path in sorted(root.rglob("*.md")):
             flat = " ".join(path.read_text(encoding="utf-8").split())
-            for pair in re.findall(r"join (\w+) × (\w+)", flat):
-                found.setdefault(path.name, set()).add("%s × %s" % pair)
-        self.assertTrue(found, "no reference doc states the join at all; "
-                               "re-anchor this guard rather than deleting "
-                               "it — its whole subject has moved")
-        self.assertEqual({name: sorted(v) for name, v in found.items()},
-                         {name: [want] for name in found},
-                         "a shipped doc names a join the code does not")
+            name = str(path.relative_to(root))
+            if "live:cross_lint_join" in flat:
+                marked[name] = flat.count("<!-- live:cross_lint_join -->")
+            # the marker's own content is `<a> × <b>`, so strip every
+            # marked span before looking for a bare statement of it
+            stripped = re.sub(r"<!-- live:cross_lint_join -->.*?"
+                              r"<!-- /live:cross_lint_join -->", "", flat)
+            for pair in re.findall(r"join (\w+) × (\w+)", stripped):
+                bare.setdefault(name, set()).add("%s × %s" % pair)
+        self.assertTrue(marked,
+                        "no skill doc carries `live:cross_lint_join`; the "
+                        "join has stopped being published at all — "
+                        "re-anchor this guard rather than deleting it")
+        self.assertFalse(bare, "these docs state the join in prose, "
+                               "outside any live marker, so nothing holds "
+                               "them true: %r" % (bare,))
+
+    def test_every_doc_that_claims_the_join_names_it(self):
+        """A POSITIONAL CLAIM IS THE WORST CASE FOR DRIFT, not an
+        exemption from it (team-lead ruling, 2026-08-20, overturning this
+        curator's earlier exclusion of `wireframe.md`).
+
+        `wireframe.md` used to say "This is the one pair the strict
+        cross-artifact checks join" under a `wireframe↔flow:` bullet —
+        true, and containing no string any search for the pair could
+        find. If the join widened, that sentence became false while
+        remaining invisible to every mechanical check, which is the same
+        shape as the claim a reviewer disproved by building it today.
+        `018e7a3` rewrote it to name the pair through a marker, so the
+        instance is closed; this pin holds the CLASS shut.
+
+        What is mechanizable is the converse of a naming rule: a doc that
+        invokes the strict checks by number must also carry the marker
+        that says which pair they join. Prose asserting "the one pair"
+        with no pair in it fails that, wherever it reappears.
+        """
+        root = Path(canvas.__file__).parent.parent
+        offenders = {}
+        for path in sorted(root.rglob("*.md")):
+            flat = " ".join(path.read_text(encoding="utf-8").split())
+            claims = re.search(r"(the one pair|one pair the strict|"
+                               r"join[a-z ]* only)", flat)
+            if claims and "live:cross_lint_join" not in flat:
+                offenders[str(path.relative_to(root))] = claims.group(1)
+        self.assertFalse(offenders,
+                         "these docs claim the strict checks join one "
+                         "pair without naming it through the live marker, "
+                         "so the claim cannot be checked when it rots: "
+                         "%r" % (offenders,))
 
 
 class TestUiUxAcceptance(Base):
@@ -12119,52 +12167,62 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
 
     @staticmethod
     def filter_tokens():
-        """Every role/type token `_export_mermaid`'s drop filter tests.
+        """Every role/type token the export's drop filter tests.
 
-        AST over `inspect.getsource`, on the event-taxonomy guard's
-        precedent one class along and for the same reason: the tokens
-        arrive as a list literal AND as an `.append` under a format
-        branch, so a line-anchored grep reads whichever of the two it was
-        written against and calls the other one absent.
+        RE-ANCHORED AT `e464703`, which hoisted the tokens out of
+        `_export_mermaid`'s body into three module constants. The old
+        version parsed a function-local `silent` list by AST; that list
+        no longer exists, and the guard said so rather than reporting a
+        complete map over the four tokens it could still see — which is
+        the whole reason its subject-absent branch was written.
 
         Returns:
-            The string literals assigned or appended to `silent`, union
-            `MERMAID_DROP_TYPES`.
+            The union of the three token constants.
         """
-        out = set(canvas.MERMAID_DROP_TYPES)
-        tree = ast.parse(textwrap.dedent(
-            inspect.getsource(canvas._export_mermaid)))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and any(
-                    isinstance(t, ast.Name) and t.id == "silent"
-                    for t in node.targets):
-                out |= {e.value for e in getattr(node.value, "elts", ())
-                        if isinstance(e, ast.Constant)}
-            fn = getattr(node, "func", None)
-            if isinstance(node, ast.Call) and isinstance(fn, ast.Attribute) \
-                    and fn.attr == "append" and node.args \
-                    and isinstance(fn.value, ast.Name) \
-                    and fn.value.id == "silent" \
-                    and isinstance(node.args[0], ast.Constant):
-                out.add(node.args[0].value)
-        return out
+        return set(canvas.MERMAID_DROP_ROLES
+                   + canvas.MERMAID_DROP_ROLES_NON_ER
+                   + canvas.MERMAID_DROP_TYPES)
 
-    def test_every_token_the_filter_tests_has_a_label(self):
-        """The map is complete BOTH WAYS, parsed rather than transcribed.
+    def test_no_label_outlives_the_token_it_describes(self):
+        """THE DIRECTION THE IMPORT-TIME CHECK DOES NOT COVER.
 
-        `_mermaid_dropped_names` raising `KeyError` on an unlabelled
-        token is the loud half, and it needs an export to run before it
-        can say anything. This half fires with no scene at all, so a
-        token added under a format branch nothing exercises still lands
-        on someone. The reverse comparison is what keeps a label whose
-        token is gone from sitting in the sentence forever, describing a
-        drop that can no longer happen."""
-        tested = self.filter_tokens()
-        self.assertIn("decoration", tested,
-                      "the `silent` list is no longer findable inside "
-                      "`_export_mermaid`; re-anchor this guard rather "
-                      "than deleting it")
-        self.assertEqual(tested, set(canvas.MERMAID_DROP_LABELS))
+        `canvas.py` now refuses AT IMPORT when a token has no label, so
+        the forward half (every token is named) is owned there and needs
+        no pin here. The reverse half is owned by nobody: a label whose
+        token has been deleted goes on sitting in the sentence forever,
+        describing a drop that can no longer happen, and every derived
+        copy of that sentence — the `NOTE=` line, SKILL.md's live value —
+        repeats it in good faith. That is a confident-wrong sentence,
+        which this repo ranks below silence.
+        """
+        tokens = self.filter_tokens()
+        self.assertIn("decoration", tokens,
+                      "the drop-token constants have moved; re-anchor "
+                      "this guard rather than deleting it")
+        self.assertFalse(set(canvas.MERMAID_DROP_LABELS) - tokens,
+                         "a label describes a token the filter no longer "
+                         "tests")
+
+    def test_the_import_time_check_is_the_forward_half_and_it_fires(self):
+        """The half above leans on that check, so it is proved, not cited.
+
+        Rebuilding the module with an unlabelled token is the only way to
+        watch an import-time guard fire — by the time a test imports
+        `canvas`, the check has already passed. The source is compiled in
+        a throwaway namespace with one token added and no word for it.
+        """
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        hacked = src.replace(
+            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image")',
+            'MERMAID_DROP_TYPES = ("frame", "line", "freedraw", "image",'
+            ' "embeddable")', 1)
+        self.assertNotEqual(hacked, src,
+                            "MERMAID_DROP_TYPES is no longer spelled the "
+                            "way this guard perturbs it; re-anchor it")
+        with self.assertRaises(RuntimeError) as caught:
+            exec(compile(hacked, canvas.__file__, "exec"),
+                 {"__name__": "canvas_probe"})
+        self.assertIn("embeddable", str(caught.exception))
 
     def test_an_unlabelled_token_refuses_before_the_file_is_written(self):
         """The naming runs BEFORE `write_text`, and the ORDER is the
@@ -12193,18 +12251,27 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
         self.assertEqual(code, 0)
         self.assertTrue(out.exists())
 
-    # -- the last hand-written copy --------------------------------------
+    # -- what the live marker cannot hold ---------------------------------
 
-    def test_the_skill_files_drop_list_names_every_label(self):
-        """SKILL.md's drop-list sentence is where the next drift lives.
+    def test_the_er_caveat_names_the_format_dependent_term(self):
+        """THE COPY THE LIVE VALUE LEFT BEHIND.
 
-        Derived-and-compared, on the event-taxonomy guard's precedent and
-        for its reason: the skill file is the copy an agent actually
-        reads, and nothing compared it to the map. Label by label rather
-        than by string equality, because one label is deliberately longer
-        in prose — `decoration` earns its `--format er` caveat in the
-        same breath — so the alias is DECLARED here and asserted to still
-        be needed. An alias nobody uses is drift holding a licence.
+        RE-ANCHORED AT `e464703`. SKILL.md's drop LIST became a live
+        marker (`livedoc.mermaid_dropped`), so the hook owns it and the
+        alias this pin used to declare is gone with it. What the hook
+        does NOT own is the sentence beside it: `--format er` carries
+        one term out of that list, and which term is still typed by
+        hand. Add a second `er`-carried role and the list keeps deriving
+        correctly while the caveat under it goes quietly wrong.
+
+        A DRIFT CHECK IS NOT A FLOOR, which is why this pin is not
+        simply "the marker matches the calculator". `livedoc refresh`
+        repairs by agreeing with whatever it finds: delete `image` from
+        the constants and the calculator returns a shorter list, the
+        marker is rewritten, and the hook is green over prose that has
+        silently narrowed. The floor for that is behavioural and lives
+        above — `test_an_image_is_named_and_counted_though_no_op_can_
+        add_one` and its siblings read a real export, not the prose.
         """
         skill = (Path(canvas.__file__).parent.parent
                  / "SKILL.md").read_text(encoding="utf-8")
@@ -12212,26 +12279,56 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
         # line-anchored search would report the whole guard unanchored
         # over a paragraph that is perfectly intact
         flat = " ".join(skill.split())
-        said = re.search(r"count of everything with no mermaid form:(.+?)"
-                         r"Say that count out loud", flat)
-        self.assertIsNotNone(said, "SKILL.md's drop-list sentence is not "
+        said = re.search(r"`--format er` is the one form that carries (.+?)"
+                         r"Say the count out loud", flat)
+        self.assertIsNotNone(said, "SKILL.md's `--format er` caveat is not "
                                    "findable; re-anchor this guard rather "
                                    "than deleting it")
-        prose, labels = said.group(1), set(canvas.MERMAID_DROP_LABELS.values())
+        prose = said.group(1)
+        # the caveat spells the term out at reading length; the constant
+        # holds the token. Both are asserted so neither can move alone.
         aliases = {"the decoration text inside entities":
                    "the decoration text a domain seeder draws inside an "
                    "entity"}
-        for label in sorted(labels):
+        carried = [canvas.MERMAID_DROP_LABELS[t]
+                   for t in canvas.MERMAID_DROP_ROLES_NON_ER]
+        self.assertTrue(carried, "no format-dependent term remains; the "
+                                 "caveat should have gone with it")
+        for label in carried:
             self.assertIn(aliases.get(label, label), prose,
-                          "SKILL.md's drop list does not name %r" % label)
+                          "the `er` caveat does not name %r, which the "
+                          "filter carries under `er` and drops under "
+                          "every other form" % label)
         for label, alias in sorted(aliases.items()):
-            self.assertIn(label, labels,
+            self.assertIn(label, set(canvas.MERMAID_DROP_LABELS.values()),
                           "alias kept for a label that no longer exists: "
                           "%r" % label)
             self.assertNotIn(label, prose,
-                             "SKILL.md now spells %r verbatim — delete the "
-                             "alias rather than keeping a second name for "
-                             "one category alive" % alias)
+                             "the caveat now spells %r verbatim — delete "
+                             "the alias rather than keeping a second name "
+                             "for one category alive" % alias)
+
+    def test_a_role_only_er_carries_is_never_dropped_under_er(self):
+        """The caveat's behavioural half, so the prose pin is not alone.
+
+        `MERMAID_DROP_ROLES_NON_ER` is a claim about the FILTER, and the
+        test above only reads prose about it. This drives the filter
+        itself: every term in that constant must be absent from the `er`
+        role list and present in every other format's.
+        """
+        er = canvas.mermaid_dropped_roles("er")
+        mermaid = canvas.mermaid_dropped_roles("mermaid")
+        self.assertTrue(canvas.MERMAID_DROP_ROLES_NON_ER)
+        for tok in canvas.MERMAID_DROP_ROLES_NON_ER:
+            self.assertNotIn(tok, er, "%r is dropped under `er`, the one "
+                                      "form that carries it" % tok)
+            self.assertIn(tok, mermaid, "%r is carried under `mermaid`, "
+                                        "which has no form for it" % tok)
+        self.assertEqual(set(mermaid) - set(er),
+                         set(canvas.MERMAID_DROP_ROLES_NON_ER),
+                         "the two formats differ by something other than "
+                         "the constant that is supposed to be the only "
+                         "format-dependent term")
 
 
 class TestLintHygiene(Base):
