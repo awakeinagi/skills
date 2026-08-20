@@ -23853,8 +23853,37 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # candidate repairs flip that one red — verified by running the method
 # against four patched canvas modules — so whichever the owner picks, the
 # entry goes at once rather than counting down.
+#
+# THREE JOINED on 2026-08-20 (curator, off the user's group-integrity
+# ruling), and they are the first entries here filed against a RULING
+# rather than against a defect somebody spotted in a drawing. "Every group
+# should move as a unit. Period." — so a `_group_owners` fallback that was
+# argued for in its own docstring, and correct under the old reading, is
+# now a defect at two doors. Both values below were READ OFF
+# `red_bearing_classes()` via this section's own guard rather than typed:
+# the guard was run first, it printed the measured dict, and that dict was
+# transcribed. A curator who counts their own decorators is the drift this
+# guard exists to catch.
+#
+# TWO CLASSES, THREE REDS, and the split is by DOOR because the doors fail
+# differently: tidy tears a group by 3px (the size that reads as a
+# rendering glitch) and `apply_ops` tears it by however far the op moves
+# (measured at 300px, unbounded, and `--relayout` emits exactly those ops).
+# A repair to either door alone leaves the other red. The mod class carries
+# TWO because the second is the NESTED case — `groupIds` is a list, and a
+# repair reading only `groupIds[-1]` is distinguishable from one reading
+# `groupIds[0]` by nothing else in this file.
+#
+# EXPECT THIS TO LOSE TWO LINES AT ONCE. All three reds were measured
+# flipping under all three honest repairs (carry siblings by the mover's
+# delta; derive one delta from the group's bbox; refuse the torn motion),
+# so no repair closes one door's line and leaves the other's — whichever
+# the owner picks has to reach both `_tidy_pass` and `apply_ops`, and the
+# mod class's two reds flip together under every scope choice.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestAModMovesAUserGroupAsOneUnit": 2,
     "TestTheLoadPathNamesABoundLineWhateverItsRole": 1,
+    "TestTidyMovesAUserGroupAsOneUnit": 1,
 }
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
@@ -28477,6 +28506,634 @@ class TestHousekeepingDoesNotCallALineAnArrow(unittest.TestCase):
             "housekeeping sentence introduces them as arrows: %r. The "
             "count is over the right population; the noun is not."
             % (named, lines[0]))
+
+
+# ---------------------------------------------------------------------------
+# EVERY GROUP MOVES AS A UNIT. PERIOD. The user's ruling, 2026-08-20, and
+# it is a RULING rather than a reading: no exception for a group somebody
+# made with Ctrl+G, and no distinction between that and a composed widget.
+#
+# WHAT THE CODE BELIEVES TODAY IS THE OPPOSITE, and deliberately —
+# `_group_owners` (canvas.py:9418, re-derived 2026-08-20; the anchor
+# circulating as 9165 is 253 lines stale) returns `({}, set())` for a group
+# whose members are all ordinary nodes, and its docstring argues the case:
+# "Treating one of them as the body and dragging the other two behind it
+# under tidy would be a new and unasked-for behaviour, and a wrong one."
+# The ruling overrules that paragraph. These classes state the overruled
+# behaviour as measurements so the repair has something to turn green; they
+# do not choose the repair, and the paragraph is the fix owner's to rewrite.
+#
+# TWO DOORS, MEASURED, on one base scene of three boxes at (103,101),
+# (203,100), (303,102):
+#
+#   tidy      P (1,-1)   Q (1,0)   R (1,2)     <- a 3px spread, torn
+#   mod x     P (300,0)  Q (0,0)   R (0,0)     <- one member, unbounded
+#
+# THE SAME THREE BOXES WITH AN OWNER take one delta at both doors — (1,-1)
+# three times, (300,0) three times, measured 2026-08-20 through the same
+# builder with `parts=True`. Same code, same coordinates, group present in
+# both: the only thing that changed is whether `part_owner_id` answers, and
+# that is what makes this a defect rather than a preference. Both green
+# poles are asserted below, ungated.
+#
+# THE INVARIANT IS THE CLAIM, NOT THE ARITHMETIC. Each red asserts that the
+# group's members share ONE delta; none asserts what that delta is. A red
+# pinning `(1,-1)` would fail an honest repair that snaps the group by its
+# bbox corner instead of by a member's, and this repo has already paid for
+# a red that pinned literals and stayed red over an honest drawing. The
+# ABSOLUTE numbers are held by the neighbours, which is where they belong.
+#
+# PROVEN FIX-AGNOSTIC, 2026-08-20, by monkeypatching three repairs over an
+# unmodified `canvas.py` from a throwaway /tmp plugin: (a) carry every
+# group sibling by the moved member's delta, (b) derive one delta from the
+# group's bbox and apply it to all members, (c) refuse the motion outright.
+# All three flip all three reds; none of them disturbs either neighbour.
+# Under (c) the batch raises and `_group_mod_deltas` reports zeros, which
+# is one delta and is why refusal counts as a repair here.
+#
+# HAND-AUTHORED rather than `CATALOGUE` entries, for the reason the fan
+# section above gives: a `Mutant` is judged by `collect_findings` over an
+# element list, and what is wrong here is what a SAVE DID to the drawing.
+# No `FindingSpec` in this file's vocabulary asks "did these two elements
+# receive the same delta".
+#
+# THE POPULATION IS EMPTY, NOT UNREACHABLE, and the distinction is the
+# whole reason these scenes are built in flight. 0 of 45 corpus groups are
+# user-made and there are 0 `groupIds` mods across 136 save records — but
+# Ctrl+G is stock Excalidraw, and a posted `groupIds` provably SURVIVES a
+# `commit(author="user")` (asserted by
+# `test_the_posted_group_survives_the_commit`). A frozen corpus that has
+# never seen the gesture is silent about it; it is not evidence of safety.
+#
+# "SURVIVES", NOT "SURVIVES VERBATIM", re-derived 2026-08-20 when the
+# recompose-door fold landed under this section and turned two of its
+# ungated controls red. The tree moved, the controls were right, and the
+# question was which of the two the premise had actually been resting on.
+# It is preservation: the reds need the group to BE there, and the fold
+# teaches the save path to ADD `<body>-grp` where a composite's parts carry
+# a backlink, which is `_close_widget_group` closing an unfinished assembly
+# and is correct. The equality was never the claim; it was the cheapest way
+# to state it, and it went stale the first time the save path grew an
+# opinion.
+#
+# THE EQUALITY WAS NOT LOAD-BEARING, AND THAT WAS MEASURED RATHER THAN
+# ASSUMED, because the same fold implements a ruling a superset check could
+# hide: a user's ungroup is intent and must never be silently repaired, and
+# a save that PUT A GROUP BACK would satisfy a superset just as happily as
+# one that added a legitimate one. Measured over the composite pole with
+# `P-grp` stripped by the client — it stays stripped through the save,
+# through tidy and through `mod x`, and the save says "you ungrouped P —
+# its 2 parts no longer move with it, and I will not put them back
+# together". So the ruling holds today, and it is now pinned here
+# (`test_an_ungrouped_widget_is_not_silently_regrouped`) rather than left
+# to a check that no longer looks. What replaced the equality is STRICTER
+# than a superset: `_group_store` refuses a save that DROPS a posted id,
+# and the premise pin names the ids the save GAINED exactly.
+# ---------------------------------------------------------------------------
+_GROUP_NODES: tuple[dict[str, Any], ...] = (
+    {"type": "rectangle", "id": "P", "x": 103, "y": 101, "width": 80,
+     "height": 80, "role": "node"},
+    {"type": "rectangle", "id": "Q", "x": 203, "y": 100, "width": 80,
+     "height": 80, "role": "node"},
+    {"type": "rectangle", "id": "R", "x": 303, "y": 102, "width": 80,
+     "height": 80, "role": "node"})
+# THREE DIFFERENT OFFSETS FROM THE 4px GRID, on purpose and minimally: 103
+# rounds down, 101 rounds down, 100 is already on it, 102 rounds UP. That
+# is the smallest set of round coordinates on which an independent snap
+# produces three DIFFERENT deltas, so a tear cannot hide behind a scene
+# where every member happened to want the same correction. Every box is
+# 80x80 and none overlaps another, so nothing here is about routing,
+# labels or z-order.
+
+
+def _group_store(case: unittest.TestCase,
+                 membership: dict[str, list[str]],
+                 parts: bool = False) -> canvas.Store:
+    """Three boxes, seeded by ops, then grouped by a real user save.
+
+    THE ONLY DOOR THE GESTURE HAS. No op mints a `groupIds`, and none
+    of the 136 recorded save records carries a mod that sets one — so
+    the only honest way to get a Ctrl+G group into a scene is the way a
+    user gets one there: the agent lays the nodes down through
+    `apply_batch`, and the client posts the grouped scene back through
+    `commit(author="user")`. Building the list by hand and calling
+    `_tidy_pass` would prove something about a helper.
+
+    Args:
+        case: The test owning the tree; its `addCleanup` removes it.
+        membership: Element id -> the `groupIds` list the client posts
+            for it, verbatim, outermost last. `[]` is the ungrouped
+            pole and a two-entry list is the nested one.
+        parts: Make Q and R composed parts of P — `role: decoration`
+            plus a `box_of` backlink — which is the ONE field that
+            makes `_group_owners` resolve an owner. This is the
+            contrast pole, not an ablation of the reds' scene: it is
+            how the same three boxes in the same group are measured
+            moving as one unit.
+
+    Returns:
+        The loaded store, artifact `"d"` at the user's posted revision.
+
+    Raises:
+        AssertionError: If the seeding batch did not lay the nodes
+            down, or if the commit did not keep the posted `groupIds`.
+            A pin whose fixture failed to build must not reach its
+            assertions wearing an ungrouped scene — which is precisely
+            the state that would make every red below pass.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-group-"))
+    case.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+    project = canvas.Project(tmp)
+    project.ensure_tree()
+    store = canvas.Store(project)
+    store.apply_batch({
+        "base_revn": 0, "artifact": "d",
+        "create": {"id": "d", "name": "D", "type": "flow"},
+        "ops": [{"op": "add", "element": dict(n)} for n in _GROUP_NODES]})
+    laid = [e["id"] for e in store.scenes["d"]]
+    if laid != [n["id"] for n in _GROUP_NODES]:
+        raise AssertionError(
+            "the seed batch did not lay down %r — it left %r, so nothing "
+            "below is measuring the intended scene"
+            % ([n["id"] for n in _GROUP_NODES], laid))
+    posted = [dict(e) for e in store.scenes["d"]]
+    for e in posted:
+        e["groupIds"] = list(membership[e["id"]])
+        if parts and e["id"] != "P":
+            e["customData"] = dict(e.get("customData") or {},
+                                   role="decoration", box_of="P")
+    store.commit(author="user", new_scenes={"d": posted})
+    kept = _group_membership(store)
+    dropped = {i: sorted(set(membership[i]) - set(kept.get(i, ())))
+               for i in membership
+               if set(membership[i]) - set(kept.get(i, ()))}
+    if dropped:
+        raise AssertionError(
+            "the user save DROPPED posted group ids %r — posted %r, stored "
+            "%r. This is the premise every red below rests on and it is "
+            "checked rather than assumed: over an ungrouped scene they "
+            "would all pass" % (dropped, membership, kept))
+    return store
+
+
+def _group_membership(store: canvas.Store) -> dict[str, list[str]]:
+    """The `groupIds` the stored scene ended up with, per element.
+
+    Args:
+        store: The store holding artifact `"d"`.
+
+    Returns:
+        Element id -> its stored `groupIds`, in stored order.
+    """
+    return {e["id"]: list(e.get("groupIds") or [])
+            for e in store.scenes["d"]}
+
+
+def _group_added(store: canvas.Store,
+                 membership: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Which group ids the save added on top of what the client posted.
+
+    THE HALF A SUPERSET CHECK WOULD BE BLIND TO, kept measurable so it
+    is not merely tolerated. `_group_store` refuses a save that DROPS a
+    posted id; this reports what it GAINED, so the premise pin can name
+    the tool's additions exactly instead of accepting any of them.
+
+    Args:
+        store: The store holding artifact `"d"`.
+        membership: What the client posted.
+
+    Returns:
+        Element id -> the ids present in the stored scene and not in
+        the posted one, sorted. Elements that gained nothing are
+        absent, so `{}` reads as "the save changed no membership".
+    """
+    kept = _group_membership(store)
+    gained = {i: sorted(set(kept.get(i, ())) - set(membership[i]))
+              for i in membership}
+    return {i: g for i, g in gained.items() if g}
+
+
+def _group_positions(store: canvas.Store) -> dict[str, tuple[float, float]]:
+    """Where the three boxes sit in the stored scene.
+
+    Args:
+        store: The store holding artifact `"d"`.
+
+    Returns:
+        Element id -> `(x, y)`.
+    """
+    return {e["id"]: (e.get("x", 0), e.get("y", 0))
+            for e in store.scenes["d"]}
+
+
+def _group_distinct(deltas: dict[str, tuple[float, float]],
+                    ids: list[str]) -> list[tuple[float, float]]:
+    """How many DIFFERENT deltas the named members received.
+
+    THE WHOLE INVARIANT IN ONE READING. The ruling asks "how many
+    deltas did this group get", and the answer it allows is one. Going
+    through the distinct set is also what keeps these pins free of the
+    delta's VALUE — `{(1,-1)}` and `{(4,0)}` and `{(0,0)}` all satisfy
+    the ruling, and only a second entry does not.
+
+    Args:
+        deltas: Element id -> `(dx, dy)` for the whole scene.
+        ids: The members to measure — a group's membership, which is
+            narrower than the scene whenever the group is nested.
+
+    Returns:
+        The distinct `(dx, dy)` pairs, sorted so a failure message
+        reads the same on every run.
+    """
+    return sorted({deltas[i] for i in ids})
+
+
+def _group_tidy_deltas(store: canvas.Store) -> dict[
+        str, tuple[float, float]]:
+    """Press tidy once and read back what each box was moved by.
+
+    NO `noop` GUARD, unlike the fan section's `_pressed`, and the
+    difference is deliberate: a repair that declines to snap grouped
+    elements at all is one of the honest repairs, and it makes this
+    press a `noop`. Refusing a `noop` here would fail that repair for
+    being the wrong repair. What stops the reds passing by universal
+    silence is
+    `test_an_ungrouped_set_is_still_snapped_member_by_member`, which
+    holds tidy's absolute numbers on the ungrouped pole, ungated.
+
+    Args:
+        store: The store holding artifact `"d"`.
+
+    Returns:
+        Element id -> `(dx, dy)` across the press.
+    """
+    before = _group_positions(store)
+    store.tidy("d")
+    after = _group_positions(store)
+    return {i: (after[i][0] - before[i][0], after[i][1] - before[i][1])
+            for i in before}
+
+
+def _group_mod_deltas(store: canvas.Store, eid: str,
+                      attrs: dict[str, Any]) -> dict[
+                          str, tuple[float, float]]:
+    """Move one member with a `mod` op and read back what everyone did.
+
+    `--relayout` EMITS EXACTLY THIS OP, which is why the door is worth
+    a pin of its own: the relayout path inherits whatever `apply_ops`
+    does with a grouped `x`/`y`, and `apply_ops` carries a sibling only
+    where its `customData.role` is `"decoration"`.
+
+    A `BatchError` is CAUGHT AND READ AS ZERO MOTION rather than
+    allowed to escape. Refusing to move a partial group is one of the
+    honest repairs; under it this batch is rejected, the scene is
+    untouched, and the ruling is satisfied by a group that did not move
+    at all. Letting the exception out would turn that repair into an
+    ERROR-RED, which doctrine §6 says reads identically to a real red
+    under the `expectedFailure` mask.
+
+    Args:
+        store: The store holding artifact `"d"`.
+        eid: The member the op names.
+        attrs: The `mod` op's attributes.
+
+    Returns:
+        Element id -> `(dx, dy)` across the batch.
+    """
+    before = _group_positions(store)
+    with contextlib.suppress(canvas.BatchError):
+        store.apply_batch({"artifact": "d", "base_revn": store.head_revn(),
+                           "ops": [{"op": "mod", "id": eid, "attrs": attrs}]})
+    after = _group_positions(store)
+    return {i: (after[i][0] - before[i][0], after[i][1] - before[i][1])
+            for i in before}
+
+
+class TestTidyMovesAUserGroupAsOneUnit(unittest.TestCase):
+    """One press of tidy tears a Ctrl+G group into three deltas.
+
+    THE FIRST DOOR. `_tidy_pass` snaps every non-part node to the 4px
+    grid on its own account, and `_group_owners` tells it a user group
+    has no parts, so three boxes the user bound together are corrected
+    independently. MEASURED 2026-08-20 through Store/commit/tidy, with
+    `groupIds: ["ug"]` on all three and verified present in the stored
+    scene:
+
+        P (103,101) -> (104,100)   delta (1,-1)
+        Q (203,100) -> (204,100)   delta (1, 0)
+        R (303,102) -> (304,104)   delta (1, 2)
+
+    MAGNITUDE AND DIRECTION: a 3px spread in `dy` — the group's members
+    end up 3px further apart vertically than the user left them, in the
+    direction that reads as a rendering glitch rather than an edit,
+    which is exactly the size `_tidy_pass`' own docstring identifies as
+    the dangerous one for composed widgets. Small is the point: nobody
+    reports it, and the drawing is wrong anyway.
+
+    THE SAME SCENE WITH AN OWNER TAKES (1,-1) THREE TIMES. That pole is
+    asserted below, so this class states a CONTRAST and not a wish.
+
+    WHO FLIPS THIS: `impl-group-integrity`, which owns the repair. This
+    class does not name one — carrying siblings by the owner's delta,
+    deriving one delta from the group's bbox, and declining to snap a
+    grouped element at all are all repairs somebody may choose, and all
+    three were measured turning this red green.
+    """
+
+    def test_the_posted_group_survives_the_commit(self) -> None:
+        """The premise, ungated: `groupIds` reaches the stored scene.
+
+        THE ZERO IN THE CORPUS IS EMPTY, NOT UNREACHABLE, and this is
+        the sentence that says so as a measurement. `Store.commit`
+        keeps what the client posts, so a group made with Ctrl+G is in
+        the scene the passes below read — no op has to mint it and no
+        fixture has to be frozen holding it. If this ever fails, the
+        reds below are measuring an ungrouped drawing and their colour
+        means nothing.
+
+        PRESERVED, AND NOT PRESERVED VERBATIM — re-derived 2026-08-20
+        after the recompose-door fold, which was the right call for a
+        reason worth writing down rather than a loosening. This pin
+        used to demand equality. The fold taught the save path to close
+        an unfinished composite's group, so a scene whose parts carry a
+        `box_of` backlink now comes back carrying `P-grp` as well as
+        the user's own id, and the equality failed over CORRECT
+        behaviour. What the reds actually rest on is that the group
+        they measure is THERE, which is preservation; `_group_store`
+        refuses any save that drops a posted id.
+
+        THE ADDITION IS NAMED, NOT MERELY TOLERATED, because a bare
+        superset check would be blind to the one thing the ungroup
+        ruling forbids: a save that puts a group back after the user
+        took it off would also be a superset. So this arm asserts the
+        gained ids EXACTLY — nothing on a plain-node scene, and exactly
+        `P-grp` where the parts make it a composite — and
+        `test_an_ungrouped_widget_is_not_silently_regrouped` measures
+        the forbidden case head-on.
+        """
+        plain = {"P": ["ug"], "Q": ["ug"], "R": ["ug"]}
+        store = _group_store(self, plain)
+        self.assertEqual(
+            (_group_membership(store), _group_added(store, plain)),
+            ({"P": ["ug"], "Q": ["ug"], "R": ["ug"]}, {}),
+            "a user-made group of plain nodes did not survive the save "
+            "unchanged, so this section is measuring a scene without the "
+            "thing it is about")
+        comp = {"P": ["cg"], "Q": ["cg"], "R": ["cg"]}
+        widget = _group_store(self, comp, parts=True)
+        self.assertEqual(
+            _group_added(widget, comp),
+            {"P": ["P-grp"], "Q": ["P-grp"], "R": ["P-grp"]},
+            "the save path's additions to a posted composite have moved. "
+            "`_close_widget_group` closing an UNFINISHED assembly is the "
+            "one addition this section expects; anything else here is the "
+            "tool overruling the user's own hands and is a finding, not a "
+            "number to update")
+
+    def test_an_ungrouped_widget_is_not_silently_regrouped(self) -> None:
+        """The ungroup ruling, ungated, because a superset would hide it.
+
+        THE INTERACTION THAT MADE THE SUPERSET SAFE. `_honour_ungroup`
+        is delta-based: a group id in the base scene and absent from
+        the posted one is a Ctrl+Shift+G and must never be repaired,
+        while a group in NEITHER is an unfinished assembly and is
+        closed. The pin above accepts the second, so this one measures
+        the first — otherwise weakening equality to preservation would
+        have traded a real guarantee for nothing.
+
+        MEASURED 2026-08-20, all three doors: the user posts the
+        composite with `P-grp` stripped, and it stays stripped through
+        the save, through a press of tidy, and through a `mod x`. The
+        save narrates it — "you ungrouped P — its 2 parts no longer
+        move with it, and I will not put them back together".
+
+        THIS IS NOT A GROUP-INTEGRITY RED. It is the boundary of the
+        ruling those reds encode: every group moves as a unit, and a
+        group the user has dissolved is no longer a group. A repair
+        that satisfied the reds by re-grouping whatever it found torn
+        would turn THIS arm red, which is exactly what it is for.
+        """
+        comp = {"P": ["cg"], "Q": ["cg"], "R": ["cg"]}
+        store = _group_store(self, comp, parts=True)
+        posted = [dict(e) for e in store.scenes["d"]]
+        for e in posted:
+            e["groupIds"] = [g for g in (e.get("groupIds") or [])
+                             if g != "P-grp"]
+        store.commit(author="user", new_scenes={"d": posted})
+        after_save = _group_membership(store)
+        store.tidy("d")
+        after_tidy = _group_membership(store)
+        _group_mod_deltas(store, "P", {"x": 403})
+        self.assertEqual(
+            (after_save, after_tidy, _group_membership(store)),
+            (comp, comp, comp),
+            "a group the user dissolved came back. `P-grp` was stripped "
+            "by the client and the tool put it back on one of save, tidy "
+            "or `mod x` — silently re-grouping is the one thing the "
+            "ungroup ruling forbids, and it outranks the group-integrity "
+            "reds in this same section")
+
+    def test_an_ungrouped_set_is_still_snapped_member_by_member(self
+                                                                ) -> None:
+        """THE NEIGHBOUR, ungated: no group, three honest deltas.
+
+        THE MANDATORY SILENT HALF. Independent movement of ungrouped
+        elements is CORRECT — a red that fired on it would be worse
+        than no red at all, because it would push the fix owner toward
+        freezing tidy rather than teaching it about groups. This arm
+        holds the absolute numbers the reds refuse to hold, so it also
+        fails the day tidy stops snapping: a repair that buys the reds'
+        green by making every press a `noop` turns this one red, which
+        is the only defence `_group_tidy_deltas` has against passing by
+        universal silence.
+        """
+        store = _group_store(self, {"P": [], "Q": [], "R": []})
+        self.assertEqual(
+            _group_tidy_deltas(store),
+            {"P": (1, -1), "Q": (1, 0), "R": (1, 2)},
+            "tidy's snap of three UNGROUPED boxes has moved. These are "
+            "the absolute numbers the reds below deliberately do not "
+            "hold; re-derive them before reading any colour in this "
+            "section")
+
+    def test_a_composed_widget_already_travels_as_one(self) -> None:
+        """The contrast pole, ungated: an owned group takes one delta.
+
+        Same three boxes, same coordinates, same group — Q and R carry
+        a `box_of` backlink and `role: decoration`, so `_group_owners`
+        resolves P as the body. All three then take P's `(1,-1)`.
+
+        This is what makes the red below a DEFECT rather than a feature
+        request: the machinery to move a group as a unit exists, runs
+        in this same pass, and is switched off by one predicate. It is
+        also the second half of the silence defence — a repair that
+        stopped tidy snapping anything would take this pole's `(1,-1)`
+        away too.
+        """
+        store = _group_store(self, {"P": ["cg"], "Q": ["cg"], "R": ["cg"]},
+                             parts=True)
+        self.assertEqual(
+            _group_tidy_deltas(store),
+            {"P": (1, -1), "Q": (1, -1), "R": (1, -1)},
+            "a COMPOSED group no longer moves as one unit under tidy, so "
+            "the contrast the red below rests on is gone and the red is "
+            "now about tidy in general rather than about user groups")
+
+    @unittest.expectedFailure
+    def test_every_member_of_the_group_takes_the_same_delta(self) -> None:
+        """RED: three members of one group, three different deltas.
+
+        THE INVARIANT, NOT THE ARITHMETIC. The assertion is that the
+        set of deltas has ONE entry; it says nothing about which. A
+        repair that snaps the group by its bbox corner gives every
+        member `(1, -1)`; one that snaps by the first member gives
+        `(1, -1)`; one that declines to snap a grouped element gives
+        `(0, 0)`. All three satisfy this line, and all three were
+        measured doing so.
+
+        MEASURED 2026-08-20, red: three deltas — `{(1,-1), (1,0),
+        (1,2)}` — where the ruling allows one. Torn by 3px in `dy`, in
+        the direction that spreads the group apart.
+        """
+        store = _group_store(self, {"P": ["ug"], "Q": ["ug"], "R": ["ug"]})
+        deltas = _group_tidy_deltas(store)
+        distinct = _group_distinct(deltas, ["P", "Q", "R"])
+        self.assertEqual(
+            len(distinct), 1,
+            "one press of tidy handed the members of group 'ug' %r — "
+            "every group moves as a unit, so a group has exactly one "
+            "delta and this press produced %d: %r"
+            % (deltas, len(distinct), distinct))
+
+
+class TestAModMovesAUserGroupAsOneUnit(unittest.TestCase):
+    """`mod x` moves one member of a Ctrl+G group 300px alone.
+
+    THE SECOND DOOR, AND THE LOUD ONE. `apply_ops` does carry group
+    siblings on an `x`/`y` mod — but only where the sibling's
+    `customData.role` is `"decoration"` (canvas.py:8879-8906,
+    re-derived 2026-08-20). Every member of a user-made group is a
+    plain node, so none of them qualifies and the named element leaves
+    on its own. MEASURED 2026-08-20 through Store/apply_batch:
+
+        P (103,101) -> (403,101)   delta (300, 0)
+        Q                          delta (  0, 0)
+        R                          delta (  0, 0)
+
+    MAGNITUDE AND DIRECTION: 300px, unbounded and in whichever
+    direction the op asks. The tidy door tears by pixels; this one
+    tears by however far the op moves, so a group can be pulled fully
+    apart in one save. `--relayout` emits exactly these ops and
+    inherits the hole whole.
+
+    TWO REDS, NOT ONE, and they are not redundant: the flat pin says a
+    group's members share a delta, and the nested pin says the same of
+    the INNERMOST group when `groupIds` carries two entries. A repair
+    scoped to the outermost group turns both green; a repair scoped to
+    the innermost turns both green; a repair that reads only
+    `groupIds[-1]` and a repair that reads only `groupIds[0]` are
+    distinguishable by nothing else in this file.
+
+    WHO FLIPS THIS: `impl-group-integrity`, together with the tidy door
+    above. The doors fail differently and a repair to either alone
+    leaves the other red — which is why both are written.
+    """
+
+    def test_an_ungrouped_sibling_is_left_where_it_is(self) -> None:
+        """THE NEIGHBOUR, ungated: no group, and P leaves alone.
+
+        THE MANDATORY SILENT HALF for this door. Moving one ungrouped
+        box and leaving the others is CORRECT and must stay correct: a
+        red that fired here would be an argument for making `mod x`
+        drag the whole drawing. It also holds the absolute 300, so a
+        repair that bought green by making `mod x` move nothing at all
+        fails here rather than passing quietly.
+        """
+        store = _group_store(self, {"P": [], "Q": [], "R": []})
+        self.assertEqual(
+            _group_mod_deltas(store, "P", {"x": 403}),
+            {"P": (300, 0), "Q": (0, 0), "R": (0, 0)},
+            "a `mod x` on an UNGROUPED box no longer moves that box and "
+            "only that box. This is the legitimate independent movement "
+            "the reds below must never fire on")
+
+    def test_a_composed_widget_carries_its_parts_the_same_300px(self
+                                                                ) -> None:
+        """The contrast pole, ungated: an owned group carries at 300.
+
+        The identical op on the identical coordinates, with Q and R
+        made parts of P: all three move 300px. So `apply_ops` already
+        knows how to carry a group by one delta over an arbitrary
+        distance, and the only question the red asks is which groups it
+        will do it for.
+        """
+        store = _group_store(self, {"P": ["cg"], "Q": ["cg"], "R": ["cg"]},
+                             parts=True)
+        self.assertEqual(
+            _group_mod_deltas(store, "P", {"x": 403}),
+            {"P": (300, 0), "Q": (300, 0), "R": (300, 0)},
+            "a COMPOSED group no longer travels with its body on a `mod "
+            "x`, so the contrast the reds below rest on is gone")
+
+    @unittest.expectedFailure
+    def test_every_member_of_the_group_takes_the_same_delta(self) -> None:
+        """RED: P walks 300px out of the group and nobody follows.
+
+        THE INVARIANT, NOT THE ARITHMETIC, for the same reason its tidy
+        sibling gives: the set of deltas must hold one entry, and this
+        line does not care whether that entry is `(300,0)` (carry the
+        siblings) or `(0,0)` (refuse the motion). Both were measured
+        turning it green.
+
+        MEASURED 2026-08-20, red: two deltas — `{(300,0), (0,0)}` —
+        where the ruling allows one. The gap between a member and its
+        group is 300px and is bounded only by the op.
+        """
+        store = _group_store(self, {"P": ["ug"], "Q": ["ug"], "R": ["ug"]})
+        deltas = _group_mod_deltas(store, "P", {"x": 403})
+        distinct = _group_distinct(deltas, ["P", "Q", "R"])
+        self.assertEqual(
+            len(distinct), 1,
+            "a `mod x` on P handed the members of group 'ug' %r — every "
+            "group moves as a unit, so a group has exactly one delta and "
+            "this batch produced %d: %r" % (deltas, len(distinct), distinct))
+
+    @unittest.expectedFailure
+    def test_the_innermost_group_of_a_nested_pair_takes_one_delta(self
+                                                                  ) -> None:
+        """RED: nesting, and what this pin does and does not assert.
+
+        `groupIds` IS A LIST, OUTERMOST LAST. P and Q sit in `ig` and
+        then `og`; R sits in `og` alone — the shape a user makes by
+        grouping two boxes and then grouping that group with a third.
+        MEASURED 2026-08-20: `mod x` on P gives P `(300,0)` and both Q
+        and R `(0,0)`, so BOTH levels tear.
+
+        WHAT IT ASSERTS: only that P's INNERMOST group — `ig`, so P and
+        Q — shares one delta. That is the weakest claim the ruling
+        implies, and it is weak on purpose: it holds under every scope
+        a repair might pick. Carry the outermost group and `ig` is a
+        subset of what moved, so it holds. Carry the innermost and it
+        holds directly. Refuse the motion and every delta is `(0,0)`.
+        A pin over `og` would have been satisfied by only two of those.
+
+        WHAT IT DOES NOT ASSERT: that R follows. The outer tear is
+        MEASURED and stated here, and deliberately not pinned — which
+        of `ig` and `og` a dragged member belongs to for the purposes
+        of a move is a scope decision belonging to the repair's owner,
+        and Excalidraw's own answer (the outermost) is a defensible one
+        this file should not pre-empt. If the owner rules that `og`
+        must follow too, this pin is where the second assertion goes.
+        """
+        store = _group_store(self, {"P": ["ig", "og"], "Q": ["ig", "og"],
+                                    "R": ["og"]})
+        deltas = _group_mod_deltas(store, "P", {"x": 403})
+        inner = _group_distinct(deltas, ["P", "Q"])
+        self.assertEqual(
+            len(inner), 1,
+            "a `mod x` on P gave the members of P's innermost group 'ig' "
+            "%r (whole scene: %r) — nesting does not exempt a group from "
+            "moving as a unit" % (sorted(inner), deltas))
 
 
 # ---------------------------------------------------------------------------
