@@ -145,6 +145,40 @@ _LABEL_ON_FOREIGN_RE = re.compile(
 _WIDGET_GROUP_RE = re.compile(
     r"(?P<element>[\w-]+)(?: \(.+?\))? has (?P<mag>\d+) composed "
     r"part\(s\) \(.+?\) outside its own group")
+# THE CHECK THAT DOES NOT EXIST YET, registered so that the mutant below
+# can assert it — curator batch 45, 2026-08-20, from the duplicate-backlink
+# data loss. `composed_group_gaps` walks PARTS and resolves each one's
+# owner, so it is doubly blind to the damage that defect left behind: a
+# host with NO parts yields no part to walk, and a part naming a host that
+# is not in the scene is dropped by its `owner is None: continue`. Measured
+# on a real pre-fix save, all 36 detectors registered here returned the
+# same `['crossings_count']` for the damaged stored scene and the healthy
+# one.
+#
+# MAGNITUDE IS THE FLOOR THE HOST'S OWN GEOMETRY GUARANTEES, not the count
+# it currently draws, and that choice is the whole rule. A check reporting
+# "this host has 0 parts" reports 0 for a `body` block whose ink was eaten
+# AND for an `entity` declared with no attributes, which is legal — one
+# scalar, two meanings, and the carve-out would have to be bolted on
+# afterwards. `body` derives its wave count from its own height
+# (`_compose_body_lines`: `max(2, int(h // 16))`), so the floor is
+# recomputable from the stored element with no history, and asserting it
+# forces the fix to derive rather than to count. `entity` is the one
+# composed kind with no such floor — the rows ARE the storage, the host
+# keeps no `attributes` list (measured 2026-08-20) — which is exactly why
+# it is the neighbour.
+#
+# DIRECTION IS A REAL AXIS HERE, not a formality: the witnessed defect
+# produced BOTH poles in one save. The copy came back `missing` its parts
+# and the untouched original came back with `surplus` — four attribute
+# rows where two belonged, the same two twice. The mutant below injects
+# one defect and so exercises `missing` only; the `surplus` pole is the
+# sibling the check's author owes, and it is named here rather than left
+# to be rediscovered.
+_COMPOSED_HOST_STRIPPED_RE = re.compile(
+    r"(?P<element>[\w-]+)(?: \(.+?\))? is a composed \w+ whose own "
+    r"geometry draws \d+ part\(s\), and the scene has \d+ — "
+    r"(?P<mag>\d+) (?P<dir>missing|surplus)")
 # The clipped-text lint (canvas.py), whose template is the richest one
 # here: it carries a 2-D need AND a 2-D allowance AND which axis failed.
 # `element` is the OWNER, not the text — the text is quoted as CONTENT and
@@ -616,6 +650,21 @@ DETECTORS: dict[str, dict] = {
     # group or it is not, and there is no axis to report; the magnitude
     # carries the claim the poles in test_backend cannot reach.
     "widget_group_incomplete": {"lint_re": _WIDGET_GROUP_RE},
+    # Curator batch 45, 2026-08-20. ARRIVES WITH NO LINT BEHIND IT, which
+    # is the reverse of `text_over_text`'s arrangement and deliberate for
+    # the same reason: the check is the owning WP's, its acceptance
+    # mutant is the curator's, and here the mutant is what states the
+    # contract the check must meet. WHAT THE REGISTRATION BUYS, since the
+    # red would be red without it: `coverage_table` walks this dict, so
+    # registering is what forces an `UNCOVERED` row with a written reason
+    # and makes the gap auditable instead of invisible — and it is what
+    # lets the carve-out assertion in `test_neighbour_composed_host_
+    # stripped_is_invisible` ever FAIL, since a finding on an
+    # unregistered name is one `collect_findings` can never produce.
+    # `composed_host_stripped_is_invisible` is the red that flips the day
+    # the lint lands.
+    "composed_host_stripped": {"lint_re": _COMPOSED_HOST_STRIPPED_RE,
+                               "dirmap": {}},
     # Batch D follow-up, 2026-08-13: left the enumerated-no-mutant ledger
     # when the pair below proved it fires, on both arms, with magnitude and
     # direction. The dirmap keeps the three arms distinct because the
@@ -1276,6 +1325,42 @@ def drop_edge(scene: list[dict], arrow_id: str) -> list[dict]:
 
 
 @_operator
+def strip_composed_parts(scene: list[dict], host_id: str) -> list[dict]:
+    """Delete every composed part backlinked to one host.
+
+    THE STORED SHAPE THE DUPLICATE-BACKLINK DEFECT LEFT BEHIND, reached
+    as a scene mutation so a detector can be asked about it. In the
+    browser the host lost its parts because another host's reconcile ate
+    them; on disk the two are indistinguishable, which is the point —
+    the check has to read the picture, not the history that produced it.
+
+    Deletes rather than soft-deletes: a save writes the survivors, so a
+    scene reloaded after the damage has no tombstone to find. Bound
+    labels are left alone — they carry no `*_of` tag and are not parts
+    (`part_owner_id` answers `containerId` for them and `_composed_part`
+    does not), so removing one would be a second, different defect and
+    a mutant injects exactly one.
+
+    Args:
+        scene: The scene copy to mutate.
+        host_id: The composed host whose parts are removed.
+
+    Returns:
+        The scene with `host_id`'s parts gone, and any `boundElements`
+        reference to them cleared.
+    """
+    doomed = {e["id"] for e in scene
+              if any(k.endswith("_of") and v == host_id
+                     for k, v in (e.get("customData") or {}).items())}
+    kept = [e for e in scene if e["id"] not in doomed]
+    for e in kept:
+        if e.get("boundElements"):
+            e["boundElements"] = [b for b in e["boundElements"]
+                                  if b.get("id") not in doomed]
+    return kept
+
+
+@_operator
 def flip_direction(scene: list[dict], arrow_id: str) -> list[dict]:
     """Reverse an arrow's direction, swapping bindings and rebasing points.
 
@@ -1462,6 +1547,7 @@ OPERATORS: dict = {
     "encurve": encurve,
     "merge_corridors": merge_corridors,
     "drop_edge": drop_edge,
+    "strip_composed_parts": strip_composed_parts,
     "flip_direction": flip_direction,
     "rename_node": rename_node,
     "move_node_onto_rank": move_node_onto_rank,
@@ -17325,6 +17411,86 @@ def _composed_widget(grouped: bool) -> list[dict]:
         for i in (1, 2, 3)]
 
 
+def _body_block() -> list[dict]:
+    """A 64px-tall `body` block drawing the four waves its height owes.
+
+    THE HEIGHT IS THE ASSERTION. `_compose_body_lines` derives the wave
+    count as `max(2, int(height // 16))`, so 64 gives exactly 4 — the
+    one composed kind whose part count is recomputable from the stored
+    host with no history at all, which is what lets the mutant below
+    assert a magnitude instead of an existence. 64 rather than 60 (which
+    also gives a round answer, 3) because 64 sits a whole 16px band away
+    from both neighbouring counts, so a fix that rounds differently at
+    the boundary is not the thing this scene catches or excuses.
+
+    Hand-built, not minted, for the reason `_composed_widget` gives: a
+    mutant should not depend on the seeder to state its defect. Every
+    shape here is copied from what the seeder really emits for
+    `{"kind": "body", "width": 160, "height": 64}` — measured
+    2026-08-20: waves at y=8/24/40/56, each 144 wide but the last, which
+    is 0.62x at 89 like a paragraph's final line, all of them sharing
+    the block's `b-grp`.
+
+    Returns:
+        The five-element scene: block `b`, then waves `b-body1..4`.
+    """
+    wave = [[0, -2], [7, 2], [14, -2], [21, 2], [28, -2], [35, 2],
+            [42, -2], [49, 2], [56, -2], [63, 2], [70, -2], [77, 2],
+            [84, -2], [91, 2], [98, -2], [105, 2], [112, -2], [119, 2],
+            [126, -2], [133, 2], [140, -2], [144, 0]]
+    last = [[0, -2], [7, 2], [14, -2], [21, 2], [28, -2], [35, 2],
+            [42, -2], [49, 2], [56, -2], [63, 2], [70, -2], [77, 2],
+            [84, -2], [89, 0]]
+    return [el(id="b", type="rectangle", x=0, y=0, width=160, height=64,
+               groupIds=["b-grp"],
+               customData={"kind": "body", "role": "node"})] + [
+        el(id="b-body%d" % i, type="line", x=8, y=8 + 16 * (i - 1),
+           width=89 if i == 4 else 144, height=3, groupIds=["b-grp"],
+           points=[list(p) for p in (last if i == 4 else wave)],
+           customData={"role": "decoration", "body_of": "b"})
+        for i in (1, 2, 3, 4)]
+
+
+def _entity_without_rows() -> list[dict]:
+    """The legally part-less entity, beside a live finding to die with.
+
+    THE CARVE-OUT, AND THE WHOLE COST OF THE RULE. Seven of the eight
+    composed kinds always mint parts, so a host of those kinds drawing
+    none is damage. `entity` is the exception: its rows ARE the storage
+    for its attribute list — the host keeps no `attributes` key of its
+    own (measured 2026-08-20 against a real save) — so an entity a user
+    declared with none is indistinguishable, from the stored element, in
+    every way except that it is correct. A check reporting "this host
+    has no parts" fires here and is wrong. `e` carries the same body
+    geometry and the same group discipline as `_body_block`, so the only
+    difference between the poles is which kind is named and whether a
+    floor exists for it.
+
+    WHY IT DOES NOT SIT HERE ALONE, which is the whole shape of this
+    builder. A neighbour whose only claim is `Silence` on a check that
+    does not exist is satisfied by the corpse — the silence-is-a-bug
+    eval killed a check, built the prescribed pairing, and got a clean
+    exit with zero witnesses. So this pole BORROWS a live firing the way
+    `arrival_through_side`'s neighbour borrowed `runs_on_node` while it
+    was red by absence: `_composed_widget(grouped=False)` rides along,
+    its three loose rows make `widget_group_incomplete` speak, and that
+    is what the neighbour asserts. The carve-out itself is not
+    expressible in a `FindingSpec` slot and is asserted in the neighbour
+    test method instead, ungated, through the same `collect_findings`
+    call. `w` sits at the origin, so `e` is pushed to x=400 — far enough
+    that no clearance or overlap check reads the two as one crowd and
+    changes what this pole is measuring.
+
+    Returns:
+        Five elements: the part-less entity `e`, then the ungrouped
+        widget `w` and its three rows.
+    """
+    return [el(id="e", type="rectangle", x=400, y=0, width=160, height=64,
+               groupIds=["e-grp"],
+               customData={"kind": "entity", "role": "node"}),
+            *_composed_widget(grouped=False)]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -21690,6 +21856,22 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _composed_widget(grouped=True),
                         Silence("widget_group_incomplete"))))
 
+# Curator batch 45, 2026-08-20, from the duplicate-backlink data loss
+# witnessed in a real browser. RED BY ABSENCE: no lint emits this finding,
+# so the entry states the contract the check must meet rather than
+# recording one it fails. WHO FLIPS THIS: the WP that owns
+# `composed_group_gaps` — see this mutant's `UNCOVERED` row for the rule
+# and its one carve-out.
+_register(Mutant(
+    "composed_host_stripped_is_invisible",
+    build=_body_block,
+    op="strip_composed_parts", args={"host_id": "b"},
+    expect=FindingSpec("composed_host_stripped", element="b",
+                       magnitude=(4, 0.0), direction="missing"),
+    neighbour=Neighbour(_entity_without_rows,
+                        FindingSpec("widget_group_incomplete", element="w",
+                                    magnitude=(3, 0.10)))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -22524,6 +22706,33 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_unreadable_stroke_is_reported_not_skipped(self) -> None:
         """The same grey, spelled `#d3d3d3`, is measured and not reported."""
         self._run_neighbour("unreadable_stroke_is_reported_not_skipped")
+
+    @unittest.expectedFailure
+    def test_mutant_composed_host_stripped_is_invisible(self) -> None:
+        """A body block drawing 0 of the 4 waves its height owes."""
+        self._run("composed_host_stripped_is_invisible")
+
+    def test_neighbour_composed_host_stripped_is_invisible(self) -> None:
+        """An entity declared with no attributes owes no rows."""
+        # TWO CLAIMS, and the second is the one a `FindingSpec` slot
+        # cannot hold. `_run_neighbour` asserts the BORROWED firing —
+        # `widget_group_incomplete` at 3 on `w` — which is what makes
+        # this pole die with a real detector instead of being satisfied
+        # by a dead one. The carve-out rides here, ungated and through
+        # the same `collect_findings` call: an entity declared with no
+        # attributes is legally part-less, and the day the check lands
+        # it must stay quiet about `e`. Written as an assertion rather
+        # than left to the check's author, because it is the entire
+        # false-positive cost of the rule and the only pole that says
+        # what the rule may NOT do.
+        self._run_neighbour("composed_host_stripped_is_invisible")
+        finds = collect_findings(_entity_without_rows())
+        self.assertEqual(
+            [f["raw"] for f in finds
+             if f["check"] == "composed_host_stripped"
+             and f["element"] == "e"], [],
+            "an entity declared with no attributes has no rows to draw "
+            "and must never be reported as stripped")
 
     def test_mutant_entity_name_dragged_onto_its_row(self) -> None:
         """A dragged name covers its own row by 1080px², and is named."""
@@ -23394,6 +23603,46 @@ ASPIRATIONAL: dict[str, str] = {
 # hands that wrote the fix should not also write its acceptance test.
 
 UNCOVERED: dict[str, str] = {
+    # `composed_host_stripped` — curator batch 45, 2026-08-20, and the
+    # only row this dict has ever held for a check that does not EXIST.
+    # `text_over_text` and `unreadable_color` each stood here as a
+    # registered detector waiting for its mutant; this is the reverse,
+    # a registered NAME waiting for its lint, and it is UNCOVERED for
+    # the ordinary reason — the proving evidence would be a neighbour
+    # carrying a `FindingSpec`, and a check that emits nothing cannot
+    # give one. It drains when the lint lands and
+    # `composed_host_stripped_is_invisible` flips.
+    #
+    # WHAT THE CHECK MUST SAY, spelled out here because the mutant is
+    # the only other place it is written and a red's assertions are
+    # dead code until the day of the flip. A composed host whose OWN
+    # geometry guarantees a part count draws fewer (or more) than that:
+    # `<id> is a composed <kind> whose own geometry draws <n> part(s),
+    # and the scene has <m> — <d> missing|surplus`. Derive the floor,
+    # never count what is there: `body` gets it from its height
+    # (`max(2, int(h // 16))`), and the seven kinds that always mint
+    # parts have one. `entity` DOES NOT and is the carve-out — its rows
+    # are the storage for its attribute list and the host keeps no
+    # `attributes` key, so an entity with no rows is legal and must stay
+    # silent. That carve-out is the entire false-positive cost of the
+    # rule, and it is what the neighbour holds down.
+    #
+    # WHY IT IS OWED. `composed_group_gaps` walks PARTS: a host with
+    # none yields nothing to walk, and a part naming a host absent from
+    # the scene is dropped by its `owner is None: continue`. Measured on
+    # a real pre-fix save, every registered detector returned the same
+    # findings for the damaged stored scene and the healthy one. The
+    # save-time repair on `fix-duplicate-backlinks` stops NEW damage; it
+    # does not repair scenes already written to disk, which `catch_up()`
+    # re-reads on every load. A lint here has work to do the day it
+    # lands and for as long as those files exist.
+    "composed_host_stripped":
+        "registered 2026-08-20 with its mutant and no lint behind it — "
+        "the check is the owning WP's to write and the acceptance "
+        "mutant is the curator's. UNCOVERED for the ordinary reason: "
+        "the evidence would be an ungated FindingSpec on this check, "
+        "and a check that emits nothing cannot give one. Drains when "
+        "`composed_host_stripped_is_invisible` flips",
     # `text_over_text` stood here TWICE, and the second stay is the more
     # instructive one. It landed 2026-08-18 with the check itself
     # (TASK-ENTITY-LINEHEIGHT), the second row this dict ever held that
@@ -24558,7 +24807,24 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"composed_host_stripped_is_invisible"}
+# ARRIVED 2026-08-20 (curator batch 45), the first entry this set has held
+# since the half-pixel pair below emptied it, and the only one so far that
+# is red because its CHECK does not exist rather than because a known check
+# answers wrongly. It flips when a lint lands for `composed_host_stripped`;
+# the contract it must satisfy is written in that check's `UNCOVERED` row.
+# ITS NEIGHBOUR BORROWS A LIVE FINDING rather than carrying a lone
+# `Silence`, which is the arrangement `arrival_through_side` used while it
+# too was red by absence and which
+# `test_every_silence_neighbour_has_a_firing_companion` now requires: a
+# `Silence` on a check nobody has written is satisfied by the corpse, so
+# the pole asserts `widget_group_incomplete` at 3 instead, and the
+# carve-out rides beside it as a plain assertion in the neighbour method.
+# Proved satisfiable before it was filed rather than after: a candidate
+# rule monkeypatched onto `lint_layout` from outside the repo turns it
+# green at (4, "missing"), leaves the carve-out entity and the unmutated
+# base silent, and reaches the `surplus` pole at (2, "surplus") through
+# the same regex.
 # BOTH LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one commit after the pair
 # arrived, flipped together by a single helper: `canvas.js_round`,
 # `math.floor(x + 0.5)`, now the rounding at all FIVE sites transcribing a
