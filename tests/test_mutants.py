@@ -23778,10 +23778,33 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # count down.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestOneComposedPartPredicateHasThreeSites": 2,
-    "TestARerouteCountsThePopulationItQuotes": 1,
-    "TestTidyCoversTheConnectorItMoved": 1,
-    "TestHousekeepingDoesNotCallALineAnArrow": 1,
 }
+
+# THREE LEFT TOGETHER on 2026-08-20 (TASK-C3-POPULATION), one day after
+# they landed, and all three lost a LINE rather than a number — each
+# carried exactly one red, which is the shape this dict's own message
+# warns about. They are the first entries here to be filed and flipped by
+# DIFFERENT agents on different branches, which is the whole point of the
+# split: the curator wrote the reds against `bedbc56` while the fix was
+# being built from the same commit, so neither could see the other, and
+# the reds landed ALONE and still red before the fix rebased onto them.
+#
+# ONE REPAIR CLOSED ALL THREE, and that is worth recording because the
+# reds were written as three independent findings. `Store.reroute`'s
+# "3 of 2" (C-1) and `Store.tidy`'s silently-moved connector (I-1) are the
+# LOUD and QUIET halves of one gap — `server_routed_connectors` required
+# BOTH bindings to resolve while the fan moves a connector bound at one —
+# so widening that single predicate covered both doors at once. The third
+# was the noun, one string over.
+#
+# AND THE FOURTH TEST IN THE THIRD CLASS IS WHY THE NOUN REPAIR IS NOT A
+# FLAT WORD. `test_the_arrow_pole_says_a_true_sentence` is an ungated
+# neighbour that pins "re-routed 2 arrow(s)" on the all-arrow pole; the
+# first draft of the fix printed "connector(s)" unconditionally and that
+# guard fired. It was right to: the sentence NAMES its elements, so a
+# blanket noun trades the line pole's honesty for vagueness on the arrow
+# pole. `connector_noun` is the repo's existing answer and satisfies both
+# poles without either being relaxed.
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
 # `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
@@ -28104,7 +28127,6 @@ class TestARerouteCountsThePopulationItQuotes(unittest.TestCase):
             "the two poles no longer draw the same picture, so the red "
             "below has stopped isolating the sentence from the geometry")
 
-    @unittest.expectedFailure
     def test_the_note_counts_the_population_it_names(self) -> None:
         """RED: N, the list and the facts all outrun M by one element.
 
@@ -28248,7 +28270,6 @@ class TestTidyCoversTheConnectorItMoved(unittest.TestCase):
             "dropping `l2`'s far binding changed what tidy DRAWS, so the "
             "red below is no longer isolating the narration")
 
-    @unittest.expectedFailure
     def test_every_connector_the_press_redrew_is_covered_by_a_number(
             self) -> None:
         """RED: two connectors were redrawn and the note accounts for one.
@@ -28383,7 +28404,6 @@ class TestHousekeepingDoesNotCallALineAnArrow(unittest.TestCase):
             "the arrow pole's housekeeping sentence has moved, and the "
             "red below is measured against it: %r" % lines)
 
-    @unittest.expectedFailure
     def test_the_sentence_does_not_call_a_line_an_arrow(self) -> None:
         """RED: two `line`s are introduced to the user as two arrows.
 
