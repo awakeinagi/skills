@@ -101,8 +101,8 @@ lands, narrate guards from the annotation texts.
   join
   <!-- live:cross_lint_join -->wireframe × flow<!-- /live:cross_lint_join -->
   only (derived from `CROSS_LINT_JOIN`, not typed here), and a sequence
-  member is skipped in silence (3.3.7 reads `frameId` and `kind: input`,
-  which a sequence has no analogue for).
+  member is skipped in silence (3.3.7 reads `frameId` and the wireframe
+  `input` kind, neither of which a sequence has an analogue for).
 - sequence↔wireframe/domain: **inference only by convention, not by
   enforcement.** `add_mapping` type-checks nothing and tripwires are
   type-blind by ruling (user, 2026-08-20), so a declared mapping is

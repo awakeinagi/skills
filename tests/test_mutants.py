@@ -23553,6 +23553,39 @@ UNCOVERED: dict[str, str] = {
         "'only arrows connect shapes' ruling); no DETECTORS row and no "
         "CATALOGUE mutant — the pair is a curator's, and what it must "
         "assert is spelled out above this row",
+    # Added 2026-08-20 with the check itself (TASK-VOCAB) — the sixth
+    # template this file has taken NAMED as unproven from the hands that
+    # wrote it, for the standing reason. No `DETECTORS` row, so the name
+    # below is a ledger id and a `Silence` on it would pass vacuously;
+    # draining it needs a `DETECTORS` entry with a `lint_re` over the
+    # "declares kind ... which nothing implements" clause, then a pair.
+    # WHAT THE PAIR MUST ASSERT, so it can be drained without
+    # re-deriving it:
+    #   * the MUTANT — one rectangle carrying `customData.kind: "modal"`
+    #     driven through `apply_batch`, asserting the NOTE tier and the
+    #     wording. It must also assert that the note NAMES THE OFFERED
+    #     VOCABULARY, because the repair is unavailable without it: a
+    #     finding that says "modal is not a kind" and stops leaves a
+    #     headless agent guessing, and the whole confuser is that it
+    #     guesses `block` and narrates the modal anyway.
+    #   * NEAR-MISSES as subTests, not separate mutants — `"Button"`
+    #     (case) and `"sticky_bar"` (separator). Both fire today; a
+    #     repair that normalised case or punctuation before testing
+    #     membership would silence exactly the class most likely to be a
+    #     typo, and no whole-word mutant would notice.
+    #   * the NEIGHBOUR — a `Silence("unknown_kind")` that is TRUE
+    #     rather than merely absent, so it must be a scene carrying a
+    #     REAL kind rather than no kind at all: a kindless rectangle
+    #     stays silent under an implementation that reads `kind_of` (and
+    #     therefore reports every plain rectangle in the corpus) only
+    #     because that reading was rejected here. `kind: "block"` is the
+    #     pole. All 30 vocabulary members and all 24 frozen artifacts
+    #     (274 kinded elements) are silent today — measured, not assumed.
+    # NO MAGNITUDE is owed: the finding quotes no figure.
+    "unknown_kind":
+        "landed 2026-08-20 (TASK-VOCAB) with its template; no DETECTORS "
+        "row and no CATALOGUE mutant — the pair is a curator's, and what "
+        "it must assert is spelled out above this row",
     "half_unbound_endpoint":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unbound_arrow":
@@ -33379,13 +33412,44 @@ class TestCoverage(unittest.TestCase):
         one: the op path minted exactly this element until the ruling
         landed, which is why the proving scene has to be built in flight
         through `apply_batch` plus a real user `commit`.
+        71 -> 72 on 2026-08-20 (TASK-VOCAB): `unknown_kind`, the note for
+        a `customData.kind` no code implements. It takes the
+        `bound_line_connector` shape — an `UNCOVERED` row and no
+        `DETECTORS` entry — for that row's reason, and the row spells the
+        pair out.
+
+        A NEW CHECK, not a widened population, and it is the first in
+        this function whose subject is the element's own DECLARATION
+        rather than its geometry or its bindings. Every other template
+        here reads pixels or topology; this one reads a word against a
+        vocabulary, and it quotes no figure at all — which is why the row
+        forbids pinning a magnitude.
+
+        ONE SITE PER ELEMENT, which is 49 -> 50's judgement: a kind is
+        wrong once however many checks then read past it, and the repair
+        is a single edit.
+
+        THE CORPUS CANNOT EXERCISE IT, re-derived rather than inherited:
+        across the 24 frozen artifacts and 976 elements, 274 carry a
+        `customData.kind` and every one of them is in the vocabulary, so
+        this site adds ZERO findings to every shipped drawing. That zero
+        is an EMPTY population and not an unreachable one — the op path
+        copies `kind` out of a spec with no whitelist anywhere on it, so
+        the proving scene builds in flight through `apply_batch`.
+
+        THE POPULATION IS 274 AND NOT 976, and the distinction is the
+        check's whole shape. `kind_of` falls back to the element TYPE, so
+        an implementation reading it would report every plain rectangle
+        in the corpus; this one reads `customData` directly. A neighbour
+        built on a KINDLESS element would be silent under both and prove
+        nothing, which is why the row above requires `kind: "block"`.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 71,
+        self.assertEqual(sites, 72,
                          "canvas.py lint_layout append-site count changed "
-                         "(71 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(72 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 

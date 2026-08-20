@@ -28,6 +28,8 @@ the same screen**, not styling on one.
 | Screen | `frame` (its `label`/name is the screen name) | one screen |
 | Nav/header | `rectangle`, `kind: nav`, real label, light fill `#e9e5da` | chrome |
 | Button | `rectangle`, `kind: button`, real label (dark fill `#1e1e1e` for primary) | action |
+| Link | `rectangle`, `kind: link`, real label — the words that are clickable | inline navigation. NOT `links_to`, which is the *canvas* jump this element performs; `kind: link` is what the drawing claims the screen shows |
+| Tab | `rectangle`, `kind: tab`, real label, one per tab in the bar | one tab of a tab set — the canonical 2.5.8 offender, which is why its targets are measured |
 | Input | `rectangle`, `kind: input`, label = field name | form field |
 | Content block | `rectangle`, `kind: block`, label = what it holds | region |
 | Image | `rectangle` with `kind: image` — the X-box strokes compose automatically | picture slot |
@@ -43,6 +45,15 @@ the same screen**, not styling on one.
 | Help | `rectangle`, `kind: help`, small, real label | where help lives (3.2.6 lint watches its slot) |
 | Sticky bar | `rectangle`, `kind: sticky-bar`, flush with a frame edge | pinned chrome — floats OVER content; declaring it arms the 2.4.11 focus question |
 | Feedback | `rectangle`, `kind: feedback`, label = the message | post-action confirmation (banner/toast) — the constructive answer to "what tells them it worked?" |
+
+**The vocabulary is closed.** This table plus `fold` (below) is every
+wireframe `kind` the backend implements — a kind outside it is stored and
+drawn as an unadorned shape, and every kind-driven check reads past it, so
+it draws a LAYOUT_NOTE naming what you asked for and what you got. Reach
+for `block` plus an annotation before inventing a word: a made-up one like
+`modal` looks like a claim and is not one. The list is served to the
+inspector's kind selector rather than restated there, so the menu cannot
+fall behind it.
 
 KPI, checkbox, toggle, and slider are composed kinds: the label stays the
 semantic name (renames fire `label_renamed`; the value never pollutes the
