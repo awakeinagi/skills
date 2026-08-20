@@ -16948,6 +16948,122 @@ def _fanned_void_foot(shape: str) -> list[dict]:
                customData={"role": "edge", "routed": True})]
 
 
+def _name_over_row(label_y: float) -> list[dict]:
+    """An entity whose bound name sits `label_y` down the shape.
+
+    THE ARITHMETIC IS THE POINT, so every number here is chosen to make
+    the shipped bar land between two whole ones. `text_over_text` fires
+    when the two texts' boxes intersect by more than 8px across AND by
+    more than `ink_clearance` of the shallower text down — the leading
+    plus the descender depth, both read off the client's own metrics
+    rather than written in. At `fontSize=16`, `lineHeight=1.25` in
+    Nunito that is **5.648px**: the box has no leading to discount
+    (1.364em of glyph band against a 1.25em box), so the whole bar is
+    the 0.353em descender. Both texts carry the same size and spacing so
+    the bar cannot come from whichever one the implementation picks.
+
+    THE TWO WIDTHS DIFFER ON PURPOSE (160 for the name, 120 for the
+    row, offset 20px). The horizontal intersection is then 120 — not
+    either text's own width, not their union's 160 — so the reported
+    AREA cannot be reproduced by any of the wrong readings the
+    catalogue entry enumerates. Holding that 120 fixed across every
+    `label_y` also means the only thing this family varies is the
+    vertical overlap, which is the axis the bar lives on.
+
+    THE ROW IS UNBOUND AND THE NAME IS BOUND, which is the witnessed
+    defect's exact topology and the reason nothing saw it for five
+    reviews: `label_label_overlap` walks bound against bound, and the
+    text-vs-node loops skip a `containerId` on one side and a
+    `decoration` role on the other. This pair trips every one of those
+    skips, and `text_over_text`'s own both-bound skip does not fire
+    because only one side is bound.
+
+    THE ROOM RULE DOES NOT REACH THIS SCENE, re-derived 2026-08-20 on
+    `88e04e6` rather than carried: `label_boxes` reads stored `x/y/
+    width/height` and measures no glyphs, so `client_wrap_width` — which
+    rewrote what the overhang check sees — has no term here. The bar,
+    both poles and the area all re-measure identical to their values on
+    `d39b43d`.
+
+    Args:
+        label_y: The name's top edge. 10 leaves it in the header, clear
+            of the row at y=60; 49 drives 9px of overlap, the depth the
+            check's own calibration calls plainly collided; 45 leaves
+            5px, the depth that calibration calls clean.
+
+    Returns:
+        The three-element scene: entity `E1`, its row, its bound name.
+        The row precedes the name, because scene order is paint order
+        and this check names the LATER text as the one drawn on top.
+    """
+    return [el(id="E1", type="rectangle", x=0, y=0, width=200, height=100,
+               customData={"role": "node"},
+               boundElements=[{"id": "E1-label", "type": "text"}]),
+            el(id="E1-attr-1", type="text", x=40, y=60, width=120,
+               height=20, text="total", originalText="total", fontSize=16,
+               fontFamily=6, lineHeight=1.25,
+               customData={"role": "decoration", "attr_of": "E1"}),
+            el(id="E1-label", type="text", x=20, y=label_y, width=160,
+               height=20, text="Settlement", originalText="Settlement",
+               fontSize=16, fontFamily=6, lineHeight=1.25,
+               containerId="E1")]
+
+
+def _dropped_label(width: int = 200) -> list[dict]:
+    """A short bound label dragged down toward the rhombus's bottom point.
+
+    THE ONLY SCENE IN THE CATALOGUE WHERE THE SPACING DECIDES THE
+    READING, which is the whole of its reason to exist. `label_
+    overflows_shape` measures the shape's chord across the label's DRAWN
+    band, and that band's depth comes from `line_height_of(t)` — so a
+    check that resolves the element's own spacing and a check that
+    writes in 1.25 score the same label against different chords. On
+    every centred scene the difference is invisible, because
+    `cy - drawn_h/2` collapses to the label's own `y` and only the
+    BOTTOM edge moves. Drop the label BELOW the node's centre line and
+    that moving edge becomes the narrow one.
+
+    THE PLACEMENT IS THE DEFECT AND IT IS THE CHECK'S OWN CASE: a bound
+    label keeps whatever `x/y` it was last saved with — `render_svg`
+    paints it there with no re-centring and `recenter_label` is opt-in
+    on the mutation paths — so a label the user dragged in the browser
+    reads exactly like this. At `y=70` on a 200x100 rhombus the body is
+    32px across and the label is 54px of ink: 11px of text hangs over
+    empty canvas on each side, and a reader sees it.
+
+    WHY THE STRING IS SHORT. `client_wrap_width` caps a bound label on a
+    diamond at `js_round(w/2) - 10`, which is **90px** here, and the
+    check wraps to that cap before it measures. A longer label wraps to
+    three lines, the band it occupies exceeds the rhombus's whole
+    height, and the finding becomes `label_adrift` instead — a different
+    check with a different question. 54px of ink stays one line at every
+    width this family uses, so the only thing that varies is the band's
+    depth and the room it is scored against.
+
+    `width` IS THE OTHER POLE, and it is the ROOM it moves and not the
+    shape or the placement: at 400 the same label at the same `y` finds
+    64px of chord and clears by 5px on each side. Holding the label, the
+    type, the spacing and the drop fixed forces the check to be about
+    the body's room — a check that fired on dragged labels as such, or
+    on diamonds as such, would pass a rectangle control and fail this.
+
+    Args:
+        width: The rhombus's width. 200 overhangs by 22px; 400 is silent.
+
+    Returns:
+        The two-element scene: the node `d1`, then its bound label `t1`.
+    """
+    text = "Review"
+    return [el(id="d1", type="diamond", x=0, y=0, width=width, height=100,
+               customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=int(width / 2) - 27, y=70,
+               width=54, height=20, text=text, originalText=text,
+               fontSize=16, fontFamily=6, lineHeight=1.35,
+               textAlign="center", verticalAlign="middle",
+               containerId="d1")]
+
+
 def _straddle_stage(ink: str = "#ffffff", fill: str = "#1b2a4a",
                     tx: int = 100) -> list[dict]:
     """A free text over a filled card, placed and coloured to order.
@@ -20852,6 +20968,194 @@ _register(Mutant(
     neighbour=Neighbour(lambda: _styled_scene(stroke="#d3d3d3"),
                         Silence("unreadable_color"))))
 
+# `text_over_text`'s acceptance mutant, and the third row this catalogue
+# has drained from `UNCOVERED` for a check whose own author was forbidden
+# to write its test (after `unreadable_color` and `crosses_through_bound`).
+# The check landed 2026-08-18 with the entity line-height work to close a
+# whole-branch Critical: NOTHING in the repo compared a text against
+# another text. A container's own name lying on its own attribute row
+# trips `label_label_overlap`'s bound-vs-bound walk, `text_overlaps_node`'s
+# `containerId` skip, and the same loop's `decoration` skip — three skips,
+# one picture, zero findings, through five reviews and a full sweep.
+#
+# ORIGIN: curator batch 36, 2026-08-18, from the entity-lineheight
+# handover; RE-DERIVED AND RESTORED 2026-08-20 (curator batch 36 restore),
+# then RE-DERIVED AGAIN on `88e04e6` after the room-rule fold. The
+# 2026-08-18 pair was authored on a commit that reached no ref and was
+# never forward-ported, so the row it drained came back. Nothing has been
+# carried across either move: the bar the first pair was built against —
+# half the smaller text's line box, 10.0px — is not the bar that shipped,
+# and both poles moved with it.
+#
+# THIS ARRIVES GREEN, and that is the whole reason it is a curator's: the
+# fix is already in, so what this entry buys is not a red to flip but a
+# CATALOGUE MAGNITUDE — the number the check must keep saying after the
+# next person rewrites the sentence or retunes the bar. `TestTextDrawnOn
+# Text` proves the behaviour; nothing proved the number survives
+# `collect_findings`, and a regex that stops matching its own check's
+# message turns every future `Silence` on this row vacuous. The colour
+# was not trusted: the red is shown by ablation, below.
+#
+# BOTH POLES SIT ON THE CHECK'S OWN CALIBRATION EVIDENCE, which is what
+# makes this pair a bracket and not a re-statement. The bar is
+# `ink_clearance` = 5.648px here, and it was arrived at by RENDERING the
+# corpus's near-miss at nine depths in the vendored face. That sweep's two
+# published anchors are the two poles of this mutant:
+#
+#   * the MUTANT overlaps by 9px, one of the two depths (8 and 9) that
+#     sweep calls "plainly broken" and that the bar's PREDECESSOR — half a
+#     line box, 10.0px, the value the check shipped with for one day —
+#     wrongly silenced. Restore that predecessor and this goes SILENT: the
+#     mutant is red, and it is red at exactly the regression the check's
+#     own comment says it was corrected for.
+#   * the NEIGHBOUR overlaps by 5px, the depth that sweep calls clean and
+#     where the corpus's own near-miss sits. Drop the bar to the flat 4px
+#     the check shipped with in draft and the neighbour SPEAKS — 600px² of
+#     ink over ink where silence was asserted: the neighbour is red.
+#
+# So the pair pins the bar into [5, 9) around a shipped 5.648, from both
+# sides, and neither half can be satisfied by a check that has stopped
+# measuring. A detector retuned until the corpus reads zero is exactly the
+# shape that can be silently OVER-tuned, so a mutant that only proved "it
+# still fires somewhere" would have certified the retune it audits.
+#
+# WHAT THE BRACKET DOES NOT REJECT, stated because a bracket quoted wider
+# than it is measures nothing: any bar in [5, 9) passes both poles, so the
+# 6px `label_label_overlap` uses is NOT rejected here — verified by
+# ablation, both poles stay green at 6. The two values this check has
+# actually held are what the bracket excludes, one at each end: the draft's
+# flat 4, and the half-line-box 10 it carried for a day. Rejecting 6 would
+# need a neighbour at a fractional overlap, and buys nothing: 6 is a bar
+# this check has never had.
+#
+# WHAT THE MAGNITUDE BAND REJECTS. The finding's number is the
+# INTERSECTION AREA, 120 x 9 = 1080px², and ±15% admits [918, 1242]. The
+# widths are unequal precisely so the plausible wrong readings fall
+# outside it, and each is a real thing an overlap check has been seen to
+# report:
+#
+#   * 120 — the horizontal overlap alone, the axis-instead-of-area slip
+#     `min_clearance` makes by design and this check must not.
+#   * 9 — the vertical overlap alone, the bar's own axis reported as if it
+#     were the finding.
+#   * 129 — the two legs summed, the half-perimeter reading.
+#   * 3200 — the covering text's whole box (160x20): "the name's area", a
+#     number that does not depend on the row at all and so cannot tell
+#     9px of overlap from 1px.
+#   * 2400 — the covered text's whole box (120x20): the same slip in the
+#     other direction, and the one that survives the widths being equal,
+#     which is why they are not.
+#   * 4960 — the union bounding box (160x31), what a check computes when
+#     it takes `max`/`min` the wrong way round.
+#
+# NOT TIGHTENED FURTHER, and the reason is the drift source: every number
+# here is a stored integer, because `label_boxes` reads `x/y/width/height`
+# and measures no glyphs. Nothing in this scene moves when the advance
+# table improves or when the room rule changes what a bound label wraps
+# to — verified across both, the poles are identical on `d39b43d` and on
+# `88e04e6`. ±15% rejects the enumerated readings and stops there.
+#
+# WHICH TEXT IS ON TOP IS THE DIRECTION HERE, and it is carried by
+# `element` because this row has no `dirmap` to carry it: the finding
+# names `E1-label`, the text drawn OVER the row, which is the one a reader
+# has to move. A check naming the covered text would be reporting the same
+# overlap with the sign reversed, and `element="E1-label"` fails it. Scene
+# order is paint order, so the builder puts the row first for exactly that
+# reason — and this is the first of two places the curated pair departs
+# from the handed-over quadruple, which expected the row. The second is
+# the neighbour: the handover proposed the entity UNMOVED, which has no
+# overlap at all and would be silent under any bar, including the 4px one
+# the corpus census had just rejected. A near-miss 0.6px under the bar
+# tests something; a scene 30px clear of it tests nothing.
+_register(Mutant(
+    "entity_name_dragged_onto_its_row",
+    build=lambda: _name_over_row(label_y=10),
+    op="shift_label",
+    args={"text_id": "E1-label", "dx": 0, "dy": 39},
+    expect=FindingSpec("text_over_text", element="E1-label",
+                       magnitude=(1080.0, 0.15)),
+    neighbour=Neighbour(lambda: _name_over_row(label_y=45),
+                        Silence("text_over_text"))))
+
+# ---------------------------------------------------------------------------
+# THE ONE ENTRY THAT WITNESSES THE FONT-AWARE FIX. Origin: curator batch 36
+# restore, 2026-08-20, from a review that measured
+# `diamond_label_overflows_shape` at the SAME number on both sides of the
+# fix `fold-lineheight` shipped and called that pin incapable of seeing it.
+# It was right, and the cure is a scene rather than a band: that entry's
+# label is `fontFamily=1`, Virgil, whose own metric IS the 1.25 the pre-fix
+# check wrote in, so the two rules are the same arithmetic there and no
+# tolerance can separate them.
+#
+# RE-DERIVED FROM SCRATCH on `88e04e6` after the room-rule fold, which
+# deleted the first version of this entry rather than moving it. That
+# version stood on a CENTRED label at `family=6, line_height=1.35`, and
+# `client_wrap_width` — the client's real cap, `js_round(w/2) - 10` = 90px
+# on a 200px rhombus — now wraps that label to three lines before the check
+# measures it. The band then exceeds the rhombus's whole height, the span
+# is empty, and the finding becomes `label_adrift`. Not a tolerance
+# problem and not fixable by one: the scene stopped being the scene.
+#
+# WHY THE LABEL IS DROPPED BELOW THE CENTRE LINE, which is the load-bearing
+# discovery and the reason this scene works where a centred one cannot:
+#
+#   cy   = t.y + max(box_h, drawn_h)/2
+#   band = [cy - drawn_h/2, cy + drawn_h/2]
+#
+# so whenever `drawn_h >= box_h` the TOP edge collapses to `t.y` exactly
+# and only the BOTTOM edge carries `drawn_h`. On a centred label the top
+# edge is the far one from the node's waist, so it decides the chord and
+# the spacing never reaches the answer. Dropped below the waist, the
+# moving edge is the deciding one.
+#
+# THE TWO RULES, MEASURED ON THIS TREE rather than argued. `text_ink_width
+# ("Review", 16)` = 54, the cap is 90 so it stays ONE line, and the box is
+# 54x20 at `x = 73`, so the ink is centred on the node's own centre line at
+# 100 and the split is symmetric:
+#
+#   POST-FIX `drawn_h = text_dims(drawn, fs, line_height_of(t))[1]` = 22:
+#       cy = 70 + max(20, 22)/2 = 81;  band [70, 92]
+#       the waist is y=50, so the band's edges lie 20 and 42 below it
+#       chord(d) = W * (1 - d/(H/2));  chord(42) = 200 * 0.16 = 32
+#       span [84, 116] against ink [73, 127];  over = 11 + 11 = 22
+#   PRE-FIX  the same expression with a written-in 1.25 -> 20:
+#       cy = 70 + 10 = 80;  band [70, 90];  edges 20 and 40 below
+#       chord(40) = 200 * 0.20 = 40
+#       span [80, 120] against ink [73, 127];  over = 7 + 7 = 14
+#
+# 22 IS THE DRAWN TRUTH AND 14 IS NOT. The client's runtime rule is
+# `element.lineHeight || getLineHeight(element.fontFamily)`, so it paints
+# this label in a 22px line box; a rhombus is narrower the taller the band
+# you read it at, and 22px is what a reader sees hanging over empty canvas.
+# The pre-fix answer is not a rounding difference, it is a different
+# picture.
+#
+# THE BAND IS ±0.15 -> [18.7, 25.3]. It rejects the pre-fix 14, the 11 a
+# per-side or half-the-total report gives (the split is exactly 11 and 11),
+# the 0 a reading at the node's waist gives (the chord there is 200 and
+# this label fits with 146px to spare), and the 54 that `label_adrift`
+# reports when the span is empty. It ADMITS 20, which is what an
+# implementation gets carrying the unrounded 21.6px band (cy 80.8, band
+# [70, 91.6], chord 33.6) — a defensible refinement of the same
+# convention, not a wrong reading.
+#
+# WHAT THE NEIGHBOUR PROVES AND WHAT IT DOES NOT. At 400 the chord across
+# the same band is 64 against 54px of ink, so the check is silent with 5px
+# to spare on each side — the firing/silent pole, honestly held, and the
+# room is the only thing that moved. It does NOT discriminate the two
+# rules, and CANNOT: a shallower band is always a wider chord, so the
+# pre-fix reading is never LARGER than the post-fix one and can never
+# speak where this is quiet. The magnitude carries the discrimination
+# alone, which is the argument for pinning it.
+_register(Mutant(
+    "dragged_label_measured_at_its_own_spacing",
+    build=lambda: _dropped_label(),
+    op="unchanged", args={},
+    expect=FindingSpec("label_overflows_shape", element="t1",
+                       magnitude=(22, 0.15)),
+    neighbour=Neighbour(lambda: _dropped_label(width=400),
+                        Silence("label_overflows_shape"))))
+
 # v0.9 whole-branch review N-1's acceptance test, written here because
 # the hands that write a fix do not write its acceptance test (curator
 # batch 35, 2026-08-18). GREEN ON ARRIVAL and not red: the arm landed
@@ -21945,6 +22249,33 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same grey, spelled `#d3d3d3`, is measured and not reported."""
         self._run_neighbour("unreadable_stroke_is_reported_not_skipped")
 
+    def test_mutant_entity_name_dragged_onto_its_row(self) -> None:
+        """A dragged name covers its own row by 1080px², and is named."""
+        # GREEN at birth: the check landed with the defect's fix, so this
+        # asserts the NUMBER rather than waiting for one. The colour is
+        # paid for by ablation — restoring the bar's predecessor (half a
+        # line box, 10px) silences this by assertion, and dropping it to
+        # the draft's flat 4px makes the neighbour speak.
+        self._run("entity_name_dragged_onto_its_row")
+
+    def test_neighbour_entity_name_dragged_onto_its_row(self) -> None:
+        """5px of overlap is under the 5.648px bar and must stay silent."""
+        self._run_neighbour("entity_name_dragged_onto_its_row")
+
+    def test_mutant_dragged_label_measured_at_its_own_spacing(self) -> None:
+        """A label spaced at 1.35 hangs 22px over, where 1.25 saw 14."""
+        # GREEN at birth, and the colour is not the claim: the claim is
+        # that the number MOVES across the font-aware fix, which no
+        # centred scene in this catalogue can show. Proven by restoring
+        # the pre-fix rule in-process — a written-in 1.25 — under which
+        # this scene reads 14 and fails the ±15% band by assertion.
+        self._run("dragged_label_measured_at_its_own_spacing")
+
+    def test_neighbour_dragged_label_measured_at_its_own_spacing(
+            self) -> None:
+        """At 400 the same dropped label finds 64px of chord, and is quiet."""
+        self._run_neighbour("dragged_label_measured_at_its_own_spacing")
+
     def test_mutant_ungrouped_widget_parts_are_counted_once(self) -> None:
         """Three loose rows are ONE note saying 3, not three saying 1."""
         # GREEN at birth: nothing here was broken. This asserts the
@@ -22776,25 +23107,30 @@ ASPIRATIONAL: dict[str, str] = {
 # hands that wrote the fix should not also write its acceptance test.
 
 UNCOVERED: dict[str, str] = {
-    # Landed 2026-08-18 with `text_over_text` itself
-    # (TASK-ENTITY-LINEHEIGHT), the second row this dict has ever held
-    # that names a REGISTERED detector and, like `unreadable_color`
-    # before it, deliberately: the check is the fix task's, the
-    # acceptance mutant is the mutant-curator's, and a task that writes
-    # both is the run-5 pattern this harness exists to refuse. The
-    # quadruple is handed over in that task's report — base: an entity
-    # whose name has been dragged onto its own first attribute row;
-    # operator: the registered `shift_label`; expect:
-    # `FindingSpec("text_over_text", element=<the row>)`; neighbour: the
-    # same entity unmoved, `Silence("text_over_text")`. Both poles of the
-    # check are proven ungated meanwhile in `TestTextDrawnOnText` — this
-    # row names what is missing (a CATALOGUE magnitude), not that nothing
-    # watches the check.
-    "text_over_text":
-        "landed 2026-08-18 with the check; the proving mutant is routed "
-        "to a mutant-curator (quadruple written out in "
-        "task-entity-lineheight-report.md), because the task that wrote "
-        "the check does not write its acceptance test",
+    # `text_over_text` stood here TWICE, and the second stay is the more
+    # instructive one. It landed 2026-08-18 with the check itself
+    # (TASK-ENTITY-LINEHEIGHT), the second row this dict ever held that
+    # named a REGISTERED detector, and deliberately: the check is the fix
+    # task's, the acceptance mutant is the mutant-curator's, and a task
+    # that writes both is the run-5 pattern this harness exists to refuse.
+    # It was drained the same afternoon by `entity_name_dragged_onto_its_
+    # row` — on a commit that reached no branch. The implementation work
+    # was forward-ported and the curator work was not, so the row came
+    # back with nothing to say it had ever gone, and the livedoc marker
+    # went on reporting 1 UNCOVERED for two days. Drained again, from a
+    # re-derivation rather than a cherry-pick, 2026-08-20 (curator batch
+    # 36 restore): the bar the first pair was built against — half the
+    # smaller text's line box, 10.0px — is not the `ink_clearance` bar
+    # that shipped, so both poles were re-measured and both moved.
+    #
+    # Two ways the curated pair differs from the quadruple the handover
+    # proposed, both load-bearing and both found by measuring rather than
+    # by reading: the finding names the COVERING text (`E1-label`), not
+    # the row the proposal expected, because scene order is paint order
+    # and the check reports the text drawn on top; and the neighbour is a
+    # NEAR-MISS 0.6px under the bar rather than the undragged entity,
+    # because the entity unmoved has no overlap at all and would stay
+    # silent under any bar, including the 4px one the census rejected.
     # `runs_on_node` stood here from day one — the last DETECTORS
     # row with no proving mutant — and was drained by curator batch 20
     # (2026-08-14) with `tolerable_gap_hides_interior_run`. Its own note
