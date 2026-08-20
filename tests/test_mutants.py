@@ -22558,8 +22558,9 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # BOTH LEFT ON 2026-08-18, the same day they joined and both on ONE repair.
 # NOT the shortest stay recorded — the entry above joined and left inside
 # one day too, and that sentence was written before this file carried it —
-# but it is the first time TWO LINES went at once. `server_routed_connectors` is the population both doors
-# narrate from; the router loops keep their own `type == "arrow"` spelling,
+# but it is the first time TWO LINES went at once.
+# `server_routed_connectors` is the population both doors narrate from;
+# the router loops keep their own `type == "arrow"` spelling,
 # so no pass's moving set changed and the corpus differential over all 24
 # frozen artifacts is byte-identical under both doors. What is left in this
 # dict is what its own comment predicts: a smaller dict, two classes that
@@ -25269,7 +25270,7 @@ class TestARerouteNamesTheFeetItMoves(unittest.TestCase):
             (sorted(redrawn), self._facts(record)),
             (["a1", "l1", "l2"], ["a1", "l1", "l2"]),
             "the arrow pole has moved; re-derive every pin in this class")
-        self.assertIn("re-routed 3 of 3 legacy connector(s)",
+        self.assertIn("re-routed 3 of 3 server-routed connector(s)",
                       record["user_note"])
 
     def test_the_two_poles_narrate_the_same_re_route(self) -> None:
@@ -25298,6 +25299,70 @@ class TestARerouteNamesTheFeetItMoves(unittest.TestCase):
             "%r with facts %s, the arrow pole says %r with facts %s"
             % (line["user_note"], self._facts(line),
                arrow["user_note"], self._facts(arrow)))
+
+    def test_a_pinned_line_is_named_in_the_clause_that_explains_it(
+            self) -> None:
+        """The pin clause is the denominator's population, not arrows.
+
+        FOUND IN THE FOLD, 2026-08-19, and it is C-3's own shape one
+        clause over. `Store.reroute` prints "left N pinned element(s)
+        where they are" so a reader can tell a pin being honoured from
+        an undercount — and it counted `type == "arrow"` while
+        `fan_attach_points` and `contention_feet` each decline a pinned
+        `line` exactly as they decline a pinned arrow, and
+        `_tidy_pass`'s own pinned fold-in already counted both. So the
+        two doors disagreed, and under a denominator that now includes
+        lines the held one vanished from the only sentence that says
+        why it did not move.
+
+        MEASURED on the tip this branch folded onto: with `l1` pinned
+        and typed `line` the clause was ABSENT; the same scene with
+        `l1` typed `arrow` printed it. One field of ablation, one
+        clause of difference — the same instrument the rest of this
+        class is built on.
+
+        Asserted through `pinned_clause` rather than a literal string,
+        so a reworded clause moves both sides together and this keeps
+        asking whether a pinned connector is accounted for at all.
+
+        NOT ASSERTED: whole-note equality between the poles, which the
+        first version of this test did and which is WRONG here — it
+        passes for the wrong reason elsewhere in this class and would
+        pin something nobody decided. With `l1` pinned, the fan has one
+        member left on that side and moves nothing, so `l2`'s binding
+        focus is re-solved only by the ROUTER LOOP — and that loop is
+        `routable_arrows`, arrow-only, so the arrow pole's `l2` reports
+        "start/end re-aimed" and the line pole's does not. That is the
+        router-loop asymmetry recorded as a finding of this task (a
+        bound line is routed by `apply_ops` on creation and re-routed
+        by neither door afterwards); it is a difference in what MOVES,
+        it predates this change, and a test here would freeze it as
+        intended behaviour on no one's authority.
+
+        Raises:
+            AssertionError: If the re-route declined on either pole. A
+                `noop` record carries no `user_note`, so a clause
+                assertion against one would be about the fixture rather
+                than about the clause.
+        """
+        notes = {}
+        for etype in ("arrow", "line"):
+            store = _fan_store(self, etype, fossil=True)
+            for e in store.scenes["d"]:
+                if e["id"] == "l1":
+                    e["locked"] = True
+            record = store.reroute("d")
+            if record.get("noop"):
+                raise AssertionError(
+                    "reroute declined on the %s pole (%r), so neither "
+                    "pole below measures a write"
+                    % (etype, record["summary"]["headline"]))
+            notes[etype] = record["user_note"]
+        for etype, note in sorted(notes.items()):
+            self.assertIn(
+                canvas.pinned_clause(1), note,
+                "the re-route held a pinned %s and said nothing about "
+                "it: %r" % (etype, note))
 
     def test_a_rerouted_fact_is_minted_for_every_path_redrawn(self) -> None:
         """The facts arm: three paths changed, three facts are minted.

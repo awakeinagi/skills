@@ -15157,7 +15157,12 @@ class TestRerouteIsConsentGated(Base):
         arrows that MOVED — so the fraction said "how many of the
         arrows I changed changed their ink" and carried no scope at
         all. `Store.reroute`'s own docstring said "`M` is what the pass
-        touched", which is `routable_arrows`.
+        touched", which is `server_routed_connectors` — widened from
+        `routable_arrows` on 2026-08-19 so that `M` names the same
+        population the LIST beneath it is drawn from (C-3). This scene
+        holds no bound `line`, so the two coincide on it and every
+        number below is unmoved; the arm that separates them is
+        `TestARerouteNamesTheFeetItMoves` in the mutant file.
 
         THIS SCENE SEPARATES THE THREE POPULATIONS, which is the whole
         point of adding a fourth arrow: three are routable, two of them
@@ -15176,7 +15181,13 @@ class TestRerouteIsConsentGated(Base):
         self.store = canvas.Store(self.project)
         base = self.store.scenes["checkout-flow"]
         present = [e["id"] for e in base if e.get("type") == "arrow"]
-        handed = canvas.routable_arrows(base)
+        handed = canvas.server_routed_connectors(base)
+        self.assertEqual(
+            handed, canvas.routable_arrows(base),
+            "this scene is supposed to hold no bound `line`, so the "
+            "note's population and the router loop's must coincide on "
+            "it; they no longer do, and the numbers below are pinning "
+            "two different things")
         changes = canvas.reroute_scene(base)[1]
         redrew = [c["id"] for c in changes if c["path_changed"]]
         self.assertEqual(
@@ -15187,8 +15198,10 @@ class TestRerouteIsConsentGated(Base):
             "present=%r handed=%r changed=%r redrawn=%r"
             % (present, handed, [c["id"] for c in changes], redrew))
         note = self.store.reroute("checkout-flow")["user_note"]
-        self.assertIn("re-routed 2 of 3 server-routed arrow(s)", note, note)
+        self.assertIn("re-routed 2 of 3 server-routed connector(s)",
+                      note, note)
         self.assertNotIn("legacy arrow(s)", note)
+        self.assertNotIn("server-routed arrow(s)", note)
 
     def test_the_list_underneath_keeps_a_count_of_its_own(self):
         """The anchor the widened `M` would otherwise have taken away.
@@ -15233,9 +15246,11 @@ class TestRerouteIsConsentGated(Base):
             "tell the list's count from the redraw count: %r"
             % ([(c["id"], c["path_changed"]) for c in changes],))
         note = self.store.reroute("checkout-flow")["user_note"]
-        self.assertIn("re-routed %d of %d server-routed arrow(s); %d moved "
-                      "or were re-aimed" % (redrew, len(
-                          canvas.routable_arrows(base)), len(changes)),
+        self.assertIn("re-routed %d of %d server-routed connector(s); "
+                      "%d moved or were re-aimed"
+                      % (redrew,
+                         len(canvas.server_routed_connectors(base)),
+                         len(changes)),
                       note, note)
         # SPLIT ON THE SEPARATOR, which is the point of MIN-1's repair.
         # This counted `<id>: ` prefixes when it was written, because
