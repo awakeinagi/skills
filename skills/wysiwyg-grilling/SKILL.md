@@ -743,11 +743,12 @@ Wireframes and sequences refuse by name, each with its own reason.
 read back`, and print a `DROPPED=` count of everything with no mermaid
 form:
 <!-- live:mermaid_dropped -->pins, annotations, notes, the decoration text inside entities, frames, plain lines, freehand, images<!-- /live:mermaid_dropped -->.
-`--format er` is the one form that carries the decoration text a domain
-seeder draws inside an entity, so under `er` that term drops off the
-list and everything else on it still goes. Say the count out loud: an
-export is one-way. (That list is derived from `canvas.py`'s own drop
-filter, not typed here — it is the same string the CLI prints.)
+`--format er` is the one form that carries
+<!-- live:mermaid_er_carries -->the decoration text inside entities<!-- /live:mermaid_er_carries -->,
+so under `er` that term drops off the list and everything else on it
+still goes. Say the count out loud: an export is one-way. (Both the list
+and the exception are derived from `canvas.py`'s own drop filter, not
+typed here — the list is the same string the CLI prints.)
 
 **The SVG export has neither**, and don't infer a clean sheet from the
 silence: no stamp goes in the file and no `DROPPED=` is printed, so the

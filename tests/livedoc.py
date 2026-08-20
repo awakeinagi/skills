@@ -561,9 +561,9 @@ def mermaid_dropped() -> str:
     the CLI prints with, so the sentence and the filter cannot disagree.
 
     `mermaid` and not `er` because SKILL.md states the wider set and
-    then names the `er` exception in prose; the exception is one term
-    (`MERMAID_DROP_ROLES_NON_ER`) and stating it twice would reintroduce
-    exactly the transcription this removes.
+    then names the `er` exception separately — see `mermaid_er_carries`,
+    which covers that term. Publishing the whole `er` list here as well
+    would put most of the same words on the page twice.
 
     Returns:
         The comma-joined category list, as the CLI would print it.
@@ -571,6 +571,43 @@ def mermaid_dropped() -> str:
     canvas = _canvas()
     return canvas._mermaid_dropped_names(canvas.mermaid_dropped_roles(
         "mermaid"))
+
+
+@calculator("mermaid_er_carries")
+def mermaid_er_carries() -> str:
+    """What `--format er` carries that every other mermaid form drops.
+
+    THE TERM THAT ACTUALLY DRIFTED. `mermaid_dropped` publishes the
+    wider list, and the `er` exception was left in hand-written prose
+    beside it — so moving `decoration` out of
+    `MERMAID_DROP_ROLES_NON_ER` would make SKILL.md's `er` sentence
+    false while the published string stayed byte-identical and the hook
+    stayed green. That is not a hypothetical: `decoration`-under-`er` is
+    precisely what the original `NOTE=` line got wrong. Deriving the
+    wider list while typing the exception left the one term with a
+    proven failure history as the only unheld part of the paragraph.
+
+    Returns:
+        The comma-joined categories `er` carries and other forms drop.
+
+    Raises:
+        AssertionError: If nothing is `er`-exclusive. The prose says
+            `er` is "the one form that carries" something; with the
+            tuple empty that sentence has no subject, and refreshing it
+            to an empty string would leave a sentence that reads fine
+            and claims nothing.
+    """
+    canvas = _canvas()
+    exclusive = canvas.MERMAID_DROP_ROLES_NON_ER
+    if not exclusive:
+        raise AssertionError(
+            "canvas.MERMAID_DROP_ROLES_NON_ER is empty, so no form-specific "
+            "carry exists and SKILL.md's `--format er` exception describes "
+            "nothing — the sentence needs deleting, not refreshing")
+    # not `_mermaid_dropped_names`: that one appends the TYPE half, which
+    # `er` drops like every other form. Same label map, same dedupe.
+    return ", ".join(dict.fromkeys(
+        canvas.MERMAID_DROP_LABELS[t] for t in exclusive))
 
 
 @calculator("cross_lint_join")
@@ -1359,6 +1396,76 @@ def unplaced_calculators(paths: Sequence[Path]) -> list[str]:
     return sorted(set(CALCULATORS) - used)
 
 
+def _is_distinctive(value: str) -> bool:
+    """Is this value specific enough that a second copy means a COPY?
+
+    `unmarked_values` needs to tell "someone pasted the derived phrase"
+    from "the digit 9 appears in prose", and the honest separator is how
+    likely a coincidence is. A multi-word value carrying letters
+    (`wireframe × flow`) cannot occur twice by chance; `9`, `1010` and
+    `~28.8k` occur all over a repo that talks about counts and sizes, so
+    scanning for them would cry wolf until somebody deleted the check.
+
+    Args:
+        value: A calculator's current derived value.
+
+    Returns:
+        True when the value should never appear outside a marker.
+    """
+    return " " in value.strip() and any(c.isalpha() for c in value)
+
+
+def unmarked_values(paths: Sequence[Path]) -> list[str]:
+    """Derived values sitting in prose as bare literals.
+
+    WHY THIS IS NOT THE SAME CHECK AS `unplaced_calculators`, and why
+    that one was not enough. `unplaced_calculators` compares a set of
+    NAMES, so ONE surviving marker satisfies it however many the prose
+    once had. When `cross_lint_join` went to five markers, deleting four
+    of them became invisible: the words stayed on the page, the hook
+    stayed green, and the sentence was back to being hand-typed. That is
+    a regression this file introduced by fixing a different defect, and
+    it lands the prose in exactly the state the export comment calls the
+    more dangerous one — correct, and held by nothing.
+
+    Counting markers per name cannot fix it without STORING the expected
+    count, which is a hand-typed number guarding against hand-typed
+    numbers. So the rule is the invariant the module actually wants: a
+    derived value must never appear in tracked prose as a literal. Delete
+    a marker and leave the words, and the words are now an unmarked copy.
+    Rewrite the sentence and delete both, and there is no false claim
+    left to catch — which is the correct outcome, not a miss.
+
+    Args:
+        paths: The files that constitute the whole scan surface.
+
+    Returns:
+        One message per bare occurrence, sorted, naming file and line.
+    """
+    values = {}
+    for name in CALCULATORS:
+        value = CALCULATORS[name]()
+        if _is_distinctive(value):
+            values[name] = value
+    problems = []
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        spans = [(m.start, m.end) for m in scan(text, str(path))]
+        for name, value in values.items():
+            idx = text.find(value)
+            while idx >= 0:
+                if not any(a <= idx < b for a, b in spans):
+                    problems.append(
+                        "%s:%d: the live:%s value is written out here as a "
+                        "literal — wrap it in the marker pair or reword, "
+                        "because a copy outside the marker is exactly the "
+                        "prose that rots silently"
+                        % (path.relative_to(REPO), text[:idx].count("\n") + 1,
+                           name))
+                idx = text.find(value, idx + 1)
+    return sorted(problems)
+
+
 _USAGE = """\
 usage: python3 tests/livedoc.py {check|refresh}
 
@@ -1389,15 +1496,27 @@ def main(argv: Sequence[str]) -> int:
         print("refreshed %d value(s) across %d tracked markdown file(s)"
               % (len(changed), len(paths)))
         return 0
-    problems = check_files(paths)
-    problems += ["no marker in tracked markdown uses live:%s — place it or "
+    drifted = check_files(paths)
+    # NOT REPAIRABLE BY `refresh`, and the summary used to say they were.
+    # `refresh` rewrites what is between two comments; it cannot place a
+    # missing marker or wrap a literal somebody typed. Sending a reader to
+    # a command that exits 0 and changes nothing is how a check gets read
+    # as flaky and then ignored.
+    placement = ["no marker in tracked markdown uses live:%s — place it or "
                  "delete the calculator" % n
                  for n in unplaced_calculators(paths)]
+    placement += unmarked_values(paths)
+    problems = drifted + placement
     for line in problems:
         print(line)
     if problems:
-        print("\n%d live value(s) have drifted from their derivation. "
-              "Repair: python3 tests/livedoc.py refresh" % len(problems))
+        if drifted:
+            print("\n%d live value(s) have drifted from their derivation. "
+                  "Repair: python3 tests/livedoc.py refresh" % len(drifted))
+        if placement:
+            print("\n%d marker placement problem(s) — `refresh` cannot fix "
+                  "these: edit the prose so every derived value sits inside "
+                  "its marker pair." % len(placement))
         return 1
     print("%d live value(s) current across %d tracked markdown file(s)"
           % (len(_scan_all(paths)), len(paths)))
