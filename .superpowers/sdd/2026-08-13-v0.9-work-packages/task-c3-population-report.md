@@ -1,12 +1,20 @@
 # TASK-C3-POPULATION — the reroute narration's population gap
 
-**Branch** `impl-c3-population` · **head** `a0bbaec` · branched from `bedbc56`
+**Branch** `impl-c3-population` · **head** `179899e` · branched from `bedbc56`
 · worktree `/tmp/impl-c3-population`
+
+Commits: `a0bbaec` (the five review findings) · `285d1d8` (this report) ·
+`179899e` (the six noun sites from the scope addition).
 
 **Gate:** `uvx pre-commit run --all-files` — all 17 hooks pass, including
 eslint/tsc (frontend deps installed locally; `node_modules` is gitignored and
-not in the commit). Suite: **1729 passed, 46 skipped, 4 xfailed, 799 subtests**
-— identical to the reviewer's tip baseline.
+not in the commit). Suite: **1730 passed, 46 skipped, 4 xfailed, 799 subtests**
+— the reviewer's tip baseline plus the one pole I added.
+
+> **Read § "Live silent disarmament" first.** The mutant regexes are not
+> "not dead today" — `connector_noun` already emits `"line"`, so a
+> line-typed finding goes unmatched **on the current tip**, and
+> `curator-c3-denominator` is writing line-typed mutants right now.
 
 All five findings reproduced independently on `bedbc56` before any edit. The
 reviewer's numbers were right; the reproductions are in this report so the
@@ -211,3 +219,123 @@ should expect nothing to go red**.
    an in-flight fixture**; a corpus-driven pin cannot see any of them. The
    `_fan_store` builder in tests/test_mutants.py is one `endBinding=None` away
    from the C-1 case.
+
+---
+
+# Scope addition — the arrow-noun family in `apply_ops` narration
+
+Three sites handed to me, **three more found by my own sweep**. All six gate on
+`("arrow", "line")` and hardcoded the narrow noun. All six reproduced through
+the real doors before the edit; after it the arrow and line poles emit
+**byte-identical** sentences.
+
+| # | site | source | before (with a `line`) |
+|---|---|---|---|
+| 1 | `_pin_kin` relation phrase | assigned | `op 0 names c1, which is **an arrow** bound to the pinned n1` |
+| 2 | housekeeping `drifted` | assigned (= I-2) | `re-routed 1 **arrow(s)** no op named (c1)` |
+| 3 | housekeeping `stranded` | assigned | `1 pinned **arrow(s)** (c1) bind a shape this batch moved` |
+| 4 | `Store.tidy` could-not-settle noop | **my sweep** | `re-routing these **arrows** keeps undoing the attach-point fan` |
+| 5 | queued-pending note | **my sweep** | `re-route d's legacy **arrows**` |
+| 6 | `reroute` CLI subcommand help | **my sweep** | `a re-route of **arrows** an older router drew` |
+
+On #4 I am **not** claiming reachability. The oscillation is router-vs-fan and
+the fan does move bound lines, but I could not construct a line-driven cycle.
+The noun is wrong either way and `mod points` is the remedy for both types, so
+I fixed it and said so in the comment rather than leaving a sentence I would
+have to justify.
+
+## The denominator, derived rather than inherited
+
+You were right not to trust the previous sweep's population. Mine:
+
+**Method** — AST walk of canvas.py collecting `ast.Constant` string nodes,
+minus those that *are* docstrings (first statement of a module/class/function
+body), minus bare type tokens (`"arrow"`, `"line"`). Comments are not literals
+and never enter. Reproducible; the script is 40 lines.
+
+**Result — 24 prose literals carrying `arrow(s)` at the tip:**
+
+* **6 wide-population misses** — the table above. All fixed.
+* **18 correct**, each checked against the gate that feeds it, not by eye:
+  * **arrow-only by an explicit filter (7)** — `arrival_census`,
+    `_repair_label_refit_bindings` (×2), sequence-direction
+    (`[a for a in arrows if a.get("type") == "arrow"]`), the arrow-budget note
+    (`real_arrows = …`), erDiagram cardinality (`if type != "arrow": continue`),
+    mermaid seed counts. The budget one already carries a comment saying the
+    filter exists *to keep the word honest* — the pattern done right.
+  * **arrow-only by value, not type (2)** — the bidi and lane checks, gated on
+    `arrowhead_of`. Your reviewer's clearance confirmed.
+  * **names both types explicitly (3)** — `points only applies to
+    arrows/lines`, `'from'/'to' only apply to arrows and lines`, `A line never
+    carries an arrowhead…`.
+  * **not a scene population (5)** — budget-override config echo, registry
+    `set_budget` validation (×2), mermaid seed totals, the deleted-target
+    re-target line (which already carries a comment proving its filter, and
+    already files the separate question it raises).
+
+I make no claim about the earlier sweep's 28/10/17 — different scope, possibly
+tests and frontend too. What is certain is that all six of these were outside
+whatever it counted.
+
+## Live silent disarmament — flagging, not fixing
+
+You asked to hear immediately if a noun change made a mutant regex go quiet.
+**None of mine did** — those regexes match lint findings, and I touched no lint
+message. But checking that turned up something worse than the latent risk you
+described.
+
+The lint producers **do not hardcode the noun**. They format it:
+
+```
+canvas.py:15361   "%s %s claims to bind %s but its %s point ends %dpx %s …"
+                  % (connector_noun(a), a["id"], …)
+```
+
+and `connector_noun` returns `"arrow"`, `"line"` or `"connector"` by type. So
+the wide-population repair already landed on the *lint* surface — and the
+mutant harness's consumers were never updated. Measured on one scene, one field
+apart:
+
+```
+type=arrow   user-shaped arrow c1 claims to bind n2 but its end point ends 100px away
+             _ENDPOINT_RE -> MATCHES
+type=line    user-shaped line  c1 claims to bind n2 but its end point ends 100px away
+             _ENDPOINT_RE -> *** NO MATCH — the detector reads as silent ***
+```
+
+This is **live on the current tip**, not a future rename hazard. A line-typed
+mutant in these families produces a real finding that the harness cannot see:
+the detector reads as silent, so the mutant reads as a **survivor**, and an
+ablation arm over it would read **green**.
+
+Affected consumers, all in tests/test_mutants.py: `_ENDPOINT_RE`,
+`_RUNS_INSIDE_RE`, `_PASSES_THROUGH_RE`, `_SHARED_ATTACH_RE`, `_PHANTOM_RE`,
+`_SHARED_LANE_RE`, `_FALSE_BIDI_LINT_RE` — every one anchored on a literal
+`arrow ` / `arrows `.
+
+It is dead **today** only because the corpus's 20 lines are all
+`role: decoration`, which `lint_layout`'s `arrows` list filters out —
+`connector_noun`'s own docstring says exactly that, and calls the family
+reachable through shipped ops. **This collides directly with
+`curator-c3-denominator`**, which is authoring line-typed mutants as I write.
+Not mine to fix (harness regexes are curator territory, and a fix and its
+acceptance test from one pair of hands is what we are avoiding) — but it should
+reach that agent before it files a survivor that isn't one.
+
+## The test that asserted the old string
+
+`test_dependent_ops_sink_and_unrelated_ones_do_not` (tests/test_backend.py)
+asserted `"is an arrow bound to"` and **only ever built the arrow arm** — a
+guard that can see one of the two cases its subject covers, which is how the
+defect survived.
+
+Updated, not weakened. It is now two poles over one `_sank(etype)` builder that
+re-types `t1` through an ordinary user save (the only door that mints a bare
+`line`) and **asserts the re-type took** before the batch runs, so a `line` arm
+that quietly stayed an arrow cannot pass for the wrong reason. The line pole
+asserts the shared sentence **and** `assertNotIn("arrow", said)` — a repair
+widening the word to "arrow or connector" would still name a type the element
+does not have.
+
+**Both poles proved to fail under ablation** before being kept: flipping the
+phrase back to `"is an arrow bound to"` reds both; restoring greens both.
