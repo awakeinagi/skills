@@ -23776,9 +23776,33 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # string and is independent of all of them. A reader watching this dict
 # should expect it to lose two lines at once and then one later, not to
 # count down.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestOneComposedPartPredicateHasThreeSites": 2,
-}
+# EMPTY AGAIN on 2026-08-20, and this time it is the LAST line going
+# rather than a lull: `TestOneComposedPartPredicateHasThreeSites` lost
+# BOTH reds to one edit, so the dict lost a LINE and not a number — the
+# fourteenth time that has been the shape here. Read the emptiness as an
+# event, exactly as every entry below asks.
+#
+# THE CLASS OUTLIVED ITS REDS ON AN OWNER LINE, which is the part worth
+# banking and is not about this predicate at all. Its `WHO FLIPS THESE`
+# paragraph named `impl-pin-backend` — an agent, and one that had already
+# finished when the reds were written. The repair was two lines and was
+# never contentious; what kept it open across two folds is that every
+# reader who opened the class found it addressed to somebody who no
+# longer existed and put it back. A `WHO FLIPS` paragraph must name the
+# SURFACE that has to change, never the agent that happened to own it:
+# the surface is still there next week and the agent is not.
+#
+# TWO STALE LITERALS WENT WITH IT, both in the class's own prose and both
+# quoted by the handover that routed the item — 237 `customData` shapes
+# where `part_tag_shapes()` enumerates 181, and 1350 element shapes for a
+# cross product nothing in the file builds. The load-bearing CLAIM
+# survived re-derivation intact (exactly one disagreeing class, the bound
+# label) and only the arithmetic around it was wrong, which is the more
+# dangerous version: a number that is wrong beside a claim that is right
+# gets the claim disbelieved when someone finally checks. The counts are
+# gone from the docstring that had a way to compute them and dated in the
+# one that did not.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
 # THREE LEFT TOGETHER on 2026-08-20 (TASK-C3-POPULATION), one day after
 # they landed, and all three lost a LINE rather than a number — each
@@ -29444,29 +29468,41 @@ class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
     with the same expression written out inline, and so they are blind to
     any change in the answer.
 
-    THE COPIES ARE EQUIVALENT TODAY, derived below over 237 `customData`
-    shapes rather than read off the page — so this is duplication and not
-    a distinction, and the merge is safe. That check was the handover's
-    own precondition on the item and it is kept as a standing green
-    rather than spent once.
+    THE COPIES WERE EQUIVALENT, derived below over every shape
+    `part_tag_shapes()` enumerates rather than read off the page — so
+    this was duplication and not a distinction, and the merge was safe.
+    That check was the handover's own precondition on the item and it is
+    kept as a standing green rather than spent once.
 
-    WHO FLIPS THESE: `impl-pin-backend`, which authors the sites that
-    should change. Each red names one surviving site, so a repair that
-    routes one of them leaves the other red instead of reporting the
-    class done. The mutation is one thing — neutralise the reader — and
-    the reds differ only in where they look for the consequence.
+    BOTH FLIPPED 2026-08-20. `_close_widget_group` and
+    `composed_group_gaps` now call `_composed_part` instead of typing its
+    body out again, so the extraction reaches all four sites. Each red
+    named ONE surviving site on purpose — a repair routing only one would
+    have left the other red rather than reporting the class done — and
+    both were flipped by the one edit that visits both, which is what the
+    two-red shape was there to force rather than to prevent.
 
-    THE DANGEROUS EDIT IS NOT THE ONE THE REDS CATCH, and the last green
-    here is the reason this class outlives them. Re-inlining the copy is
+    THE OWNER LINE IS WHY THIS SAT OPEN, and it is worth recording. It
+    read `WHO FLIPS THESE: impl-pin-backend`, an agent that had already
+    finished when the reds landed; the item then carried a name nobody
+    could answer to, and outlived two folds on that alone. A `WHO FLIPS`
+    paragraph should name the SURFACE, not the agent — the surface is
+    still there next week.
+
+    THE DANGEROUS EDIT IS NOT THE ONE THE REDS CAUGHT, and the last green
+    here is the reason this class outlives them. Re-inlining a copy is
     the harmless revert; the edit that costs something is the next
     person's tidy-up pointing `_composed_part` at `part_owner_id`, which
     reads like the same question and passes every test that existed
-    before this class. It is not the same question. Derived over 1350
-    element shapes on 2026-08-19, the two disagree on exactly one class —
-    a bound label, which answers `containerId` there and False here — and
-    `composed_group_gaps` turns on precisely that gap: a tagged part is a
-    gap always, a label only when its owner is grouped. One class and no
-    wider, so the invariant is pinned exactly that wide.
+    before this class. It is not the same question. Re-derived at the
+    flip over 2715 element shapes — `part_tag_shapes()` crossed with the
+    five element types and the three `containerId` states — the two
+    disagree on exactly one class and no wider: a BOUND LABEL, `text`
+    with a `containerId` and no part tag, which answers its container
+    there and False here (115 of the 2715, every untagged shape in that
+    one class). `composed_group_gaps` turns on precisely that gap: a
+    tagged part is a gap always, a label only when its owner is grouped.
+    One class and no wider, so the invariant is pinned exactly that wide.
     """
 
     def test_the_open_coded_copies_answer_exactly_as_the_single_reader(
@@ -29479,10 +29515,18 @@ class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
         mean the two are not duplicates at all and the reds below are
         asking for the wrong repair.
 
-        This stays green through the fix — with no copies left there is
+        This stayed green through the fix — with no copies left there is
         nothing to disagree — and that is deliberate: it records WHY the
         merge was allowed, which is a fact a later reader needs and the
-        reds do not carry.
+        reds did not carry. It also still guards the revert: re-inline
+        either copy and this re-measures it against the reader instead of
+        against a transcription.
+
+        The shape count is NOT written down here on purpose. It is
+        whatever `part_tag_shapes()` enumerates — 181 at the flip, and
+        `8 * 11` of that is two constants in `canvas` and this file that
+        a later hand will move. The class docstring above used to quote
+        237, which was true of neither.
         """
         copies = open_coded_part_predicates()
         shapes = part_tag_shapes()
@@ -29541,7 +29585,6 @@ class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
                 canvas._geometry_derived(_tagged_part()),
                 "`_geometry_derived` no longer reads `_composed_part`")
 
-    @unittest.expectedFailure
     def test_the_gap_report_asks_the_single_reader(self) -> None:
         """The red: `composed_group_gaps` types the predicate itself.
 
@@ -29560,7 +29603,6 @@ class TestOneComposedPartPredicateHasThreeSites(unittest.TestCase):
             "calling it, so the extraction that exists to keep this "
             "question in one place does not reach it" % (gaps,))
 
-    @unittest.expectedFailure
     def test_the_group_closer_asks_the_single_reader(self) -> None:
         """The red: `_close_widget_group` types the predicate too.
 
