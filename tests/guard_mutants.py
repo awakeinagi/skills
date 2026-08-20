@@ -8,7 +8,7 @@ KILLED or SURVIVED.
 
 WHY IT EXISTS. The first round of the pin work shipped 35 tests described
 as "both directions on every guard". A verifier then mutated each guard
-individually and found SEVEN of eleven could be deleted outright with the
+individually and found EIGHT of twelve could be deleted outright with the
 whole suite green: the lines were live — flipping them to skip-everything
 broke 3, 22, 14, 2 and 5 tests — but nothing observed their PRESENCE. Two
 tests were passing for the wrong reason: one asserted a path was
