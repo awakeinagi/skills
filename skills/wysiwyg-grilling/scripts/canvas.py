@@ -1786,6 +1786,126 @@ def wrap_label_text(text, inner, fs):
     return "\n".join(lines)
 
 
+def _client_chop(token, inner, fs):
+    """One token too wide for any line, split the way `z$` splits it.
+
+    The shipped client breaks a word this file cannot. `z$`
+    (index-DpKP4sIE.js @274820, reached from `$$`) walks the token
+    CHARACTER BY CHARACTER accumulating per-glyph advances, and closes a
+    chunk the moment the next glyph would overrun the cap — so it never
+    hyphenates and never gives up, and a single glyph wider than the cap
+    takes a line of its own.
+
+    Per-character advances and not a re-measure of the accumulated
+    string, because that is what `z$` does: its sibling `$$` re-measures
+    a whole line, this arm sums `Wp.calculate` per glyph. The two are not
+    the same number and using the wrong one moves the break.
+
+    Args:
+        token: The word to break. Must contain no whitespace.
+        inner: The wrap width in px.
+        fs: Font size in px.
+
+    Returns:
+        The chunks, in order. Never empty.
+    """
+    out, cur, w = [], "", 0.0
+    for ch in token:
+        adv = _display_width(ch) * fs
+        if cur and w + adv > inner:
+            out.append(cur)
+            cur, w = ch, adv
+        else:
+            cur, w = cur + ch, w + adv
+    if cur:
+        out.append(cur)
+    return out or [token]
+
+
+def _client_wrap_paragraph(para, inner, fs):
+    """One hard-break-free paragraph, wrapped the way `$$` wraps it.
+
+    Args:
+        para: The paragraph, containing no newline.
+        inner: The wrap width in px.
+        fs: Font size in px.
+
+    Returns:
+        The painted lines.
+    """
+    segs = re.findall(r"\s+|\S+", para)
+    out, cur, i = [], "", 0
+    while i < len(segs):
+        seg = segs[i]
+        cand = cur + seg
+        # whitespace never forces a break, and the fit test re-measures
+        # the WHOLE candidate line — `$$` calls `md(u, t)`, not a running
+        # sum, which is the opposite of what `_client_chop` above does
+        if seg.isspace() or text_ink_width(cand, fs) <= inner:
+            cur, i = cand, i + 1
+            continue
+        if cur:
+            # flush and retry the SAME segment on a fresh line; `$$` does
+            # not advance its iterator here, and advancing would drop the
+            # word that did not fit
+            out.append(cur.rstrip())
+            cur = ""
+            continue
+        chunks = _client_chop(seg, inner, fs)
+        out.extend(chunks[:-1])
+        cur, i = chunks[-1], i + 1
+    if cur:
+        out.append(cur.rstrip())
+    return out
+
+
+def client_wrapped_lines(text, inner, fs):
+    """The lines the CLIENT paints for this text at this wrap width.
+
+    `wrap_label_text` next door answers a different question and must
+    keep answering it: it breaks on whitespace only, so a token that fits
+    nowhere comes back whole, and its widest line is the number a reader
+    can act on ("widen the box to 110"). This answers what the browser
+    DRAWS, which is not the same picture whenever a single word overruns
+    the cap — the client chops it and the block gains lines we never
+    counted.
+
+    Measured through the shipped client rather than argued (2026-08-19,
+    v0.9 WP4-AND-GUARDS): `'Acknowledged'` in a 100px box, whose cap is
+    90, paints as `'Acknowledge'` over `'d'` — two lines, 40px, in 30px
+    of headroom, with the drawing storing one line of 20. That is the
+    scene `chopped_token_reads_as_one_line` forges.
+
+    A PARAGRAPH THAT FITS IS RETURNED WHOLE and never re-wrapped, which
+    is `Id`'s own shape (`if (md(a,t) <= n) { r.push(a); continue }`) and
+    is what keeps hard line breaks the user typed.
+
+    THE SERVER'S TABLE READS WIDE, so this chops slightly EARLIER than
+    chromium does: measured on a diamond sweep, `'compliance'` is chopped
+    by the browser up to a 166px-wide rhombus and by this function up to
+    182px. The error is one of magnitude, not of direction, and it is the
+    safe direction here — it over-reserves height rather than under-
+    reserving it. It is also not new: the same table already decides the
+    width arm of every check that calls `text_ink_width`.
+
+    Args:
+        text: The string as stored, hard breaks included.
+        inner: The wrap width in px — `client_wrap_width(container)` for
+            a bound label.
+        fs: Font size in px.
+
+    Returns:
+        The painted lines, in order.
+    """
+    out = []
+    for para in (text or "").split("\n"):
+        if text_ink_width(para, fs) <= inner:
+            out.append(para)
+        else:
+            out.extend(_client_wrap_paragraph(para, inner, fs))
+    return out
+
+
 def fit_label_in(container, lbl):
     """Store the box the CLIENT will draw this bound label in.
 
@@ -16366,8 +16486,33 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             tw, th = text_ink_width(txt, fs), text_dims(txt, fs)[1]
             over_w, over_h = tw > room_w, False
         else:
-            wrapped = wrap_label_text(txt.replace("\n", " "), room_w, fs)
-            tw, th = text_ink_width(wrapped, fs), text_dims(wrapped, fs)[1]
+            flat = txt.replace("\n", " ")
+            # TWO DIFFERENT WRAPS OF ONE LABEL, ON PURPOSE. The width is
+            # measured on the block THIS FILE wraps, which breaks on
+            # whitespace only and so leaves an over-wide word whole; the
+            # height is measured on the block the CLIENT PAINTS, which
+            # chops that word into chunks and gains lines from it.
+            #
+            # Collapsing them would trade one wrong answer for another.
+            # Measure the width on the chopped block and the magnitude
+            # becomes the widest CHUNK — under the cap by construction —
+            # so the check would tell a reader to widen a 90px box to
+            # something under 90. Measure the height on the un-chopped
+            # block and you get what this check did until 2026-08-19:
+            # `'Acknowledged'` in a 100x40 box reported one line of 20px
+            # against 30px of headroom and called the scene merely too
+            # WIDE, while chromium painted `'Acknowledge'` over `'d'` —
+            # two lines, 40px, 10px past the bottom. The check was never
+            # silent on this class (`over_w` is exactly the condition
+            # under which the client chops); it was wrong about the
+            # direction, which is worse, because a direction is what a
+            # reader acts on. `chopped_token_reads_as_one_line` is the
+            # pin, and it pins BOTH halves so a fix cannot quietly trade
+            # one for the other.
+            wrapped = wrap_label_text(flat, room_w, fs)
+            tw = text_ink_width(wrapped, fs)
+            th = text_dims("\n".join(client_wrapped_lines(flat, room_w, fs)),
+                           fs)[1]
             longest = max((text_ink_width(w, fs) for w in txt.split()),
                           default=0)
             over_w, over_h = longest > room_w, th > room_h

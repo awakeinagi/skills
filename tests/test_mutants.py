@@ -21925,12 +21925,14 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same label in a 120px box has room, and the check is quiet."""
         self._run_neighbour("wrapped_label_overflows_its_box")
 
-    @unittest.expectedFailure
     def test_mutant_chopped_token_reads_as_one_line(self) -> None:
-        """A word the browser breaks in two, called one line 20px tall."""
-        # RED: the check speaks, and says `too wide` about a picture that
-        # is also 10px too tall. Flips when the height term is measured on
-        # the lines the client paints rather than on `wrap_label_text`'s.
+        """A word the browser breaks in two, no longer called one line."""
+        # FLIPPED GREEN 2026-08-19 by v0.9 WP4-AND-GUARDS, one train-stop
+        # after it was filed. `text_overflow` now measures its HEIGHT on
+        # `client_wrapped_lines` — the block the client paints, chopped
+        # word and all — while its WIDTH stays on `wrap_label_text`'s
+        # un-chopped block, which is the number a reader can act on. The
+        # neighbour is what holds the two apart.
         self._run("chopped_token_reads_as_one_line")
 
     def test_neighbour_chopped_token_reads_as_one_line(self) -> None:
@@ -23167,18 +23169,24 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"chopped_token_reads_as_one_line"}
-# `chopped_token_reads_as_one_line` ARRIVED on 2026-08-19 (curator, routed
-# by v0.9 WP4-AND-GUARDS), and it is the first id here that is NOT red by
-# absence: `text_overflow` exists, is `proven`, and SPEAKS on every scene in
-# this class — it just says `too wide` about a picture that is also too
-# tall, because its height term is measured on a block `wrap_label_text`
+CATALOGUE_RED_IDS: set[str] = set()
+# `chopped_token_reads_as_one_line` ARRIVED AND LEFT on 2026-08-19 (filed by
+# a curator, routed by v0.9 WP4-AND-GUARDS, flipped by the same task one
+# commit later), and it is the only id this set has ever held that was NOT
+# red by absence: `text_overflow` existed, was `proven`, and SPOKE on every
+# scene in its class — it said `too wide` about a picture that was also too
+# tall, because its height term was measured on a block `wrap_label_text`
 # never breaks and the browser does. The nearest precedent is the pair two
 # paragraphs down (`runs_on_node`, `shared_attach_point`): a detector can be
 # proven and still be wrong about a neighbouring magnitude, and the coverage
-# table cannot say so. The fix that empties this set again is a height term
-# read off the lines the CLIENT paints; it belongs to whoever owns
-# `text_overflow`, not here.
+# table cannot say so.
+# WHAT FLIPPED IT was a second wrap, not a corrected one: `text_overflow`
+# now reads its HEIGHT off `client_wrapped_lines`, which chops a word the
+# way the client does, while its WIDTH stays on `wrap_label_text`'s
+# un-chopped block so the magnitude remains a number a reader can act on.
+# The mutant's own neighbour is what makes trading one for the other fail,
+# and the base was FORGED rather than relabelled precisely so that a
+# chop-aware `fit_label_in` could not flip it by growing the box instead.
 # `grazing_arrival_reads_as_square` left on 2026-08-17 (v0.9
 # TASK-ARRIVALLINT), the last of the three the spike program put here and
 # the only red-by-absence among them. `arrival_through_side` became a

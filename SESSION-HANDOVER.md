@@ -335,7 +335,7 @@ them from), so the warning still applies to that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `chopped_token_reads_as_one_line` — filed 2026-08-19 by a curator, routed from v0.9 WP4-AND-GUARDS. The text-overflow check (spelled out rather than backticked, for the reason at the end of this row) reports "too wide" about a bound label the browser also draws too TALL, because the server cannot break a word and the client can. Owned by whoever owns that check; the flip is a height term measured on the lines the client paints. Any id listed here is a live red owned by its own fix task. This row states what is red, never how many drains it has seen — the count is derived below and the narrative is not, so a claim about the row's *history* is one nothing checks. (Backtick an id here ONLY as a live red: the guard below harvests every backticked id in the row, so an id mentioned as history would read as a live red) |
+| model (default suite) | *none* — the chopped-token red (spelled out rather than backticked, for the reason at the end of this row) was filed by a curator on 2026-08-19 and drained the same day by v0.9 WP4-AND-GUARDS, one commit later: the text-overflow check called a bound label merely too wide where the browser also drew it too TALL, because the server cannot break a word and the client can. It is the only entry this row has ever held that was not red by absence, and its lifetime was one commit — which is the shortest here since TASK-ROUTERLEG's, and honoured mutant-before-fix end to end. Any id listed here is a live red owned by its own fix task. This row states what is red, never how many drains it has seen — the count is derived below and the narrative is not, so a claim about the row's *history* is one nothing checks. (Backtick an id here ONLY as a live red: the guard below harvests every backticked id in the row, so an id mentioned as history would read as a live red) |
 | render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
 | other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and only the model row is guarded, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold) |
 
@@ -376,7 +376,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**7 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**6 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
