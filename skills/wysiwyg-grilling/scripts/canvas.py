@@ -968,12 +968,28 @@ def content_drift_count(before, after):
     """How many elements differ between two `{artifact: elements}` maps.
 
     The magnitude behind `content_fingerprint`'s yes/no, over the same
-    canonical units so the two answers agree by construction: whenever the
-    fingerprints of a shared artifact differ, at least one element here
-    differs too. An element counts once whether it was added, removed or
-    edited, and an id carrying more than one element is compared as the
+    canonical units. An element counts once whether it was added, removed
+    or edited, and an id carrying more than one element is compared as the
     last one written, matching what the fingerprint's own `sort` leaves
     adjacent.
+
+    THE TWO DO NOT AGREE BY CONSTRUCTION, and this docstring claimed they
+    did until 2026-08-20 (v0.9 WP4 review, M-1): "whenever the
+    fingerprints of a shared artifact differ, at least one element here
+    differs too". False, and the counterexample is small — `before` of
+    `[{id: x, w: 1}, {id: x, w: 1}]` against `after` of `[{id: x, w: 1}]`
+    fingerprints differently, because `content_fingerprint` hashes a LIST
+    and is length-sensitive, and counts **0** here, because this builds a
+    `dict` keyed by id and duplicates collapse. That zero is the original
+    `0 change(s) differ from history` defect returning.
+
+    It is UNREACHABLE through `catch_up`, proven rather than assumed:
+    `disk` is post-`validate_scene`, which de-duplicates ids and files
+    `ART-003`, and `exp_scenes` is replayed. So the guard that rests on
+    this is safe and the sentence was simply wrong. Keying on
+    `(id, ordinal)` would make the claim true; it is not done here
+    because nothing needs it and a change to the count's units is a
+    change to a number every caller reads.
 
     Args:
         before: History's scenes, keyed by artifact id.
@@ -12269,10 +12285,17 @@ def client_wrap_width(container):
     were reading a rhombus's geometric band, which is a real quantity
     and is not the one that decides the wrap.
 
-    Measured over the frozen corpus before this landed: 14 bound
-    single-line labels are re-wrapped by the client on load, and in all
-    14 the server's own estimate already exceeded this cap — so no
-    improvement to `text_dims` could have closed any of them.
+    Predicted over the frozen corpus, and the verb matters: **15** of
+    the 291 shape- and frame-bound labels are ones THIS SERVER'S MODEL
+    says the client re-wraps on load, and in all 15 the server's own
+    estimate already exceeded this cap — so no improvement to
+    `text_dims` could have closed any of them. Re-derived 2026-08-20
+    (v0.9 WP4 review, M-8) at 15, where three comments carried 14 and
+    all three phrased it as what the CLIENT does. It is not: the
+    measurement is `client_wrapped_lines` against the stored line count,
+    which is this file predicting the browser, and the report that first
+    published it withdrew the client reading because the render tier
+    does not await webfonts. As a server-side prediction it is exact.
 
     Args:
         container: The container element the label is bound to.
@@ -17627,10 +17650,15 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # client wraps it to `client_wrap_width(owner)` — half the box
         # across on a rhombus — so wrapping it here at `width - 8` reads
         # one line where the user is shown two, and then compares that
-        # phantom height against the box and says nothing. Measured over
-        # the frozen corpus: 14 labels re-wrapped by the client, every
-        # one of them silent here. Composed rows and sticky notes keep
-        # the box rule, because nothing re-wraps THEM on load.
+        # phantom height against the box and says nothing. Over the
+        # frozen corpus this file's own model predicts a re-wrap on 15
+        # of the 291 shape- and frame-bound labels, every one of them
+        # silent here before the room rule landed — a SERVER-SIDE
+        # prediction and not a browser measurement, re-derived at 15 on
+        # 2026-08-20 (v0.9 WP4 review, M-8; it read "14 re-wrapped by
+        # the client", which is the phrasing the report withdrew and a
+        # number that had gone stale by one). Composed rows and sticky
+        # notes keep the box rule, because nothing re-wraps THEM on load.
         if t.get("containerId"):
             room_w = int(client_wrap_width(owner))
             room_h = int(client_text_headroom(owner))
@@ -17674,16 +17702,51 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             longest = max((text_ink_width(w, fs) for w in txt.split()),
                           default=0)
             over_w, over_h = longest > room_w, th > room_h
+        # THE HEIGHT ARM OF A BOUND LABEL IS NOT A CLIP (v0.9 WP4
+        # review, I-1). The bundle's `ai` (@553053) is explicit —
+        # `if(!ht(t)&&l.height>s){let m=yd(l.height,t.type);pe(t,{height:m})}`
+        # — so when a bound label's painted block outruns the headroom
+        # the client GROWS the container. `fit_label_in` transcribes
+        # exactly that, two thousand lines above, and this arm was
+        # telling the reader the opposite: "widen the box, shorten the
+        # text, or move the detail to a tooltip", three remedies for a
+        # clip that never happens. Four of the corpus's own warnings are
+        # this class, every one of them a node the browser draws TALLER
+        # than the drawing says, none of them clipped.
+        #
+        # THE FINDING IS KEPT AND ONLY THE REMEDY MOVES, deliberately.
+        # "the node you drew is not the node your reader sees" is worth
+        # saying — it is the same divergence, read for what it actually
+        # does — and going silent here would retire a live check to fix
+        # its wording, which is the act this review round is about.
+        # `text_overflow` still owns the height axis; the two arms of
+        # `label_overflows_shape` below rely on it doing so.
+        # Only the PURE height case: where the label is also too wide
+        # for its cap the client chops a token as well as growing, the
+        # picture is wrong on two axes, and "shorten the text" is once
+        # again the honest advice.
+        grows = None
+        if over_h and not over_w and t.get("containerId"):
+            want = client_grown_extent(th, owner.get("type"))
+            if want > int(owner.get("height") or 0):
+                grows = want
         if over_w or over_h:
             warnings.append(
                 "%r does not fit %s: needs ~%dx%dpx, the box gives %dx%dpx "
-                "(%s) — widen the box, shorten the text, or move the detail "
-                "to a tooltip"
+                "(%s) — %s"
                 % (txt.replace("\n", " ")[:34], name(owner["id"]),
                    tw, th, max(room_w, 0), max(room_h, 0),
                    "too wide" if over_w and not over_h else
                    "too tall" if over_h and not over_w else
-                   "too wide and too tall"))
+                   "too wide and too tall",
+                   "widen the box, shorten the text, or move the detail "
+                   "to a tooltip" if grows is None else
+                   "the client will not clip this, it grows the box to "
+                   "%dx%dpx to hold the label, so the node you drew is "
+                   "%dpx shorter than the one your reader sees. Store "
+                   "that height, or shorten the text"
+                   % (int(owner.get("width") or 0), grows,
+                      grows - int(owner.get("height") or 0))))
     # a bound label that fits its container's BOX but not the body the
     # container is DRAWN as. The check above asks whether the renderer's
     # wrapping fits the text in the owner's bounds, and on a rhombus it
