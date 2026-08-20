@@ -33555,6 +33555,69 @@ SWEEP_BASES: tuple[tuple[str, Callable[[], list[dict]]], ...] = (
     ("opposed", lambda: _opposed_pair(rounded=False)),
 )
 
+# The cells `sweep_args` cannot build, pinned in sweep order — the sweep's
+# DENOMINATOR, written down.
+#
+# 7 of the 15 (3 bases x 5 operators) cells skip, so the sweep reports over
+# fewer than half of them, and until 2026-08-20 nothing asserted which half.
+# That is the silent-instrument shape one level up from the one
+# `sweep_cells` already guards: a cell that stops being COMPARABLE does not
+# fail, it leaves the denominator, and "8 cells run, 0 survivors" reads
+# exactly like "15 cells run, 0 survivors" to anyone not counting. A base
+# builder losing a binding — the thing `_diamond_stage` and `_opposed_pair`
+# are edited for — silently retires cells from the harness.
+#
+# PINNED RATHER THAN CEILINGED, because a ceiling ("no more than 7") passes
+# the one case worth catching: a cell going quiet while another becomes
+# buildable, which holds the count and moves the coverage. The triple
+# carries the REASON as well as the cell, since a cell that starts skipping
+# for a different reason is a different fact about the base.
+#
+# AND NOT REPAIRED BY RESHAPING THE BASES, which was the other candidate.
+# Every skip here is a property the base is FOR: `_opposed_pair`'s arrows
+# carry no bindings (that is the configuration it exists to draw), and
+# `_chain` carries no bound label. Giving `_chain` one to unlock
+# `chain/rename_node` edits a builder 31 call sites share, most of them
+# catalogue mutants with pinned expectations — a five-line coverage gain
+# paid for by re-deriving the catalogue. Widen the sweep by ADDING a base
+# that has the missing property, and update this pin in the same commit.
+EXPECTED_SKIPS: tuple[tuple[str, str, str], ...] = (
+    ("chain", "rename_node", "no node carries a bound text label"),
+    ("diamond", "move_node_onto_rank",
+     "no pass-through node (one bound arrow in, another out)"),
+    ("diamond", "swap_endpoints",
+     "fewer than two arrows carry an end binding"),
+    ("opposed", "flip_direction", "no arrow bound at both ends to reverse"),
+    ("opposed", "rename_node", "no node carries a bound text label"),
+    ("opposed", "move_node_onto_rank",
+     "no pass-through node (one bound arrow in, another out)"),
+    ("opposed", "swap_endpoints",
+     "fewer than two arrows carry an end binding"),
+)
+
+
+def skip_drift(skipped: list[tuple[str, str, str]]) -> list[str]:
+    """Report how a sweep's skipped cells differ from `EXPECTED_SKIPS`.
+
+    Both directions matter and they mean opposite things: a cell that
+    newly skips has left the sweep's denominator without telling anyone,
+    and a pinned cell that newly runs is coverage the pin is now
+    understating. Either way the pin is the thing to update, in the same
+    commit as whatever moved.
+
+    Args:
+        skipped: The `(base, op, reason)` triples `sweep_cells` returned.
+
+    Returns:
+        One human-readable line per difference, in sweep order; empty
+        when the live skips are exactly the pinned ones.
+    """
+    live, pinned = list(skipped), list(EXPECTED_SKIPS)
+    drift = ["NEWLY SKIPPED %s/%s: %s" % t for t in live if t not in pinned]
+    drift += ["NO LONGER SKIPPED %s/%s (was: %s)" % t
+              for t in pinned if t not in live]
+    return drift
+
 
 def sweep_args(op: str, scene: list[dict]) -> tuple[dict | None, str | None]:
     """Build one sweep cell's concrete operator arguments.
@@ -33701,20 +33764,32 @@ def run_sweep(write: bool = True) -> int:
             run's record.
 
     Returns:
-        The number of survivors carrying no `DISPOSITIONS` entry — 0
-        when the sweep is fully accounted for, which is also this
-        function's process exit code.
+        The number of facts this sweep could not account for: survivors
+        carrying no `DISPOSITIONS` entry, plus cells whose skip status
+        disagrees with `EXPECTED_SKIPS`. 0 when the sweep is fully
+        accounted for, which is also this function's process exit code.
+        Drift counts because the exit code is what a caller reads, and a
+        sweep whose denominator moved under it has not succeeded at
+        measuring anything, however few survivors it found.
     """
     survivors, skipped = sweep_cells()
     if write:
         SWEEP_RECORD.write_text(json.dumps(
             {"swept": datetime.date.today().isoformat(),
              "survivors": survivors}, indent=2) + "\n")
-    ran = len(SWEEP_BASES) * len(CORRESPONDENCE) - len(skipped)
-    print("sweep: %d cells run, %d skipped, %d survivor(s)"
-          % (ran, len(skipped), len(survivors)))
+    cells = len(SWEEP_BASES) * len(CORRESPONDENCE)
+    ran = cells - len(skipped)
+    print("sweep: %d of %d cells run, %d skipped, %d survivor(s)"
+          % (ran, cells, len(skipped), len(survivors)))
     for base, op, reason in skipped:
         print("  SKIP  %-10s %-20s %s" % (base, op, reason))
+    drift = skip_drift(skipped)
+    for line in drift:
+        print("  DRIFT %s" % line)
+    if drift:
+        print("%d cell(s) changed skip status: the sweep's denominator "
+              "moved. Update EXPECTED_SKIPS in the commit that moved it"
+              % len(drift))
     missing = []
     for s in survivors:
         kind, why = DISPOSITIONS.get(s["id"], ("UNDISPOSITIONED", ""))
@@ -33727,7 +33802,7 @@ def run_sweep(write: bool = True) -> int:
     if missing:
         print("%d undispositioned survivor(s): add each id to DISPOSITIONS "
               "as promote / allow / bug, with a reason" % len(missing))
-    return len(missing)
+    return len(missing) + len(drift)
 
 
 # Survivor verdicts. "promote": a real gap worth a curated mutant and a lint
@@ -33844,6 +33919,31 @@ class TestDiscovery(unittest.TestCase):
         msg = str(caught.exception)
         self.assertIn("sweep cell chain/drop_edge", msg)
         self.assertIn("mutated nothing", msg)
+
+    def test_the_sweep_skips_exactly_the_pinned_cells(self) -> None:
+        """The sweep's denominator is the pinned one, cell for cell.
+
+        `sweep_cells` raises on a cell that mutated nothing, so the
+        cells it RUNS cannot go quiet unnoticed. The cells it does not
+        run had no such guard: `sweep_args` returning `(None, reason)`
+        prints a SKIP line and drops the cell out of the denominator,
+        and 7 of the 15 cells take that path today. A base builder
+        losing a binding — one edit to `_diamond_stage` or
+        `_opposed_pair`, both of which exist to carry particular
+        bindings — retires cells from the harness while the report goes
+        on saying "0 survivors" in a smaller voice.
+
+        Failing in BOTH directions is the point. A newly skipped cell is
+        coverage lost silently; a pinned cell that starts running is
+        coverage the pin understates, and leaving that unstated is how
+        a pin becomes a ceiling nobody re-derives.
+        """
+        _survivors, skipped = sweep_cells()
+        self.assertEqual(
+            skip_drift(skipped), [],
+            "the sweep's skipped cells are not EXPECTED_SKIPS. Run "
+            "`python3 tests/test_mutants.py --sweep` to see the cells, "
+            "then update EXPECTED_SKIPS — in the commit that moved them")
 
     def test_live_sweep_reproduces_the_record(self) -> None:
         """The committed record still describes what a sweep finds today.
