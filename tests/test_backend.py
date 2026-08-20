@@ -10988,9 +10988,15 @@ class TestUiUxLintsV04(Base):
         self.assertEqual(fixed["waives"], {})
 
 
-class TestCrossLintV04(Base):
-    """v0.4 WP2: cross-artifact lints — 3.3.7 redundant entry, 3.2.4
-    consistent identification (mapped only), Q12 whose-word check."""
+class CrossLintDriver:
+    """Seed the wireframe×flow scene the cross-artifact lints join.
+
+    A MIXIN AND NOT A SECOND COPY: `TestCrossLintJoinIsLoadBearing` reads
+    the same scene to prove `CROSS_LINT_JOIN` governs the collector's
+    reach, and a rival seed would let the two classes drift into
+    disagreeing about what a joined pair looks like. Expects `self.store`
+    from `Base`.
+    """
 
     def seed(self, btn_a="Continue", btn_b="Next", flow_b="n2"):
         """Two-screen wireframe + two-step flow + mappings."""
@@ -11048,8 +11054,18 @@ class TestCrossLintV04(Base):
                  "elements": ["wf#btn-b", "fl#" + flow_b]}]})
 
     def types(self):
+        """The `{artifact_id: type}` map `cross_lint` buckets members by.
+
+        Returns:
+            Every seeded artifact's id against its declared type.
+        """
         return {aid: self.store.artifact_type(aid)
                 for aid in self.store.scenes}
+
+
+class TestCrossLintV04(CrossLintDriver, Base):
+    """v0.4 WP2: cross-artifact lints — 3.3.7 redundant entry, 3.2.4
+    consistent identification (mapped only), Q12 whose-word check."""
 
     def test_flow_reachable_cuts_cycles(self):
         els = []
@@ -11190,6 +11206,134 @@ class TestCrossLintV04(Base):
                             for n in lines["wf"]["notes"]))
         debt = self.store.lint_debt()
         self.assertGreaterEqual(debt["wf"]["notes"], 1)
+
+
+class TestCrossLintJoinIsLoadBearing(CrossLintDriver, Base):
+    """`CROSS_LINT_JOIN` decides 3.2.4/3.3.7's reach (v0.9, user ruling).
+
+    THE DOCTRINE NAMED THREE PAIRS AND THE CODE JOINED ONE. SKILL.md said
+    "default-mapped pairs" — wireframe↔flow, domain↔flow, sequence↔flow —
+    and the collector has only ever bucketed the first: a member of any
+    other type lands in neither list and falls out of `pairs` in silence.
+    The user ruled on 2026-08-20 that the doctrine is a drawing habit the
+    agent owes and not a contract the tool owes, so the WORDING moved and
+    the join did not, and `CROSS_LINT_JOIN` was named so the sentences
+    could be derived from it instead of transcribing it.
+
+    THE CONSTANT IS PINNED AS A RELATION, NEVER AS ITS CURRENT VALUE.
+    `("wireframe", "flow")` appears in no assertion here: a future version
+    that legitimately moves the join must leave these green, or the pin
+    would prescribe the pair rather than prove the plumbing. What is
+    asserted is that whatever the constant says is what the collector
+    joins, proved by driving one scene under two typings.
+
+    Shares `CrossLintDriver`'s seed — a two-screen wireframe, a two-step
+    flow and four mappings that trip 3.2.4 — rather than building a rival
+    one, so the two classes cannot drift apart on what a joined pair is.
+
+    Curated during curator batch 40 against `fold-orphans-a568`,
+    2026-08-20.
+    """
+
+    def notes_324(self, types, join=None):
+        """3.2.4's naming notes over the seeded scene.
+
+        Args:
+            types: The `{artifact_id: type}` map to lint under, which is
+                what decides which bucket each mapping member lands in.
+            join: An override for `canvas.CROSS_LINT_JOIN`, or None to
+                run against the shipped constant.
+
+        Returns:
+            The 3.2.4 notes raised against the wireframe artifact.
+        """
+        ctx = (mock.patch.object(canvas, "CROSS_LINT_JOIN", join)
+               if join is not None else contextlib.nullcontext())
+        with ctx:
+            out = canvas.cross_lint(self.store.scenes, types,
+                                    self.store.registry)
+        return [n for n in (out.get("wf") or {}).get("notes") or []
+                if "same action" in n]
+
+    def test_the_constant_and_not_the_type_name_decides_the_reach(self):
+        """THE THREE-WAY COMPARISON that makes the constant load-bearing.
+
+        One scene, one registry, one set of mappings, read three ways:
+        under the shipped typing it fires; retyping the wireframe
+        artifact to something outside the join silences it; and pointing
+        the constant AT that new type brings the same finding back. The
+        third leg is what separates "the constant is consulted" from
+        "the collector happens to hardcode a name that matches it" —
+        without it, a `cross_lint` that still said `t == "wireframe"`
+        inline would pass the first two.
+        """
+        self.seed(btn_a="Continue", btn_b="Next", flow_b="n2")
+        wf_type, fl_type = canvas.CROSS_LINT_JOIN
+        shipped = self.types()
+        self.assertEqual(shipped["wf"], wf_type,
+                         "the seed no longer types `wf` as the join's "
+                         "first member; re-anchor this guard")
+        outside = dict(shipped, wf="a-type-outside-the-join")
+        self.assertTrue(self.notes_324(shipped), "3.2.4 is silent on the "
+                                                 "scene built to trip it")
+        self.assertFalse(self.notes_324(outside),
+                         "a member of an unjoined type reached 3.2.4")
+        self.assertTrue(
+            self.notes_324(outside, join=("a-type-outside-the-join",
+                                          fl_type)),
+            "pointing CROSS_LINT_JOIN at the retyped artifact did not "
+            "bring the finding back — the collector is not reading it")
+
+    def test_a_widened_join_is_refused_by_the_collector(self):
+        """Widening is BLOCKED, not merely costly — and the block is the
+        tuple unpack, which raises rather than taking the first two. A
+        collector that silently used `CROSS_LINT_JOIN[:2]` would run the
+        old reach under a constant advertising a wider one, which is the
+        defect this whole fold exists to end, one level down."""
+        self.seed()
+        wf_type, fl_type = canvas.CROSS_LINT_JOIN
+        with mock.patch.object(canvas, "CROSS_LINT_JOIN",
+                               (wf_type, fl_type, "domain")), \
+                self.assertRaises(ValueError):
+            canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+
+    def test_the_collector_fails_loudly_with_the_constant_gone(self):
+        """THE SUBJECT-ABSENT PROBE. If `CROSS_LINT_JOIN` were deleted,
+        a `getattr(canvas, "CROSS_LINT_JOIN", ("wireframe", "flow"))`
+        would keep every test in this class green over a constant that
+        no longer exists — the shape 20 instruments in this repo have
+        now been caught in. It has to raise."""
+        self.seed()
+        with mock.patch.object(canvas, "CROSS_LINT_JOIN", None), \
+                self.assertRaises(TypeError):
+            canvas.cross_lint(self.store.scenes, self.types(),
+                              self.store.registry)
+
+    def test_the_reference_docs_name_the_pair_the_constant_names(self):
+        """The hand-written copies the fold left behind.
+
+        SKILL.md's sentence is a live marker and the livedoc hook owns
+        it. `domain.md`, `flow.md` and `sequence.md` are NOT — each
+        spells `join <a> × <b> only` in prose, three more copies of a
+        derived set, which is exactly the drift class this batch spent
+        its first half pinning one file over. Derived from the constant
+        rather than compared to a literal, so a legitimate future move
+        of the join reds these until the sentences follow it.
+        """
+        want = "%s × %s" % canvas.CROSS_LINT_JOIN
+        root = Path(canvas.__file__).parent.parent
+        found = {}
+        for path in sorted(root.rglob("*.md")):
+            flat = " ".join(path.read_text(encoding="utf-8").split())
+            for pair in re.findall(r"join (\w+) × (\w+)", flat):
+                found.setdefault(path.name, set()).add("%s × %s" % pair)
+        self.assertTrue(found, "no reference doc states the join at all; "
+                               "re-anchor this guard rather than deleting "
+                               "it — its whole subject has moved")
+        self.assertEqual({name: sorted(v) for name, v in found.items()},
+                         {name: [want] for name in found},
+                         "a shipped doc names a join the code does not")
 
 
 class TestUiUxAcceptance(Base):
@@ -11915,6 +12059,42 @@ class TestTheDropListIsDerivedNotTranscribed(MermaidExportDriver, Base):
         count, names = self.drop_report(artifact="fl")
         self.assertEqual(count, 0)
         self.assertIn("plain lines", names)
+
+    def test_an_image_is_named_and_counted_though_no_op_can_add_one(self):
+        """THE CATEGORY A STRUCTURAL PIN WOULD HAVE LEFT UNPROVEN.
+
+        `add` refuses `image` (`make_element`: "image elements arrive via
+        the canvas (paste/drop an image in the browser), not ops"), and
+        this batch's first pass read that as "no scene can exercise the
+        label" and pinned `image` structurally. That was wrong, and a
+        reviewer disproved it by BUILDING it: an image arrives through
+        the save path, survives the reload, and the filter counts it —
+        `DROPPED=1` on the pre-fix base under a sentence naming six
+        categories and no image among them. One refused door is not a
+        closed room, and "structurally unreachable" has now been claimed
+        and been false twice in this repo.
+
+        So the scene is built the way the product builds it: `commit` as
+        the user, with the file blob the client would have posted.
+        """
+        self.seed(ops=[self.NODE])
+        els = [dict(e) for e in self.store.scenes["fl"]]
+        els.append({"id": "shot", "type": "image", "x": 40, "y": 300,
+                    "width": 200, "height": 120, "fileId": "f-abc",
+                    "status": "saved", "scale": [1, 1]})
+        self.store.commit(
+            author="user", new_scenes={"fl": els},
+            base_revn=self.store.head_revn(),
+            new_files={"fl": {"f-abc": {
+                "mimeType": "image/png", "id": "f-abc",
+                "dataURL": "data:image/png;base64,AA"}}})
+        count, names = self.drop_report(artifact="fl")
+        self.assertEqual(count, 1)
+        self.assertIn("images", names)
+        # the silent half is `test_a_flow_with_no_line_drops_nothing`,
+        # which runs this exact base scene — `[NODE]` — and reads zero.
+        # A second copy of it here would assert nothing the first does
+        # not, and the count of 1 above is meaningless without it.
 
     def test_er_neither_counts_nor_names_the_decoration_it_carries(self):
         """THE DISCRIMINATING PAIR — one artifact, exported twice.

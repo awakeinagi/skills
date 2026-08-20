@@ -415,6 +415,71 @@ class TestACalculatorNeverFallsBackToTheProse(LiveDocCase):
             livedoc._discovered_case_count("test_no_such_module.py")
         self.assertIn("measures nothing", str(caught.exception))
 
+    def _join(self, value: object) -> str:
+        """Run `cross_lint_join` against a patched `CROSS_LINT_JOIN`.
+
+        Args:
+            value: What `canvas.CROSS_LINT_JOIN` should read as.
+
+        Returns:
+            The rendered live value.
+        """
+        with mock.patch.object(livedoc._canvas(), "CROSS_LINT_JOIN", value):
+            return livedoc.cross_lint_join()
+
+    def test_a_widened_join_is_refused_rather_than_truncated(self) -> None:
+        """A THIRD TYPE MUST STOP THE DERIVATION, not lose quietly.
+
+        The sentence this fills says the strict checks join exactly one
+        pair. A calculator that rendered `join[:2]` would publish that
+        sentence unchanged over a constant advertising a wider reach —
+        a correct-looking claim, narrower than the code, arriving
+        through the very tool built to stop stale numbers. Every
+        malformed shape is exercised, not just the long one: a guard
+        written as `len(join) > 2` would pass three of these four.
+        """
+        for bad in (("wireframe", "flow", "domain"), ("wireframe",),
+                    ["wireframe", "flow"], ("wireframe", "")):
+            with self.subTest(bad=bad), \
+                    self.assertRaises(AssertionError) as caught:
+                self._join(bad)
+            self.assertIn("2-tuple", str(caught.exception))
+
+    def test_a_legitimate_move_of_the_join_is_published(self) -> None:
+        """A pair that is not the shipped one is rendered as it stands.
+
+        THE LIVE HALF. Without it the refusal above is satisfied by a
+        calculator that raises on everything, and the published value
+        could be a hardcoded string: driving a join the repo does not
+        ship and demanding the OUTPUT follow it proves the derivation
+        reads its subject rather than reciting it.
+        """
+        self.assertEqual(self._join(("domain", "flow")), "domain × flow")
+
+    def test_the_calculator_fails_loudly_with_the_constant_gone(
+            self) -> None:
+        """With the constant deleted, the derivation raises and names it.
+
+        THE SUBJECT-ABSENT PROBE, which this module's own header demands
+        of every calculator: a derivation that cannot find its subject
+        must never fall through to the stored prose, because agreeing
+        with the prose is exactly what a broken guard looks like from
+        outside.
+        """
+        canvas_mod = livedoc._canvas()
+        # `patch.object` restores by `setattr` on exit, so deleting
+        # inside the block is safe — and the module is SHARED with every
+        # other test in this process, so the restoration is asserted
+        # rather than assumed.
+        with mock.patch.object(canvas_mod, "CROSS_LINT_JOIN"):
+            del canvas_mod.CROSS_LINT_JOIN
+            with self.assertRaises(AttributeError) as caught:
+                livedoc.cross_lint_join()
+        self.assertIn("CROSS_LINT_JOIN", str(caught.exception))
+        self.assertTrue(hasattr(canvas_mod, "CROSS_LINT_JOIN"),
+                        "this test left the canvas module damaged for "
+                        "everything that runs after it")
+
 
 class TestTheParserRefusesRatherThanSkips(LiveDocCase):
     """Every malformed marker is an error; none of them is a silent skip."""
