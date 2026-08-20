@@ -24066,9 +24066,21 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # bounds so the wrong figure only loosens the assertion and neither has ever
 # failed. Two reds and not one because they are two expressions in two
 # methods; five honest repairs were written and each flips exactly one.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheRenderRegimeFiguresAreTheOnesPaintEmits": 2,
-}
+#
+# EMPTY AGAIN on 2026-08-20, hours later, and READ OFF THE GUARD: the two
+# figures were repaired, both markers dropped,
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` was run, it
+# reported `measured {} against a declared {'TestTheRenderRegimeFiguresAre
+# TheOnesPaintEmits': 2}`, and the measured side was transcribed. A LINE and
+# not a number again, which the entry above did not expect: it recorded five
+# honest repairs each flipping exactly one red, so it left a reader watching
+# for 2 -> 1. The fix was a SIXTH repair, one none of the five named — a
+# module-scope helper asking `canvas.line_height_of` of the wrapped
+# fixture's own text element, which BOTH sites now call. Once the number has
+# one author the two reds cannot flip apart, and a separability measured
+# across five candidates said nothing about the candidate that landed. Read
+# the class, not the paragraph that commissioned it — again.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
 # `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
@@ -32369,9 +32381,16 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
 # written at 1.25 where the shipped reader takes `line_height_of` and
 # resolves 1.35 for that element, both in `tests/test_mutants_render.py`:
 #
-#   * `last_baseline` reads 73.6 where the fourth baseline is emitted at
+#   * `last_baseline` read 73.6 where the fourth baseline is emitted at
 #     78.4;
-#   * `ink_bottom` reads 80 where the fourth line box bottoms at 86.4.
+#   * `ink_bottom` read 80 where the fourth line box bottoms at 86.4.
+#
+# BOTH REPAIRED AND BOTH REDS FLIPPED THE SAME DAY. Neither site states a
+# multiplier now: they share `_wrapped_line_height`, a module-scope helper in
+# that file asking `canvas.line_height_of` of the wrapped fixture's own text
+# element, so the seventh copy of the number was never written. The two pins
+# below stay — what they assert is EQUALITY against the emitted markup, which
+# is what a lower bound cannot say and what keeps these two from rotting back.
 #
 # Same family as curator batch 42's emitter comment, and the fifth and sixth
 # sites that hunt turned up. Found there, filed here because they are a
@@ -32525,21 +32544,23 @@ def _render_figure(name: str) -> float:
 class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
     """Two lower bounds in the render regime class, against the markup.
 
-    TWO REDS. Both figures are wrong today and both are wrong in the
-    direction that hides it: they under-state where the ink reaches, and
-    they are compared with `assertGreater` / `assertGreaterEqual`, so the
-    wrong number makes the assertion LOOSER and both still pass. A pin
-    that merely re-asserted those bounds would pass over the rot exactly
-    as the bounds themselves do — so what is asserted here is EQUALITY
-    against the emitted markup, which is the only reading that fails in
-    both directions.
+    TWO REDS, BOTH FLIPPED 2026-08-20. Both figures were wrong, and both
+    wrong in the direction that hides it: they under-stated where the ink
+    reaches, and they are compared with `assertGreater` /
+    `assertGreaterEqual`, so the wrong number made the assertion LOOSER
+    and both still passed. A pin that merely re-asserted those bounds
+    would have passed over the rot exactly as the bounds themselves did —
+    so what is asserted here is EQUALITY against the emitted markup,
+    which is the only reading that fails in both directions, and which is
+    why these stay after the repair.
 
     RE-DERIVED ON THIS BASE, not carried from the batch that found them.
     `render_svg` emits baselines at 13.6, 35.2, 56.8 and 78.4 for the
     wrapped fixture — an advance of 21.6px, which is `fontSize` times the
     1.35 `line_height_of` resolves for an element carrying neither a
-    stored `lineHeight` nor a `fontFamily`. The written figures are 73.6
-    and 80, computed at 1.25.
+    stored `lineHeight` nor a `fontFamily`. The figures read 73.6 and 80,
+    computed at 1.25; both now ask `line_height_of` through that file's
+    `_wrapped_line_height` and land on 78.4 and 86.4.
 
     NOT A GATED-TIER PROBLEM, checked rather than assumed. These were
     routed here as render-tier work, which would have put them among the
@@ -32567,9 +32588,13 @@ class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
     only — set it to 1 and the figure it feeds moves while the truth does
     not, which is what keeps a wrong constant from validating itself.
 
-    NOT REPAIRED HERE. Two constants in another tier's file, and a
-    curator writing the acceptance test and the fix is the pattern this
-    charter refuses.
+    NOT REPAIRED HERE, and it was not: the two constants in that other
+    tier's file were closed by its owner, which is why the fix and the
+    acceptance test have different hands. The repair chosen was none of
+    the five the curator wrote — a module-scope helper asking
+    `canvas.line_height_of` of the fixture's own element — and it passed
+    unchanged, which is the anchor rule doing its job: the expression is
+    evaluated, never matched.
     """
 
     def test_the_two_figures_are_still_in_that_file_and_still_parse(
@@ -32626,16 +32651,22 @@ class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
                     "finding from the reds below"
                     % (name, _render_figure(name), truth[name]))
 
-    @unittest.expectedFailure
     def test_the_last_baseline_is_where_paint_puts_the_last_baseline(
             self) -> None:
-        """RED: 73.6 written, 78.4 emitted, a 4.8px under-statement.
+        """FLIPPED 2026-08-20: 73.6 was written where 78.4 is emitted.
 
         The invariant, not either number: whatever the metrics do next,
         a figure claiming to be the last line's baseline has to be the
         last line's baseline. Compared against the value read out of the
         markup `render_svg` produced, so any repair landing on the right
         number passes however it is written.
+
+        The repair taken was neither multiplier: the site now asks
+        `_wrapped_line_height`, a module-scope helper returning
+        `canvas.line_height_of` of the fixture's own text element, so
+        the transcription that went stale at six sites in one day has
+        one author here instead of a seventh copy. Green by evaluation
+        and not by wording — this class never read the expression.
         """
         truth = _render_truth()["last_baseline"]
         got = _render_figure("last_baseline")
@@ -32646,9 +32677,8 @@ class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
                 "`assertGreater`, so the short figure only loosens the "
                 "bound and nothing fails" % (got, truth, truth - got))
 
-    @unittest.expectedFailure
     def test_the_ink_bottom_is_where_the_last_line_box_ends(self) -> None:
-        """RED: 80 written, 86.4 emitted, a 6.4px under-statement.
+        """FLIPPED 2026-08-20: 80 was written where 86.4 is emitted.
 
         Filed separately from its sibling because it is a different
         expression in a different method, and a repair can plausibly
@@ -32658,6 +32688,11 @@ class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
 
         The truth is the line count times the MEASURED advance, so no
         multiplier is written on either side of the comparison.
+
+        Both closed together, by the repair its sibling names: the two
+        sites now share `_wrapped_line_height` rather than each carrying
+        a copy of the number, which is what stops the divergence this
+        docstring was written to expect.
         """
         truth = _render_truth()["ink_bottom"]
         got = _render_figure("ink_bottom")
