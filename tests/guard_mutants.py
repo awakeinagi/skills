@@ -20,20 +20,122 @@ restores it, which is acceptable for a hand-run instrument and wrong for
 anything `unittest discover` may run beside other work. Run it whenever a
 guard is added, moved or re-worded::
 
-    python3 tests/guard_mutants.py            # every site
+    python3 tests/guard_mutants.py            # every site, ~32s
     python3 tests/guard_mutants.py relayout   # one, by label substring
+    python3 tests/guard_mutants.py --check    # subjects only, no subprocess
 
 Exit status is non-zero if any guard survived its own test.
+
+AND THE SWEEP ITSELF IS AN INSTRUMENT, so it owes the same answer it
+demands: what would it say if the thing it watches were entirely absent?
+It used to say "perfect". Two separate failures, both now closed:
+
+  - It mapped ANY non-zero exit to KILLED, and `unittest` answers an
+    unresolvable test name with a synthetic test that ERRORS. So a
+    DELETED test read as a guard killed by it; the harness once reported
+    23/23 over a tree whose tests were gone. `run_one` now reads the
+    runner's RESULT OBJECT — see `_DRIVER` and `verdict` — and a name
+    that does not resolve is `NO-TEST`, which `main` counts as
+    unobserved and never as a kill.
+  - Nothing ran it. `assert_pristine` guards the anchors only once
+    somebody starts a sweep, and nobody did: its only mentions in
+    `tests/test_backend.py` are comments. `--check` is the half cheap
+    enough for the every-commit gate (no subprocess, no write to
+    `canvas.py`), and `.pre-commit-config.yaml` runs it there while the
+    full sweep sits at the manual stage beside the e2e suite::
+
+        uvx pre-commit run guard-mutants-sweep --hook-stage manual
+
+    The gate half cannot tell you a guard is unobserved — only the sweep
+    can. What it CAN tell you is that this file has stopped being able
+    to ask, which is the failure that was previously silent.
 """
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import subprocess
 import sys
+import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / "skills" / "wysiwyg-grilling" / "scripts" / "canvas.py"
+MODULE = "tests.test_backend"
+
+# THE DRIVER, AND WHY THIS IS NOT `-m unittest <name>`. An exit code
+# answers "did the process end badly", and this instrument needs "did the
+# NAMED TEST observe the mutation" — two questions that agree right up
+# until they matter. `unittest` turns an unresolvable test name into a
+# synthetic `unittest.loader._FailedTest` that ERRORS, so a test that has
+# been renamed, moved or DELETED exits non-zero and the old code read
+# that as KILLED. That is not a hypothetical: this harness once reported
+# a perfect score over a tree whose tests had been deleted, because every
+# missing test "failed". A guard census that reads as perfect when the
+# tests are gone is the exact instrument-cannot-report-its-own-death
+# defect it was built to find, one level up.
+#
+# So the child imports the module itself, loads the name itself, runs a
+# `TextTestRunner`, and prints the RESULT OBJECT as json. Every verdict
+# below is read from counts, never from `returncode`; `returncode` is now
+# used for one thing only — deciding whether there is a result at all.
+_DRIVER = r'''
+import io, json, sys, unittest
+name = sys.argv[1]
+out = {"import_error": None, "load_errors": [], "run": 0, "failures": 0,
+       "errors": 0, "unexpected": 0, "skipped": 0}
+try:
+    __import__(name.split(".")[0] + "." + name.split(".")[1])
+except BaseException as exc:                       # noqa: BLE001
+    out["import_error"] = "%s: %s" % (type(exc).__name__, exc)
+    print("GUARDMUTANT " + json.dumps(out))
+    raise SystemExit(0)
+loader = unittest.TestLoader()
+suite = loader.loadTestsFromName(name)
+out["load_errors"] = [str(e).splitlines()[-1] for e in (loader.errors or [])]
+if not out["load_errors"]:
+    res = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
+    out["run"] = res.testsRun
+    out["failures"] = len(res.failures)
+    out["errors"] = len(res.errors)
+    out["unexpected"] = len(getattr(res, "unexpectedSuccesses", ()) or ())
+    out["skipped"] = len(res.skipped)
+print("GUARDMUTANT " + json.dumps(out))
+'''
+
+
+def verdict(report: dict | None) -> str:
+    """Turn a driver report into a guard verdict. The whole point of the file.
+
+    Kept separate from the subprocess so the mapping can be exercised
+    without starting one, and so the ONE line that used to read
+    `returncode != 0` is now a named function with the four
+    not-a-kill answers spelled out.
+
+    Args:
+        report: The driver's parsed json, or None when the child
+            produced none (it crashed, was killed, or timed out).
+
+    Returns:
+        "KILLED" when the named test observed the mutation;
+        "SURVIVED" when it ran and did not; "NO-TEST" when the name does
+        not resolve to a runnable test; "SKIPPED" when every test it
+        names was skipped; "IMPORT-ERROR" when the mutated source would
+        not import at all — a real signal, but the interpreter's and not
+        the guard test's; "HARNESS-ERROR" when there is no report.
+    """
+    if report is None:
+        return "HARNESS-ERROR"
+    if report["import_error"]:
+        return "IMPORT-ERROR"
+    if report["load_errors"] or report["run"] == 0:
+        return "NO-TEST"
+    if report["skipped"] >= report["run"]:
+        return "SKIPPED"
+    if report["failures"] or report["errors"] or report["unexpected"]:
+        return "KILLED"
+    return "SURVIVED"
+
 
 _SKIP_ARROW = (
     "        if pinned_to_canvas(a):\n"
@@ -230,7 +332,8 @@ def run_one(old: str, new: str, n: int, test: str, original: str) -> str:
         original: The unmodified source, restored in a `finally`.
 
     Returns:
-        "KILLED", "SURVIVED", "ANCHOR-MISS" or "NO-OP".
+        One of `verdict`'s answers, or "ANCHOR-MISS" / "NO-OP" when the
+        mutation could not be applied at all.
     """
     mutated = nth_replace(original, old, new, n)
     if mutated is None:
@@ -252,12 +355,16 @@ def run_one(old: str, new: str, n: int, test: str, original: str) -> str:
             for pyc in cache.glob("*.pyc"):
                 pyc.unlink(missing_ok=True)
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
-        proc = subprocess.run(
-            [sys.executable, "-B", "-m", "unittest",
-             "tests.test_backend." + test],
-            cwd=str(ROOT), capture_output=True, text=True, timeout=900,
-            check=False, env=env)
-        return "KILLED" if proc.returncode != 0 else "SURVIVED"
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-B", "-c", _DRIVER, MODULE + "." + test],
+                cwd=str(ROOT), capture_output=True, text=True, timeout=900,
+                check=False, env=env)
+        except subprocess.TimeoutExpired:
+            return "HARNESS-ERROR"
+        line = next((ln for ln in proc.stdout.splitlines()
+                     if ln.startswith("GUARDMUTANT ")), None)
+        return verdict(json.loads(line[12:]) if line else None)
     finally:
         SRC.write_text(original, encoding="utf-8")
 
@@ -291,15 +398,84 @@ def assert_pristine(original: str) -> None:
         raise SystemExit(2)
 
 
+def check_subjects() -> list[str]:
+    """Report every way this instrument has lost its subject. No subprocess.
+
+    THIS IS THE HALF THAT RUNS ON EVERY COMMIT, and it exists because
+    the sweep below is a hand-run tool that nothing ran: it could be
+    broken for as long as you like and say nothing, which is precisely
+    the class of defect it was written to hunt. The sweep is too slow
+    and far too invasive for the gate — it rewrites `canvas.py` in
+    place — but its SUBJECTS are free to check, and an instrument whose
+    subjects have gone is already dead whether or not anyone runs it.
+
+    Deliberately behavioural rather than a spelling census. It does not
+    ask "does this string appear"; it asks the two questions whose "no"
+    means the sweep can no longer produce an honest answer:
+
+      1. does the mutation still APPLY — is there an nth occurrence, and
+         does replacing it actually change the file? A `NO-OP` entry is
+         a mutant that mutates nothing, and the sweep would run its test
+         against a pristine tree and call the survivor a survivor.
+      2. does the named test still RESOLVE to a runnable test? This is
+         the deleted-tests failure caught statically. `unittest` answers
+         a missing name with a synthetic failing test, so at sweep time
+         its absence is indistinguishable from a kill unless somebody
+         looks — and now somebody does, before any process starts.
+
+    Returns:
+        One human-readable complaint per broken subject; empty when the
+        instrument still has everything it needs to be honest.
+    """
+    src = SRC.read_text(encoding="utf-8")
+    bad = []
+    for label, old, new, n, _test in GUARDS:
+        mutated = nth_replace(src, old, new, n)
+        if mutated is None:
+            bad.append("%s: anchor has no occurrence %d in %s"
+                       % (label, n, SRC.name))
+        elif mutated == src:
+            bad.append("%s: mutation is a no-op — it would change nothing "
+                       "and its test would 'survive' a pristine tree" % label)
+    sys.path.insert(0, str(ROOT))
+    try:
+        loader = unittest.TestLoader()
+        for label, _old, _new, _n, test in GUARDS:
+            loader.errors = []
+            suite = loader.loadTestsFromName(MODULE + "." + test)
+            if loader.errors or suite.countTestCases() == 0:
+                bad.append("%s: names %s, which does not resolve to a test — "
+                           "a sweep would read its absence as a KILL"
+                           % (label, test))
+    finally:
+        sys.path.remove(str(ROOT))
+    return bad
+
+
 def main() -> int:
     """Run every mutation and report.
 
     Returns:
         0 when every guard was killed by its named test, else 1.
     """
+    argv = sys.argv[1:]
+    if "--check" in argv:
+        broken = check_subjects()
+        if not broken:
+            print("guard_mutants: %d mutants, every anchor applies and "
+                  "every named test resolves" % len(GUARDS))
+            return 0
+        for line in broken:
+            sys.stderr.write("  %s\n" % line)
+        sys.stderr.write(
+            "%d of %d guard mutants have lost a subject. This instrument "
+            "cannot give an honest answer until they are re-pointed; then "
+            "run `python3 tests/guard_mutants.py` for the full sweep.\n"
+            % (len(broken), len(GUARDS)))
+        return 1
     original = SRC.read_text(encoding="utf-8")
     assert_pristine(original)
-    only = sys.argv[1] if len(sys.argv) > 1 else None
+    only = argv[0] if argv else None
     rows = []
     for label, old, new, n, test in GUARDS:
         if only and only not in label:

@@ -334,6 +334,51 @@ def unittest_suite_cases() -> str:
     return str(_discovered_case_count("test*.py"))
 
 
+@calculator("pin_guard_sites")
+def pin_guard_sites() -> str:
+    """How many pin guards `tests/guard_mutants.py` mutates, in words.
+
+    SKILL.md's pin section promises the reader a number of guard sites,
+    and promised "Twenty" from the day it was written until 2026-08-20,
+    by which point the roster held twenty-three — three guards added
+    (`_tidy_pass.group_cascade`, `reroute_and_confess` and the composed
+    reconciler's postcondition among them) with the sentence untouched.
+    A count of sites is exactly livedoc's half of the boundary above: it
+    is a total, nobody stops and looks when it moves, and it is derived
+    from a list in this repo.
+
+    THE SWEEP RESULT IS NOT LIVE AND MUST NOT BE. "23/23 observed" is
+    what happens when somebody runs a 32-second sweep that rewrites
+    canvas.py; a marker would let `refresh` repair the one sentence
+    whose staleness should send a reader to the command instead. The
+    prose beside this value names that command.
+
+    Returns:
+        The site count as an English word where one exists, so the
+        sentence still reads as a sentence, else the digits.
+
+    Raises:
+        AssertionError: If the roster is empty — a count of zero would
+            be published as a fact rather than as the missing instrument
+            it would actually be.
+    """
+    sys.path.insert(0, str(REPO / "tests"))
+    try:
+        import guard_mutants
+    finally:
+        sys.path.remove(str(REPO / "tests"))
+    n = len(guard_mutants.GUARDS)
+    if not n:
+        raise AssertionError(
+            "tests/guard_mutants.py lists no guards, so there is no site "
+            "count to publish — the instrument is gone, not empty")
+    words = {20: "Twenty", 21: "Twenty-one", 22: "Twenty-two",
+             23: "Twenty-three", 24: "Twenty-four", 25: "Twenty-five",
+             26: "Twenty-six", 27: "Twenty-seven", 28: "Twenty-eight",
+             29: "Twenty-nine", 30: "Thirty"}
+    return words.get(n, str(n))
+
+
 @calculator("corpus_census")
 def corpus_census() -> str:
     """What the frozen corpus lints to, by a convention that is CODE.
@@ -710,9 +755,10 @@ def tracked_prose_files() -> list[Path]:
         Absolute paths, sorted and distinct, fixtures excluded.
 
     Raises:
-        AssertionError: If git cannot list the index, which means this is
-            not a checkout and the scan surface is unknown rather than
-            empty.
+        AssertionError: If git cannot list the index, or lists nothing.
+            Both mean the scan surface is unknown rather than empty, and
+            an unknown surface is the one input that makes every live
+            value pass by measuring nothing.
     """
     try:
         out = subprocess.run(
@@ -724,7 +770,26 @@ def tracked_prose_files() -> list[Path]:
             "scan surface would let every live value pass by measuring "
             "nothing" % (REPO, exc)) from exc
     names = [n for n in out.stdout.split("\0") if n]
-    return sorted({REPO / n for n in names if not n.startswith(_FIXTURES)})
+    files = sorted({REPO / n for n in names if not n.startswith(_FIXTURES)})
+    # THE SUCCESS PATH HAD THE HOLE THE FAILURE PATH DID NOT. The `except`
+    # above already names the consequence — "would let every live value
+    # pass by measuring nothing" — but `git ls-files` exits 0 and prints
+    # nothing for a checkout whose markdown is gone, untracked or excluded
+    # by a mis-set pathspec, and that reached here as a quiet empty list.
+    # `check` survived it downstream (`unplaced_calculators` complains that
+    # every registered name is unplaced); `refresh` did not, and answered
+    # "refreshed 0 value(s) across 0 tracked markdown file(s)", exit 0 —
+    # an instrument reporting success for having found nothing to do.
+    # The sibling that got this right is `census_probes.py`'s scratch-tree
+    # builder, which refuses "to build a scratch tree that would make every
+    # guard look silent" on the same condition.
+    if not files:
+        raise AssertionError(
+            "git tracks no markdown under %s outside %s, so the live-value "
+            "scan surface is empty. Refusing to report every value current "
+            "against nothing — this is a broken checkout, not a clean one"
+            % (REPO, _FIXTURES))
+    return files
 
 
 def _values(markers: Iterable[tuple[Path, Marker]]) -> dict[str, str]:
