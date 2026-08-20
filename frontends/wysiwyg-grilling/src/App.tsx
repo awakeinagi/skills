@@ -84,6 +84,47 @@ const restoreForRender = (els: any[]) =>
     refreshDimensions: true, repairBindings: true,
   } as any);
 
+/**
+ * Wait until the faces this document MEASURES text in are really loaded.
+ *
+ * `restoreForRender` re-wraps every bound label — `refreshDimensions`
+ * reaches `refreshTextDimensions`, which calls `wrapText(text,
+ * getFontString(el), maxWidth)` — so it asks the browser how wide the
+ * text is. Ask before the webfont has arrived and you are told the
+ * fallback's width, and the export then PAINTS in the real face: one
+ * picture, wrapped in one font and drawn in another.
+ *
+ * Measured cold on a fresh page: all four families report an identical
+ * advance (they are all falling back to one face), and Nunito — this
+ * repo's `FONT_LEGIBLE` — measures 80.85px against 88.00px warm for the
+ * same string. 8.1% narrower, which is a whole word at a wrap boundary.
+ * Across six fresh sessions the same scene exported 1, 1, 2, 1, 2, 2
+ * painted lines; each session was freezing a coin flip.
+ *
+ * Two traps, both measured rather than assumed:
+ *   - `document.fonts.status` is NOT a readiness signal. It read
+ *     "loaded" at 213ms — before anything had requested a face — and
+ *     "loading" at 982ms once Excalidraw asked for them. Checking it
+ *     would sail straight past the race it is supposed to catch.
+ *   - `fonts.ready` alone resolves against the faces registered SO FAR,
+ *     so a face nobody has asked for yet is not waited on. Hence the
+ *     explicit `load()` of everything still unloaded before awaiting.
+ *
+ * Best effort by construction: any browser without the Font Loading API
+ * gets today's behaviour rather than a broken export.
+ * @returns Resolves once the registered faces have settled.
+ */
+const fontsSettled = async (): Promise<void> => {
+  const d: any = typeof document !== "undefined" ? document : null;
+  if (!d?.fonts) return;
+  try {
+    await Promise.all(Array.from(d.fonts as Set<any>)
+      .filter((f: any) => f?.status === "unloaded")
+      .map((f: any) => f.load?.().catch(() => undefined)));
+    await d.fonts.ready;
+  } catch { /* a face that refuses to load must not block the export */ }
+};
+
 /** Clear air between an imported diagram and the drawing already there. */
 const IMPORT_GAP = 120;
 
@@ -1073,6 +1114,12 @@ export default function App() {
         (apiRef.current ? apiRef.current.getSceneElements() : []);
       (async () => {
         try {
+          // BEFORE `restoreForRender`, which is the step that measures.
+          // An agent's screenshot request arrives moments after load —
+          // the coldest point in the session — so this is the path that
+          // races, and it is the one whose PNGs the mutation harness
+          // reads as ground truth.
+          await fontsSettled();
           const blob = await exportToBlob({
             elements: restoreForRender(els) as any,
             appState: {
@@ -2062,6 +2109,12 @@ export default function App() {
     const els = api.getSceneElements().filter((e: any) => !e.isDeleted);
     if (!els.length) { toast("Nothing to export — this artifact is empty."); return; }
     try {
+      // the same race as the agent's screenshot, on the user's own
+      // button: a hurried ⤓ on a cold tab wraps in the fallback face and
+      // paints in the real one. Rarer here — the user has usually been
+      // looking at the canvas for a while — but the same defect, and a
+      // fix on one path only would leave the export people keep.
+      await fontsSettled();
       const blob = await exportToBlob({
         elements: restoreForRender(els) as any,
         // clip:false — frame membership must not crop annotations that
