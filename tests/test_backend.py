@@ -3665,10 +3665,27 @@ class TestTextInTextRepair(Base):
         # text stays UNWRAPPED (originalText/replay/facts hygiene); the
         # allotted box forces the client's own wrap instead
         self.assertNotIn("\n", lbl["text"])
-        self.assertLessEqual(lbl["width"], box["width"] - 20)
+        # THE CLIENT'S NUMBERS, SPELLED OUT rather than read back from
+        # `canvas.client_wrap_width` — a pin that asks the function under
+        # test what to expect cannot notice that function being wrong.
+        # A rectangle's bound text is capped at `width - BOUND_TEXT_
+        # PADDING * 2` and its box at `height - the same` (the bundle's
+        # `_s` and `qg`). Was `width - 20` and `height >= label + 16`,
+        # which were this file's inventions, not the client's.
+        self.assertLessEqual(lbl["width"], box["width"] - 10)
         self.assertGreater(lbl["height"], 22)           # multi-line room
-        self.assertGreaterEqual(box["height"], lbl["height"] + 16)
-        self.assertFalse(lbl["autoResize"])
+        self.assertGreaterEqual(box["height"] - 10, lbl["height"])
+        # `autoResize` IS NO LONGER WRITTEN, and its absence is the
+        # claim. On a bound label the client wraps to the container
+        # whatever this flag says (`ai`: `i = t ? _s(t, e) : e.width`),
+        # and reads the flag only to decide whether to copy the measured
+        # width back — which is now exactly what we stored. Writing it
+        # here asserted a control over the wrap that this side has never
+        # had.
+        self.assertIsNot(lbl["autoResize"], False,
+                         "the fitter is pinning the label fixed-width, "
+                         "claiming a contract the client does not honour "
+                         "for bound text")
         # short labels stay single-line and untouched
         els2 = canvas.apply_ops([], [
             {"op": "add", "element": {"type": "rectangle", "id": "ok",
@@ -3694,8 +3711,10 @@ class TestTextInTextRepair(Base):
         box = next(e for e in els if e["id"] == "n1")
         self.assertNotIn("\n", lbl["text"])
         self.assertGreater(lbl["height"], 22)
-        self.assertLessEqual(lbl["width"], box["width"] - 20)
-        self.assertGreaterEqual(box["height"], lbl["height"] + 16)
+        # the client's cap and headroom, spelled out — see the sibling
+        # test above for why they are not read back from `canvas`
+        self.assertLessEqual(lbl["width"], box["width"] - 10)
+        self.assertGreaterEqual(box["height"] - 10, lbl["height"])
 
     def test_validate_scene_merges_text_in_text(self):
         # the exact corrupted shape found on disk: empty container text,
@@ -3815,23 +3834,50 @@ class TestLoadRepairRerouteAndConfess(Base):
         _, issues = canvas.validate_scene(self.oversized([routed]), "a")
         self.assertEqual([i.code for i in issues], ["ART-011", "ART-012"])
         self.assertTrue(issues[1].repaired)
-        self.assertIn("resized n1 (120x60 to 120x136)", issues[1].msg)
+        # 136 until TASK-TEXT-TRUTH; re-derived, not transcribed. The
+        # label now wraps at the CLIENT's cap (120 - 10 = 110) instead of
+        # the old `width - 24` = 96, so `LONG` takes 4 lines rather than
+        # 6 (80px, not 120), and the box grows by the client's own rule
+        # (`client_grown_extent`, +10 on a rectangle) rather than +16.
+        # 80 + 10 = 90.
+        self.assertIn("resized n1 (120x60 to 120x90)", issues[1].msg)
         self.assertIn("re-routed a1", issues[1].msg)
 
-    def test_a_refit_that_resizes_nothing_confesses_nothing(self):
-        # The silent pole of the confession rule (fix round 1, F1). The
-        # rule is "every resize is confessed", NOT "every refit is" — so
-        # a box already tall enough to hold the wrapped label gets its
-        # label narrowed and nothing else, and ART-012 must stay quiet.
-        # Without this pole, filing the confession unconditionally would
-        # pass the resize-with-no-arrows test and tell the agent a shape
-        # had moved when it had not.
+    def test_a_refit_that_resizes_nothing_reports_nothing(self):
+        # The silent pole of the confession rule (fix round 1, F1),
+        # STRENGTHENED by TASK-TEXT-TRUTH rather than merely re-derived.
+        #
+        # It used to read `["ART-011"]` here: a box already tall enough
+        # got its label narrowed, the refit was filed, and only ART-012
+        # stayed quiet. The rule was "every resize is confessed, not
+        # every refit". It is now the stricter "the loader touches
+        # nothing unless the BOX has to change", so this pole asserts
+        # NO issue at all.
+        #
+        # The strengthening is not tidiness, it is what stops r5-13
+        # recurring. The client-aware fitter cannot DECLINE — the client
+        # wraps to one width and that is the answer, so the fitter always
+        # re-measures — and a loader that filed a repair whenever the
+        # fitter moved a number rewrote the geometry of every project on
+        # disk whose labels predate the rule: measured, 4 of the 5
+        # fixture projects, on loads 1 through 5, forever.
+        #
+        # What the silence costs is nothing the user can see: a box tall
+        # enough to hold the wrap is one the client draws correctly
+        # whatever width we stored, and `lint_layout` speaks if it is
+        # not. What it buys is that opening a project does not rewrite it.
         doc = self.oversized([])
         tall = next(e for e in doc["elements"] if e["id"] == "n1")
-        tall["height"] = 200          # already deeper than the 136 refit
+        tall["height"] = 200          # already deeper than the 90 refit
+        lbl_before = json.loads(json.dumps(
+            next(e for e in doc["elements"] if e["id"] == "t1")))
         _, issues = canvas.validate_scene(doc, "a")
-        self.assertEqual([i.code for i in issues], ["ART-011"])
+        self.assertEqual([i.code for i in issues], [])
         self.assertEqual(tall["height"], 200, "the box was not resized")
+        # and the label is handed back exactly as it arrived — the guard
+        # restores it rather than leaving the fitter's half-applied work
+        self.assertEqual(
+            next(e for e in doc["elements"] if e["id"] == "t1"), lbl_before)
 
     def test_a_declined_refit_leaves_the_label_where_it_was_drawn(self):
         # Both directions of the no-op guard's second effect (fix round
@@ -3864,8 +3910,13 @@ class TestLoadRepairRerouteAndConfess(Base):
         doc2, issues2 = canvas.validate_scene(self.oversized([]), "a")
         self.assertEqual([i.code for i in issues2], ["ART-011", "ART-012"])
         t1 = next(e for e in doc2["elements"] if e["id"] == "t1")
+        # (12, 8, 96, 120) until TASK-TEXT-TRUTH, re-derived here rather
+        # than transcribed: the wrap is now the client's 110px cap, so
+        # `LONG` takes 4 lines of 108px ink instead of 6 of 96, the box
+        # grows to 80 + 10 = 90, and the centring that follows lands at
+        # ((120-108)/2, (90-80)/2).
         self.assertEqual((t1["x"], t1["y"], t1["width"], t1["height"]),
-                         (12, 8, 96, 120))
+                         (6, 5, 108, 80))
 
     def test_the_reroute_persists_instead_of_recurring(self):
         # The re-route is itself a load-time geometry change, which is

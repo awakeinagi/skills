@@ -1852,9 +1852,28 @@ def fit_label_in(container, lbl):
     # count times the line box — and takes its own line-height default,
     # exactly as the walk this replaces did, because this is a MINTING
     # site and the label is about to carry that default.
-    wrapped = wrap_label_text(text, inner, fs)
+    # PER LINE, so a hard break the user typed survives. `wrap_label_text`
+    # splits on whitespace, which includes `\n`, so wrapping the whole
+    # string at once silently joins "aaa\nbbb\nccc" into one line — and
+    # the old code only escaped that by returning early whenever the
+    # label as written fitted. The client keeps hard breaks (`Id` wraps
+    # each line of `originalText` separately), so this must too;
+    # `TestStoredHeightMatchesThePaintedLineHeight` is what caught it,
+    # reading a stored height of 20 where the paint draws 96.
+    wrapped = "\n".join(wrap_label_text(ln, inner, fs)
+                        for ln in text.split("\n"))
     lbl["width"] = text_ink_width(wrapped, fs)
-    lbl["height"] = text_dims(wrapped, fs)[1]
+    # THE ELEMENT'S OWN SPACING when it has one, and `text_dims`' default
+    # when it does not — written as a branch rather than a literal so
+    # that whatever this file's default becomes flows through here
+    # untouched. This function used to escape the question by returning
+    # early whenever the label as written fitted; now that it always
+    # writes the height, reserving at the default would under-measure a
+    # double-spaced label by a third (a 3-line label at `lineHeight: 2.0`
+    # paints 96px and read 60).
+    lh = lbl.get("lineHeight")
+    lbl["height"] = (text_dims(wrapped, fs, lh) if lh
+                     else text_dims(wrapped, fs))[1]
     # `autoResize` is left ALONE. On a bound label the client ignores it
     # for the wrap and reads it only to decide whether to copy the
     # measured width back onto the element — which is what we just

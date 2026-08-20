@@ -4950,12 +4950,22 @@ class TestStoreIntegrity(unittest.TestCase):
         was checked against the new number deliberately rather than
         assumed past it: a 400px label in a 120px box trips any rule
         either constant could express, so the flip below stayed earned.
+
+        TASK-TEXT-TRUTH moved the resize itself, 136 -> 90, and the same
+        care was taken. The scene still trips the loader's guard by a
+        mile, so ART-011 still fires and the pin below is still earned;
+        what changed is what the refit LEAVES, and it changed because
+        both halves of the arithmetic became the client's. The label
+        wraps at the client's cap (120 - 10 = 110) instead of this file's
+        old `width - 24` = 96, so the text takes 4 lines rather than 6 —
+        80px instead of 120 — and the box grows by the client's own rule
+        (+10 on a rectangle) rather than the +16 written here. 80 + 10.
         """
         st = self._load({"a": _OVERSIZED_LABEL_ARTIFACT},
                         {"0001-x": _GOOD_SAVE})
         self.assertIn("ART-011", {i.get("code") for i in st.issues})
         n1 = next(e for e in st.scenes["a"] if e["id"] == "n1")
-        self.assertEqual(n1["height"], 136)
+        self.assertEqual(n1["height"], 90)
 
     # -- Two CLASS pins from the v0.9 Task-18 cycle (2026-08-14), written
     # from third hands. The instances are fixed and covered by the tests
@@ -5004,11 +5014,10 @@ class TestStoreIntegrity(unittest.TestCase):
         no-op path is caught the day it is added.
 
         The scene is a DECLINED refit, per the Task-18 disclosure that
-        the claim must be entirely fictional: an 86px label on a 90x60
-        diamond is wide enough that the loader calls the fitter, and the
-        fitter then finds no wrap that sits better than the label as
-        written and returns having changed nothing. A repair filed there
-        could point at no changed byte.
+        the claim must be entirely fictional: a label wide enough that
+        the loader calls the fitter, where the loader then puts
+        everything back and files nothing. A repair filed there could
+        point at no changed byte.
 
         Getting that scene took measuring rather than reasoning. My
         first attempt used a label that comfortably fits, which never
@@ -5016,26 +5025,45 @@ class TestStoreIntegrity(unittest.TestCase):
         max(60, cont.width - 16)` — so no mutation of the repair guard
         could have made it fire, and the test would have been green
         forever while proving nothing. The pin below is therefore
-        asserted with its own premise: the fitter was reached, and it
-        declined.
+        asserted with its own premise: the fitter was reached, and the
+        loader declined.
+
+        THE SCENE MOVED IN TASK-TEXT-TRUTH AND THE RULE DID NOT, which
+        is the distinction worth reading before assuming this was
+        weakened. What "declined" MEANS changed: it used to be "the
+        fitter compared wraps and found none better than the label as
+        written", and the client-aware fitter has nothing to compare —
+        the client wraps to one width and that is the answer, so it
+        always re-measures. The decline now lives in the loader, whose
+        rule is that it may only act when the BOX has to change.
+
+        So the old scene stopped declining, for a reason that is
+        correct rather than convenient: on a 90px-wide diamond the
+        client caps bound text at `round(90/2) - 10` = 35px, and
+        'to compose' cannot reach that on one line at any wrap, so the
+        box genuinely does have to grow and the refit is real. The
+        replacement is the tearsheet's own shape — a 153px label in a
+        160x64 rectangle, cap 150, which wraps to one 120px line inside
+        a box already deep enough — so the fitter is still reached and
+        the loader still has nothing to persist.
         """
         body = json.dumps({"type": "excalidraw", "version": 2, "elements": [
-            {"id": "n1", "type": "diamond", "x": 0, "y": 0, "width": 90,
-             "height": 60, "customData": {"role": "node"},
+            {"id": "n1", "type": "rectangle", "x": 0, "y": 0, "width": 160,
+             "height": 64, "customData": {"role": "node"},
              "boundElements": [{"id": "t1", "type": "text"}]},
-            {"id": "t1", "type": "text", "x": 2, "y": 20, "width": 86,
-             "height": 20, "text": "to compose",
-             "originalText": "to compose", "fontSize": 16,
+            {"id": "t1", "type": "text", "x": 2, "y": 20, "width": 153,
+             "height": 20, "text": "Pull market data",
+             "originalText": "Pull market data", "fontSize": 16,
              "containerId": "n1", "textAlign": "center"}]})
         st = self._load({"a": body}, {"0001-x": _GOOD_SAVE})
         node = next(e for e in st.scenes["a"] if e["id"] == "n1")
         label = next(e for e in st.scenes["a"] if e["id"] == "t1")
         self.assertGreater(
-            86, max(60, node["width"] - 16),
+            153, max(60, node["width"] - 16),
             "the loader's own guard did not admit this label, so the "
             "fitter was never reached and this scene proves nothing")
-        self.assertEqual((node["width"], node["height"]), (90, 60))
-        self.assertEqual((label["width"], label["height"]), (86, 20))
+        self.assertEqual((node["width"], node["height"]), (160, 64))
+        self.assertEqual((label["width"], label["height"]), (153, 20))
         self.assertEqual(
             [(i["code"], i.get("repaired")) for i in st.issues], [],
             "the fitter declined and changed nothing, and a repair was "
