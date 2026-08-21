@@ -1,0 +1,1371 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "sl-var-track",
+     "kind": "line",
+     "label": "sl-var-track",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "sl-var-track"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [
+      "strokeColor"
+     ],
+     "consequence_of": null,
+     "id": "sl-conf-track",
+     "kind": "line",
+     "label": "sl-conf-track",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "reordered": {
+       "label": "sl-conf-track"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeColor"
+       ],
+       "low_signal": true
+      }
+     },
+     "verb": "restyled"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "nav",
+     "kind": "nav",
+     "label": "Argus — Admin Console",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Argus — Admin Console"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-sources",
+     "kind": "block",
+     "label": "Data sources",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Data sources"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-market",
+     "kind": "checkbox",
+     "label": "Market feed (15-min bars)",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Market feed (15-min bars)"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-edgar",
+     "kind": "checkbox",
+     "label": "SEC EDGAR filings",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "SEC EDGAR filings"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-news",
+     "kind": "checkbox",
+     "label": "News sentiment stream",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "News sentiment stream"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-portfolio",
+     "kind": "checkbox",
+     "label": "Portfolio DB",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Portfolio DB"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-macro",
+     "kind": "checkbox",
+     "label": "Macro calendar",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Macro calendar"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-schedule",
+     "kind": "block",
+     "label": "Schedule",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Schedule"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "in-schedule",
+     "kind": "input",
+     "label": "Run at",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Run at"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-thresholds",
+     "kind": "block",
+     "label": "Thresholds",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Thresholds"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sl-var",
+     "kind": "slider",
+     "label": "Risk alert VaR",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Risk alert VaR"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "in-var",
+     "kind": "input",
+     "label": "current",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "current"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sl-conf",
+     "kind": "slider",
+     "label": "Signal confidence",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Signal confidence"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "in-conf",
+     "kind": "input",
+     "label": "current",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "current"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-pipelines",
+     "kind": "block",
+     "label": "Pipelines",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Pipelines"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pl-sentiment",
+     "kind": "block",
+     "label": "Sentiment scorer",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Sentiment scorer"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-sentiment",
+     "kind": "button",
+     "label": "rerun",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "rerun"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pl-fundamentals",
+     "kind": "block",
+     "label": "Fundamentals ratios",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Fundamentals ratios"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-fundamentals",
+     "kind": "button",
+     "label": "rerun",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "rerun"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pl-technical",
+     "kind": "block",
+     "label": "Technical signals",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Technical signals"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-technical",
+     "kind": "button",
+     "label": "rerun",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "rerun"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pl-insider",
+     "kind": "block",
+     "label": "Insider-cluster detector",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Insider-cluster detector"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-insider",
+     "kind": "button",
+     "label": "rerun",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "rerun"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-all",
+     "kind": "button",
+     "label": "Re-run ALL with current settings",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Re-run ALL with current settings"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-lastruns",
+     "kind": "block",
+     "label": "Last runs",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Last runs"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "run-today",
+     "kind": "block",
+     "label": "Today 06:00 — 4/4 ok — 3m12s",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Today 06:00 — 4/4 ok — 3m12s"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "run-yesterday",
+     "kind": "block",
+     "label": "Yesterday — 1 warning: EDGAR lag",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "Yesterday — 1 warning: EDGAR lag"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-d04517fc",
+     "kind": "rectangle",
+     "label": "off — noisy",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "off — noisy"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-market-box",
+     "kind": "rectangle",
+     "label": "cb-market-box",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-market-box"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-market-chk",
+     "kind": "line",
+     "label": "cb-market-chk",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-market-chk"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-edgar-box",
+     "kind": "rectangle",
+     "label": "cb-edgar-box",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-edgar-box"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-edgar-chk",
+     "kind": "line",
+     "label": "cb-edgar-chk",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-edgar-chk"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-news-box",
+     "kind": "rectangle",
+     "label": "cb-news-box",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-news-box"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-news-chk",
+     "kind": "line",
+     "label": "cb-news-chk",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-news-chk"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-portfolio-box",
+     "kind": "rectangle",
+     "label": "cb-portfolio-box",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-portfolio-box"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-portfolio-chk",
+     "kind": "line",
+     "label": "cb-portfolio-chk",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-portfolio-chk"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "cb-macro-box",
+     "kind": "rectangle",
+     "label": "cb-macro-box",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "cb-macro-box"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "in-schedule-value",
+     "kind": "text",
+     "label": "weekdays 06:00, before open",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "weekdays 06:00, before open"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sl-var-thumb",
+     "kind": "rectangle",
+     "label": "sl-var-thumb",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "sl-var-thumb"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "in-var-value",
+     "kind": "text",
+     "label": "2.5%",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "2.5%"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sl-conf-thumb",
+     "kind": "rectangle",
+     "label": "sl-conf-thumb",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "sl-conf-thumb"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "in-conf-value",
+     "kind": "text",
+     "label": "0.70",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "0.70"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "sl-var-track",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#b8b2a5",
+       "to": "#8d877a"
+      }
+     ],
+     "id": "sl-conf-track",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "screen-console",
+      "cb-market-box",
+      "cb-market-chk",
+      "cb-edgar-box",
+      "cb-edgar-chk",
+      "cb-news-box",
+      "cb-news-chk",
+      "cb-portfolio-box",
+      "cb-portfolio-chk",
+      "cb-macro-box",
+      "in-schedule-value",
+      "sl-var-track",
+      "sl-var-thumb",
+      "in-var-value",
+      "sl-conf-track",
+      "sl-conf-thumb",
+      "in-conf-value",
+      "nav",
+      "panel-sources",
+      "cb-market",
+      "cb-edgar",
+      "cb-news",
+      "cb-portfolio",
+      "cb-macro",
+      "panel-schedule",
+      "in-schedule",
+      "panel-thresholds",
+      "sl-var",
+      "in-var",
+      "sl-conf",
+      "in-conf",
+      "panel-pipelines",
+      "pl-sentiment",
+      "btn-rerun-sentiment",
+      "pl-fundamentals",
+      "btn-rerun-fundamentals",
+      "pl-technical",
+      "btn-rerun-technical",
+      "pl-insider",
+      "btn-rerun-insider",
+      "btn-rerun-all",
+      "panel-lastruns",
+      "run-today",
+      "run-yesterday",
+      "usernote-d04517fc",
+      "nav-label",
+      "panel-sources-label",
+      "cb-market-label",
+      "cb-edgar-label",
+      "cb-news-label",
+      "cb-portfolio-label",
+      "cb-macro-label",
+      "panel-schedule-label",
+      "in-schedule-label",
+      "panel-thresholds-label",
+      "sl-var-label",
+      "in-var-label",
+      "sl-conf-label",
+      "in-conf-label",
+      "panel-pipelines-label",
+      "pl-sentiment-label",
+      "btn-rerun-sentiment-label",
+      "pl-fundamentals-label",
+      "btn-rerun-fundamentals-label",
+      "pl-technical-label",
+      "btn-rerun-technical-label",
+      "pl-insider-label",
+      "btn-rerun-insider-label",
+      "btn-rerun-all-label",
+      "panel-lastruns-label",
+      "run-today-label",
+      "run-yesterday-label",
+      "pin-source-blast-radius",
+      "pin-rerun-all-visibility",
+      "usernote-d04517fc-t"
+     ],
+     "moved": [
+      "nav",
+      "panel-sources",
+      "cb-market",
+      "cb-edgar",
+      "cb-news",
+      "cb-portfolio",
+      "cb-macro",
+      "panel-schedule",
+      "in-schedule",
+      "panel-thresholds",
+      "sl-var",
+      "in-var",
+      "sl-conf",
+      "in-conf",
+      "panel-pipelines",
+      "pl-sentiment",
+      "btn-rerun-sentiment",
+      "pl-fundamentals",
+      "btn-rerun-fundamentals",
+      "pl-technical",
+      "btn-rerun-technical",
+      "pl-insider",
+      "btn-rerun-insider",
+      "btn-rerun-all",
+      "panel-lastruns",
+      "run-today",
+      "run-yesterday",
+      "usernote-d04517fc",
+      "cb-market-box",
+      "cb-market-chk",
+      "cb-edgar-box",
+      "cb-edgar-chk",
+      "cb-news-box",
+      "cb-news-chk",
+      "cb-portfolio-box",
+      "cb-portfolio-chk",
+      "cb-macro-box",
+      "in-schedule-value",
+      "sl-var-track",
+      "sl-var-thumb",
+      "in-var-value",
+      "sl-conf-track",
+      "sl-conf-thumb",
+      "in-conf-value"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-console",
+      "nav",
+      "panel-sources",
+      "cb-market",
+      "cb-edgar",
+      "cb-news",
+      "cb-portfolio",
+      "cb-macro",
+      "panel-schedule",
+      "in-schedule",
+      "panel-thresholds",
+      "sl-var",
+      "in-var",
+      "sl-conf",
+      "in-conf",
+      "panel-pipelines",
+      "pl-sentiment",
+      "btn-rerun-sentiment",
+      "pl-fundamentals",
+      "btn-rerun-fundamentals",
+      "pl-technical",
+      "btn-rerun-technical",
+      "pl-insider",
+      "btn-rerun-insider",
+      "btn-rerun-all",
+      "panel-lastruns",
+      "run-today",
+      "run-yesterday",
+      "usernote-d04517fc",
+      "cb-market-box",
+      "cb-market-chk",
+      "cb-edgar-box",
+      "cb-edgar-chk",
+      "cb-news-box",
+      "cb-news-chk",
+      "cb-portfolio-box",
+      "cb-portfolio-chk",
+      "cb-macro-box",
+      "in-schedule-value",
+      "sl-var-track",
+      "sl-var-thumb",
+      "in-var-value",
+      "sl-conf-track",
+      "sl-conf-thumb",
+      "in-conf-value",
+      "nav-label",
+      "panel-sources-label",
+      "cb-market-label",
+      "cb-edgar-label",
+      "cb-news-label",
+      "cb-portfolio-label",
+      "cb-macro-label",
+      "panel-schedule-label",
+      "in-schedule-label",
+      "panel-thresholds-label",
+      "sl-var-label",
+      "in-var-label",
+      "sl-conf-label",
+      "in-conf-label",
+      "panel-pipelines-label",
+      "pl-sentiment-label",
+      "btn-rerun-sentiment-label",
+      "pl-fundamentals-label",
+      "btn-rerun-fundamentals-label",
+      "pl-technical-label",
+      "btn-rerun-technical-label",
+      "pl-insider-label",
+      "btn-rerun-insider-label",
+      "btn-rerun-all-label",
+      "panel-lastruns-label",
+      "run-today-label",
+      "run-yesterday-label",
+      "pin-source-blast-radius",
+      "pin-rerun-all-visibility",
+      "usernote-d04517fc-t"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "sl-var-track",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "attrs": [
+      "strokeColor"
+     ],
+     "element": "sl-conf-track",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "element": "nav",
+     "fact": "reordered",
+     "label": "Argus — Admin Console"
+    },
+    {
+     "element": "panel-sources",
+     "fact": "reordered",
+     "label": "Data sources"
+    },
+    {
+     "element": "cb-market",
+     "fact": "reordered",
+     "label": "Market feed (15-min bars)"
+    },
+    {
+     "element": "cb-edgar",
+     "fact": "reordered",
+     "label": "SEC EDGAR filings"
+    },
+    {
+     "element": "cb-news",
+     "fact": "reordered",
+     "label": "News sentiment stream"
+    },
+    {
+     "element": "cb-portfolio",
+     "fact": "reordered",
+     "label": "Portfolio DB"
+    },
+    {
+     "element": "cb-macro",
+     "fact": "reordered",
+     "label": "Macro calendar"
+    },
+    {
+     "element": "panel-schedule",
+     "fact": "reordered",
+     "label": "Schedule"
+    },
+    {
+     "element": "in-schedule",
+     "fact": "reordered",
+     "label": "Run at"
+    },
+    {
+     "element": "panel-thresholds",
+     "fact": "reordered",
+     "label": "Thresholds"
+    },
+    {
+     "element": "sl-var",
+     "fact": "reordered",
+     "label": "Risk alert VaR"
+    },
+    {
+     "element": "in-var",
+     "fact": "reordered",
+     "label": "current"
+    },
+    {
+     "element": "sl-conf",
+     "fact": "reordered",
+     "label": "Signal confidence"
+    },
+    {
+     "element": "in-conf",
+     "fact": "reordered",
+     "label": "current"
+    },
+    {
+     "element": "panel-pipelines",
+     "fact": "reordered",
+     "label": "Pipelines"
+    },
+    {
+     "element": "pl-sentiment",
+     "fact": "reordered",
+     "label": "Sentiment scorer"
+    },
+    {
+     "element": "btn-rerun-sentiment",
+     "fact": "reordered",
+     "label": "rerun"
+    },
+    {
+     "element": "pl-fundamentals",
+     "fact": "reordered",
+     "label": "Fundamentals ratios"
+    },
+    {
+     "element": "btn-rerun-fundamentals",
+     "fact": "reordered",
+     "label": "rerun"
+    },
+    {
+     "element": "pl-technical",
+     "fact": "reordered",
+     "label": "Technical signals"
+    },
+    {
+     "element": "btn-rerun-technical",
+     "fact": "reordered",
+     "label": "rerun"
+    },
+    {
+     "element": "pl-insider",
+     "fact": "reordered",
+     "label": "Insider-cluster detector"
+    },
+    {
+     "element": "btn-rerun-insider",
+     "fact": "reordered",
+     "label": "rerun"
+    },
+    {
+     "element": "btn-rerun-all",
+     "fact": "reordered",
+     "label": "Re-run ALL with current settings"
+    },
+    {
+     "element": "panel-lastruns",
+     "fact": "reordered",
+     "label": "Last runs"
+    },
+    {
+     "element": "run-today",
+     "fact": "reordered",
+     "label": "Today 06:00 — 4/4 ok — 3m12s"
+    },
+    {
+     "element": "run-yesterday",
+     "fact": "reordered",
+     "label": "Yesterday — 1 warning: EDGAR lag"
+    },
+    {
+     "element": "usernote-d04517fc",
+     "fact": "reordered",
+     "label": "off — noisy"
+    },
+    {
+     "element": "cb-market-box",
+     "fact": "reordered",
+     "label": "cb-market-box"
+    },
+    {
+     "element": "cb-market-chk",
+     "fact": "reordered",
+     "label": "cb-market-chk"
+    },
+    {
+     "element": "cb-edgar-box",
+     "fact": "reordered",
+     "label": "cb-edgar-box"
+    },
+    {
+     "element": "cb-edgar-chk",
+     "fact": "reordered",
+     "label": "cb-edgar-chk"
+    },
+    {
+     "element": "cb-news-box",
+     "fact": "reordered",
+     "label": "cb-news-box"
+    },
+    {
+     "element": "cb-news-chk",
+     "fact": "reordered",
+     "label": "cb-news-chk"
+    },
+    {
+     "element": "cb-portfolio-box",
+     "fact": "reordered",
+     "label": "cb-portfolio-box"
+    },
+    {
+     "element": "cb-portfolio-chk",
+     "fact": "reordered",
+     "label": "cb-portfolio-chk"
+    },
+    {
+     "element": "cb-macro-box",
+     "fact": "reordered",
+     "label": "cb-macro-box"
+    },
+    {
+     "element": "in-schedule-value",
+     "fact": "reordered",
+     "label": "weekdays 06:00, before open"
+    },
+    {
+     "element": "sl-var-track",
+     "fact": "reordered",
+     "label": "sl-var-track"
+    },
+    {
+     "element": "sl-var-thumb",
+     "fact": "reordered",
+     "label": "sl-var-thumb"
+    },
+    {
+     "element": "in-var-value",
+     "fact": "reordered",
+     "label": "2.5%"
+    },
+    {
+     "element": "sl-conf-track",
+     "fact": "reordered",
+     "label": "sl-conf-track"
+    },
+    {
+     "element": "sl-conf-thumb",
+     "fact": "reordered",
+     "label": "sl-conf-thumb"
+    },
+    {
+     "element": "in-conf-value",
+     "fact": "reordered",
+     "label": "0.70"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "screen-console",
+      "nav",
+      "panel-sources",
+      "cb-market",
+      "cb-edgar",
+      "cb-news",
+      "cb-portfolio",
+      "cb-macro",
+      "panel-schedule",
+      "in-schedule",
+      "panel-thresholds",
+      "sl-var",
+      "in-var",
+      "sl-conf",
+      "in-conf",
+      "panel-pipelines",
+      "pl-sentiment",
+      "btn-rerun-sentiment",
+      "pl-fundamentals",
+      "btn-rerun-fundamentals",
+      "pl-technical",
+      "btn-rerun-technical",
+      "pl-insider",
+      "btn-rerun-insider",
+      "btn-rerun-all",
+      "panel-lastruns",
+      "run-today",
+      "run-yesterday",
+      "usernote-d04517fc",
+      "cb-market-box",
+      "cb-market-chk",
+      "cb-edgar-box",
+      "cb-edgar-chk",
+      "cb-news-box",
+      "cb-news-chk",
+      "cb-portfolio-box",
+      "cb-portfolio-chk",
+      "cb-macro-box",
+      "in-schedule-value",
+      "sl-var-track",
+      "sl-var-thumb",
+      "in-var-value",
+      "sl-conf-track",
+      "sl-conf-thumb",
+      "in-conf-value",
+      "nav-label",
+      "panel-sources-label",
+      "cb-market-label",
+      "cb-edgar-label",
+      "cb-news-label",
+      "cb-portfolio-label",
+      "cb-macro-label",
+      "panel-schedule-label",
+      "in-schedule-label",
+      "panel-thresholds-label",
+      "sl-var-label",
+      "in-var-label",
+      "sl-conf-label",
+      "in-conf-label",
+      "panel-pipelines-label",
+      "pl-sentiment-label",
+      "btn-rerun-sentiment-label",
+      "pl-fundamentals-label",
+      "btn-rerun-fundamentals-label",
+      "pl-technical-label",
+      "btn-rerun-technical-label",
+      "pl-insider-label",
+      "btn-rerun-insider-label",
+      "btn-rerun-all-label",
+      "panel-lastruns-label",
+      "run-today-label",
+      "run-yesterday-label",
+      "pin-source-blast-radius",
+      "pin-rerun-all-visibility",
+      "usernote-d04517fc-t"
+     ],
+     "moved": [
+      "nav",
+      "panel-sources",
+      "cb-market",
+      "cb-edgar",
+      "cb-news",
+      "cb-portfolio",
+      "cb-macro",
+      "panel-schedule",
+      "in-schedule",
+      "panel-thresholds",
+      "sl-var",
+      "in-var",
+      "sl-conf",
+      "in-conf",
+      "panel-pipelines",
+      "pl-sentiment",
+      "btn-rerun-sentiment",
+      "pl-fundamentals",
+      "btn-rerun-fundamentals",
+      "pl-technical",
+      "btn-rerun-technical",
+      "pl-insider",
+      "btn-rerun-insider",
+      "btn-rerun-all",
+      "panel-lastruns",
+      "run-today",
+      "run-yesterday",
+      "usernote-d04517fc",
+      "cb-market-box",
+      "cb-market-chk",
+      "cb-edgar-box",
+      "cb-edgar-chk",
+      "cb-news-box",
+      "cb-news-chk",
+      "cb-portfolio-box",
+      "cb-portfolio-chk",
+      "cb-macro-box",
+      "in-schedule-value",
+      "sl-var-track",
+      "sl-var-thumb",
+      "in-var-value",
+      "sl-conf-track",
+      "sl-conf-thumb",
+      "in-conf-value"
+     ],
+     "op": "reorder",
+     "order": [
+      "screen-console",
+      "cb-market-box",
+      "cb-market-chk",
+      "cb-edgar-box",
+      "cb-edgar-chk",
+      "cb-news-box",
+      "cb-news-chk",
+      "cb-portfolio-box",
+      "cb-portfolio-chk",
+      "cb-macro-box",
+      "in-schedule-value",
+      "sl-var-track",
+      "sl-var-thumb",
+      "in-var-value",
+      "sl-conf-track",
+      "sl-conf-thumb",
+      "in-conf-value",
+      "nav",
+      "panel-sources",
+      "cb-market",
+      "cb-edgar",
+      "cb-news",
+      "cb-portfolio",
+      "cb-macro",
+      "panel-schedule",
+      "in-schedule",
+      "panel-thresholds",
+      "sl-var",
+      "in-var",
+      "sl-conf",
+      "in-conf",
+      "panel-pipelines",
+      "pl-sentiment",
+      "btn-rerun-sentiment",
+      "pl-fundamentals",
+      "btn-rerun-fundamentals",
+      "pl-technical",
+      "btn-rerun-technical",
+      "pl-insider",
+      "btn-rerun-insider",
+      "btn-rerun-all",
+      "panel-lastruns",
+      "run-today",
+      "run-yesterday",
+      "usernote-d04517fc",
+      "nav-label",
+      "panel-sources-label",
+      "cb-market-label",
+      "cb-edgar-label",
+      "cb-news-label",
+      "cb-portfolio-label",
+      "cb-macro-label",
+      "panel-schedule-label",
+      "in-schedule-label",
+      "panel-thresholds-label",
+      "sl-var-label",
+      "in-var-label",
+      "sl-conf-label",
+      "in-conf-label",
+      "panel-pipelines-label",
+      "pl-sentiment-label",
+      "btn-rerun-sentiment-label",
+      "pl-fundamentals-label",
+      "btn-rerun-fundamentals-label",
+      "pl-technical-label",
+      "btn-rerun-technical-label",
+      "pl-insider-label",
+      "btn-rerun-insider-label",
+      "btn-rerun-all-label",
+      "panel-lastruns-label",
+      "run-today-label",
+      "run-yesterday-label",
+      "pin-source-blast-radius",
+      "pin-rerun-all-visibility",
+      "usernote-d04517fc-t"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "sl-conf-track",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#8d877a",
+       "to": "#b8b2a5"
+      }
+     ],
+     "id": "sl-var-track",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "admin-console",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 44,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1944455
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 45,
+ "round": 7,
+ "saved_at": "2026-08-17T21:39:08Z",
+ "selection_at_save": [],
+ "short_id": "d01a601",
+ "summary": {
+  "headline": "reordered Argus — Admin Console (+43 more)",
+  "suppressed": 2,
+  "verb_counts": {
+   "reordered": 44,
+   "restyled": 2
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": null
+}

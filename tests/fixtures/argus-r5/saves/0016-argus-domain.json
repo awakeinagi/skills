@@ -1,0 +1,189 @@
+{
+ "artifacts": {
+  "argus-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "r-run-pipeline",
+     "kind": "arrow",
+     "label": "has 3",
+     "ops": [],
+     "semantic": {
+      "cardinality_changed": {
+       "from": [
+        "4"
+       ],
+       "to": [
+        "3"
+       ]
+      },
+      "relationship_relabeled": {
+       "from": "has 4",
+       "to": "has 3"
+      },
+      "renamed": {
+       "from": "has 4",
+       "to": "has 3"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "pipeline",
+     "kind": "entity",
+     "label": "Pipeline",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Pipeline",
+       "text": "One source, end to end — your definition. **Three** of them: Market Feed, EDGAR,"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "One source, end to end — your definition. Four of them: Market Feed, EDGAR, News, Portfolio DB.\n\n'Rerun the EDGAR pipeline' means re-pull EDGAR and re-run everything hanging off it. That is the unit of rerun; nothing smaller, nothing larger."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "One source, end to end — your definition. **Three** of them: Market Feed, EDGAR, News.\n\nThe book was never one: it is not pulled and never gets switched off.\n\n'Rerun the EDGAR pipeline' means re-pull EDGAR and re-run everything hanging off it."
+       }
+      }
+     ],
+     "id": "pipeline",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "has 4",
+       "to": "has 3"
+      }
+     ],
+     "id": "r-run-pipeline-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "r-run-pipeline",
+     "fact": "renamed",
+     "from": "has 4",
+     "to": "has 3"
+    },
+    {
+     "element": "pipeline",
+     "fact": "tooltip_changed",
+     "label": "Pipeline",
+     "text": "One source, end to end — your definition. **Three** of them: Market Feed, EDGAR,"
+    },
+    {
+     "element": "r-run-pipeline",
+     "fact": "relationship_relabeled",
+     "from": "has 4",
+     "to": "has 3"
+    },
+    {
+     "element": "r-run-pipeline",
+     "fact": "cardinality_changed",
+     "from": [
+      "4"
+     ],
+     "to": [
+      "3"
+     ]
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "has 3",
+       "to": "has 4"
+      }
+     ],
+     "id": "r-run-pipeline-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "One source, end to end — your definition. **Three** of them: Market Feed, EDGAR, News.\n\nThe book was never one: it is not pulled and never gets switched off.\n\n'Rerun the EDGAR pipeline' means re-pull EDGAR and re-run everything hanging off it."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "One source, end to end — your definition. Four of them: Market Feed, EDGAR, News, Portfolio DB.\n\n'Rerun the EDGAR pipeline' means re-pull EDGAR and re-run everything hanging off it. That is the unit of rerun; nothing smaller, nothing larger."
+       }
+      }
+     ],
+     "id": "pipeline",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Domain model"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 15,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 16,
+ "round": 5,
+ "saved_at": "2026-08-10T07:23:35Z",
+ "selection_at_save": [],
+ "short_id": "679894f",
+ "summary": {
+  "headline": "cardinality 4 → 3 (+3 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "cardinality_changed": 1,
+   "relationship_relabeled": 1,
+   "renamed": 1,
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "three pipelines now, not four"
+}

@@ -11,7 +11,7 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "87cdc19c7f"
+    "routed": "9311fa8a42"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
@@ -40,7 +40,7 @@
      -160
     ],
     [
-     267,
+     240,
      -160
     ]
    ],
@@ -52,7 +52,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "run-trigger",
-    "focus": -0.333,
+    "focus": 0.0,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -62,8 +62,8 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 267,
-   "x": 133,
+   "width": 240,
+   "x": 160,
    "y": 272
   },
   {
@@ -73,19 +73,19 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "3fabbb11d7"
+    "routed": "6aaaa8da57"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "sec-edgar",
-    "focus": 0.0,
+    "focus": 0.337,
     "gap": 6
    },
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 0,
+   "height": 23,
    "id": "t-trigger-edgar",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -98,8 +98,12 @@
      0
     ],
     [
-     213,
+     217,
      0
+    ],
+    [
+     217,
+     -23
     ]
    ],
    "roughness": 1,
@@ -108,7 +112,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "run-trigger",
-    "focus": 0.333,
+    "focus": -0.342,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -118,9 +122,9 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 213,
-   "x": 187,
-   "y": 272
+   "width": 217,
+   "x": 236,
+   "y": 327
   },
   {
    "angle": 0,
@@ -129,19 +133,19 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "3db3d9e6ae"
+    "routed": "12bca18171"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "news-stream",
-    "focus": 0.0,
+    "focus": -0.337,
     "gap": 6
    },
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 0,
+   "height": 23,
    "id": "t-trigger-news",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -154,8 +158,12 @@
      0
     ],
     [
-     267,
+     217,
      0
+    ],
+    [
+     217,
+     23
     ]
    ],
    "roughness": 1,
@@ -164,7 +172,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "run-trigger",
-    "focus": -0.333,
+    "focus": 0.342,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -174,9 +182,9 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 267,
-   "x": 133,
-   "y": 432
+   "width": 217,
+   "x": 236,
+   "y": 377
   },
   {
    "angle": 0,
@@ -185,7 +193,7 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "fdd22ddcc9"
+    "routed": "8f2b8e2a9f"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
@@ -214,7 +222,7 @@
      160
     ],
     [
-     213,
+     240,
      160
     ]
    ],
@@ -226,7 +234,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "run-trigger",
-    "focus": 0.333,
+    "focus": 0.0,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -236,8 +244,8 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 213,
-   "x": 187,
+   "width": 240,
+   "x": 160,
    "y": 432
   },
   {
@@ -247,13 +255,13 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "172fc1560c"
+    "routed": "ad90620c5e"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "normalize",
-    "focus": -0.333,
+    "focus": 0.0,
     "gap": 6
    },
    "fillStyle": "solid",
@@ -272,11 +280,11 @@
      0
     ],
     [
-     213,
+     240,
      0
     ],
     [
-     213,
+     240,
      160
     ]
    ],
@@ -298,7 +306,7 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 213,
+   "width": 240,
    "x": 560,
    "y": 112
   },
@@ -309,19 +317,19 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "d361a74b29"
+    "routed": "fdd4c8f079"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "normalize",
-    "focus": 0.333,
+    "focus": 0.337,
     "gap": 6
    },
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 0,
+   "height": 21,
    "id": "t-edgar-enrich",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -334,8 +342,12 @@
      0
     ],
     [
-     267,
-     0
+     0,
+     21
+    ],
+    [
+     213,
+     21
     ]
    ],
    "roughness": 1,
@@ -344,7 +356,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "sec-edgar",
-    "focus": 0.0,
+    "focus": -0.337,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -354,9 +366,9 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 267,
-   "x": 560,
-   "y": 272
+   "width": 213,
+   "x": 507,
+   "y": 304
   },
   {
    "angle": 0,
@@ -365,19 +377,19 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "1db0e3a03e"
+    "routed": "f6edd3f15b"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "normalize",
-    "focus": -0.333,
+    "focus": -0.337,
     "gap": 6
    },
    "fillStyle": "solid",
    "frameId": null,
    "groupIds": [],
-   "height": 0,
+   "height": 21,
    "id": "t-news-enrich",
    "isDeleted": false,
    "lastCommittedPoint": null,
@@ -390,8 +402,12 @@
      0
     ],
     [
+     0,
+     -21
+    ],
+    [
      213,
-     0
+     -21
     ]
    ],
    "roughness": 1,
@@ -400,7 +416,7 @@
    "startArrowhead": null,
    "startBinding": {
     "elementId": "news-stream",
-    "focus": 0.0,
+    "focus": 0.337,
     "gap": 6
    },
    "strokeColor": "#1e1e1e",
@@ -411,8 +427,8 @@
    "version": 1,
    "versionNonce": 0,
    "width": 213,
-   "x": 560,
-   "y": 432
+   "x": 507,
+   "y": 400
   },
   {
    "angle": 0,
@@ -421,13 +437,13 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "6d89123fab"
+    "routed": "5f1be05ae1"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "normalize",
-    "focus": 0.333,
+    "focus": 0.0,
     "gap": 6
    },
    "fillStyle": "solid",
@@ -446,11 +462,11 @@
      0
     ],
     [
-     267,
+     240,
      0
     ],
     [
-     267,
+     240,
      -160
     ]
    ],
@@ -472,7 +488,7 @@
    "updated": 1,
    "version": 1,
    "versionNonce": 0,
-   "width": 267,
+   "width": 240,
    "x": 560,
    "y": 592
   },
@@ -488,7 +504,7 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "0ba68c5d43"
+    "routed": "f5c419de66"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
@@ -513,8 +529,8 @@
      0
     ],
     [
-     320,
-     0
+     0,
+     -48
     ],
     [
      320,
@@ -522,9 +538,7 @@
     ]
    ],
    "roughness": 1,
-   "roundness": {
-    "type": 2
-   },
+   "roundness": null,
    "seed": 1286279759,
    "startArrowhead": null,
    "startBinding": {
@@ -540,8 +554,8 @@
    "version": 1,
    "versionNonce": 0,
    "width": 320,
-   "x": 1840,
-   "y": 352
+   "x": 1760,
+   "y": 320
   },
   {
    "angle": 0,
@@ -667,7 +681,7 @@
    "customData": {
     "author": "agent",
     "role": "node",
-    "routed": "e26b896441"
+    "routed": "721894f093"
    },
    "elbowed": false,
    "endArrowhead": "arrow",
@@ -692,8 +706,8 @@
      0
     ],
     [
-     0,
-     48
+     320,
+     0
     ],
     [
      320,
@@ -701,9 +715,7 @@
     ]
    ],
    "roughness": 1,
-   "roundness": {
-    "type": 2
-   },
+   "roundness": null,
    "seed": 331878583,
    "startArrowhead": null,
    "startBinding": {
@@ -719,8 +731,8 @@
    "version": 1,
    "versionNonce": 0,
    "width": 320,
-   "x": 1760,
-   "y": 384
+   "x": 1840,
+   "y": 352
   },
   {
    "angle": 0,
@@ -1825,8 +1837,8 @@
    "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 86,
-   "x": 1981,
-   "y": 342
+   "x": 1694,
+   "y": 280
   },
   {
    "angle": 0,
@@ -1865,8 +1877,8 @@
    "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 163,
-   "x": 1814,
-   "y": 422
+   "x": 2101,
+   "y": 360
   },
   {
    "angle": 0,

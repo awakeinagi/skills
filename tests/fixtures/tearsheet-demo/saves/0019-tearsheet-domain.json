@@ -1,0 +1,1976 @@
+{
+ "artifacts": {
+  "tearsheet-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "startBinding",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-earnings-issuer",
+     "kind": "arrow",
+     "label": "reports",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-earnings-issuer"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "startBinding",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-earnings-section",
+     "kind": "arrow",
+     "label": "renders",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-earnings-section"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-instrument-issuer",
+     "kind": "arrow",
+     "label": "issued by",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-instrument-issuer"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-metric-section",
+     "kind": "arrow",
+     "label": "renders",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-metric-section"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-news-issuer",
+     "kind": "arrow",
+     "label": "about",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-news-issuer"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-position-instrument",
+     "kind": "arrow",
+     "label": "holds",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-position-instrument"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "startBinding",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-position-metric",
+     "kind": "arrow",
+     "label": "feeds",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-position-metric"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-price-instrument",
+     "kind": "arrow",
+     "label": "prices",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-price-instrument"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-price-metric",
+     "kind": "arrow",
+     "label": "feeds",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-price-metric"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-section-tearsheet",
+     "kind": "arrow",
+     "label": "part of",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-section-tearsheet"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "r-story-section",
+     "kind": "arrow",
+     "label": "renders",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "r-story-section"
+      }
+     },
+     "verb": "rerouted"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 333,
+       "to": 240
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 344,
+       "to": 420
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 130,
+       "to": 165
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         344,
+         -130
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -165
+        ],
+        [
+         420,
+         -165
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "18ee9d42c6"
+       }
+      }
+     ],
+     "id": "r-news-issuer",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 481,
+       "to": 193
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 225,
+       "to": 143
+      }
+     ],
+     "id": "r-news-issuer-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "earnings-event",
+        "focus": 0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "earnings-event",
+        "focus": -0.014,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "issuer",
+        "focus": 0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "issuer",
+        "focus": -0.013,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "a04e4da1bc"
+       }
+      }
+     ],
+     "id": "r-earnings-issuer",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1125,
+       "to": 1100
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 300,
+       "to": 335
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 280,
+       "to": 220
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 130,
+       "to": 200
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -280,
+         -130
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -196,
+         0
+        ],
+        [
+         -196,
+         -200
+        ],
+        [
+         -220,
+         -200
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "fdf2e5dd0e"
+       }
+      }
+     ],
+     "id": "r-instrument-issuer",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 942,
+       "to": 851
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 225,
+       "to": 223
+      }
+     ],
+     "id": "r-instrument-issuer-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "72b50bc97d"
+       }
+      }
+     ],
+     "id": "r-news-story",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1101,
+       "to": 1080
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 78,
+       "to": 20
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 130,
+       "to": 165
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         78,
+         -130
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -165
+        ],
+        [
+         20,
+         -165
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "f0f47d0dc6"
+       }
+      }
+     ],
+     "id": "r-position-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1116,
+       "to": 1055
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 425,
+       "to": 343
+      }
+     ],
+     "id": "r-position-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1348,
+       "to": 1380
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 117,
+       "to": 80
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 130,
+       "to": 165
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -117,
+         -130
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -165
+        ],
+        [
+         -80,
+         -165
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "8f2e6b9a89"
+       }
+      }
+     ],
+     "id": "r-price-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1262,
+       "to": 1356
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 425,
+       "to": 343
+      }
+     ],
+     "id": "r-price-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "position",
+        "focus": 0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "position",
+        "focus": 0.008,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "computed-metric",
+        "focus": 0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "computed-metric",
+        "focus": -0.001,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "86a44c20a8"
+       }
+      }
+     ],
+     "id": "r-position-metric",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1064,
+       "to": 1063
+      }
+     ],
+     "id": "r-position-metric-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1335,
+       "to": 1380
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 194,
+       "to": 170
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 150,
+       "to": 185
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -194,
+         150
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         185
+        ],
+        [
+         -170,
+         185
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "ed1134c953"
+       }
+      }
+     ],
+     "id": "r-price-metric",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1214,
+       "to": 1365
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 635,
+       "to": 727
+      }
+     ],
+     "id": "r-price-metric-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1022,
+       "to": 1095
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 229,
+       "to": 275
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 110,
+       "to": 145
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -229,
+         110
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         145
+        ],
+        [
+         -275,
+         145
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "a26449919f"
+       }
+      }
+     ],
+     "id": "r-metric-section",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 874,
+       "to": 1078
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 835,
+       "to": 907
+      }
+     ],
+     "id": "r-metric-section-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 282,
+       "to": 340
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 570,
+       "to": 535
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 396,
+       "to": 280
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 330,
+       "to": 400
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         396,
+         330
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         256,
+         0
+        ],
+        [
+         256,
+         400
+        ],
+        [
+         280,
+         400
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "f0e74b7326"
+       }
+      }
+     ],
+     "id": "r-story-section",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 446,
+       "to": 577
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 725,
+       "to": 731
+      }
+     ],
+     "id": "r-story-section-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "earnings-event",
+        "focus": 0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "earnings-event",
+        "focus": -0.003,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "section",
+        "focus": 0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "section",
+        "focus": 0.007,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "ee0b5f52e7"
+       }
+      }
+     ],
+     "id": "r-earnings-section",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 689,
+       "to": 690
+      }
+     ],
+     "id": "r-earnings-section-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 654,
+       "to": 620
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 970,
+       "to": 935
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 208,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 110,
+       "to": 145
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -208,
+         110
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -240,
+         0
+        ],
+        [
+         -240,
+         145
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "27f60045ad"
+       }
+      }
+     ],
+     "id": "r-section-tearsheet",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 516,
+       "to": 332
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 1015,
+       "to": 943
+      }
+     ],
+     "id": "r-section-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node"
+       },
+       "to": {
+        "role": "node",
+        "routed": "b020257153"
+       }
+      }
+     ],
+     "id": "r-tearsheet-run",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "arrow": "r-instrument-issuer",
+     "element": "r-instrument-issuer",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-metric-section",
+     "element": "r-metric-section",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-news-issuer",
+     "element": "r-news-issuer",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-position-instrument",
+     "element": "r-position-instrument",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-price-instrument",
+     "element": "r-price-instrument",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-price-metric",
+     "element": "r-price-metric",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-section-tearsheet",
+     "element": "r-section-tearsheet",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "r-story-section",
+     "element": "r-story-section",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "b020257153"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-tearsheet-run",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 332,
+       "to": 516
+      },
+      {
+       "attr": "y",
+       "from": 943,
+       "to": 1015
+      }
+     ],
+     "id": "r-section-tearsheet-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 620,
+       "to": 654
+      },
+      {
+       "attr": "y",
+       "from": 935,
+       "to": 970
+      },
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 208
+      },
+      {
+       "attr": "height",
+       "from": 145,
+       "to": 110
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -240,
+         0
+        ],
+        [
+         -240,
+         145
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -208,
+         110
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "27f60045ad"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-section-tearsheet",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 690,
+       "to": 689
+      }
+     ],
+     "id": "r-earnings-section-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "earnings-event",
+        "focus": -0.003,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "earnings-event",
+        "focus": 0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "section",
+        "focus": 0.007,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "section",
+        "focus": 0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "ee0b5f52e7"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-earnings-section",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 577,
+       "to": 446
+      },
+      {
+       "attr": "y",
+       "from": 731,
+       "to": 725
+      }
+     ],
+     "id": "r-story-section-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 340,
+       "to": 282
+      },
+      {
+       "attr": "y",
+       "from": 535,
+       "to": 570
+      },
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 396
+      },
+      {
+       "attr": "height",
+       "from": 400,
+       "to": 330
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         256,
+         0
+        ],
+        [
+         256,
+         400
+        ],
+        [
+         280,
+         400
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         396,
+         330
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "f0e74b7326"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-story-section",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1078,
+       "to": 874
+      },
+      {
+       "attr": "y",
+       "from": 907,
+       "to": 835
+      }
+     ],
+     "id": "r-metric-section-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1095,
+       "to": 1022
+      },
+      {
+       "attr": "width",
+       "from": 275,
+       "to": 229
+      },
+      {
+       "attr": "height",
+       "from": 145,
+       "to": 110
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         145
+        ],
+        [
+         -275,
+         145
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -229,
+         110
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "a26449919f"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-metric-section",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1365,
+       "to": 1214
+      },
+      {
+       "attr": "y",
+       "from": 727,
+       "to": 635
+      }
+     ],
+     "id": "r-price-metric-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1380,
+       "to": 1335
+      },
+      {
+       "attr": "width",
+       "from": 170,
+       "to": 194
+      },
+      {
+       "attr": "height",
+       "from": 185,
+       "to": 150
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         185
+        ],
+        [
+         -170,
+         185
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -194,
+         150
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "ed1134c953"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-price-metric",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1063,
+       "to": 1064
+      }
+     ],
+     "id": "r-position-metric-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "position",
+        "focus": 0.008,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "position",
+        "focus": 0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "computed-metric",
+        "focus": -0.001,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "computed-metric",
+        "focus": 0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "86a44c20a8"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-position-metric",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1356,
+       "to": 1262
+      },
+      {
+       "attr": "y",
+       "from": 343,
+       "to": 425
+      }
+     ],
+     "id": "r-price-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1380,
+       "to": 1348
+      },
+      {
+       "attr": "width",
+       "from": 80,
+       "to": 117
+      },
+      {
+       "attr": "height",
+       "from": 165,
+       "to": 130
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -165
+        ],
+        [
+         -80,
+         -165
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -117,
+         -130
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "8f2e6b9a89"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-price-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1055,
+       "to": 1116
+      },
+      {
+       "attr": "y",
+       "from": 343,
+       "to": 425
+      }
+     ],
+     "id": "r-position-instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1080,
+       "to": 1101
+      },
+      {
+       "attr": "width",
+       "from": 20,
+       "to": 78
+      },
+      {
+       "attr": "height",
+       "from": 165,
+       "to": 130
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -165
+        ],
+        [
+         20,
+         -165
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         78,
+         -130
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "f0f47d0dc6"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-position-instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "72b50bc97d"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-news-story",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 851,
+       "to": 942
+      },
+      {
+       "attr": "y",
+       "from": 223,
+       "to": 225
+      }
+     ],
+     "id": "r-instrument-issuer-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1100,
+       "to": 1125
+      },
+      {
+       "attr": "y",
+       "from": 335,
+       "to": 300
+      },
+      {
+       "attr": "width",
+       "from": 220,
+       "to": 280
+      },
+      {
+       "attr": "height",
+       "from": 200,
+       "to": 130
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         -196,
+         0
+        ],
+        [
+         -196,
+         -200
+        ],
+        [
+         -220,
+         -200
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         -280,
+         -130
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "fdf2e5dd0e"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-instrument-issuer",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "earnings-event",
+        "focus": -0.014,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "earnings-event",
+        "focus": 0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "issuer",
+        "focus": -0.013,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "issuer",
+        "focus": 0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "a04e4da1bc"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-earnings-issuer",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 193,
+       "to": 481
+      },
+      {
+       "attr": "y",
+       "from": 143,
+       "to": 225
+      }
+     ],
+     "id": "r-news-issuer-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 240,
+       "to": 333
+      },
+      {
+       "attr": "width",
+       "from": 420,
+       "to": 344
+      },
+      {
+       "attr": "height",
+       "from": 165,
+       "to": 130
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -165
+        ],
+        [
+         420,
+         -165
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         344,
+         -130
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "role": "node",
+        "routed": "18ee9d42c6"
+       },
+       "to": {
+        "role": "node"
+       }
+      }
+     ],
+     "id": "r-news-issuer",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "tearsheet-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Tearsheet Domain"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 18,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1934366
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 19,
+ "round": 17,
+ "saved_at": "2026-08-17T21:27:11Z",
+ "selection_at_save": [],
+ "short_id": "f6b0e08",
+ "summary": {
+  "headline": "rerouted r-instrument-issuer (+7 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "rerouted": 8
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "re-routed 8 of 11 legacy arrow(s): r-earnings-issuer: path unchanged; start/end re-aimed; r-earnings-section: path unchanged; end re-aimed; r-instrument-issuer: 2-point path becomes 4-point; r-metric-section: 2-point path becomes 3-point; r-news-issuer: 2-point path becomes 3-point; r-position-instrument: 2-point path becomes 3-point; r-position-metric: path unchanged; start re-aimed; r-price-instrument: 2-point path becomes 3-point; r-price-metric: 2-point path becomes 3-point; r-section-tearsheet: 2-point path becomes 3-point; r-story-section: 2-point path becomes 4-point — revert this save to put the old geometry back"
+}

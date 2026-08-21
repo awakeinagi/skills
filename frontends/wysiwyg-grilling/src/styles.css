@@ -27,10 +27,21 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 .app { display: flex; flex-direction: column; height: 100%; }
 .main { display: flex; flex: 1; min-height: 0; }
 .center { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.canvas-wrap { position: relative; flex: 1; min-height: 0; background: var(--paper); }
+/* `--leader-ink` rides with the background it is measured against, which
+   is the point of it: a contrast ratio is a fact about a PAIR, so the
+   ground and the ink that has to clear 3:1 on it belong in one place.
+   Painted by `.leader-lines line` further down; see there for the
+   measurements and for why this is two values rather than one. */
+.canvas-wrap {
+  position: relative; flex: 1; min-height: 0; background: var(--paper);
+  --leader-ink: #756f64;              /* 4.69:1 on --paper #faf8f2 */
+}
 /* dark canvas mode: only the drawing surface flips — the chrome around it
    is dark either way, so the wrap has to stop showing paper behind it */
-.canvas-wrap.dark { background: #121212; }
+.canvas-wrap.dark {
+  background: #121212;
+  --leader-ink: #9a9488;              /* 6.21:1 on #121212 */
+}
 .canvas-wrap .excalidraw { --color-primary: #4a6fc3; }
 
 /* ---------- round header ---------- */
@@ -321,12 +332,42 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 }
 .view-bar b { font-family: ui-monospace, monospace; }
 
-/* ---------- overlays: leader lines (annotation → target) ---------- */
+/* ---------- overlays: leader lines (annotation → target) ----------
+   A value PER THEME, and no `opacity`. The old rule was one hex at
+   `opacity: 0.6`, which is two problems: the canvas has a dark mode, and
+   a translucent stroke is not the colour it declares. WCAG 1.4.11 asks
+   3:1 of what a reader actually sees, so the alpha is folded into the
+   colour rather than sitting beside it — these two values ARE the
+   rendered ink.
+
+   Measured with canvas.py's own `contrast_ratio` + `composite_over`
+   (the arithmetic that governs the lint), against each theme's real
+   ground:
+
+     was  #b8b2a5 @0.6  on --paper #faf8f2 -> 1.48:1   FAIL
+     was  #b8b2a5 @0.6  on dark    #121212 -> 3.91:1   pass
+     now  #756f64 @1.0  on --paper #faf8f2 -> 4.69:1   pass
+     now  #9a9488 @1.0  on dark    #121212 -> 6.21:1   pass
+
+   Two values and not one, because neither serves both grounds: #756f64
+   reads 3.76:1 on dark and #9a9488 reads 2.84:1 on light. That is also
+   why the naive fix — syncing this to canvas.py's FURNITURE_INK — was
+   declined at task 30: it would have taken dark mode from 3.91:1 to
+   2.65:1, PASSING to FAILING, to improve a light mode that still would
+   not have reached 3:1 at 0.6 opacity.
+
+   NOT COUPLED to `FURNITURE_INK`. That constant governs composed scene
+   furniture — elements that get linted and exported onto the always-
+   light SVG ground. A leader line is a CSS overlay: never a scene
+   element, never linted, never exported. The old hex was shared by
+   history, not by role, and these deliberately are not it. */
 .leader-lines {
   position: absolute; inset: 0; width: 100%; height: 100%;
   pointer-events: none; z-index: 25;
 }
-.leader-lines line { stroke: #b8b2a5; stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.6; }
+.leader-lines line {
+  stroke: var(--leader-ink); stroke-width: 1; stroke-dasharray: 4 4;
+}
 
 /* ---------- overlays: onion skin (revision diff) ---------- */
 .ghost-layer {
@@ -587,6 +628,25 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
   border-radius: 50%; background: #6aa2e8; opacity: 0.75;
   pointer-events: none;
 }
+
+/* ---------- the thumb-tack: a pinned element's only affordance -------
+   `pointer-events: auto` is stated rather than inherited: this badge is
+   a BUTTON, and the one canvas overlay in this app whose buttons were
+   left to inherit ended up inside the canvas's stacking context behind
+   pointer-events gating, where every click fell through to Excalidraw
+   (v0.3 regression). Deliberately NOT `--pin`, which is the ❓ question
+   glyph's colour — a pin here is a position, not a question. */
+.pin-tack {
+  position: absolute; z-index: 30; pointer-events: auto; cursor: pointer;
+  transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; font-size: 12px; line-height: 1;
+  border-radius: 50%; border: 2px solid #fff; background: var(--chrome-2);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+}
+.pin-tack:hover { transform: translate(-50%, -50%) scale(1.14); }
+/* the multi-selection's group tack, on the union box's corner */
+.pin-tack.group { border-style: dashed; }
 
 /* injected tooltip items in Excalidraw's native context menu inherit its
    own .context-menu-item styling; only the hover needs a nudge */

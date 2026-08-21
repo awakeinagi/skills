@@ -1,0 +1,285 @@
+{
+ "artifacts": {
+  "tuesday-triage": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "rerun-065",
+     "kind": "transform",
+     "label": "re-filter at 0.65",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "rerun at 0.65",
+       "to": "re-filter at 0.65"
+      },
+      "tooltip_changed": {
+       "label": "re-filter at 0.65",
+       "text": "You wrote **\"rerun at 0.65\"** and confirmed it is desk shorthand: you move the s"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-rerun-at-065",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "\"Rerun at 0.65\" — but we just recorded that thresholds don't rerun anything. Which of us is wrong?",
+       "role": "pin",
+       "status": "open",
+       "target": "rerun-065"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-rerun-at-065",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 412228300,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 668,
+      "y": 752
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "0.65 is a threshold — and we recorded in ADR 0001 that thresholds do not rerun anything, they re-filter what already exists.\n\nSo either this step is a slider move you call a rerun, or the ADR is missing something."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "You wrote **\"rerun at 0.65\"** and confirmed it is desk shorthand: you move the slider and look again. Nothing recomputes.\n\nRelabelled because the next person to read this diagram will take 'rerun' literally, and ADR 0001 says thresholds never recompute. Your phrasing is preserved here."
+       }
+      }
+     ],
+     "id": "rerun-065",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 512,
+       "to": 504
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 96,
+       "to": 113
+      },
+      {
+       "attr": "text",
+       "from": "rerun at 0.65",
+       "to": "re-filter at 0.65"
+      }
+     ],
+     "id": "rerun-065-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "rerun-065",
+     "fact": "renamed",
+     "from": "rerun at 0.65",
+     "to": "re-filter at 0.65"
+    },
+    {
+     "element": "pin-rerun-at-065",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "rerun-065",
+     "fact": "tooltip_changed",
+     "label": "re-filter at 0.65",
+     "text": "You wrote **\"rerun at 0.65\"** and confirmed it is desk shorthand: you move the s"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 504,
+       "to": 512
+      },
+      {
+       "attr": "width",
+       "from": 113,
+       "to": 96
+      },
+      {
+       "attr": "text",
+       "from": "re-filter at 0.65",
+       "to": "rerun at 0.65"
+      }
+     ],
+     "id": "rerun-065-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "You wrote **\"rerun at 0.65\"** and confirmed it is desk shorthand: you move the slider and look again. Nothing recomputes.\n\nRelabelled because the next person to read this diagram will take 'rerun' literally, and ADR 0001 says thresholds never recompute. Your phrasing is preserved here."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "0.65 is a threshold — and we recorded in ADR 0001 that thresholds do not rerun anything, they re-filter what already exists.\n\nSo either this step is a slider move you call a rerun, or the ADR is missing something."
+       }
+      }
+     ],
+     "id": "rerun-065",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "\"Rerun at 0.65\" — but we just recorded that thresholds don't rerun anything. Which of us is wrong?",
+       "role": "pin",
+       "status": "open",
+       "target": "rerun-065"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-rerun-at-065",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 412228300,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 668,
+      "y": 752
+     },
+     "index": 36,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "tuesday-triage",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Tuesday triage — when the numbers look off"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 21,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 23,
+ "round": 6,
+ "saved_at": "2026-08-10T07:39:28Z",
+ "selection_at_save": [],
+ "short_id": "ff014ab",
+ "summary": {
+  "headline": "renamed 'rerun at 0.65' → 're-filter at 0.65' (+2 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "pin_deleted": 1,
+   "renamed": 1,
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "your ruling: it's a slider move, not a rerun — relabelled for whoever reads this next"
+}

@@ -22,13 +22,16 @@ Mention at most one per round, when its moment arrives. A tour is noise.
 | **⇓ png** | Exports the current artifact as PNG, real Excalidraw rendering. | They want to paste a drawing into a doc or a ticket. **Carries no tooltips** — for handover use `canvas.py export --with-footnotes` instead. |
 | **⤢ fit** | Zooms the artifact to fit. | They say they can't see it all. |
 | **▶ walk** | **Steps through a wireframe's screen frames like a prototype** — ←/→ to move, Esc to exit. Enabled only on artifacts that have screen frames. | The single most under-used control. Say it when a wireframe grows a second state (normal / stale / error), and at handover: "open the dashboard and press ▶ walk" beats four static frames. |
-| **↺ revert** | Undoes the last save. | They regret a save. It is theirs to use; don't pre-empt it. |
+| **↺ revert** | **Discards their UNSAVED edits** and redraws the currently selected history node. It does not undo a save — its own modal says "Nothing already saved is touched". | They want to throw away the last few minutes of drawing. It is theirs to use; don't pre-empt it. If they regret a *save*, that is `canvas.py revert --to N --apply` and it is yours to run. |
 | **Save** | Commits their edits. Each Save is a commit; nothing they do is destructive. | Worth saying once, early, to a nervous user. |
 
 **per-round / pulled** is a toggle *they* own. `per-round` lands your revisions
 on a clean canvas; `pulled` holds everything behind the banner until they ask.
 If they flip to `pulled`, they are telling you to stop moving things under
-them — read it as a request for a still canvas, not as disengagement.
+them — read it as a request for a still canvas, not as disengagement. Which
+one is in force is `CADENCE=` on `canvas.py start` and `canvas.py status`;
+they can flip it mid-session, so a `QUEUED=true` you did not expect is that
+toggle moving, not a bug.
 
 ## The rail (right-hand column)
 
@@ -38,7 +41,11 @@ modal carrying the `detail` and `examples` you wrote, which is the only
 out-of-band briefing they get, so write them. **Layout** — the lint findings
 for the current artifact. **Branches** and **Save history** — the commit
 timeline; entries are clickable (time travel), and the bookmark button labels
-a save ("v1 baseline").
+a save ("v1 baseline"). **Time travel is a read-only view** — clicking an old
+entry shows it, and if they then Save, that save FORKS onto a new branch
+rather than moving main back. Putting an old drawing back on main is
+`canvas.py revert --to N --apply`, which re-commits that save's state forward
+as a new save; nothing in the timeline does it and neither does ↺ revert.
 
 ## On the canvas itself
 
@@ -49,6 +56,16 @@ a save ("v1 baseline").
   rename detectable as a rename rather than a delete-plus-add.
 - **Drag anything.** A locked element is a guardrail, not a wall — they can
   right-click to unlock, and that is always legitimate.
+- **Pin to Canvas** (`locked: true`) is how they say *this stays where I put
+  it*. Since v0.9 it binds the TOOL as well as the drag: nothing on the
+  server repositions a pinned element, and your ops on one come back
+  refused with the rest of the batch still applied. What it does NOT
+  protect is deletion by their own hand, or bookkeeping — a pinned arrow
+  whose target is deleted loses the dead binding and keeps its position.
+- **Ungrouping a widget** (Ctrl+Shift+G) is deliberate and permanent as far
+  as you are concerned: the save narrates it, the parts stop moving with
+  the body, and nothing re-groups them. Don't offer to "fix" it; ask what
+  they wanted the parts to do separately.
 - **The pending-revision banner** carries *Apply now*, *After I save* and
   *Discard*. Discard is theirs; if they use it, the revision is gone and you
   are told. Don't re-queue the same thing — ask what was wrong with it.

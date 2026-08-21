@@ -1,0 +1,388 @@
+{
+ "artifacts": {
+  "argus-domain": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "instrument",
+     "kind": "entity",
+     "label": "Name",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "entity_renamed": {
+       "from": "Instrument",
+       "glossary_challenge": true,
+       "to": "Name"
+      },
+      "renamed": {
+       "from": "Instrument",
+       "to": "Name"
+      },
+      "tooltip_changed": {
+       "label": "Name",
+       "text": "**Your word.** What everyone says on the desk — the company, not the listing.\n\nT"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-instrument-name",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "assessment",
+     "kind": "entity",
+     "label": "Assessment",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Assessment",
+       "text": "What the Aggregator produces for one Name in one Run: the four Signals combined,"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What do you and the analyst actually call this? I've guessed 'Instrument'.",
+       "role": "pin",
+       "status": "open",
+       "target": "instrument"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-instrument-name",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1288131518,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 212
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**My word, not yours.** What the Aggregator produces for one Instrument in one Run: the four Signals combined, post-Contrarian-Screen.\n\nIt needs a name because it is the thing the Risk Model reads, the thing the Reports render, and the thing the confidence threshold filters. Right now it has no name and so it keeps getting called 'the signal', which is a different object."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "What the Aggregator produces for one Name in one Run: the four Signals combined, after the Contrarian Screen.\n\nConfirmed as a distinct concept from Signal — you said this is exactly the confusion the juniors bring."
+       }
+      }
+     ],
+     "id": "assessment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**My word, not yours.** The thing a Signal is *about* — the unit of 'the whole universe gets scored'.\n\nWhichever word you use here propagates into every screen, every report row and every log line, so it is worth two minutes now."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**Your word.** What everyone says on the desk — the company, not the listing.\n\nTicker is the code; the Name is the company. That distinction has a consequence: if a Name can carry more than one Ticker, a Signal is about the company and a Position is probably about the listing."
+       }
+      }
+     ],
+     "id": "instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 770,
+       "to": 788
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 81,
+       "to": 45
+      },
+      {
+       "attr": "text",
+       "from": "Instrument",
+       "to": "Name"
+      }
+     ],
+     "id": "instrument-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "instrument",
+     "fact": "renamed",
+     "from": "Instrument",
+     "to": "Name"
+    },
+    {
+     "element": "pin-instrument-name",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "assessment",
+     "fact": "tooltip_changed",
+     "label": "Assessment",
+     "text": "What the Aggregator produces for one Name in one Run: the four Signals combined,"
+    },
+    {
+     "element": "instrument",
+     "fact": "tooltip_changed",
+     "label": "Name",
+     "text": "**Your word.** What everyone says on the desk — the company, not the listing.\n\nT"
+    },
+    {
+     "element": "instrument",
+     "fact": "entity_renamed",
+     "from": "Instrument",
+     "glossary_challenge": true,
+     "to": "Name"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 788,
+       "to": 770
+      },
+      {
+       "attr": "width",
+       "from": 45,
+       "to": 81
+      },
+      {
+       "attr": "text",
+       "from": "Name",
+       "to": "Instrument"
+      }
+     ],
+     "id": "instrument-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**Your word.** What everyone says on the desk — the company, not the listing.\n\nTicker is the code; the Name is the company. That distinction has a consequence: if a Name can carry more than one Ticker, a Signal is about the company and a Position is probably about the listing."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**My word, not yours.** The thing a Signal is *about* — the unit of 'the whole universe gets scored'.\n\nWhichever word you use here propagates into every screen, every report row and every log line, so it is worth two minutes now."
+       }
+      }
+     ],
+     "id": "instrument",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "What the Aggregator produces for one Name in one Run: the four Signals combined, after the Contrarian Screen.\n\nConfirmed as a distinct concept from Signal — you said this is exactly the confusion the juniors bring."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "entity",
+        "role": "node",
+        "tooltip": "**My word, not yours.** What the Aggregator produces for one Instrument in one Run: the four Signals combined, post-Contrarian-Screen.\n\nIt needs a name because it is the thing the Risk Model reads, the thing the Reports render, and the thing the confidence threshold filters. Right now it has no name and so it keeps getting called 'the signal', which is a different object."
+       }
+      }
+     ],
+     "id": "assessment",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What do you and the analyst actually call this? I've guessed 'Instrument'.",
+       "role": "pin",
+       "status": "open",
+       "target": "instrument"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-instrument-name",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1288131518,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 908,
+      "y": 212
+     },
+     "index": 35,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "argus-domain",
+    "artifact_type": "domain",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Domain model"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 5,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Name",
+   "id": "instrument",
+   "name": "Name"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Ticker",
+   "id": "ticker",
+   "name": "Ticker"
+  },
+  {
+   "action": "set_round",
+   "round": 3,
+   "whose_move": "user"
+  },
+  {
+   "action": "set_round",
+   "round": 3,
+   "whose_move": "user"
+  }
+ ],
+ "revn": 6,
+ "round": 3,
+ "saved_at": "2026-08-10T07:04:43Z",
+ "selection_at_save": [],
+ "short_id": "8b6fc53",
+ "summary": {
+  "headline": "renamed 'Instrument' → 'Name' (+4 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "entity_renamed": 1,
+   "pin_deleted": 1,
+   "renamed": 1,
+   "tooltip_changed": 2
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "your ruling: the entity is a Name, not an Instrument"
+}

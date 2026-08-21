@@ -62,11 +62,36 @@ diagram now says *Provider*, the glossary says *Vendor* — which wins?" On
 agreement, update CONTEXT.md in your next move's doc flush (narrated,
 veto-able). Never let the two drift silently.
 
+**The backend now fires this challenge for you** (`kind: "glossary"`), so
+it is a tripwire you ANSWER rather than one you have to notice. It is
+armed by NAME IDENTITY, not by a declared mapping: renaming any element
+whose old label is a settled term raises it. That scope is the fix for
+r5-4 — divergence detection ran only over declared mappings, and zero of
+eight entities in the v0.5 assessment were mapped to their identically
+named concepts, so this challenge had no domain coverage at all despite
+being documented here since v0.4. The gate is the OLD label, so renaming
+*toward* a term is silent, and one term raises one open question however
+many entities are drawn from it.
+
 ## Mapping rules
 
-- domain↔flow (default pair): entity ↔ the steps that act on it — link
-  eagerly.
-- domain↔wireframe: inference only.
+- domain↔flow: entity ↔ the steps that act on it — link eagerly. The link
+  earns narration and tripwires. It earns **no strict lint**: 3.2.4 and
+  3.3.7 join
+  <!-- live:cross_lint_join -->wireframe × flow<!-- /live:cross_lint_join -->
+  only (derived from `CROSS_LINT_JOIN`, not typed here), and a domain
+  member falls out of the join in silence. The user ruled on 2026-08-20
+  that it stays that way, and the technical reason is that 3.2.4's
+  premise is "mapped members share a name", which is false *by design*
+  for an entity mapped to the steps that act on it — running it would
+  fire on correct drawings.
+- domain↔wireframe: **inference only by convention, not by enforcement.**
+  `add_mapping` type-checks nothing, so declaring one is accepted and will
+  fire tripwires like any other mapping (type-blind by ruling, user
+  2026-08-20). It is not inert: **any** mapping counts toward the
+  unmapped-KPI note, so a mapping naming a wireframe KPI tile silences
+  that nag. Prefer inference anyway — Q12 (whose-word) already joins
+  domain entity labels to wireframe labels with no mapping at all.
 
 **Seeding from mermaid** (v0.8): an `erDiagram` seeds a domain view in
 one command — `canvas.py mermaid --file d.mmd --artifact <id> --concept

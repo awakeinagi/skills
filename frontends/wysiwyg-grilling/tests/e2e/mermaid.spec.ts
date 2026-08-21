@@ -61,3 +61,49 @@ test("the import dialog pastes a diagram as the user's own drawing",
         { timeout: 10_000 })
       .toBeGreaterThan(before);
   });
+
+test("r5-10: the import lands clear of the drawing, with whole words",
+  async ({ page, canvas }) => {
+    // Two halves of one finding, and they need the same scene: the
+    // dialog dumped its shapes on top of whatever artifact was open
+    // ("your paste landed 36 shapes directly on the Daily Run"), and the
+    // labels came back with a WORD cut in half — `differe\nnt?` — where
+    // the CLI path fed the same text produces a clean one. The mini
+    // fixture's wireframe supplies the "already drawn" half.
+    await page.goto(canvas.url);
+    await expect(page.locator(".save-btn")).toBeVisible({ timeout: 10_000 });
+    const before = await page.evaluate(() =>
+      (window as any).excalidrawAPI.getSceneElements()
+        .filter((e: any) => !e.isDeleted)
+        .map((e: any) => ({ id: e.id, r: e.x + (e.width || 0) })));
+    expect(before.length).toBeGreaterThan(0);
+    await page.locator("button", { hasText: "mermaid" }).click();
+    await expect(page.locator(".mermaid-input")).toBeVisible();
+    // `different?` alone in a diamond is the reproducing shape: mermaid
+    // sizes the rhombus in its own font, Excalidraw re-wraps it in
+    // Excalifont, and a diamond gives a label barely half its box width
+    await page.locator(".mermaid-input").fill(
+      "flowchart TD\n  a[Collect input] --> b{different?}\n  b -->|yes| c[Process]");
+    await page.locator(".mermaid-modal button", { hasText: "Import" })
+      .click();
+    await expect(page.locator(".toasts"))
+      .toContainText("your drawing now", { timeout: 20_000 });
+    const known = new Set(before.map((e: { id: string }) => e.id));
+    const added = await page.evaluate(() =>
+      (window as any).excalidrawAPI.getSceneElements()
+        .filter((e: any) => !e.isDeleted)
+        .map((e: any) => ({ id: e.id, x: e.x, type: e.type,
+                            text: e.text, orig: e.originalText })));
+    const fresh = added.filter((e: { id: string }) => !known.has(e.id));
+    expect(fresh.length).toBeGreaterThan(4);
+    // no imported label may have a break its own text does not have
+    for (const e of fresh) {
+      if (e.type !== "text" || !e.text?.includes("\n")) continue;
+      expect(e.text.split("\n").join(" "), `chopped: ${e.orig}`)
+        .toBe(e.orig);
+    }
+    // and every one of them starts right of everything that was there
+    const wasRight = Math.max(...before.map((e: { r: number }) => e.r));
+    expect(Math.min(...fresh.map((e: { x: number }) => e.x)))
+      .toBeGreaterThan(wasRight);
+  });

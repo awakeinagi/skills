@@ -80,13 +80,57 @@ export function fingerprint(elements: readonly any[]): string {
 }
 
 /** Replay save-record change ops onto a local element list (apply-now on a
- * dirty canvas — the op replay the spec names). */
+ * dirty canvas — the op replay the spec names).
+ *
+ * THE SERVER'S `replay_changes`, op for op. The two are one algorithm
+ * and `tests/e2e/replay-parity.spec.ts` runs a crafted record through
+ * both, because a replay is how the tab and the file stay one scene:
+ * where they differ the user is looking at a drawing the file does not
+ * contain, and element order is paint order, so "differ" can mean a
+ * differently stacked picture with nothing saying so.
+ *
+ * Ops apply in DEPENDENCY order, not record order — every `del` first,
+ * then every `add` in ascending recorded index, then the rest as
+ * recorded. `diff_scenes` indexes an `add` against the FINISHED list but
+ * emits it ahead of the `del`s, so replaying in record order inserts it
+ * into a list that still holds the doomed elements and it lands one slot
+ * short for every deletion below it. That is the r5b-2 storm's own
+ * arithmetic; the server was repaired for it in v0.9 and this side was
+ * not, so a record as ordinary as "add one element, delete another"
+ * rebuilt two different scenes. Read `replay_changes` for why the
+ * ascending sort matters more to the inverse list than to this one. */
 export function replayChanges(elements: any[], changes: any[]): any[] {
   let els = elements.map((e) => ({ ...e }));
-  for (const ch of changes) {
+  const idxOf = (ch: any) =>
+    typeof ch.index === "number" && Number.isInteger(ch.index)
+      ? ch.index : null;
+  const ordered = [
+    ...changes.filter((ch) => ch.op === "del"),
+    ...changes.filter((ch) => ch.op === "add").sort(
+      (p, q) => (idxOf(p) === null ? 1 : 0) - (idxOf(q) === null ? 1 : 0)
+        || (idxOf(p) ?? 0) - (idxOf(q) ?? 0)),
+    ...changes.filter((ch) => ch.op !== "add" && ch.op !== "del"),
+  ];
+  for (const ch of ordered) {
     if (ch.op === "add") {
-      const idx = Math.min(ch.index ?? els.length, els.length);
-      els.splice(idx, 0, { ...ch.element });
+      // `canvas.py` `_add_index` + the clamp under it, mirrored: a value
+      // that is not a whole number (a hand-edited `"2"`, a `null`, a
+      // `true`) means "no index given" and lands at the end, and the
+      // result is clamped at BOTH ends. `??` and a top-only `Math.min`
+      // were neither: `splice(-1)` reads a negative index as an offset
+      // from the end, so a record carrying -1 rebuilt the scene with the
+      // element second to last while -5 put it near the front, and
+      // element order is paint order. The server refused that clamp-side
+      // ambiguity and the client kept it, so as of the server-side fix
+      // the two disagreed about the same corrupt record and each was
+      // confident — worse than the shared bug they replaced, because a
+      // replay is supposed to be how the tab and the file stay one
+      // scene. `typeof true === "boolean"` falls to the end here for the
+      // same reason `_add_index` refuses `bool`: `min(True, 3)` is
+      // position 1, an answer nobody wrote.
+      const asked = idxOf(ch) ?? els.length;
+      els.splice(Math.max(0, Math.min(asked, els.length)), 0,
+                 { ...ch.element });
     } else if (ch.op === "del") {
       els = els.filter((e) => e.id !== ch.element.id);
     } else if (ch.op === "mod") {

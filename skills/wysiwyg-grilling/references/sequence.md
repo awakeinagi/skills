@@ -28,7 +28,18 @@ activation bar spans its request→response messages.
 
 Time flows down, only down: an upward message (dy < 0) is a
 `LAYOUT_ERROR` (time reversal). An activation bar that never closes is a
-`LAYOUT_WARNING`.
+`LAYOUT_WARNING` — "closes" is read off the bar's own edges, so a bar
+whose foot no message leaves is reported with the distance from the last
+message on its lifeline. A bar that neither opens nor closes on a message
+is not this finding; it is furniture in the wrong place, and no check
+owns it yet.
+
+**Parties are not linted as flow nodes.** An actor header carries no
+binding — messages bind lifeline-to-lifeline — and a lifeline is a
+timeline rather than a route, so neither the unconnected-node note nor
+the passes-through-a-foreign-node warning applies to them. Both used to
+(r5-16), and between them they were everything lint had to say about a
+correct sequence.
 
 ## Stroke grammar (seeder)
 
@@ -84,9 +95,21 @@ lands, narrate guards from the annotation texts.
 
 ## Mapping rules
 
-- sequence↔flow (default pair): message ↔ transition, actor ↔ the steps it
-  owns. Link eagerly as you draw. Flow stays the hub; sequence is a spoke.
-- sequence↔wireframe/domain: inference only.
+- sequence↔flow: message ↔ transition, actor ↔ the steps it owns. Link
+  eagerly as you draw. Flow stays the hub; sequence is a spoke. The link
+  earns narration and tripwires and **no strict lint** — 3.2.4 and 3.3.7
+  join
+  <!-- live:cross_lint_join -->wireframe × flow<!-- /live:cross_lint_join -->
+  only (derived from `CROSS_LINT_JOIN`, not typed here), and a sequence
+  member is skipped in silence (3.3.7 reads `frameId` and `kind: input`,
+  which a sequence has no analogue for).
+- sequence↔wireframe/domain: **inference only by convention, not by
+  enforcement.** `add_mapping` type-checks nothing and tripwires are
+  type-blind by ruling (user, 2026-08-20), so a declared mapping is
+  accepted and nags on one-sided edits — it just never reaches a
+  *strict* check (3.2.4/3.3.7). It is not inert, though: **any** mapping
+  counts toward the unmapped-KPI note, so a mapping naming a wireframe
+  KPI tile silences that nag whatever else it joins.
 
 ## Seed archetypes
 

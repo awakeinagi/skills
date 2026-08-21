@@ -1,0 +1,509 @@
+{
+ "artifacts": {
+  "daily-run": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-deadline",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "enrichment",
+     "kind": "transform",
+     "label": "Enrichment",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 40,
+       "dy": 0,
+       "label": "Enrichment",
+       "spatial": "moved right"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "It's 06:00 and EDGAR is down. Does the run wait, ship without it, or not ship?",
+       "role": "pin",
+       "status": "open",
+       "target": "run-trigger"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-deadline",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 452138378,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 639,
+      "y": 1
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "from": [
+      440,
+      480
+     ],
+     "id": "enrichment",
+     "op": "move",
+     "to": [
+      480,
+      480
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 503,
+       "to": 505
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 114,
+       "to": 111
+      }
+     ],
+     "id": "run-trigger-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 34,
+       "to": 35
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 92,
+       "to": 89
+      }
+     ],
+     "id": "market-feed-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 354,
+       "to": 355
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 92,
+       "to": 90
+      }
+     ],
+     "id": "sec-edgar-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 659,
+       "to": 660
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 122,
+       "to": 120
+      }
+     ],
+     "id": "news-stream-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 518,
+       "to": 559
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 84,
+       "to": 82
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 519,
+       "to": 520
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 82,
+       "to": 80
+      }
+     ],
+     "id": "risk-model-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 517,
+       "to": 518
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 86,
+       "to": 83
+      }
+     ],
+     "id": "aggregator-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 484,
+       "to": 485
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 152,
+       "to": 150
+      }
+     ],
+     "id": "deliverables-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 74,
+       "to": 35
+      }
+     ],
+     "id": "usernote-43435b73-t",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "pin-deadline",
+     "fact": "pin_deleted"
+    },
+    {
+     "dx": 40,
+     "dy": 0,
+     "element": "enrichment",
+     "fact": "moved",
+     "label": "Enrichment",
+     "spatial": "moved right"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 35,
+       "to": 74
+      }
+     ],
+     "id": "usernote-43435b73-t",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 485,
+       "to": 484
+      },
+      {
+       "attr": "width",
+       "from": 150,
+       "to": 152
+      }
+     ],
+     "id": "deliverables-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 518,
+       "to": 517
+      },
+      {
+       "attr": "width",
+       "from": 83,
+       "to": 86
+      }
+     ],
+     "id": "aggregator-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 520,
+       "to": 519
+      },
+      {
+       "attr": "width",
+       "from": 80,
+       "to": 82
+      }
+     ],
+     "id": "risk-model-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 559,
+       "to": 518
+      },
+      {
+       "attr": "width",
+       "from": 82,
+       "to": 84
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 660,
+       "to": 659
+      },
+      {
+       "attr": "width",
+       "from": 120,
+       "to": 122
+      }
+     ],
+     "id": "news-stream-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 355,
+       "to": 354
+      },
+      {
+       "attr": "width",
+       "from": 90,
+       "to": 92
+      }
+     ],
+     "id": "sec-edgar-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 35,
+       "to": 34
+      },
+      {
+       "attr": "width",
+       "from": 89,
+       "to": 92
+      }
+     ],
+     "id": "market-feed-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 505,
+       "to": 503
+      },
+      {
+       "attr": "width",
+       "from": 111,
+       "to": 114
+      }
+     ],
+     "id": "run-trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      480,
+      480
+     ],
+     "id": "enrichment",
+     "op": "move",
+     "to": [
+      440,
+      480
+     ]
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "It's 06:00 and EDGAR is down. Does the run wait, ship without it, or not ship?",
+       "role": "pin",
+       "status": "open",
+       "target": "run-trigger"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-deadline",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 452138378,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 639,
+      "y": 1
+     },
+     "index": 26,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Daily Run (06:00)"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 14,
+ "branch": "alt-0022",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 22,
+ "round": 6,
+ "saved_at": "2026-08-10T07:37:11Z",
+ "selection_at_save": [],
+ "short_id": "e451156",
+ "summary": {
+  "headline": "removed pin pin-deadline (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 1,
+   "pin_deleted": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": null
+}

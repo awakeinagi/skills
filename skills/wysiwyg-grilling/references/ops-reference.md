@@ -24,10 +24,27 @@ behind the pending-revision banner instead of landing — the response says so
 (`QUEUED=true`). That is success, not an error; the user chooses when.
 
 A queued batch is validated and linted **at queue time** and answers with
-the same `ECHO=` / `LAYOUT_*` lines an applied one does (v0.5) — read
-them. Before v0.5 nothing was checked until the *user* clicked Apply, so
-an impossible batch came back `QUEUED=true`, got narrated as drawn, and
-failed in the user's face minutes later.
+the same reading an applied one does — echo, consequences, notes and
+lint (v0.5) — read it. Before v0.5 nothing was checked until the *user*
+clicked Apply, so an impossible batch came back `QUEUED=true`, got
+narrated as drawn, and failed in the user's face minutes later.
+
+Every line of that reading is marked: `ECHO(queued)=`, `NOTE(queued)=`,
+`LAYOUT_WARNING(queued)=` and so on (v0.9). The mark is the whole point —
+it is a reading of the head the batch was queued *on*, and the user can
+save over that head before they pull the revision. Narrate it as a
+proposal, never as a drawing that exists. The unmarked keys come back
+when it actually lands: `canvas.py x-pending --apply` prints them, and
+the `agent_revision` event carries any `notes` when the user applies
+from the banner instead.
+
+An `ECHO=` line for an arrow names its bound nodes and then, where the
+drawing supports it, the faces its ends land on: `arrow t3 binds payment →
+checkout — leaves the right of payment, arrives at checkout's left edge,
+off centre` (v0.9). The clause is appended, so `binds A → B` is still
+there to grep for, and it is **silent** about an end whose arrival slides
+along the face or comes in obliquely — describe the path there, never
+guess a side.
 
 **Fixing a queued revision:** re-send it with `supersedes: <pending_id>`
 so the corrected batch *replaces* the original. Without it the user is
@@ -81,13 +98,26 @@ on concept `report` clears the umbrella's `wireframe` debt.
 ```jsonc
 {"op": "add", "element": {
   "type": "rectangle" | "ellipse" | "diamond" | "arrow" | "line" | "text" | "frame",
+      // `arrow` connects two shapes; `line` is decoration and never
+      // connects (binding one is an ERROR — see the note under **add**).
   "id": "semantic-slug",      // omit → minted from label; NEVER a nanoid
   "label": "Pay now",         // bound text is built for you (never a text prop)
   "x": 60, "y": 330, "width": 320, "height": 48,
   "role": "node" | "annotation" | "pin" | "decoration",
       // default node; text w/o container → annotation. `decoration` is
       // visual furniture (wavy body-text lines, X-box strokes, backdrops):
-      // exempt from connector lints and budgets, painted beneath arrows.
+      // exempt from connector lints and budgets. A decoration that is a
+      // composite's own PART — content (a kpi/input `value`, an entity's
+      // attribute rows) or furniture (a checkbox's box and check stroke,
+      // a slider's track and thumb) — bands ABOVE the owner it is drawn
+      // on, so an opaque fill paints out neither the tile's number nor
+      // the glyph that says the control is checked. Only an UNTAGGED
+      // decoration is a backdrop, and only backdrops paint beneath.
+      // "Beneath" is array position, not a type rule: put the decoration
+      // earlier in the element order and it paints first. The SVG export
+      // honours that as of v0.9 — it used to paint in type buckets and
+      // discard array order across them, so a backdrop erased the very
+      // connectors it was meant to sit behind.
   "kind": "button" | "nav" | "input" | "entity" | "image" | "store"
         | "kpi" | "checkbox" | "toggle" | "slider"
         | "help" | "sticky-bar" | "feedback" | …,
@@ -147,6 +177,20 @@ on concept `report` clears the umbrella's `wireframe` debt.
 // step. Keep the label short; cardinality goes in the tooltip.
 {"op": "add", "element": {"type": "arrow", "id": "r-run-rerun",
  "label": "rerun of"}, "from": "pipeline-run", "to": "pipeline-run"}
+// ONLY ARROWS CONNECT SHAPES. `from`/`to` on a `type: "line"` is a hard
+// ERROR, on `add` and on `mod` alike. A line is furniture and decoration:
+// a checkbox's tick strokes, a slider's track, an X-box's cross, a
+// sequence lifeline, the low-opacity backdrop behind a bundle of parallel
+// arrows. Draw it with `points` (and usually `role: "decoration"`), never
+// with endpoints. If it is a connector, type it `arrow`.
+//   {"op": "add", "element": {"type": "line", "id": "lifeline-api",
+//    "role": "decoration", "x": 300, "y": 80,
+//    "points": [[0,0],[0,420]], "strokeStyle": "dashed"}}
+// Why it is refused rather than quietly bound: a bound line is MOVED by
+// the geometry passes but never counted by the routing pass, so `tidy`
+// drags its endpoint and still reports "already tidy — nothing to
+// change" while the end sits hundreds of px off the node it claims. The
+// editor never makes one either — its binding predicate is arrow-only.
 // `type: "image"` is rejected in ops — real images arrive via the canvas
 // (paste/drop in the browser) with their file blobs.
 ```
@@ -159,21 +203,25 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
   "label": "Order Placed",   // set/replace bound label ("" or null removes it)
                              // — on a FRAME this renames the frame (its name)
   "name": "Checkout screen", // frames only: rename explicitly
-  "from": "other-node",      // arrows only: rewire start (re-routes + rebinds)
-  "to": "other-node",        // arrows only: rewire end — fires REWIRED
+  "from": "other-node",      // ARROWS ONLY: rewire start (re-routes + rebinds)
+  "to": "other-node",        // ARROWS ONLY: rewire end — fires REWIRED
+      // `from`/`to` on a `line` is a hard ERROR. Only arrows connect
+      // shapes; see the `line` note under **add**.
       // A rewire IS a new path request, so it re-routes — including over
       // a path the USER drew by hand. That is deliberate, and since v0.7
       // it narrates: `user_route_replaced`. If their shape mattered,
       // re-issue `mod points`. Dropping an endpoint back on the node it
       // already bound is not a rewire and fires nothing.
   "points": [[0,0],[80,0],[80,-160],[320,-160]],
-      // arrows/lines: hand-authored waypoints, RELATIVE to the arrow's
-      // x,y. v0.3: the path is marked routed:"authored" — YOURS. No
+      // arrows/lines: hand-authored waypoints, RELATIVE to the connector's
+      // own x,y. v0.3: the path is marked routed:"authored" — YOURS. No
       // later pass re-routes, re-fans, or flattens it (that's what makes
       // `mod points` a real repair tool for shared attach points). A
       // rewire (mod from/to) is a new path request and re-routes.
       // Axis-aligned paths render as sharp elbows; narrates as a
-      // `rerouted` fact — never an empty save.
+      // `rerouted` fact when the DRAWN path actually changed — never an
+      // empty save. Re-sending the geometry an arrow already has moves
+      // no ink, so it mints no fact: the word means the path moved.
   "kind": "sink", "role": "decoration", "intent": "…", "parent": "shelf",
   "document": "docs/x.md", "annotates": "node-id",
       // these six fold into customData correctly
@@ -183,7 +231,21 @@ validation ERROR (the silent `mod kind` no-op is dead). Special attributes:
   "checked": false,          //   place; checkbox/toggle only. Both fire
                              //   typed facts (value_changed/state_toggled)
   "links_to": "other-artifact",  // sets the element's navigation link
-  "locked": true,            // settled structure — the user can't drag it
+  "locked": true,            // PIN: settled structure. The user can't drag
+                             //   it, and neither can the tool — every
+                             //   non-user pass (tidy, fan, router, reroute,
+                             //   z-order, focus, feet, relayout) skips it
+                             //   and says how many it skipped. YOUR ops on
+                             //   a pinned element are refused, and so are
+                             //   ops one hop away (bound arrow, group
+                             //   sibling, container, frame); the rest of
+                             //   the batch still applies and `notes` says
+                             //   which ops were held. Flipping this
+                             //   attribute is the one thing never refused
+                             //   — but ask before unpinning someone's pin,
+                             //   and never bundle the unpin with a move in
+                             //   one op (that is refused whole). Fires
+                             //   `pinned` / `unpinned`. Accepted on `add`.
   "attributes": ["cash, mandate", "holds Positions"],
       // entities only: REPLACES the attribute rows, keeping the entity's
       // id — so its mappings, pins and rename detection all survive.
@@ -210,7 +272,14 @@ them.
 (bindings, frame membership). Deleting a mapped element tombstones the link
 into the save record: `{"op": "del", "id": "old-step"}`
 
-**reorder** — z-order: `{"op": "reorder", "id": "bg-panel", "index": 0}`
+**reorder** — z-order: `{"op": "reorder", "id": "bg-panel", "index": 0}`. The
+`index` is a position in the element order, which is paint order: 0 draws
+first (behind everything, as `bg-panel` wants) and an index past the end draws
+last. A negative index is refused — it used to clamp to 0 silently, so `-1`
+meaning "last" put the element behind everything instead. Every reader of the
+order agrees since v0.9: the store, replay, the web client, and the SVG
+export/snapshot, which until then painted in type buckets and ignored
+`reorder` across type boundaries entirely.
 
 **pin** — element-anchored question (❓ on canvas + interactive rail entry;
 answers arrive as `pin_answer` events carrying the text):
@@ -245,7 +314,63 @@ another channel, is bookkeeping drift: sweep it in your next batch.
 explicit `del` needed. When a pin's TARGET element gets deleted, the server
 auto-prunes the registry pin — but the leftover ❓ element stays on canvas
 until you remove it with an ordinary `del` in your next revision (tidying
-wreckage, not a proposal).
+wreckage, not a proposal). **The lint now says so**: any pin the registry
+has closed — `pruned`, `resolved` or `dismissed` — whose ❓ is still drawn
+gets a NOTE on that artifact naming the `del` that clears it. The tool
+reports rather than sweeps, because removing an element in a revision
+nobody asked for is the drawing changing under the user.
+
+A pin id names **one** question. Reusing an id the registry has **ever**
+filed — whatever its status: open, answered, resolved or auto-pruned — is
+refused with an error naming it, because the resolve write-through is
+id-global: one answer would close two questions and take the unanswered
+one's ❓ off the canvas. Pruned ids are held back for the same reason they
+are pruned rather than deleted — the stale ❓ may still be standing on a
+canvas, and a resolve of the reused id would take it down as if it had
+been answered. Omit `id` and one is minted for you — the minter dedupes
+against the registry as well as the scene, so the easy path cannot reissue
+a live pin's id either, and an explicit id colliding with one the same
+batch is about to mint is refused before either lands.
+
+The refusal is about the id, not about which op spells it. Drawing the ❓
+by hand — an `add` whose element carries `role: "pin"` — under a filed pin
+id is refused the same way, because the canvas would then show two
+questions where the registry holds one record and either glyph would
+answer for both. That includes re-drawing a question the same batch just
+resolved: a resolve is id-global, so nothing later in the batch can
+re-open it, and the whole batch is refused with an error naming both ops
+rather than the `add` being silently swallowed. Resolve it in one batch
+and ask the follow-up in the next, under its own id. An element that is
+NOT a ❓ may still carry the id — element ids are minted per scene, and
+only a pin id is project-wide. That tolerance does not run the other way:
+a `pin` op whose `id` is already spelled by an element on the artifact it
+lands on is refused with the same `id ... already exists in this
+artifact` an `add` is, because the scene keeps the element it already
+has and the ❓ is dropped — the question would be filed open with nothing
+drawn for it to click.
+
+Conversely `resolve_pin` takes the ❓ and nothing else. Ids are minted per
+scene, so an ordinary element that happens to share the id, here or on
+another artifact, is left standing — and a `resolve_pin` **naming** one is
+refused, because something that was never a question has nothing to
+resolve. A ❓ drawn by hand with no registry record still resolves
+normally. What the resolve does take is every ❓ carrying that id, on every
+artifact, however it got there — a duplicate an older version minted before
+the id check existed, or a pair of hand-drawn ❓ sharing an id no pin record
+ever claimed, which is still perfectly possible: the refusals above are
+about ids the REGISTRY has filed, so they say nothing about an id it has
+never seen. Nothing is exempted: the glyph count on the canvas and the
+open-pin count in the registry have to agree, and each exemption tried in
+turn left a ❓ standing under an id the registry had already marked
+resolved.
+
+A resolve that finds no ❓ anywhere — the user deleted the glyph first —
+still closes the record, and now says so:
+`NOTE=pin <id> resolved; its ❓ was already gone`. Read it: the silence
+was how a resolve aimed at the wrong artifact passed for a clean one. It
+rides a **queued** response too, marked `NOTE(queued)=`, since the batch
+carrying a resolve usually carries a drawing op — which is exactly the
+batch `pulled` cadence holds.
 
 A batch of ONLY pin/registry ops is a **pin-only revision** — the UI styles
 it "agent asked a question" with no Apply action.
@@ -323,10 +448,15 @@ it "agent asked a question" with no Apply action.
 {"op": "registry", "action": "set_budget", "artifact": "pipeline-flow",
  "clear": true}
 // one-time-question waive (v0.4): the reason IS the recorded answer.
-// Keys the lints consult: "q25:<artifact>" (progress indicator),
-// "q12:<artifact>:<label-slug>" (whose-word), "324:<artifact>:<step-slug>"
-// (one function, one label). `clear: true` un-waives. Every note that
-// offers a key prints it — copy it out of the lint line.
+// EVERY finding that can be waived prints the whole op, envelope and
+// all — `waive {op: registry, action: waive, key: '...', reason: ...}`
+// — so copy it out of the lint line and fill in the reason. Fourteen
+// checks offer one, keyed `<check>:<artifact>[:<element>...]`:
+// `ink` `font` `stroke` `color` `graze` `clear` `lane` `bidi` `ghost`
+// `var` `kpimap`, plus `q25:<artifact>` (progress indicator),
+// `q12:<artifact>:<label-slug>` (whose-word) and
+// `324:<artifact>:<step-slug>` (one function, one label).
+// `clear: true` un-waives.
 {"op": "registry", "action": "waive", "key": "q25:pipeline-flow",
  "reason": "user ruled: regulated flow, steps must show"}
 ```
@@ -335,37 +465,153 @@ it "agent asked a question" with no Apply action.
 
 - `canvas.py status` → `HEAD_REVN`, `ROUND`, `WHOSE_MOVE`, `ARTIFACTS`,
   `OPEN_PINS`, `OPEN_TRIPWIRES`, `EVENTS_LOG`, `DIRTY`, `PENDING`,
+  **`CADENCE`** (`per-round` or `pulled` — whether your next batch
+  commits or waits behind the banner; `start` prints it too, and the
+  user can flip it mid-session),
   **`LINT_DEBT`** (standing cross-artifact lint counts — drift in
   artifacts your batch didn't touch), **`PIN_DEBT`** (open/answered
-  pins with age in rounds + how often their target changed; entries with
-  `direction: user` are the USER'S questions awaiting your move — answer
-  them first) and **`OPEN_TRIPWIRE`** (standing unresolved divergence
+  pins with age in rounds + how often their target changed, and a
+  leading `user,` on the ones the USER asked rather than you —
+  `pin-pay(user, open, age 2r, target edited 1×)` against your own
+  `pin-vat(open, age 0r, target edited 0×)`, so "answer theirs first"
+  is decidable from the nag and costs no state read; `direction` is
+  still carried in full in `GET /api/state`'s `pin_debt`)
+  and **`OPEN_TRIPWIRE`** (standing unresolved divergence
   questions, with their text — not just the count).
   **All three ride every apply response, including a queued one.**
   Nothing is pull-only: if a nag exists you will be told without asking.
 - `ROUND` and `WHOSE_MOVE` count the pending queue. Under `pulled`
   cadence nothing commits until the user applies, so a queued revision
   is still your move made and their move owed — and pins age against it.
-  Discard the queue and both go back; the committed value is
-  `committed_round` in `api/state` if you need the raw one.
+  Discard the queue and both go back. Apply and they stay: the revision
+  commits into the round the banner was showing, so no pin gets younger
+  because the user answered. The committed value is `committed_round` in
+  `api/state` if you need the raw one.
 - `GET <url>api/state` → everything (registry, config, scenes, saves,
   pins, tripwires, pending).
 - `GET <url>api/save-record/<revn>` → a full save record (also on disk:
   `project_knowledge/saves/NNNN-*.json`).
 - `canvas.py lint [--artifact <id>]` → the standing findings in full.
   `status` gives you counts only ("dashboard 9N"); this gives you the
-  sentences, without applying a batch to find out what they say.
+  sentences, without applying a batch to find out what they say. Closes
+  on three disjoint summary keys: **`SCOPES=`** (how many things were
+  linted — artifacts PLUS the registry pseudo-scope, which carries
+  findings of its own and is why this is not called `ARTIFACTS`; that key
+  is `status`'s, and there it is a name list), **`FINDINGS=`** (layout
+  findings across those scopes) and **`QUARANTINED=`** (files the load
+  could not read at all and dropped, printed even at zero). A quarantine
+  is never counted under `FINDINGS` — the file is not in the project to
+  have findings about, and the arithmetic that closes is
+  `SCOPES + QUARANTINED = the files on disk`.
 - `canvas.py pending [--discard <id>]` → what is queued behind the user's
   banner, with each entry's artifact, note and op count.
+- `canvas.py reroute [--artifact <id>] [--apply]` → arrows an OLDER router
+  drew, and what today's would draw instead. Nothing re-routes on load, so
+  a project laid out by an earlier version keeps that geometry forever:
+  legs arriving at a shoulder instead of square to a side, feet the client
+  re-aims somewhere the stored path does not go. **Dry run by default**:
+  one `REROUTE=<id>: <arrow>: …` line per arrow, then
+  `ARTIFACTS`/`ARROWS`/`CHECKPOINT`/`APPLIED=false`. `--apply` needs
+  `--artifact` — consent is given one drawing at a time, never
+  project-wide — and commits an ordinary agent revision, so **reverting to
+  the save named in `CHECKPOINT=` restores the old geometry exactly**.
+  That line prints the command verbatim; run it. *Ordinary* is literal:
+  under `pulled` cadence, or while the user has unsaved edits, it queues
+  behind the pending-revision banner exactly as `apply` does and prints
+  `QUEUED=true` with the same `REASON=`. It is recomputed when the user
+  pulls it, so what it redraws may differ from what the survey named.
+  Arrows whose geometry is the USER's (`mod points`, hand-reshaped,
+  unmarked bent paths) are neither reported nor touched.
+  - **The offer is made only when it would straighten the drawing**, not
+    whenever a re-route would change something. Obstacle-aware routing is
+    not idempotent — the search re-decides against a scene its own last
+    decision moved — so on nine of the frozen corpus's 24 artifacts a pass
+    keeps moving arrows however many times it runs. (Ablated: the fan and
+    the crossing term are not involved; routing with no obstacle set fixes
+    on pass one.) What stops after the first pass is the improvement, so
+    the offer withdraws itself once you accept it, and pressing again is a
+    no-op rather than another revision. Same wall `tidy` hits and answers
+    by refusing; refusing here would fix none of the corpus's crooked
+    endpoints, since all of them sit on artifacts that cycle.
+  - **Three different declines, three different sentences.** "Nothing
+    arrives crooked" means the drawing is square and there is nothing to
+    do. "N endpoints still arrive crooked *(named)*, and a re-route would
+    not straighten any of them" means the geometry is beyond this
+    mechanism and the remedy is the drawing — move the nodes apart, or
+    author the path with `mod points`. "A re-route would straighten K of
+    them *(named)* and leave L different one(s) crooked *(named)*, so it
+    is a trade rather than a repair" means the router genuinely helps
+    some of the endpoints and hurts others, and the offer is declined
+    only because it is gated on strictly fewer crooked arrivals overall
+    — that gate is what makes the offer terminate. Read the third one
+    endpoint by endpoint: those are the nodes to move. Do not read any
+    of the three as another.
+  - `--apply` prints the same keys whether or not a server is up and
+    whether or not anything was committed:
+    `ARTIFACT`/`ARROWS`/`APPLIED`/`NOOP`/`REVN`/`HEADLINE`/`CHECKPOINT`/
+    `OFFLINE`. `CHECKPOINT` prints on a no-op too, naming the head that
+    did not move.
+  - `start` and `lint` print a `LEGACY_ROUTING=` line per affected
+    artifact. That is all a load ever does about it — **the loader never
+    redraws the picture the user last saw.**
+- `canvas.py revert --to <N> [--apply]` → put save #N's drawing back, as a
+  NEW save on top of head. **This is the operation every `CHECKPOINT=` line
+  names**, and the number it prints is the one to pass. Append-only: nothing
+  in history is rewritten, so a revert is itself revertible and its own
+  `CHECKPOINT=` says how. **Dry run by default** — prints
+  `REVERT_TO`/`ARTIFACTS`/`CHANGED`/`TARGET_HEADLINE`/`CHECKPOINT` and writes
+  nothing; `--apply` commits. Reverting to a save that already holds today's
+  drawing is a no-op with a sentence, never an empty revision. Only the
+  artifacts that actually move are re-committed. Under `pulled` cadence, or
+  while the user has unsaved edits, it queues behind the banner exactly as
+  `apply` and `reroute` do — and it is recomputed against head when they pull
+  it, so **anything they draw while it waits is what it puts back over**.
+  - **The UI's ↺ revert is a different button.** That one discards the
+    user's *unsaved* edits and touches no save; the timeline's time travel
+    is a read-only view that forks on the next Save. Neither of them moves
+    main back to an earlier save. This does.
 - `canvas.py export --artifact <id> --with-footnotes` → SVG carrying its
   tooltips as numbered footnotes plus the glossary — for handover.
+- `canvas.py export --artifact <id> --format mermaid [--direction TD|LR]
+  [--lanes] [--no-kinds]` → flowchart text for a **flow** or **domain**,
+  written to `<id>.mmd`. For a diffable PR form and for seeding another
+  tool — **not** for handover, which is the SVG's job (mermaid carries no
+  tooltips). Node ids are the same `slugify` output `mint_id` mints, so a
+  node cites back into an op with no translation. Closes on `DROPPED=`,
+  the count with no mermaid form. `--lanes` emits `subgraph` blocks: valid
+  mermaid that renders in a wiki and that **this repo's own seeder
+  refuses**, which is why it is off by default.
+- `canvas.py export --artifact <id> --format er` → `erDiagram` for a
+  **domain**. Refuses relation by relation, naming each one, when no
+  `cardinality:` tooltip was ever settled — mermaid's ER grammar needs a
+  token on both ends and cannot spell "unknown", so exporting anyway would
+  invent the claim. Writes no file when it refuses. On an erDiagram-seeded
+  artifact it round-trips exactly (entities, attributes, both arrowheads).
+- **Wireframe and sequence refuse by name.** A wireframe's meaning IS its
+  layout and mermaid has no diagram whose subject is a screen; sequence is
+  *deferred*, not impossible — the mapping is designed but the fixture
+  corpus carries none to measure it on.
+- **Export is one-way, and it is the seed rule's mirror.** `mermaid` seeds
+  NEW artifacts only; an exported `.mmd` is never read back over a drawing
+  that exists. Each file carries a `%% wysiwyg-grilling: … SNAPSHOT` stamp
+  saying so, which mermaid skips and re-seeding tolerates.
 - `canvas.py wait --timeout 540` → prints new events as JSON lines; exit 3 on
   quiet timeout (that's your cue for queued work or a nudge — never a retry
   loop without doing something useful between).
 - `canvas.py screenshot --artifact <id>` → PNG path (needs the browser open;
   context only, never truth).
-- `POST <url>api/tidy {"artifact": id}` → grid-snap + re-route + re-fan +
-  z-order as an ordinary agent revision (revertible).
+- `POST <url>api/tidy {"artifact": id}` → what the canvas's ✨ tidy
+  button posts: grid-snap + re-route + re-fan + z-order, revertible like
+  any save. **The button press is the user's consent**, so unlike
+  `apply` and `reroute` this one does not queue behind the cadence
+  banner — which is exactly why it is not yours to press. Suggest tidy;
+  let them run it.
+- `POST <url>api/reroute {"artifact": id}` → what `reroute --apply` posts
+  to when a server is up. Use the CLI: writing the files directly behind a
+  running store makes the re-route arrive as an out-of-session edit, and
+  the user gets told they made it.
+- `POST <url>api/revert {"revn": N}` → what `revert --apply` posts to when a
+  server is up, and the same rule applies: use the CLI.
 - `POST <url>api/pending/resolve {"id": N, "action": ...}` → the banner's
   own buttons: `apply_now`, `after_save`, or `discard` (v0.5 — the user's
   way to say no). The user drives this; you supersede or re-send.

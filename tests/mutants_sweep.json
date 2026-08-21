@@ -1,0 +1,9 @@
+{
+  "swept": "2026-08-19",
+  "survivors": [
+    {
+      "id": "move_node_onto_rank:chain:ebb2e1f6",
+      "detail": "phantom pass-through at node N (e1 -> e2 collinear, unflagged)"
+    }
+  ]
+}

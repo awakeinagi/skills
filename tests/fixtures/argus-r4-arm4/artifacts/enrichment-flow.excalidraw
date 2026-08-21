@@ -221,9 +221,7 @@
     ]
    ],
    "roughness": 1,
-   "roundness": {
-    "type": 2
-   },
+   "roundness": null,
    "seed": 1675512051,
    "startArrowhead": null,
    "startBinding": {
@@ -255,7 +253,7 @@
    "endArrowhead": "arrow",
    "endBinding": {
     "elementId": "risk-model",
-    "focus": -0.338,
+    "focus": 0.337,
     "gap": 6
    },
    "fillStyle": "solid",
@@ -283,9 +281,7 @@
     ]
    ],
    "roughness": 1,
-   "roundness": {
-    "type": 2
-   },
+   "roundness": null,
    "seed": 1891209457,
    "startArrowhead": null,
    "startBinding": {
@@ -1454,7 +1450,7 @@
    "roughness": 1,
    "roundness": null,
    "seed": 792399864,
-   "strokeColor": "#5c8a5f",
+   "strokeColor": "#47704b",
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "text": "Portfolio DB: scopes, doesn't feed",

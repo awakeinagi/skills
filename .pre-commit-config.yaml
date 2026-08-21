@@ -57,6 +57,23 @@ repos:
         files: ^skills/wysiwyg-grilling/scripts/canvas\.py$
         args: [skills/wysiwyg-grilling/scripts/canvas.py]
 
+  # -------------------------------------------------------------- live values
+  # The `<!-- live:NAME -->` values in tracked markdown, recomputed from
+  # their sources. Deliberately unscoped by `files:`: a value derives from
+  # code, not from the document holding it, so any pattern narrow enough to
+  # be worth writing would itself go stale — which is the defect this hook
+  # exists for. It costs ~0.5s and reads only what `git ls-files` lists, so
+  # the gitignored docs/ tree is out of reach by construction.
+  # When it fails: `python3 tests/livedoc.py refresh`.
+  - repo: local
+    hooks:
+      - id: livedoc
+        name: livedoc check (live values in tracked prose)
+        entry: python3 tests/livedoc.py check
+        language: system
+        pass_filenames: false
+        require_serial: true
+
   # ------------------------------------------------------------------- tests
   - repo: local
     hooks:
@@ -68,12 +85,85 @@ repos:
         require_serial: true
         files: ^(skills/wysiwyg-grilling/scripts/canvas\.py|tests/.*\.py)$
 
+  # ------------------------------------------------------- the guard census
+  # `tests/guard_mutants.py` deletes each pin guard out of canvas.py and
+  # demands the named test go red. It is the repo's answer to "is this
+  # guard observed" — and until now nothing ran it, so it could be broken
+  # indefinitely and say nothing. An instrument that cannot report its own
+  # death is not an instrument.
+  #
+  # SPLIT, because the two halves have wildly different costs. `--check`
+  # starts no process and writes nothing: it asks whether each mutation
+  # still APPLIES and whether each named test still RESOLVES, which is
+  # every way this file loses its subject short of a guard genuinely going
+  # unobserved. Measured at 0.50s, so it is `always_run` rather than
+  # carrying a `files:` pattern — a pattern that stops matching is the same
+  # silent-instrument defect one level up, and half a second does not buy
+  # one.
+  #
+  # The SWEEP stays manual. It costs 32s (23 mutants x one test run each)
+  # and, decisively, it REWRITES canvas.py in place and restores it in a
+  # `finally` — a pre-commit run interrupted at the wrong moment would
+  # leave a mutation in the working tree. That risk is fine in a
+  # curator's hands and wrong on every commit. Run it whenever a guard is
+  # added, moved or re-worded:
+  #     uvx pre-commit run guard-mutants-sweep --hook-stage manual
+  - repo: local
+    hooks:
+      - id: guard-mutants-check
+        name: guard census subjects (anchors + named tests resolve)
+        entry: python3 tests/guard_mutants.py --check
+        language: system
+        pass_filenames: false
+        require_serial: true
+        always_run: true
+
+      # `always_run` ALONGSIDE `stages: [manual]`, and the two are not in
+      # tension: `stages` decides WHEN this hook is eligible, `always_run`
+      # decides whether it needs a changed file to bother. Without it,
+      # `pre-commit run guard-mutants-sweep --hook-stage manual` on a clean
+      # tree prints "(no files to check)Skipped" and exits 0 — a sweep
+      # somebody deliberately asked for, reporting success for not having
+      # run. Caught here by running the documented command.
+      - id: guard-mutants-sweep
+        name: guard census full sweep (manual stage, rewrites canvas.py)
+        entry: python3 tests/guard_mutants.py
+        language: system
+        pass_filenames: false
+        require_serial: true
+        always_run: true
+        stages: [manual]
+
   # ---------------------------------------------------------------- frontend
   # Both require `npm --prefix frontends/wysiwyg-grilling ci` once.
   # They fail loudly rather than skipping, so a missing install can never
   # masquerade as a passing check.
+  #
+  # LOUDLY IS NOT THE SAME AS CLEARLY, which is what v0.9 whole-branch
+  # review M-6 measured and what the guard below closes. This comment and
+  # AGENTS.md both promised "a clear message"; what a fresh clone actually
+  # got was `sh: 1: eslint: not found` and exit 127 — a sentence about a
+  # binary, naming neither the cause nor the one command that fixes it.
+  # The guard runs first, on the same file set, so the remedy is the first
+  # thing in the output rather than something to infer from the noise.
+  # ONE hook and not a line in each of the two below, because a remedy
+  # spelled twice is a remedy that drifts.
   - repo: local
     hooks:
+      - id: frontend-deps
+        name: frontend deps installed?
+        entry: >-
+          bash -c 'test -d frontends/wysiwyg-grilling/node_modules && exit 0;
+          echo "frontend dependencies are not installed, so the eslint and tsc hooks cannot run.";
+          echo "Install them once with:";
+          echo "    npm --prefix frontends/wysiwyg-grilling ci";
+          echo "This is provisioning, not a code defect: the hooks fail rather than skip, so a missing install can never masquerade as a passing check.";
+          exit 1'
+        language: system
+        pass_filenames: false
+        require_serial: true
+        files: ^frontends/wysiwyg-grilling/(src/.*\.(ts|tsx)|eslint\.config\.js|tsconfig\.json|package\.json)$
+
       - id: eslint
         name: eslint (frontend)
         entry: npm --prefix frontends/wysiwyg-grilling run --silent lint
@@ -93,6 +183,12 @@ repos:
   # Playwright E2E suite (WP8): starts real canvas.py servers per worker,
   # so it runs on demand, not on every commit:
   #   uvx pre-commit run e2e-tests --hook-stage manual
+  #
+  # `always_run` added 2026-08-20: the command written one line above was
+  # measured printing "(no files to check)Skipped", exit 0, on a tree with
+  # nothing staged. A manual hook is one somebody has gone out of their
+  # way to ask for, so "no file changed" is never the right answer to give
+  # them — it is the whole E2E suite reporting green for not having run.
   - repo: local
     hooks:
       - id: e2e-tests
@@ -100,4 +196,5 @@ repos:
         entry: bash -c 'cd frontends/wysiwyg-grilling && npm run test:e2e'
         language: system
         pass_filenames: false
+        always_run: true
         stages: [manual]

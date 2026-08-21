@@ -50,7 +50,13 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
 1. **Orthogonal over diagonal** (seeder + lint WARNING). When source and
    destination share neither axis, route a two-bend elbow (radius 8px; 6px
    when tight), never a straight diagonal. A diagonal between off-axis nodes
-   is flagged.
+   is flagged. The **pixel radius is suspended** for the sharp campaign
+   (v0.9): nothing writes 8px or 6px anywhere. A routed corner is
+   Excalidraw's proportional `roundness: {"type": 2}` — proposed by
+   `derived_roundness` for any route with a turn, then granted or refused
+   per arrow by `gate_curvature`, so whether a given elbow draws a corner
+   at all is a decision, not a constant. Stage 3 may restore a radius; the
+   §6 rule stands as written until it does.
 2. **Labels ride the arc midpoint** (seeder + lint WARNING). A label bound
    to an arrow is placed by the *client*, at the midpoint of the path by
    arc length — it discards any offset you store, so the old "6–10px
@@ -62,34 +68,98 @@ are non-negotiable. They are why a diagram reads at a glance or doesn't.
    The second case reads as that box's caption and is why a long elbow is
    worse than a long straight run: move the bend, don't nudge the label.
 3. **No shared attach points** (seeder + lint WARNING). N arrows on one edge
-   of length L attach at `L·k/(N+1)` for k=1..N, ≥12px apart — or use
-   binding `focus` values (±0.5 steps) to fan them. Two connectors sharing a
-   point, or parallel runs <12px apart, are flagged. The auto-fan only moves
-   **server-routed paths of 2 or 3 points** — it will not re-space a path
-   you authored, or one carrying more waypoints than that, and the warning
-   names which of the two disqualified it.
+   of length L attach at `L·k/(N+1)` for k=1..N — or use binding `focus`
+   values (±0.5 steps) to fan them. Two connectors sharing a point are
+   flagged within 12px. The auto-fan only moves **server-routed paths of 2
+   or 3 points** — it will not re-space a path you authored, or one carrying
+   more waypoints than that, and the warning names which of the two
+   disqualified it.
+   The feet are not the whole story — see *Two strokes, one lane* below.
 4. **Ports follow travel direction** (seeder). Use top/bottom ports when
    travel is mainly vertical, side ports only when mainly horizontal. Never
    puncture a side face to reach something above or below.
+   **Reading one back** (v0.9): the `ECHO=` line says which face each end
+   landed on, by id — "leaves the bottom of validate-order, arrives at
+   enrich-record's left edge, off centre". It is read off the DRAWN path
+   and not the stored chord,
+   and it refuses to name a face when the arrival slides along it or comes
+   in more than 25° off square. A silent end is not a missing port; it is
+   the check telling you the picture does not show the arrow crossing that
+   face. Two thirds of a typical flow's endpoints get named.
 5. **Never cross a foreign box** (lint WARNING). A connector passing through
    a node that is neither its source nor destination is flagged. Prefer
    re-routing; where two arrows must cross, bridge the less important one
    with a hop arc (`a 8,8 0 0,1 16,0`) — never bridge both.
 
+**Two strokes, one lane** (lint WARNING). Two arrows can leave a node
+correctly spaced and still end up drawn on top of each other further along.
+A pair holding the same line within **16px** for **60px or more** is flagged,
+with the shared run and the separation in px: over that stretch the drawing
+has one thick stroke where the model has two edges, and neither can be
+followed to its own node. The auto-fan leaves **18px** between feet, so it
+clears this by construction — a lane you are told about is one the fan could
+not reach (an authored path, or one with too many waypoints). Repair by
+moving a bend with `mod points`, not by nudging a foot.
+
+**Two arrows that read as one bidirectional edge** (lint WARNING). When two
+final legs land on one line pointing opposite ways and overlap, a reader
+merges them into a single two-headed relation the model never asserted. If
+the relation really is symmetric, say so with one arrow and two heads;
+otherwise offset one final leg. **Unless the pair shares a node** — a fan out
+of one source, or two edges converging on one target, is the layout aligning
+things deliberately, and offsetting a leg to satisfy a checker would make the
+picture worse. That case is silent on purpose.
+
+Both read the path as DRAWN rather than the stored polyline, and both take a
+`waive` if the pairing is intentional. They differ in one way worth knowing:
+the **lane** answer is unchanged by rounding — it is taken from the chord
+between the two points the ink is pinned to, so a rounded corner and a sharp
+one give the same verdict — while the **bidirectional** answer can move,
+because a bowed final leg stops reading as a straight line. Rounding one
+corner can therefore silence a bidirectional finding without moving an
+endpoint. The router will not curve an arrow whose drawn arrival leans off
+square, which is what keeps this from happening to you by accident.
+
+*(That paragraph read "rounding a corner never changes the answer" for both
+lints until 2026-08-16. It was true of one and false of the other — written
+in the very commit that deleted connector rule 3's false claim about parallel
+runs. Recorded rather than quietly patched: this file has now shipped two
+wrong invariance claims about connector geometry, and both were caught by
+someone measuring rather than by any check.)*
+
+**Cramped sides are a known false alarm** for the lane check. When a node's
+side is too short to hold all the feet arriving on it, the auto-fan spreads
+them as far as the side allows and stops — and what it produces then is a
+lane the check reports. Measured over 120 fanned scenes: 53 report
+themselves, all of them sides with four or more feet, diamonds worst. The
+warning says so, and the repair is to move an edge to another border or grow
+the node, never to re-run the fan.
+
 The router now avoids foreign boxes itself: it scores straight lines,
 both L-elbow orientations, and bounded Z-detours, and picks the cleanest
 (fewest crossings, then fewest bends). When it still can't find a clean
 path, the lint flags it — repair by hand with `mod points` (waypoints
-relative to the arrow's x,y; axis-aligned paths render as sharp elbows,
-the route is re-stamped as server-owned, and the change narrates as a
-`rerouted` fact). For N parallel edges between two clusters, one thick
-low-opacity `role: decoration` backdrop line with the real arrows offset
-±10px along it.
+relative to the connector's own x,y; axis-aligned paths render as sharp
+elbows, the route is re-stamped as server-owned, and the change narrates
+as a `rerouted` fact whenever the drawn path actually moved — a re-route
+that only re-aims a binding is recorded but not narrated, because the
+word is a claim about ink). For N parallel edges between two clusters,
+one thick low-opacity `role: decoration` backdrop line with the real
+arrows offset ±10px along it.
 
 **Z-order** (now ENFORCED by a normalization pass on every apply):
-frames → decorations → arrows/lines → nodes → bound labels & pins.
-Explicit `reorder` ops survive within their band; cross-band placement
-rides `role: decoration`.
+frames → backdrops → arrows/lines → nodes → composed parts → bound
+labels & pins. A composed PART is anything a composite draws on its
+owner — content (a kpi/input `value`, an entity's attribute rows) and
+furniture alike (checkbox box and check stroke, toggle track and thumb,
+slider track and thumb, body waves, X-box strokes). All of it bands
+above its owner, so an opaque fill can paint out neither the number the
+tile exists to show nor the glyph that says the control is checked.
+Only a standalone BACKDROP — a `role: decoration` with no part tag,
+such as the thick low-opacity line behind parallel edges — still bands
+beneath. Explicit `reorder` ops survive within their band, which is
+also what keeps a check stroke over the box it was declared after;
+cross-band placement rides `role: decoration`.
 
 ## Budgets (lint NOTE → view suggestion)
 
@@ -104,7 +174,10 @@ now, not just documented). Labels are linted against EACH OTHER too
 (label↔label collision, WARNING) — stacked labels read as one caption.
 Declared containment (`parent` on a block) exempts a nested pair from the
 overlap warning; `role: decoration` exempts furniture from connector
-lints and budgets entirely.
+lints and budgets entirely — with one carve-out, added 2026-08-20: a
+decoration that BINDS is not exempt from the bound-line error below,
+because under "only arrows connect shapes" an element that is furniture
+and a connector at once cannot exist.
 
 Budgets are legibility physics, not taste — over budget, split the view,
 never shrink the font.
@@ -125,6 +198,15 @@ proposal):
   usually because it was deleted. Deletion does *not* cascade: the arrows
   stay, so the drawing asserts a flow out of nothing until you re-target
   the binding or delete the arrow with it.
+- **A line that binds** — only arrows connect shapes. Ops refuse to mint
+  a bound `line`, but a legacy artifact can still hold one and must stay
+  savable, so this is where such a fossil is named. Fires on the *type
+  and the bindings alone* — whatever the role, and **however tidy it
+  looks right now**: the binding is inert (the editor's own predicate is
+  arrow-only), the geometry passes move the line and the routing pass
+  never re-routes it, so a bound line sitting perfectly on its node is
+  one node-drag away from the drift. Retype it `arrow`, or drop the
+  bindings and leave it as decoration.
 - **Black hole / miracle node** — in a flow whose kinds require
   through-flow, a node with only inbound (black hole) or only outbound
   (miracle) arrows. Every such gap is a conversation not yet had — turn it
@@ -147,7 +229,12 @@ non-wrapping composed rows are judged on width. This is the one class of
 defect you are structurally blind to, so it is the lint to actually read)
 · element stranded far outside the
 artifact's cluster · bidirectional arrow (both arrowheads — split it into
-two labeled arrows) · activation bar that never closes. Wireframe form
+two labeled arrows) · activation bar that never closes · **a bound label
+left more opaque than the box it names** (v0.9 — a label does not inherit
+its container's opacity, so hiding a node leaves its caption at full ink:
+a word floating with nothing under it, which is neither the hidden node
+you asked for nor a visible one. The finding carries both values and the
+gap. Set both or neither). Wireframe form
 warnings (v0.4): submit button preceding its inputs in reading order ·
 input with no label (3.3.2) · asterisk in an input label (GOV.UK:
 "(optional)" instead) · same label mapped to different flow steps (3.2.4
@@ -174,6 +261,75 @@ path (3.3.7) · mapped same-function labels diverging (3.2.4) · wireframe
 label matching a domain term (Q12, waivable). One-time questions go quiet
 via the registry `waive` op (reason required) — a waived question is an
 answered one.
+
+## Legibility: colour and type size (lint WARNING)
+
+Ops let you name any colour and any `fontSize`, and until v0.9 nothing
+read either. Three checks now do. All three are **questions, never
+verdicts** — nobody is told a drawing "fails WCAG"; each says what it
+measured, says what the criterion asks for, and takes a `waive`.
+
+| Check | Asks | Floor | Waive key |
+|---|---|---|---|
+| `contrast_text` | 1.4.3 — can this ink be read? | 4.5:1, or 3:1 at `fontSize` ≥ 24 | `ink:<aid>:<id>` |
+| `contrast_object` | 1.4.11 — can this shape be picked out? | 3:1 | `stroke:<aid>:<id>` |
+| `min_font` | is this type big enough to survive the snapshot? | 7px | `font:<aid>:<id>` |
+
+The paper is `#faf8f2`, not white — the `viewBackgroundColor` your
+canvas is painted with — and that is not a detail: `#767676` is the
+web's best-known "lightest grey that passes on white" and it reads
+4.28:1 here, under. **A colour you validated against a white background
+may not clear the floor on this ground.**
+
+Three things worth knowing before you argue with a finding:
+
+- **Opacity counts.** The ratio is taken after opacity is folded into
+  the colour, because that is what a reader sees. The default ink
+  `#1e1e1e` is 15.70:1 at full strength and **4.33:1 at 60%** — under
+  the text floor while declaring nothing unusual anywhere. An element at
+  opacity 0 is exempt: it is not faint, it is not drawn, and the
+  `opacity ≠ 100` note already owns that.
+- **An object needs only one of its two colours.** A pale stroke around
+  a solid dark fill is a shape you can see, so the reading is the better
+  of stroke and fill; a finding means neither reaches 3:1.
+- **The ground is what the text is drawn on, not always the paper.**
+  Free text lying wholly inside a filled box is measured against that
+  box's fill — white on navy reads 14:1, not 1:1. When a filled element
+  covers only *part* of the text, the glyphs stand on two colours and
+  no single ratio is the reading, so the check declines rather than
+  picking one; the overlap itself is reported by its own warning. A
+  bound label always takes its container's fill, because the renderer
+  re-centres it there.
+- **The font floor is not politeness.** It was MEASURED, not chosen: at
+  7px a rendered word holds 8.5:1 of stroke, at 6px that halves to
+  4.6:1 and the letters stop separating — while the DECLARED contrast
+  is 15.70:1 at both sizes. A colour check cannot see this, which is
+  why the floor is a separate check rather than a style note.
+
+Composed parts — a slider's track, an X-box's strokes, a tile's value
+row — are checked like everything else. They used to be exempt, on the
+argument that the server minted those colours and there was no decision
+of yours to question; the exemption keyed on *what the element is*
+rather than on who chose the colour, so a regressed default and your own
+recolour of a track were both silently unreported. The defaults are
+compliant, so composed parts are quiet by being fine. When one does
+speak, it is telling you something changed.
+
+**Every contrast finding carries the fix.** The message names the
+nearest shade of the same hue that clears the floor — computed against
+the background that element is actually drawn on, and through its own
+opacity — so "reads 1.99:1 where 3:1 is asked" arrives with
+`nearest compliant shade of the same hue: #978f7c` beside it, and the
+verb beside it ("darken"/"lighten") is the direction that shade actually
+moved rather than an assumption that ink is always too pale. On an
+element that opacity rather than colour has faded, no shade is offered,
+because none would fix it: raise the opacity. And a waive with a reason
+is always the other answer.
+
+The default annotation ink is `#47704b` (5.55:1), the agent-green half
+of the authorship language. It reads compliant; you can still pass an
+explicit `strokeColor`, and if yours is faint you will be asked about
+it.
 
 ## Annotations (seeder + lint WARNING)
 

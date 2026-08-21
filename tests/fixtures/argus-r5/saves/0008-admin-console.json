@@ -1,0 +1,4709 @@
+{
+ "artifacts": {
+  "admin-console": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "screen-console",
+     "kind": "frame",
+     "label": "Admin Console",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "frame",
+       "label": "Admin Console"
+      },
+      "reading_order_set": {
+       "order": [
+        "Argus — Admin Console",
+        "Last run 06:04 — EDGAR 4 min late",
+        "Pipelines",
+        "Market Feed",
+        "Rerun",
+        "SEC EDGAR",
+        "Rerun",
+        "News Sentiment",
+        "Rerun",
+        "Portfolio DB",
+        "Rerun",
+        "Thresholds",
+        "Risk threshold",
+        "Confidence threshold",
+        "Apply"
+       ],
+       "screen": "Admin Console"
+      },
+      "screen_added": {
+       "name": "Admin Console"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-market-box",
+     "kind": "rectangle",
+     "label": "tog-market-box",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "tog-market-box",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-market-thumb",
+     "kind": "ellipse",
+     "label": "tog-market-thumb",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "ellipse",
+       "label": "tog-market-thumb",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-edgar-box",
+     "kind": "rectangle",
+     "label": "tog-edgar-box",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "tog-edgar-box",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-edgar-thumb",
+     "kind": "ellipse",
+     "label": "tog-edgar-thumb",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "ellipse",
+       "label": "tog-edgar-thumb",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-news-box",
+     "kind": "rectangle",
+     "label": "tog-news-box",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "tog-news-box",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-news-thumb",
+     "kind": "ellipse",
+     "label": "tog-news-thumb",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "ellipse",
+       "label": "tog-news-thumb",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-portfolio-box",
+     "kind": "rectangle",
+     "label": "tog-portfolio-box",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "tog-portfolio-box",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-portfolio-thumb",
+     "kind": "ellipse",
+     "label": "tog-portfolio-thumb",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "ellipse",
+       "label": "tog-portfolio-thumb",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-risk-track",
+     "kind": "line",
+     "label": "sld-risk-track",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "sld-risk-track",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-risk-thumb",
+     "kind": "rectangle",
+     "label": "sld-risk-thumb",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "sld-risk-thumb",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-confidence-track",
+     "kind": "line",
+     "label": "sld-confidence-track",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "sld-confidence-track",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-confidence-thumb",
+     "kind": "rectangle",
+     "label": "sld-confidence-thumb",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "rectangle",
+       "label": "sld-confidence-thumb",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "console-nav",
+     "kind": "nav",
+     "label": "Argus — Admin Console",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "nav",
+       "label": "Argus — Admin Console"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "run-status",
+     "kind": "feedback",
+     "label": "Last run 06:04 — EDGAR 4 min late",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "feedback",
+       "label": "Last run 06:04 — EDGAR 4 min late"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-pipelines",
+     "kind": "block",
+     "label": "Pipelines",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Pipelines"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-market",
+     "kind": "toggle",
+     "label": "Market Feed",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "toggle",
+       "label": "Market Feed"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-edgar",
+     "kind": "toggle",
+     "label": "SEC EDGAR",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "toggle",
+       "label": "SEC EDGAR"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-news",
+     "kind": "toggle",
+     "label": "News Sentiment",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "toggle",
+       "label": "News Sentiment"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "tog-portfolio",
+     "kind": "toggle",
+     "label": "Portfolio DB",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "added": {
+       "kind": "toggle",
+       "label": "Portfolio DB"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-market",
+     "kind": "button",
+     "label": "Rerun",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "added": {
+       "kind": "button",
+       "label": "Rerun"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-edgar",
+     "kind": "button",
+     "label": "Rerun",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "added": {
+       "kind": "button",
+       "label": "Rerun"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-news",
+     "kind": "button",
+     "label": "Rerun",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "added": {
+       "kind": "button",
+       "label": "Rerun"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-rerun-portfolio",
+     "kind": "button",
+     "label": "Rerun",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "added": {
+       "kind": "button",
+       "label": "Rerun"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "panel-thresholds",
+     "kind": "block",
+     "label": "Thresholds",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "added": {
+       "kind": "block",
+       "label": "Thresholds"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-risk",
+     "kind": "slider",
+     "label": "Risk threshold",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "added": {
+       "kind": "slider",
+       "label": "Risk threshold"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sld-confidence",
+     "kind": "slider",
+     "label": "Confidence threshold",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "added": {
+       "kind": "slider",
+       "label": "Confidence threshold"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "btn-apply",
+     "kind": "button",
+     "label": "Apply",
+     "ops": [
+      27
+     ],
+     "semantic": {
+      "added": {
+       "kind": "button",
+       "label": "Apply"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-threshold-scope",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      43
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-rerun-result",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      44
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "A rerun at 09:30 — does it overwrite this morning's numbers, or sit beside them?"
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 600,
+      "id": "screen-console",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Admin Console",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1997377173,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 720,
+      "x": 0,
+      "y": 0
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "box_of": "tog-market",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-market-grp"
+      ],
+      "height": 16,
+      "id": "tog-market-box",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1663543133,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 36,
+      "x": 48,
+      "y": 188
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "tog-market"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-market-grp"
+      ],
+      "height": 12,
+      "id": "tog-market-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 255736028,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 70,
+      "y": 190
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "box_of": "tog-edgar",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-edgar-grp"
+      ],
+      "height": 16,
+      "id": "tog-edgar-box",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 100481384,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 36,
+      "x": 48,
+      "y": 228
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "tog-edgar"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-edgar-grp"
+      ],
+      "height": 12,
+      "id": "tog-edgar-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 985178867,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 70,
+      "y": 230
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "box_of": "tog-news",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-news-grp"
+      ],
+      "height": 16,
+      "id": "tog-news-box",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1312486529,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 36,
+      "x": 48,
+      "y": 268
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "tog-news"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-news-grp"
+      ],
+      "height": 12,
+      "id": "tog-news-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1355915164,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 70,
+      "y": 270
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "box_of": "tog-portfolio",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-portfolio-grp"
+      ],
+      "height": 16,
+      "id": "tog-portfolio-box",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 134923654,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 36,
+      "x": 48,
+      "y": 308
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "tog-portfolio"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-portfolio-grp"
+      ],
+      "height": 12,
+      "id": "tog-portfolio-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1313754961,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 70,
+      "y": 310
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "cbe21ff35a",
+       "track_of": "sld-risk"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "sld-risk-grp"
+      ],
+      "height": 0,
+      "id": "sld-risk-track",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        360,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 927067198,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 2,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 50,
+      "y": 430
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "sld-risk"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "sld-risk-grp"
+      ],
+      "height": 12,
+      "id": "sld-risk-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1955972419,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 259,
+      "y": 424
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "f707073615",
+       "track_of": "sld-confidence"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "sld-confidence-grp"
+      ],
+      "height": 0,
+      "id": "sld-confidence-track",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        360,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 23728851,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 2,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 50,
+      "y": 490
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "sld-confidence"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "sld-confidence-grp"
+      ],
+      "height": 12,
+      "id": "sld-confidence-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1119763374,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 294,
+      "y": 484
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "console-nav-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "nav",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 40,
+      "id": "console-nav",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 849921627,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 20
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "run-status-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "feedback",
+       "role": "node",
+       "tooltip": "**Invented.** You never said the console shows run status — but you said this is where you spend your time, and 'did this morning work' is the first thing anyone asks a control panel.\n\nIf it belongs on the dashboard instead, delete it."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 36,
+      "id": "run-status",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 181114147,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 80
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "panel-pipelines-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "block",
+       "role": "node",
+       "tooltip": "One row per Pipeline — because a Pipeline is one source end to end, the switch and the rerun button are two controls on the same object, not two lists that happen to be the same length."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 200,
+      "id": "panel-pipelines",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1721875313,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 140
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "tog-market-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "checked": true,
+       "kind": "toggle",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "tog-market-grp"
+      ],
+      "height": 32,
+      "id": "tog-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 836294263,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 40,
+      "y": 180
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "tog-edgar-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "checked": true,
+       "kind": "toggle",
+       "parent": "panel-pipelines",
+       "role": "node",
+       "tooltip": "Switching this off costs **two** scorers — sentiment loses filing tone, and the insider detector loses Form 4s entirely."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "tog-edgar-grp"
+      ],
+      "height": 32,
+      "id": "tog-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1565351897,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 40,
+      "y": 220
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "tog-news-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "checked": true,
+       "kind": "toggle",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "tog-news-grp"
+      ],
+      "height": 32,
+      "id": "tog-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 552726036,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 40,
+      "y": 260
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "tog-portfolio-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "checked": true,
+       "kind": "toggle",
+       "parent": "panel-pipelines",
+       "role": "node",
+       "tooltip": "Drawn as a peer switch, but this one is odd: turning it off doesn't remove a scorer, it removes exposure and concentration from the Risk Model. Is it even switchable?"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "tog-portfolio-grp"
+      ],
+      "height": 32,
+      "id": "tog-portfolio",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 592948478,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 40,
+      "y": 300
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "btn-rerun-market-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-rerun-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2104595919,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 180
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "btn-rerun-edgar-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-rerun-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 488552952,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 220
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "btn-rerun-news-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-rerun-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1232822891,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 260
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "btn-rerun-portfolio-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-rerun-portfolio",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 474219664,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 300
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "panel-thresholds-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 160,
+      "id": "panel-thresholds",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 500293084,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 360
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sld-risk-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "slider",
+       "parent": "panel-thresholds",
+       "role": "node",
+       "tooltip": "Belongs to the **Risk Model** — downstream of all four pipelines.",
+       "value": 60.0
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "sld-risk-grp"
+      ],
+      "height": 44,
+      "id": "sld-risk",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2040382255,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 380,
+      "x": 40,
+      "y": 400
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sld-confidence-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "slider",
+       "parent": "panel-thresholds",
+       "role": "node",
+       "tooltip": "Belongs to the **Aggregator** — also downstream of all four pipelines.",
+       "value": 70.0
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "sld-confidence-grp"
+      ],
+      "height": 44,
+      "id": "sld-confidence",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1599987900,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 380,
+      "x": 40,
+      "y": 460
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [
+       {
+        "id": "btn-apply-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "role": "node",
+       "tooltip": "I drew this because a settings screen with no commit control asserts that every drag takes effect immediately — which would be a strange thing for a threshold. But I can't tell you what it does."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-apply",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 657488052,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 540
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "console-nav",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "console-nav-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Argus — Admin Console",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 208465509,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Argus — Admin Console",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 175,
+      "x": 272,
+      "y": 30
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "run-status",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "run-status-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Last run 06:04 — EDGAR 4 min late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1987060631,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Last run 06:04 — EDGAR 4 min late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 258,
+      "x": 231,
+      "y": 88
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "panel-pipelines",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "panel-pipelines-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pipelines",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1553022509,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pipelines",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 68,
+      "x": 326,
+      "y": 146
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "tog-market",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "tog-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Market Feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 346995183,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Market Feed",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 92,
+      "x": 134,
+      "y": 186
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "tog-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "tog-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "SEC EDGAR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 556278720,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "SEC EDGAR",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 92,
+      "x": 134,
+      "y": 226
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "tog-news",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "tog-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News Sentiment",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1262558895,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News Sentiment",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 122,
+      "x": 119,
+      "y": 266
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "tog-portfolio",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "tog-portfolio-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio DB",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1440665186,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio DB",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 92,
+      "x": 134,
+      "y": 306
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-rerun-market",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-rerun-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rerun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 881272901,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rerun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 186
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-rerun-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-rerun-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rerun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 39579936,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rerun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 226
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-rerun-news",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-rerun-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rerun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1643397464,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rerun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 266
+     },
+     "index": 37,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-rerun-portfolio",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-rerun-portfolio-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rerun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 735655235,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rerun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 306
+     },
+     "index": 38,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "panel-thresholds",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "panel-thresholds-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Thresholds",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1559927261,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Thresholds",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 83,
+      "x": 318,
+      "y": 366
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sld-risk",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "sld-risk-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk threshold",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1862616176,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk threshold",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 106,
+      "x": 177,
+      "y": 406
+     },
+     "index": 40,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sld-confidence",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "sld-confidence-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Confidence threshold",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1496234653,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Confidence threshold",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 157,
+      "x": 152,
+      "y": 466
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-apply",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-apply-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Apply",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 646994327,
+      "strokeColor": "#ffffff",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Apply",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 546
+     },
+     "index": 42,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?",
+       "role": "pin",
+       "status": "open",
+       "target": "panel-thresholds"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-threshold-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1802470776,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 672,
+      "y": 362
+     },
+     "index": 43,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "A rerun at 09:30 — does it overwrite this morning's numbers, or sit beside them?",
+       "role": "pin",
+       "status": "open",
+       "target": "btn-rerun-edgar"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-rerun-result",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1549543337,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 652,
+      "y": 222
+     },
+     "index": 44,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "screen-console",
+     "fact": "added",
+     "kind": "frame",
+     "label": "Admin Console"
+    },
+    {
+     "element": "tog-market-box",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "tog-market-box",
+     "low_signal": true
+    },
+    {
+     "element": "tog-market-thumb",
+     "fact": "added",
+     "kind": "ellipse",
+     "label": "tog-market-thumb",
+     "low_signal": true
+    },
+    {
+     "element": "tog-edgar-box",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "tog-edgar-box",
+     "low_signal": true
+    },
+    {
+     "element": "tog-edgar-thumb",
+     "fact": "added",
+     "kind": "ellipse",
+     "label": "tog-edgar-thumb",
+     "low_signal": true
+    },
+    {
+     "element": "tog-news-box",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "tog-news-box",
+     "low_signal": true
+    },
+    {
+     "element": "tog-news-thumb",
+     "fact": "added",
+     "kind": "ellipse",
+     "label": "tog-news-thumb",
+     "low_signal": true
+    },
+    {
+     "element": "tog-portfolio-box",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "tog-portfolio-box",
+     "low_signal": true
+    },
+    {
+     "element": "tog-portfolio-thumb",
+     "fact": "added",
+     "kind": "ellipse",
+     "label": "tog-portfolio-thumb",
+     "low_signal": true
+    },
+    {
+     "element": "sld-risk-track",
+     "fact": "added",
+     "kind": "line",
+     "label": "sld-risk-track",
+     "low_signal": true
+    },
+    {
+     "element": "sld-risk-thumb",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "sld-risk-thumb",
+     "low_signal": true
+    },
+    {
+     "element": "sld-confidence-track",
+     "fact": "added",
+     "kind": "line",
+     "label": "sld-confidence-track",
+     "low_signal": true
+    },
+    {
+     "element": "sld-confidence-thumb",
+     "fact": "added",
+     "kind": "rectangle",
+     "label": "sld-confidence-thumb",
+     "low_signal": true
+    },
+    {
+     "element": "console-nav",
+     "fact": "added",
+     "kind": "nav",
+     "label": "Argus — Admin Console"
+    },
+    {
+     "element": "run-status",
+     "fact": "added",
+     "kind": "feedback",
+     "label": "Last run 06:04 — EDGAR 4 min late"
+    },
+    {
+     "element": "panel-pipelines",
+     "fact": "added",
+     "kind": "block",
+     "label": "Pipelines"
+    },
+    {
+     "element": "tog-market",
+     "fact": "added",
+     "kind": "toggle",
+     "label": "Market Feed"
+    },
+    {
+     "element": "tog-edgar",
+     "fact": "added",
+     "kind": "toggle",
+     "label": "SEC EDGAR"
+    },
+    {
+     "element": "tog-news",
+     "fact": "added",
+     "kind": "toggle",
+     "label": "News Sentiment"
+    },
+    {
+     "element": "tog-portfolio",
+     "fact": "added",
+     "kind": "toggle",
+     "label": "Portfolio DB"
+    },
+    {
+     "element": "btn-rerun-market",
+     "fact": "added",
+     "kind": "button",
+     "label": "Rerun"
+    },
+    {
+     "element": "btn-rerun-edgar",
+     "fact": "added",
+     "kind": "button",
+     "label": "Rerun"
+    },
+    {
+     "element": "btn-rerun-news",
+     "fact": "added",
+     "kind": "button",
+     "label": "Rerun"
+    },
+    {
+     "element": "btn-rerun-portfolio",
+     "fact": "added",
+     "kind": "button",
+     "label": "Rerun"
+    },
+    {
+     "element": "panel-thresholds",
+     "fact": "added",
+     "kind": "block",
+     "label": "Thresholds"
+    },
+    {
+     "element": "sld-risk",
+     "fact": "added",
+     "kind": "slider",
+     "label": "Risk threshold"
+    },
+    {
+     "element": "sld-confidence",
+     "fact": "added",
+     "kind": "slider",
+     "label": "Confidence threshold"
+    },
+    {
+     "element": "btn-apply",
+     "fact": "added",
+     "kind": "button",
+     "label": "Apply"
+    },
+    {
+     "element": "pin-threshold-scope",
+     "fact": "pin_added",
+     "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?"
+    },
+    {
+     "element": "pin-rerun-result",
+     "fact": "pin_added",
+     "question": "A rerun at 09:30 — does it overwrite this morning's numbers, or sit beside them?"
+    },
+    {
+     "element": "screen-console",
+     "fact": "screen_added",
+     "name": "Admin Console"
+    },
+    {
+     "element": "screen-console",
+     "fact": "reading_order_set",
+     "order": [
+      "Argus — Admin Console",
+      "Last run 06:04 — EDGAR 4 min late",
+      "Pipelines",
+      "Market Feed",
+      "Rerun",
+      "SEC EDGAR",
+      "Rerun",
+      "News Sentiment",
+      "Rerun",
+      "Portfolio DB",
+      "Rerun",
+      "Thresholds",
+      "Risk threshold",
+      "Confidence threshold",
+      "Apply"
+     ],
+     "screen": "Admin Console"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "A rerun at 09:30 — does it overwrite this morning's numbers, or sit beside them?",
+       "role": "pin",
+       "status": "open",
+       "target": "btn-rerun-edgar"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-rerun-result",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1549543337,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 652,
+      "y": 222
+     },
+     "index": 44,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "These two thresholds live downstream of every pipeline. So what does 'rerun EDGAR with new settings' change?",
+       "role": "pin",
+       "status": "open",
+       "target": "panel-thresholds"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-threshold-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1802470776,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 672,
+      "y": 362
+     },
+     "index": 43,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-apply",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-apply-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Apply",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 646994327,
+      "strokeColor": "#ffffff",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Apply",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 546
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sld-confidence",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "sld-confidence-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Confidence threshold",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1496234653,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Confidence threshold",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 157,
+      "x": 152,
+      "y": 466
+     },
+     "index": 41,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sld-risk",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "sld-risk-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk threshold",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1862616176,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk threshold",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 106,
+      "x": 177,
+      "y": 406
+     },
+     "index": 40,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "panel-thresholds",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "panel-thresholds-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Thresholds",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1559927261,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Thresholds",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 83,
+      "x": 318,
+      "y": 366
+     },
+     "index": 39,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-rerun-portfolio",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-rerun-portfolio-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rerun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 735655235,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rerun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 306
+     },
+     "index": 38,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-rerun-news",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-rerun-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rerun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1643397464,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rerun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 266
+     },
+     "index": 37,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-rerun-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-rerun-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rerun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 39579936,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rerun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 226
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "btn-rerun-market",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "btn-rerun-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rerun",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 881272901,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rerun",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 46,
+      "x": 597,
+      "y": 186
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "tog-portfolio",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "tog-portfolio-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio DB",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1440665186,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio DB",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 92,
+      "x": 134,
+      "y": 306
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "tog-news",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "tog-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News Sentiment",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1262558895,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News Sentiment",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 122,
+      "x": 119,
+      "y": 266
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "tog-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "tog-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "SEC EDGAR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 556278720,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "SEC EDGAR",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 92,
+      "x": 134,
+      "y": 226
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "tog-market",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "tog-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Market Feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 346995183,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Market Feed",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 92,
+      "x": 134,
+      "y": 186
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "panel-pipelines",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "panel-pipelines-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Pipelines",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1553022509,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Pipelines",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 68,
+      "x": 326,
+      "y": 146
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "run-status",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "run-status-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Last run 06:04 — EDGAR 4 min late",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1987060631,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Last run 06:04 — EDGAR 4 min late",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 258,
+      "x": 231,
+      "y": 88
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "console-nav",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "console-nav-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Argus — Admin Console",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 208465509,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Argus — Admin Console",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 175,
+      "x": 272,
+      "y": 30
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [
+       {
+        "id": "btn-apply-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "role": "node",
+       "tooltip": "I drew this because a settings screen with no commit control asserts that every drag takes effect immediately — which would be a strange thing for a threshold. But I can't tell you what it does."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-apply",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 657488052,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 540
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sld-confidence-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "slider",
+       "parent": "panel-thresholds",
+       "role": "node",
+       "tooltip": "Belongs to the **Aggregator** — also downstream of all four pipelines.",
+       "value": 70.0
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "sld-confidence-grp"
+      ],
+      "height": 44,
+      "id": "sld-confidence",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1599987900,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 380,
+      "x": 40,
+      "y": 460
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sld-risk-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "slider",
+       "parent": "panel-thresholds",
+       "role": "node",
+       "tooltip": "Belongs to the **Risk Model** — downstream of all four pipelines.",
+       "value": 60.0
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "sld-risk-grp"
+      ],
+      "height": 44,
+      "id": "sld-risk",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2040382255,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 380,
+      "x": 40,
+      "y": 400
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "panel-thresholds-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "block",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 160,
+      "id": "panel-thresholds",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 500293084,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 360
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "btn-rerun-portfolio-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-rerun-portfolio",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 474219664,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 300
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "btn-rerun-news-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-rerun-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1232822891,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 260
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "btn-rerun-edgar-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-rerun-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 488552952,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 220
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "btn-rerun-market-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "button",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 32,
+      "id": "btn-rerun-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2104595919,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 120,
+      "x": 560,
+      "y": 180
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "tog-portfolio-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "checked": true,
+       "kind": "toggle",
+       "parent": "panel-pipelines",
+       "role": "node",
+       "tooltip": "Drawn as a peer switch, but this one is odd: turning it off doesn't remove a scorer, it removes exposure and concentration from the Risk Model. Is it even switchable?"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "tog-portfolio-grp"
+      ],
+      "height": 32,
+      "id": "tog-portfolio",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 592948478,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 40,
+      "y": 300
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "tog-news-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "checked": true,
+       "kind": "toggle",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "tog-news-grp"
+      ],
+      "height": 32,
+      "id": "tog-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 552726036,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 40,
+      "y": 260
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "tog-edgar-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "checked": true,
+       "kind": "toggle",
+       "parent": "panel-pipelines",
+       "role": "node",
+       "tooltip": "Switching this off costs **two** scorers — sentiment loses filing tone, and the insider detector loses Form 4s entirely."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "tog-edgar-grp"
+      ],
+      "height": 32,
+      "id": "tog-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1565351897,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 40,
+      "y": 220
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "tog-market-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "checked": true,
+       "kind": "toggle",
+       "parent": "panel-pipelines",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [
+       "tog-market-grp"
+      ],
+      "height": 32,
+      "id": "tog-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 836294263,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 40,
+      "y": 180
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "panel-pipelines-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "block",
+       "role": "node",
+       "tooltip": "One row per Pipeline — because a Pipeline is one source end to end, the switch and the rerun button are two controls on the same object, not two lists that happen to be the same length."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 200,
+      "id": "panel-pipelines",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1721875313,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 140
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "run-status-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "feedback",
+       "role": "node",
+       "tooltip": "**Invented.** You never said the console shows run status — but you said this is where you spend your time, and 'did this morning work' is the first thing anyone asks a control panel.\n\nIf it belongs on the dashboard instead, delete it."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 36,
+      "id": "run-status",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 181114147,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 80
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "console-nav-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "nav",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-console",
+      "groupIds": [],
+      "height": 40,
+      "id": "console-nav",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 849921627,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 20,
+      "y": 20
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "sld-confidence"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "sld-confidence-grp"
+      ],
+      "height": 12,
+      "id": "sld-confidence-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1119763374,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 294,
+      "y": 484
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "f707073615",
+       "track_of": "sld-confidence"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "sld-confidence-grp"
+      ],
+      "height": 0,
+      "id": "sld-confidence-track",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        360,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 23728851,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 2,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 50,
+      "y": 490
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "sld-risk"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "sld-risk-grp"
+      ],
+      "height": 12,
+      "id": "sld-risk-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1955972419,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 259,
+      "y": 424
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "cbe21ff35a",
+       "track_of": "sld-risk"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "sld-risk-grp"
+      ],
+      "height": 0,
+      "id": "sld-risk-track",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        360,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 927067198,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 2,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 50,
+      "y": 430
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "tog-portfolio"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-portfolio-grp"
+      ],
+      "height": 12,
+      "id": "tog-portfolio-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1313754961,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 70,
+      "y": 310
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "box_of": "tog-portfolio",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-portfolio-grp"
+      ],
+      "height": 16,
+      "id": "tog-portfolio-box",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 134923654,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 36,
+      "x": 48,
+      "y": 308
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "tog-news"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-news-grp"
+      ],
+      "height": 12,
+      "id": "tog-news-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1355915164,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 70,
+      "y": 270
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "box_of": "tog-news",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-news-grp"
+      ],
+      "height": 16,
+      "id": "tog-news-box",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1312486529,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 36,
+      "x": 48,
+      "y": 268
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "tog-edgar"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-edgar-grp"
+      ],
+      "height": 12,
+      "id": "tog-edgar-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 985178867,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 70,
+      "y": 230
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "box_of": "tog-edgar",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-edgar-grp"
+      ],
+      "height": 16,
+      "id": "tog-edgar-box",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 100481384,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 36,
+      "x": 48,
+      "y": 228
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#1e1e1e",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "thumb_of": "tog-market"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-market-grp"
+      ],
+      "height": 12,
+      "id": "tog-market-thumb",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 255736028,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 12,
+      "x": 70,
+      "y": 190
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "box_of": "tog-market",
+       "role": "decoration"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "tog-market-grp"
+      ],
+      "height": 16,
+      "id": "tog-market-box",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1663543133,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 36,
+      "x": 48,
+      "y": 188
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 600,
+      "id": "screen-console",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Admin Console",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1997377173,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 720,
+      "x": 0,
+      "y": 0
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 7,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "set_budget",
+   "arrows": 1,
+   "artifact": "admin-console",
+   "nodes": 16,
+   "reason": "a control panel's block count IS its content — dropping controls to fit 9 would draw a screen the user does not have"
+  },
+  {
+   "action": "upsert_concept",
+   "id": "admin-console",
+   "name": "Admin Console",
+   "view_types": {
+    "admin-console": "wireframe"
+   },
+   "views": [
+    "admin-console"
+   ]
+  }
+ ],
+ "revn": 8,
+ "round": 4,
+ "saved_at": "2026-08-10T07:06:08Z",
+ "selection_at_save": [],
+ "short_id": "a108ebb",
+ "summary": {
+  "headline": "added Admin Console (+19 more)",
+  "suppressed": 12,
+  "verb_counts": {
+   "added": 28,
+   "pin_added": 2,
+   "reading_order_set": 1,
+   "screen_added": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "the console: one row per pipeline, two thresholds, and an Apply button I can't explain"
+}

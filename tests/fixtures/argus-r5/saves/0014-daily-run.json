@@ -1,0 +1,776 @@
+{
+ "artifacts": {
+  "daily-run": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-trigger-portfolio",
+     "kind": "arrow",
+     "label": "t-trigger-portfolio",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-trigger-portfolio"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "06:00 weekday",
+        "portfolio-db"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-portfolio-risk",
+     "kind": "arrow",
+     "label": "holdings",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "holdings"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "portfolio-db",
+        "Risk Model"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "risk-model",
+     "kind": "transform",
+     "label": "Risk Model",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Risk Model",
+       "text": "Reads the aggregate, and reads **the book** directly for exposure and concentrat"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-43435b73",
+     "kind": "rectangle",
+     "label": "this is the book, not a feed - it never gets toggled off",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "this is the book, not a feed - it never gets toggled off"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d777bd8fb3"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 197,
+      "id": "t-trigger-portfolio",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        700,
+        0
+       ],
+       [
+        700,
+        197
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1730001475,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "run-trigger",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 700,
+      "x": 660,
+      "y": 43
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-portfolio-risk-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c7239e93fc"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 688,
+      "id": "t-portfolio-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        688
+       ],
+       [
+        -720,
+        688
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 146382986,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 720,
+      "x": 1360,
+      "y": 304
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-portfolio-risk",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-portfolio-risk-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "holdings",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 36041662,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "holdings",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 65,
+      "x": 1312,
+      "y": 982
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.344,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "t-trigger-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and joins it against the Portfolio DB for **exposure and concentration**.\n\nIt does **not** own the risk threshold — that is a display filter. Canonical: `project_knowledge/CONTEXT.md`."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and reads **the book** directly for exposure and concentration.\n\nThe book is not a feed and is not pulled at 06:00 — which is why it is no longer drawn as a source.\n\nIt does not own the risk threshold; that is a display filter. Canonical: `project_knowledge/CONTEXT.md`."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-enrich-agg",
+      "t-agg-risk",
+      "t-risk-out",
+      "t-portfolio-risk",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "deliverables",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline",
+      "t-portfolio-risk-label",
+      "usernote-43435b73",
+      "usernote-43435b73-t"
+     ],
+     "moved": [
+      "usernote-43435b73",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline"
+     ],
+     "op": "reorder",
+     "order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-enrich-agg",
+      "t-agg-risk",
+      "t-risk-out",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "deliverables",
+      "usernote-43435b73",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline",
+      "usernote-43435b73-t"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-trigger-portfolio",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-trigger-portfolio"
+     }
+    },
+    {
+     "element": "t-portfolio-risk",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "holdings"
+     }
+    },
+    {
+     "element": "risk-model",
+     "fact": "tooltip_changed",
+     "label": "Risk Model",
+     "text": "Reads the aggregate, and reads **the book** directly for exposure and concentrat"
+    },
+    {
+     "element": "usernote-43435b73",
+     "fact": "reordered",
+     "label": "this is the book, not a feed - it never gets toggled off"
+    },
+    {
+     "between": [
+      "06:00 weekday",
+      "portfolio-db"
+     ],
+     "element": "t-trigger-portfolio",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "portfolio-db",
+      "Risk Model"
+     ],
+     "element": "t-portfolio-risk",
+     "fact": "transition_deleted"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-enrich-agg",
+      "t-agg-risk",
+      "t-risk-out",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "deliverables",
+      "usernote-43435b73",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline",
+      "usernote-43435b73-t"
+     ],
+     "moved": [
+      "usernote-43435b73",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline"
+     ],
+     "op": "reorder",
+     "order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-enrich-agg",
+      "t-agg-risk",
+      "t-risk-out",
+      "t-portfolio-risk",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "enrichment",
+      "risk-model",
+      "aggregator",
+      "deliverables",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "enrichment-label",
+      "risk-model-label",
+      "aggregator-label",
+      "deliverables-label",
+      "pin-deadline",
+      "t-portfolio-risk-label",
+      "usernote-43435b73",
+      "usernote-43435b73-t"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and reads **the book** directly for exposure and concentration.\n\nThe book is not a feed and is not pulled at 06:00 — which is why it is no longer drawn as a source.\n\nIt does not own the risk threshold; that is a display filter. Canonical: `project_knowledge/CONTEXT.md`."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and joins it against the Portfolio DB for **exposure and concentration**.\n\nIt does **not** own the risk threshold — that is a display filter. Canonical: `project_knowledge/CONTEXT.md`."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.344,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "t-trigger-news",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-portfolio-risk",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-portfolio-risk-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "holdings",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 36041662,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "holdings",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 65,
+      "x": 1312,
+      "y": 982
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-portfolio-risk-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c7239e93fc"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 688,
+      "id": "t-portfolio-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        688
+       ],
+       [
+        -720,
+        688
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 146382986,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 720,
+      "x": 1360,
+      "y": 304
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "d777bd8fb3"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 197,
+      "id": "t-trigger-portfolio",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        700,
+        0
+       ],
+       [
+        700,
+        197
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1730001475,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "run-trigger",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 700,
+      "x": 660,
+      "y": 43
+     },
+     "index": 3,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Daily Run (06:00)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 13,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 14,
+ "round": 5,
+ "saved_at": "2026-08-10T07:23:25Z",
+ "selection_at_save": [],
+ "short_id": "4b4bcf6",
+ "summary": {
+  "headline": "deleted t-trigger-portfolio (+5 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "deleted": 2,
+   "reordered": 1,
+   "tooltip_changed": 1,
+   "transition_deleted": 2
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "clear the arrows your deletion left behind; the book is read, not pulled"
+}

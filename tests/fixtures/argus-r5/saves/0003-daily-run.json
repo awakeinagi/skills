@@ -1,0 +1,2441 @@
+{
+ "artifacts": {
+  "daily-run": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData",
+      "link"
+     ],
+     "consequence_of": null,
+     "id": "enrichment",
+     "kind": "transform",
+     "label": "Enrichment",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "links_changed": {
+       "from": null,
+       "label": "Enrichment",
+       "to": "artifact:enrichment-flow"
+      },
+      "renamed": {
+       "from": "Enrichment (4 scorers)",
+       "to": "Enrichment"
+      },
+      "tooltip_changed": {
+       "label": "Enrichment",
+       "text": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, inside"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-enrich-agg",
+     "kind": "arrow",
+     "label": "t-enrich-agg",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-enrich-agg"
+      },
+      "transition_added": {
+       "between": [
+        "Enrichment",
+        "Aggregator"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-agg-risk",
+     "kind": "arrow",
+     "label": "t-agg-risk",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-agg-risk"
+      },
+      "transition_added": {
+       "between": [
+        "Aggregator",
+        "Risk Model"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-risk-out",
+     "kind": "arrow",
+     "label": "t-risk-out",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-risk-out"
+      },
+      "transition_added": {
+       "between": [
+        "Risk Model",
+        "Dashboard + 3 PDFs"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-portfolio-risk",
+     "kind": "arrow",
+     "label": "holdings",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "holdings"
+      },
+      "transition_added": {
+       "between": [
+        "Portfolio DB",
+        "Risk Model"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-portfolio-enrich",
+     "kind": "arrow",
+     "label": "t-portfolio-enrich",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-portfolio-enrich"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Portfolio DB",
+        "Enrichment (4 scorers)"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-enrich-risk",
+     "kind": "arrow",
+     "label": "t-enrich-risk",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-enrich-risk"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Enrichment (4 scorers)",
+        "Risk Model"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-risk-agg",
+     "kind": "arrow",
+     "label": "t-risk-agg",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-risk-agg"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Risk Model",
+        "Aggregator"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-agg-out",
+     "kind": "arrow",
+     "label": "t-agg-out",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-agg-out"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Aggregator",
+        "Dashboard + 3 PDFs"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-nondeterminism",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-portfolio-scope",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "portfolio-db",
+     "kind": "source",
+     "label": "Portfolio DB",
+     "ops": [
+      13,
+      14
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 320,
+       "dy": 0,
+       "label": "Portfolio DB",
+       "spatial": "moved right"
+      },
+      "tooltip_changed": {
+       "label": "Portfolio DB",
+       "text": "Ours, not a vendor's. It does **not** pick the universe — everything gets scored"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "risk-model",
+     "kind": "transform",
+     "label": "Risk Model",
+     "ops": [
+      16,
+      17
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 240,
+       "label": "Risk Model",
+       "spatial": "moved down"
+      },
+      "tooltip_changed": {
+       "label": "Risk Model",
+       "text": "Reads the aggregate, and joins it against Portfolio DB for **exposure and concen"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "aggregator",
+     "kind": "transform",
+     "label": "Aggregator",
+     "ops": [
+      18,
+      19
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -240,
+       "label": "Aggregator",
+       "spatial": "moved up"
+      },
+      "tooltip_changed": {
+       "label": "Aggregator",
+       "text": "Where the four signals meet, and what the risk model reads. Owns the **confidenc"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "8365c68dcf"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-enrich-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 127937274,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 544
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "4025d01be0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-agg-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1227105316,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 784
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "03f83e1aec"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "deliverables",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-risk-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1751797216,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 1024
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-portfolio-risk-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c7239e93fc"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 688,
+      "id": "t-portfolio-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        688
+       ],
+       [
+        -720,
+        688
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 146382986,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 720,
+      "x": 1360,
+      "y": 304
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-portfolio-risk",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-portfolio-risk-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "holdings",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 36041662,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "holdings",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 65,
+      "x": 1312,
+      "y": 982
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "b2972010cb"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 219,
+      "id": "t-portfolio-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        219
+       ],
+       [
+        -360,
+        219
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1276233049,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 1040,
+      "y": 304
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "8365c68dcf"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-enrich-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 856813147,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 544
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "4025d01be0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-risk-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 515789287,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 784
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "03f83e1aec"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "deliverables",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-agg-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 786751862,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 1024
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Which of the four scorers is a model making a judgement, and which is arithmetic?",
+       "role": "pin",
+       "status": "open",
+       "target": "enrichment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-nondeterminism",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1817726145,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 688,
+      "y": 472
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the portfolio decide *what gets scored*, or does it only enter at the risk model?",
+       "role": "pin",
+       "status": "open",
+       "target": "portfolio-db"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-portfolio-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1567948515,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1128,
+      "y": 232
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 380,
+       "to": 700
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         380,
+         0
+        ],
+        [
+         380,
+         197
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         700,
+         0
+        ],
+        [
+         700,
+         197
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "4d5983cf2a"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d777bd8fb3"
+       }
+      }
+     ],
+     "id": "t-trigger-portfolio",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "enrichment",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "enrichment",
+        "focus": -0.344,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Ours, not a vendor's. What we actually hold — which is what turns a true signal into a *relevant* one."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Ours, not a vendor's. It does **not** pick the universe — everything gets scored. It joins late, at the risk model, for exposure and concentration.\n\nMoved down out of the source row: it is pulled at 06:00 like the others, but it is not an input to scoring, and sitting in that row said it was."
+       }
+      }
+     ],
+     "id": "portfolio-db",
+     "op": "mod"
+    },
+    {
+     "from": [
+      960,
+      240
+     ],
+     "id": "portfolio-db",
+     "op": "move",
+     "to": [
+      1280,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "intent": "placeholder for the four scorers; collapsed until we agree what feeds what",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Sentiment scorer (headlines + filing tone) · fundamentals ratios · technical signals · insider-cluster detector (Form 4 clusters).\n\nDrawn as one box on purpose — it is the next flow, not a step."
+       },
+       "to": {
+        "author": "agent",
+        "intent": "placeholder for the four scorers; collapsed until we agree what feeds what",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, insider-cluster detector.\n\n**Click to open the Enrichment flow** — the fan, the aggregator and the contrarian screen live there."
+       }
+      },
+      {
+       "attr": "link",
+       "from": null,
+       "to": "artifact:enrichment-flow"
+      }
+     ],
+     "id": "enrichment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Weighs the enriched signals. Owns the **risk threshold** the admin console exposes."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and joins it against Portfolio DB for **exposure and concentration**. Owns the **risk threshold**."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "from": [
+      480,
+      720
+     ],
+     "id": "risk-model",
+     "op": "move",
+     "to": [
+      480,
+      960
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Collapses per-holding scores into what the dashboard and the reports both read from. Owns the **confidence threshold**."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Where the four signals meet, and what the risk model reads. Owns the **confidence threshold**.\n\nThe contrarian screen sits between this and the risk model — see Enrichment."
+       }
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    },
+    {
+     "from": [
+      480,
+      960
+     ],
+     "id": "aggregator",
+     "op": "move",
+     "to": [
+      480,
+      720
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 994,
+       "to": 1314
+      }
+     ],
+     "id": "portfolio-db-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 478,
+       "to": 518
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 164,
+       "to": 84
+      },
+      {
+       "attr": "text",
+       "from": "Enrichment (4 scorers)",
+       "to": "Enrichment"
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 742,
+       "to": 982
+      }
+     ],
+     "id": "risk-model-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 982,
+       "to": 742
+      }
+     ],
+     "id": "aggregator-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "enrichment",
+     "fact": "renamed",
+     "from": "Enrichment (4 scorers)",
+     "to": "Enrichment"
+    },
+    {
+     "element": "t-enrich-agg",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-enrich-agg"
+    },
+    {
+     "element": "t-agg-risk",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-agg-risk"
+    },
+    {
+     "element": "t-risk-out",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-risk-out"
+    },
+    {
+     "element": "t-portfolio-risk",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "holdings"
+    },
+    {
+     "element": "t-portfolio-enrich",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-portfolio-enrich"
+     }
+    },
+    {
+     "element": "t-enrich-risk",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-enrich-risk"
+     }
+    },
+    {
+     "element": "t-risk-agg",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-risk-agg"
+     }
+    },
+    {
+     "element": "t-agg-out",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-agg-out"
+     }
+    },
+    {
+     "element": "pin-nondeterminism",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "pin-portfolio-scope",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "portfolio-db",
+     "fact": "tooltip_changed",
+     "label": "Portfolio DB",
+     "text": "Ours, not a vendor's. It does **not** pick the universe — everything gets scored"
+    },
+    {
+     "dx": 320,
+     "dy": 0,
+     "element": "portfolio-db",
+     "fact": "moved",
+     "label": "Portfolio DB",
+     "spatial": "moved right"
+    },
+    {
+     "element": "enrichment",
+     "fact": "links_changed",
+     "from": null,
+     "label": "Enrichment",
+     "to": "artifact:enrichment-flow"
+    },
+    {
+     "element": "enrichment",
+     "fact": "tooltip_changed",
+     "label": "Enrichment",
+     "text": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, inside"
+    },
+    {
+     "element": "risk-model",
+     "fact": "tooltip_changed",
+     "label": "Risk Model",
+     "text": "Reads the aggregate, and joins it against Portfolio DB for **exposure and concen"
+    },
+    {
+     "dx": 0,
+     "dy": 240,
+     "element": "risk-model",
+     "fact": "moved",
+     "label": "Risk Model",
+     "spatial": "moved down"
+    },
+    {
+     "element": "aggregator",
+     "fact": "tooltip_changed",
+     "label": "Aggregator",
+     "text": "Where the four signals meet, and what the risk model reads. Owns the **confidenc"
+    },
+    {
+     "dx": 0,
+     "dy": -240,
+     "element": "aggregator",
+     "fact": "moved",
+     "label": "Aggregator",
+     "spatial": "moved up"
+    },
+    {
+     "between": [
+      "Enrichment",
+      "Aggregator"
+     ],
+     "element": "t-enrich-agg",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Aggregator",
+      "Risk Model"
+     ],
+     "element": "t-agg-risk",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Risk Model",
+      "Dashboard + 3 PDFs"
+     ],
+     "element": "t-risk-out",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Portfolio DB",
+      "Risk Model"
+     ],
+     "element": "t-portfolio-risk",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Portfolio DB",
+      "Enrichment (4 scorers)"
+     ],
+     "element": "t-portfolio-enrich",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Enrichment (4 scorers)",
+      "Risk Model"
+     ],
+     "element": "t-enrich-risk",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Risk Model",
+      "Aggregator"
+     ],
+     "element": "t-risk-agg",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "Aggregator",
+      "Dashboard + 3 PDFs"
+     ],
+     "element": "t-agg-out",
+     "fact": "transition_deleted"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 742,
+       "to": 982
+      }
+     ],
+     "id": "aggregator-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 982,
+       "to": 742
+      }
+     ],
+     "id": "risk-model-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 518,
+       "to": 478
+      },
+      {
+       "attr": "width",
+       "from": 84,
+       "to": 164
+      },
+      {
+       "attr": "text",
+       "from": "Enrichment",
+       "to": "Enrichment (4 scorers)"
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1314,
+       "to": 994
+      }
+     ],
+     "id": "portfolio-db-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      480,
+      720
+     ],
+     "id": "aggregator",
+     "op": "move",
+     "to": [
+      480,
+      960
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Where the four signals meet, and what the risk model reads. Owns the **confidence threshold**.\n\nThe contrarian screen sits between this and the risk model — see Enrichment."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Collapses per-holding scores into what the dashboard and the reports both read from. Owns the **confidence threshold**."
+       }
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    },
+    {
+     "from": [
+      480,
+      960
+     ],
+     "id": "risk-model",
+     "op": "move",
+     "to": [
+      480,
+      720
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Reads the aggregate, and joins it against Portfolio DB for **exposure and concentration**. Owns the **risk threshold**."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Weighs the enriched signals. Owns the **risk threshold** the admin console exposes."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "intent": "placeholder for the four scorers; collapsed until we agree what feeds what",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Four scorers: sentiment (an LLM), fundamentals ratios, technical signals, insider-cluster detector.\n\n**Click to open the Enrichment flow** — the fan, the aggregator and the contrarian screen live there."
+       },
+       "to": {
+        "author": "agent",
+        "intent": "placeholder for the four scorers; collapsed until we agree what feeds what",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Sentiment scorer (headlines + filing tone) · fundamentals ratios · technical signals · insider-cluster detector (Form 4 clusters).\n\nDrawn as one box on purpose — it is the next flow, not a step."
+       }
+      },
+      {
+       "attr": "link",
+       "from": "artifact:enrichment-flow",
+       "to": null
+      }
+     ],
+     "id": "enrichment",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1280,
+      240
+     ],
+     "id": "portfolio-db",
+     "op": "move",
+     "to": [
+      960,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Ours, not a vendor's. It does **not** pick the universe — everything gets scored. It joins late, at the risk model, for exposure and concentration.\n\nMoved down out of the source row: it is pulled at 06:00 like the others, but it is not an input to scoring, and sitting in that row said it was."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "source",
+        "role": "node",
+        "tooltip": "Ours, not a vendor's. What we actually hold — which is what turns a true signal into a *relevant* one."
+       }
+      }
+     ],
+     "id": "portfolio-db",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "enrichment",
+        "focus": -0.344,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "enrichment",
+        "focus": -0.333,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 700,
+       "to": 380
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         700,
+         0
+        ],
+        [
+         700,
+         197
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         380,
+         0
+        ],
+        [
+         380,
+         197
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d777bd8fb3"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "4d5983cf2a"
+       }
+      }
+     ],
+     "id": "t-trigger-portfolio",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the portfolio decide *what gets scored*, or does it only enter at the risk model?",
+       "role": "pin",
+       "status": "open",
+       "target": "portfolio-db"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-portfolio-scope",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1567948515,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1128,
+      "y": 232
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Which of the four scorers is a model making a judgement, and which is arithmetic?",
+       "role": "pin",
+       "status": "open",
+       "target": "enrichment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-nondeterminism",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1817726145,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 688,
+      "y": 472
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "03f83e1aec"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "deliverables",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-agg-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 786751862,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 1024
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "4025d01be0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-risk-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 515789287,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 784
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "8365c68dcf"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-enrich-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 856813147,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 544
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "b2972010cb"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "enrichment",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 219,
+      "id": "t-portfolio-enrich",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        219
+       ],
+       [
+        -360,
+        219
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1276233049,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 360,
+      "x": 1040,
+      "y": 304
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "t-portfolio-risk",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "t-portfolio-risk-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "holdings",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 36041662,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "holdings",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 65,
+      "x": 1312,
+      "y": 982
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "t-portfolio-risk-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c7239e93fc"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 688,
+      "id": "t-portfolio-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        688
+       ],
+       [
+        -720,
+        688
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 146382986,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "portfolio-db",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 720,
+      "x": 1360,
+      "y": 304
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "03f83e1aec"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "deliverables",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-risk-out",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1751797216,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 1024
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "4025d01be0"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-model",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-agg-risk",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1227105316,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 784
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "8365c68dcf"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "aggregator",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 176,
+      "id": "t-enrich-agg",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        176
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 127937274,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "enrichment",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 560,
+      "y": 544
+     },
+     "index": 7,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Daily Run (06:00)"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 2,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1184192
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "add_mapping",
+   "concept": "aggregator",
+   "elements": [
+    "daily-run#aggregator",
+    "enrichment-flow#aggregator"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "risk-model",
+   "elements": [
+    "daily-run#risk-model",
+    "enrichment-flow#risk-model"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "argus",
+   "elements": [
+    "daily-run#market-feed",
+    "enrichment-flow#market-feed"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "argus",
+   "elements": [
+    "daily-run#sec-edgar",
+    "enrichment-flow#sec-edgar"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "argus",
+   "elements": [
+    "daily-run#news-stream",
+    "enrichment-flow#news-stream"
+   ]
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Signal",
+   "id": "signal",
+   "name": "Signal"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Aggregator",
+   "id": "aggregator",
+   "name": "Aggregator"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Contrarian Screen",
+   "id": "contrarian-screen",
+   "name": "Contrarian Screen"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Portfolio DB",
+   "id": "portfolio-db",
+   "name": "Portfolio DB"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Risk Model",
+   "id": "risk-model",
+   "name": "Risk Model"
+  },
+  {
+   "action": "upsert_concept",
+   "glossary": "Enrichment",
+   "id": "enrichment",
+   "name": "Enrichment"
+  }
+ ],
+ "revn": 3,
+ "round": 1,
+ "saved_at": "2026-08-10T06:45:17Z",
+ "selection_at_save": [],
+ "short_id": "2bcbbff",
+ "summary": {
+  "headline": "renamed 'Enrichment (4 scorers)' → 'Enrichment' (+26 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 4,
+   "deleted": 4,
+   "links_changed": 1,
+   "moved": 3,
+   "pin_deleted": 2,
+   "renamed": 1,
+   "tooltip_changed": 4,
+   "transition_added": 4,
+   "transition_deleted": 4
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "corrections: aggregator feeds the risk model (not the reverse), and Portfolio DB joins at the risk model"
+}
