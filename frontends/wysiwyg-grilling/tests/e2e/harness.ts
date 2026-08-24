@@ -130,6 +130,31 @@ export const testMini = base.extend<object, { canvas: Canvas }>({
   }, { scope: "worker" }],
 });
 
+
+/** A single reported row label for the live-font restore regression. */
+export const testTextClip = base.extend<object, { canvas: Canvas }>({
+  canvas: [async ({}, use, workerInfo) => {
+    const c = makeCanvas(null, workerInfo.workerIndex);
+    const batch = {
+      base_revn: 0,
+      create: { id: "text-clip", type: "wireframe", concept: "text-clip",
+                name: "Text clipping" },
+      ops: [{ op: "add", element: {
+        id: "reported-row", type: "rectangle", x: 80, y: 80,
+        width: 640, height: 40,
+        label: "Email landlord about the repair",
+      } }],
+    };
+    const bpath = path.join(c.project, "batch.json");
+    fs.writeFileSync(bpath, JSON.stringify(batch));
+    const r = c.cli("apply", "--file", bpath);
+    if (!/REVN=1/.test(r.stdout))
+      throw new Error("text clipping seed failed: " + r.stdout + r.stderr);
+    await use(c);
+    stop(c);
+  }, { scope: "worker" }],
+});
+
 export { expect } from "@playwright/test";
 
 /** Click a scene coordinate through the app's own camera hook. */
