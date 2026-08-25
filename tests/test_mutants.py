@@ -34962,13 +34962,21 @@ class TestCoverage(unittest.TestCase):
         magnitude, and the direction picks the tail.
 
         THE CORPUS CANNOT EXERCISE IT, measured rather than inherited:
-        across the frozen artifacts and saves there are 67 composed
-        hosts, 27 of them entities and so carved out, and every one of
-        the 40 that carries a floor draws exactly what it owes. ZERO
-        findings added to every shipped drawing, so `corpus_census` does
-        not move. That zero is an EMPTY population and not an
-        unreachable one — Ctrl+Shift+G then Ctrl+D on a slider reaches
-        it through `_rehost_duplicated_parts`' two-owner drop branch.
+        across the 24 frozen artifacts there are 67 composed hosts, 27
+        of them entities and so carved out, and every one of the 40 that
+        carries a floor draws exactly what it owes. ZERO findings added
+        to every shipped drawing, so `corpus_census` does not move. That
+        zero is an EMPTY population and not an unreachable one —
+        Ctrl+Shift+G then Ctrl+D on a slider reaches it through
+        `_rehost_duplicated_parts`' two-owner drop branch.
+
+        THE DENOMINATOR IS THE ARTIFACTS, not the fixture tree, and the
+        first sweep of this got it wrong in the direction that looks
+        right: `saves/` holds DIFFS (`changes`, `facts`, `inverse`) and
+        not scenes, so globbing it reported the same zero while reading
+        no elements at all. A zero over an unread population is the
+        shape this repo keeps finding, so the number above is the
+        artifacts alone and says so.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)

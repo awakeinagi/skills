@@ -19677,9 +19677,13 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # silence nobody has to remember to ask for.
     #
     # ZERO ON THE FROZEN CORPUS, measured 2026-08-25 rather than hoped:
-    # 67 composed hosts across the artifacts and saves, 27 of them
+    # 67 composed hosts across the 24 frozen artifacts, 27 of them
     # entities and so exempt, 40 carrying a floor, and every one of the
     # 40 draws exactly what it owes. The corpus census does not move.
+    # The denominator is the ARTIFACTS and not the whole fixture tree —
+    # `saves/` holds diffs (`changes`, `facts`, `inverse`), not scenes,
+    # so a sweep that globbed it would have reported the same zero while
+    # reading no elements at all.
     for hid, kind, floor, drawn in composed_host_gaps(els):
         errors.append(
             "%s is a composed %s whose own geometry draws %d part(s), "
