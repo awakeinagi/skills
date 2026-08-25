@@ -32752,6 +32752,287 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
                scene[0]["y"] + scene[0]["height"]))
 
 
+# ---------------------------------------------------------------------------
+# ONE NAME, ONE MODULE-LEVEL SITE. Two streams that both hoist the same
+# constant leave two top-level assignments in one file, and git merges them
+# WITHOUT a conflict because the blocks land in different places. Python
+# keeps the last, so the tree still runs — against whichever copy sorted
+# second, with the dead one above it for the next editor to find first.
+# Witnessed on this base 2026-08-25: `git cherry-pick -n dd97f4e` auto-merged
+# canvas.py clean, no marker anywhere in the file, and left `WIREFRAME_KINDS`
+# assigned twice — 15 kinds, then 17.
+#
+# WHAT WAS ALREADY WATCHING, measured rather than assumed, because a guard
+# laid on top of a working one is the same lie as a missing one:
+#
+#   ruff 0.16.4 `--select F811` over that duplicated canvas.py said "All
+#   checks passed". So did the minimal control — a file holding exactly
+#   `A = (1, 2)` / `A = (3, 4)` / `print(A)` under `--select F`. Pyflakes
+#   does not model plain rebinding at all, so F811 was never going to bite
+#   and the repo's configured `ruff check` inherits that silence.
+#
+#   mypy 1.18.2 DOES fail that one injection, and only by accident:
+#   `tuple[str, …15]` and `tuple[str, …17]` are incompatible assignment
+#   types. Re-injected with the two copies the SAME length it is silent,
+#   and silent again on a duplicated dict, frozenset, int or float. A type
+#   accident is not a duplicate check.
+#
+#   Over a BYTE-IDENTICAL second `WIREFRAME_KINDS`, everything the gate runs
+#   was measured green: `ruff check`, mypy, `livedoc check`,
+#   `guard_mutants.py --check`, and both kind-vocabulary classes in
+#   test_backend.py — which read `canvas.WIREFRAME_KINDS`, i.e. the
+#   surviving copy, and agree with it.
+#
+# TWO GUARDS OF THIS SHAPE ALREADY EXIST AND BOTH ARE ONE CONSTANT WIDE:
+# `test_the_closed_status_set_is_defined_exactly_once` (test_backend.py, for
+# canvas.py's `CLOSED_PIN_STATUSES`, whose docstring states this hazard
+# exactly) and `test_the_font_floor_matches_the_tier_that_measured_it`
+# below, for `MIN_FONT_FLOOR` in the render tier. This generalises them to
+# every module-level name in both files and replaces neither: the font-floor
+# guard also asserts the two VALUES agree, which a census of sites cannot
+# see, and the pin-status one carries the fold ruling in its prose.
+#
+# GREEN THE DAY IT LANDED, which is the honest state and not a weakness.
+# Swept 2026-08-25 across all 17 tracked Python files: zero names carry a
+# second module-level site. The defect is REACHABLE, not present — so this
+# arrives as a relation with its live half beside it, not as a red.
+# ---------------------------------------------------------------------------
+
+
+def module_level_sites(source: str) -> dict[str, list[int]]:
+    """Map every name bound at module level to the lines that bind it.
+
+    Walks the module body's DIRECT children only. A name rebound inside
+    an `if` or a `try` is a fallback, which is a design; two bare
+    top-level assignments are two definitions, which is the merge
+    accident this exists to see. Augmented assignments are not counted
+    for the same reason — `X += 1` edits a definition, it does not add a
+    second one.
+
+    Args:
+        source: Python source text. Parsed fresh every call so a caller
+            can hand in a deliberately damaged copy.
+
+    Returns:
+        Each bound name against the 1-based line of every assignment
+        binding it, in file order. A healthy module gives every name a
+        one-element list.
+    """
+    sites: dict[str, list[int]] = {}
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Assign):
+            targets: list[ast.expr] = list(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+        for target in targets:
+            leaves = (list(target.elts)
+                      if isinstance(target, (ast.Tuple, ast.List))
+                      else [target])
+            for leaf in leaves:
+                if isinstance(leaf, ast.Name):
+                    sites.setdefault(leaf.id, []).append(node.lineno)
+    return sites
+
+
+def with_a_second_assignment(source: str, name: str) -> str:
+    """Splice a byte-identical second binding of `name` above the first.
+
+    The duplicate's VALUE is read off the live module instead of typed
+    here, so this stage cannot go stale against the constant it copies —
+    which is the very defect class it is staged inside. Identical rather
+    than drifted on purpose: two copies of one tuple are the case every
+    tool in the gate was measured silent on, so it is the case the
+    census has to see.
+
+    Args:
+        source: The module source to damage.
+        name: A module-level constant of `canvas` to duplicate.
+
+    Returns:
+        `source` carrying one extra top-level assignment of `name`.
+
+    Raises:
+        AssertionError: If `name` does not already have exactly one
+            module-level site, which would mean this stage is damaging a
+            file it no longer describes and is measuring nothing.
+    """
+    at = module_level_sites(source).get(name) or []
+    if len(at) != 1:
+        raise AssertionError(
+            "%s has %d module-level site(s) before this stage damages it, "
+            "expected exactly 1 — the anchor moved and the stage would be "
+            "measuring nothing" % (name, len(at)))
+    lines = source.splitlines(keepends=True)
+    lines.insert(at[0] - 1, "%s = %r\n" % (name, getattr(canvas, name)))
+    return "".join(lines)
+
+
+class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
+    """A duplicated constant is a silent merge, not an untidy one.
+
+    The header above carries the reproduction and the measurement of
+    what was already watching (nothing that survives a same-shaped
+    copy). What is asserted here is the RELATION — one module-level
+    definition per name — and never a snapshot of any file's constant
+    list, so a kind added to `WIREFRAME_KINDS` tomorrow moves nothing
+    here and a kind added TWICE fails.
+
+    THE SUBTRACTION HAS TO BE OVER SITES AND NOT OVER NAMES, and that
+    is the trap this class exists inside rather than beside: a guard
+    that collects `{name for name in module}` and compares it to
+    anything is green over the damaged file and the clean one alike,
+    because a set has already thrown the second site away. One of the
+    three tests below is that comparison, run on purpose.
+    """
+
+    #: The modules whose module-level constants are read BY NAME from
+    #: outside them, each paired with a name that must be found in it.
+    #: The anchor is what stops the walk from going quietly vacuous:
+    #: constants moved inside a class would empty the census, and an
+    #: empty census passes the guard for having read nothing.
+    MODULES: ClassVar[tuple[tuple[Path, str], ...]] = (
+        (Path(canvas.__file__).resolve(), "WIREFRAME_KINDS"),
+        (Path(__file__).resolve().parent / "test_mutants_render.py",
+         "MIN_FONT_FLOOR"))
+    #: canvas.py is 29k lines and `ast.parse` of it costs the better part
+    #: of a second, so its source and its clean census are read once here
+    #: rather than per test. Three parses across the class, not ten.
+    SOURCE: ClassVar[str]
+    CLEAN: ClassVar[dict[str, list[int]]]
+    #: The damaged census, memoized by `_damaged`. Deliberately NOT built
+    #: in `setUpClass`; see that method for what it cost when it was.
+    DAMAGED: ClassVar[dict[str, list[int]] | None] = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Read canvas.py and census it clean; damage nothing here.
+
+        The damaged copy was built here for one revision and it was the
+        wrong place. Its stage refuses a file that already carries the
+        duplicate — correctly, since a stage that no-ops silently is the
+        disease — and a refusal raised from `setUpClass` takes the whole
+        class down as an ERROR before the guard has run. Injecting a
+        real second `WIREFRAME_KINDS` then produced the stage's
+        complaint about its anchor and NOT ONE WORD from the guard,
+        which is the one message a reader needs. So the stage moved to
+        `_damaged`, where its precondition reads as an ordinary failure
+        and the guard still runs beside it.
+        """
+        path, _ = cls.MODULES[0]
+        cls.SOURCE = path.read_text(encoding="utf-8")
+        cls.CLEAN = module_level_sites(cls.SOURCE)
+
+    def _damaged(self) -> dict[str, list[int]]:
+        """Census canvas.py with one extra site for the anchor spliced in.
+
+        Memoized on the class: two tests want it and the parse is the
+        expensive part.
+
+        Returns:
+            Each module-level name against the lines binding it, in a
+            copy of canvas.py carrying a byte-identical duplicate of the
+            first module's anchor constant.
+        """
+        path, anchor = self.MODULES[0]
+        self.assertEqual(
+            len(self.CLEAN.get(anchor) or []), 1,
+            "premise: %s must be assigned exactly once in %s before this "
+            "stage can damage a copy of it, and it is assigned at line(s) "
+            "%s. If that is two lines the duplicate is already in the "
+            "tree, and `test_each_module_level_name_is_assigned_exactly_"
+            "once` is the failure to read"
+            % (anchor, path.name, self.CLEAN.get(anchor)))
+        cls = type(self)
+        if cls.DAMAGED is None:
+            cls.DAMAGED = module_level_sites(
+                with_a_second_assignment(self.SOURCE, anchor))
+        return cls.DAMAGED
+
+    def test_the_census_sees_the_duplicate_a_clean_merge_would_leave(
+            self) -> None:
+        """THE LIVE HALF, ungated: the census still speaks when damaged.
+
+        Without this the guard below passes the day `ast` stops finding
+        assignments — a moved constant, a walk that lost its subject, a
+        `.body` that no longer holds what it used to — and nothing can
+        tell that from a clean file. Damaged with the shape nothing else
+        in the gate can see, and the census is required to name it and
+        to name nothing else.
+        """
+        path, anchor = self.MODULES[0]
+        damaged = self._damaged()
+        self.assertEqual(
+            sorted(n for n, at in damaged.items() if len(at) > 1), [anchor],
+            "the site census cannot see a second module-level assignment "
+            "of %s spliced into %s, so the guard below is green over a "
+            "file it is no longer reading" % (anchor, path.name))
+        self.assertEqual(
+            len(damaged[anchor]), 2,
+            "the census counted %d site(s) for %s where two were spliced"
+            % (len(damaged[anchor]), anchor))
+
+    def test_a_census_of_names_is_blind_to_what_a_census_of_sites_sees(
+            self) -> None:
+        """The trap, executed rather than remembered.
+
+        Written as a standing green because the cheap version of this
+        guard is the one a later hand will reach for: gather the names a
+        module binds, subtract, assert empty. Over the same damaged
+        source the census above calls out, the two NAME sets are
+        identical — so that guard would ship, pass, and report nothing
+        for as long as the duplicate lived.
+        """
+        damaged = self._damaged()
+        self.assertEqual(
+            set(self.CLEAN), set(damaged),
+            "premise: this stage adds no NEW name, it adds a second site "
+            "for one that already exists — if that stopped being true the "
+            "trap below is not the trap")
+        self.assertNotEqual(
+            self.CLEAN, damaged,
+            "counting sites answers the same as counting names on the "
+            "damaged file, so this guard has collapsed into the one it "
+            "exists to be different from")
+
+    def test_each_module_level_name_is_assigned_exactly_once(self) -> None:
+        """THE GUARD: one definition per name, in both read-by-name files.
+
+        Every name, not a list of load-bearing ones. A roster would have
+        to be maintained by the same hands the merge accident slips
+        past, and the census costs about a second for both files; the
+        one name in either that is not upper-case (`_unlabelled`, in
+        canvas.py) is covered for free rather than argued about.
+        """
+        for path, anchor in self.MODULES:
+            with self.subTest(module=path.name):
+                self.assertTrue(path.is_file(), "%s is missing — moved, "
+                                "not cleaned: re-point this guard" % path)
+                sites = (self.CLEAN if path == self.MODULES[0][0]
+                         else module_level_sites(
+                             path.read_text(encoding="utf-8")))
+                self.assertIn(
+                    anchor, sites,
+                    "%s binds no module-level %s, so this census has lost "
+                    "its subject and passes for having read nothing"
+                    % (path.name, anchor))
+                doubled = {n: at for n, at in sites.items() if len(at) > 1}
+                self.assertEqual(
+                    doubled, {},
+                    "%s binds %d name(s) twice at module level: %s. git "
+                    "merges two such blocks with no conflict and Python "
+                    "keeps the LAST, so nothing fails and the file runs "
+                    "against whichever copy sorted second — ruff F811 and "
+                    "mypy were both measured silent on exactly this shape. "
+                    "Keep one site: CONTINUATION.md's FOLD HAZARDS entry "
+                    "for `CLOSED_PIN_STATUSES` carries the ruling on which "
+                    "copy survives."
+                    % (path.name, len(doubled),
+                       "; ".join("%s at lines %s" % (n, at)
+                                 for n, at in sorted(doubled.items()))))
+
+
 class TestCoverage(unittest.TestCase):
     """Spec §3: every detector is proven or named, never silently unproven."""
 
