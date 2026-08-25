@@ -51,9 +51,16 @@ wireframe `kind` the backend implements — a kind outside it is stored and
 drawn as an unadorned shape, and every kind-driven check reads past it, so
 it draws a LAYOUT_NOTE naming what you asked for and what you got. Reach
 for `block` plus an annotation before inventing a word: a made-up one like
-`modal` looks like a claim and is not one. The list is served to the
-inspector's kind selector rather than restated there, so the menu cannot
-fall behind it.
+`modal` looks like a claim and is not one. `canvas.py` holds that same set
+once, as `WIREFRAME_KINDS`, and the suite compares the two both ways: add
+a kind in both places or in neither, because either side moving alone
+fails rather than drifts. Everything else reads the constant rather than
+repeating it — the list is served to the inspector's kind selector, so the
+menu cannot fall behind it, and the mermaid-export refusal enumerates it
+whole. That refusal used to type its list out by hand and named ten of
+these kinds, which told a reader the ones it skipped had a mermaid
+spelling. None of them does; no wireframe kind has one, which is the only
+reason that sentence exists.
 
 KPI, checkbox, toggle, and slider are composed kinds: the label stays the
 semantic name (renames fire `label_renamed`; the value never pollutes the
