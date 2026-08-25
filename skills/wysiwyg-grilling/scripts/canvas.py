@@ -25919,7 +25919,7 @@ def cmd_stop(args):
     return 0
 
 
-def _mermaid_refusal(aid, kind):
+def _mermaid_refusal(aid: str, kind: str | None) -> str | None:
     """The reason this artifact kind has no mermaid target, or None.
 
     Each refusal names the KIND rather than saying "unsupported",
@@ -25929,7 +25929,11 @@ def _mermaid_refusal(aid, kind):
 
     Args:
         aid: The artifact id, for the message.
-        kind: Its artifact type.
+        kind: Its artifact type. Optional because `Store.artifact_type`
+            defaults a MISSING key to `"flow"` but hands back a stored
+            `null` as-is, and meta arrives from disk; such an artifact
+            falls to the closing catch-all, which is the right answer —
+            an artifact with no type has no mermaid target either.
 
     Returns:
         A refusal message, or None when the kind exports.
