@@ -1,10 +1,10 @@
-"""Delete each pin guard individually; assert its named test goes red.
+"""Delete each behavioural guard individually; assert its named test goes red.
 
 A guard whose absence nothing notices is not guarded — it is a line of
 code that happens to be correct today. This is the instrument for that
-claim: for each guard site it patches the guard out of `canvas.py`, runs
-only the test that claims to prove it, restores the file, and reports
-KILLED or SURVIVED.
+claim: backend entries patch one guard out of `canvas.py`; the browser entry
+patches one ordering token out of the shipped bundle. Each runs only its
+claiming test, restores the changed file, and reports KILLED or SURVIVED.
 
 WHY IT EXISTS. The first round of the pin work shipped 35 tests described
 as "both directions on every guard". A verifier then mutated each guard
@@ -15,13 +15,14 @@ tests were passing for the wrong reason: one asserted a path was
 unchanged in a scene the router had no intention of touching, and one
 named the fan while exercising the router.
 
-NOT PART OF THE SUITE, deliberately. It rewrites `canvas.py` in place and
-restores it, which is acceptable for a hand-run instrument and wrong for
-anything `unittest discover` may run beside other work. Run it whenever a
+NOT PART OF THE SUITE, deliberately. It rewrites guarded runtime files in
+place and restores them, which is acceptable for a hand-run instrument and
+wrong for anything `unittest discover` may run beside other work. Run it whenever a
 guard is added, moved or re-worded::
 
-    python3 tests/guard_mutants.py            # every site, ~32s
+    python3 tests/guard_mutants.py            # every site, ~2 minutes
     python3 tests/guard_mutants.py relayout   # one, by label substring
+    python3 tests/guard_mutants.py font_wait  # browser guard + control
     python3 tests/guard_mutants.py --check    # subjects only, no subprocess
 
 Exit status is non-zero if any guard survived its own test.
@@ -41,7 +42,7 @@ It used to say "perfect". Two separate failures, both now closed:
     somebody starts a sweep, and nobody did: its only mentions in
     `tests/test_backend.py` are comments. `--check` is the half cheap
     enough for the every-commit gate (no subprocess, no write to
-    `canvas.py`), and `.pre-commit-config.yaml` runs it there while the
+    a guarded runtime file), and `.pre-commit-config.yaml` runs it there while the
     full sweep sits at the manual stage beside the e2e suite::
 
         uvx pre-commit run guard-mutants-sweep --hook-stage manual
@@ -49,12 +50,22 @@ It used to say "perfect". Two separate failures, both now closed:
     The gate half cannot tell you a guard is unobserved — only the sweep
     can. What it CAN tell you is that this file has stopped being able
     to ask, which is the failure that was previously silent.
+
+The roster now has a second family: a browser-lifecycle guard in the shipped
+frontend bundle. Its mutation removes the one `await` that holds the initial
+scene restore until Excalidraw has registered and loaded Nunito, then runs the
+real Playwright regression. It lives here rather than in the scene catalogue
+or render tier because those tiers render an export after their own font
+barrier; neither executes the interactive app's first restore. The browser
+guard runs its pristine control first, removes only the `await`, demands the
+known 13px too-narrow failure, and restores the bundle in a `finally`.
 """
 from __future__ import annotations
 
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import unittest
@@ -62,6 +73,26 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SRC = ROOT / "skills" / "wysiwyg-grilling" / "scripts" / "canvas.py"
 MODULE = "tests.test_backend"
+FRONTEND = ROOT / "frontends" / "wysiwyg-grilling"
+WEB = ROOT / "skills" / "wysiwyg-grilling" / "scripts" / "web"
+VISUAL_SPEC = FRONTEND / "tests" / "e2e" / "visual.spec.ts"
+
+# Browser-lifecycle guards are not scene mutants. The title is the stable
+# Playwright selector and the roster entry is the permanent audit record.
+# Origin: the live ADHD task row clipped after a fallback-font first restore,
+# reported and fixed 2026-08-21.
+FRONTEND_GUARDS: list[tuple[str, str]] = [
+    ("App.initial_font_wait",
+     "bound text waits for its webfont before the live restore"),
+]
+
+_ENTRY_SCRIPT = re.compile(r'src="/assets/(index-[\w-]+\.js)"')
+_FONT_LOAD = 'document.fonts.load("16px Nunito")'
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+_EXPECTED_WIDTH = re.compile(r"Expected:\s+([\d.]+)")
+_RECEIVED_WIDTH = re.compile(r"Received:\s+([\d.]+)")
+_FONT_DEFICIT = 213.0 - 199.9296875
+_FONT_DEFICIT_TOL = 0.25
 
 # THE DRIVER, AND WHY THIS IS NOT `-m unittest <name>`. An exit code
 # answers "did the process end badly", and this instrument needs "did the
@@ -342,6 +373,179 @@ def nth_replace(text: str, old: str, new: str, n: int) -> str | None:
     return text[:idx] + new + text[idx + len(old):]
 
 
+def frontend_bundle() -> pathlib.Path:
+    """Locate the one entry bundle the canvas server actually serves.
+
+    The entry filename is content-addressed, so the guard derives it from
+    `index.html` rather than pinning a minifier-generated name that changes on
+    every build.
+
+    Returns:
+        The shipped JavaScript entry bundle.
+
+    Raises:
+        RuntimeError: If `index.html` does not name exactly one entry bundle.
+    """
+    entries = _ENTRY_SCRIPT.findall(
+        (WEB / "index.html").read_text(encoding="utf-8"))
+    if len(entries) != 1:
+        raise RuntimeError(
+            "the shipped index names %r entry bundles; the font-wait mutant "
+            "cannot identify the runtime it would change" % entries)
+    return WEB / "assets" / entries[0]
+
+
+def ablate_font_wait(original: str) -> tuple[str, str]:
+    """Remove only the initial restore's wait for the registered canvas font.
+
+    Minified identifiers change on every frontend build. The helper is
+    therefore discovered from its unique `document.fonts.load("16px Nunito")`
+    call, then its one awaited call site is changed from `await helper()` to
+    `helper()`. Starting the helper without awaiting it preserves every byte
+    of font-loading behaviour except the ordering guarantee under test.
+
+    Args:
+        original: The shipped entry bundle before mutation.
+
+    Returns:
+        The mutated bundle and the minified helper name.
+
+    Raises:
+        RuntimeError: If the font load, helper declaration, or awaited call is
+            absent or ambiguous, or the mutation changes anything beyond the
+            six characters `await `.
+    """
+    if original.count(_FONT_LOAD) != 1:
+        raise RuntimeError(
+            "the shipped bundle contains %d Nunito load calls; expected one"
+            % original.count(_FONT_LOAD))
+    load_at = original.index(_FONT_LOAD)
+    before_load = original[max(0, load_at - 2000):load_at]
+    helpers = re.findall(r"([A-Za-z_$][\w$]*)=async\(\)=>\{",
+                         before_load)
+    if not helpers:
+        raise RuntimeError(
+            "cannot find the async helper owning the Nunito load call")
+    helper = helpers[-1]
+    old = "await %s()," % helper
+    new = "%s()," % helper
+    if original.count(old) != 1:
+        raise RuntimeError(
+            "the shipped bundle contains %d awaited calls to %s; expected one"
+            % (original.count(old), helper))
+    mutated = original.replace(old, new, 1)
+    if len(original) - len(mutated) != len("await "):
+        raise RuntimeError(
+            "the font-wait mutation changed more than its one await token")
+    return mutated, helper
+
+
+def run_font_wait_test(title: str) -> subprocess.CompletedProcess[str] | None:
+    """Run the exact Playwright observation test in a fresh browser.
+
+    Args:
+        title: Exact Playwright title to select.
+
+    Returns:
+        The completed test process, or None when it exceeded the deadline.
+    """
+    env = dict(os.environ)
+    env.pop("FORCE_COLOR", None)
+    env["NO_COLOR"] = "1"
+    try:
+        return subprocess.run(
+            [str(FRONTEND / "node_modules" / ".bin" / "playwright"),
+             "test", "tests/e2e/visual.spec.ts", "--grep", title,
+             "--workers=1"],
+            cwd=str(FRONTEND), capture_output=True, text=True, timeout=120,
+            check=False, env=env)
+    except subprocess.TimeoutExpired:
+        return None
+
+
+def font_wait_kill(proc: subprocess.CompletedProcess[str] | None,
+                   title: str) -> tuple[str, str]:
+    """Judge whether Playwright killed the ablation for the intended reason.
+
+    A non-zero process is not automatically a kill: a server crash, missing
+    browser, or failure in another test says nothing about the guard. The
+    expected kill is one assertion in the named test, with the live label
+    narrower than loaded Nunito by the measured 13.0703125px.
+
+    Args:
+        proc: The mutated Playwright run, or None after a timeout.
+        title: Exact test title that must own the failure.
+
+    Returns:
+        A guard verdict and its concise evidence.
+    """
+    if proc is None:
+        return "HARNESS-ERROR", "Playwright timed out"
+    output = _ANSI.sub("", proc.stdout + proc.stderr)
+    if proc.returncode == 0:
+        return "SURVIVED", "the ablated test still passed"
+    expected = _EXPECTED_WIDTH.findall(output)
+    received = _RECEIVED_WIDTH.findall(output)
+    if title not in output or len(expected) != 1 or len(received) != 1:
+        return "HARNESS-ERROR", output[-2000:]
+    want, got = float(expected[0]), float(received[0])
+    deficit = want - got
+    if got >= want or abs(deficit - _FONT_DEFICIT) > _FONT_DEFICIT_TOL:
+        return (
+            "WRONG-KILL",
+            "expected %.6f, received %.6f: %.6fpx %s, not the known "
+            "%.6fpx too-narrow defect"
+            % (want, got, abs(deficit),
+               "too narrow" if deficit > 0 else "too wide", _FONT_DEFICIT))
+    return (
+        "KILLED",
+        "expected %.6f, received %.6f: %.6fpx too narrow"
+        % (want, got, deficit))
+
+
+def run_font_wait_guard(title: str) -> str:
+    """Prove the font barrier's normal and ablated directions, then restore.
+
+    The pristine run is the mandatory live control: without it, a broken
+    Playwright test or a bundle that already clips would look like a kill.
+    The mutated run removes one `await` from the shipped runtime and must fail
+    with the measured width deficit, after which the original bytes are put
+    back even when the browser or assertion fails.
+
+    Args:
+        title: Exact Playwright title that observes the guard.
+
+    Returns:
+        `KILLED` only when the control passes and the ablation reproduces the
+        known clipping; otherwise a non-kill guard verdict.
+    """
+    control = run_font_wait_test(title)
+    if control is None:
+        return "HARNESS-ERROR"
+    if control.returncode != 0:
+        sys.stderr.write(
+            "font-wait pristine control failed; refusing to call any "
+            "mutation a kill:\n%s\n" % (control.stdout + control.stderr))
+        return "CONTROL-BROKEN"
+    print("    control: pristine Playwright regression passed")
+    bundle = frontend_bundle()
+    original = bundle.read_text(encoding="utf-8")
+    try:
+        mutated, helper = ablate_font_wait(original)
+    except RuntimeError as exc:
+        sys.stderr.write("font-wait anchor error: %s\n" % exc)
+        return "ANCHOR-MISS"
+    bundle.write_text(mutated, encoding="utf-8")
+    try:
+        proc = run_font_wait_test(title)
+    finally:
+        bundle.write_text(original, encoding="utf-8")
+    status, evidence = font_wait_kill(proc, title)
+    print("    one change: await %s() -> %s()" % (helper, helper))
+    print("    evidence: %s" % evidence)
+    return status
+
+
 def run_one(old: str, new: str, n: int, test: str, original: str) -> str:
     """Mutate one guard, run its test, restore the file.
 
@@ -458,6 +662,26 @@ def assert_roster_populated() -> None:
     raise SystemExit(2)
 
 
+def assert_frontend_roster_populated() -> None:
+    """Refuse to answer while the browser-lifecycle roster is empty.
+
+    The frontend family is separate from `GUARDS` because the latter is the
+    published pin-guard census and is cross-checked against backend test
+    classes. An empty second roster would otherwise leave the old census
+    healthy while silently deleting the only first-restore mutation.
+
+    Raises:
+        SystemExit: When no browser-lifecycle guard remains registered.
+    """
+    if FRONTEND_GUARDS:
+        return
+    sys.stderr.write(
+        "REFUSING TO RUN: the FRONTEND_GUARDS roster is empty, so the "
+        "browser-lifecycle mutation family is gone. Restore its entry before "
+        "trusting this instrument.\n")
+    raise SystemExit(2)
+
+
 def assert_pristine(original: str) -> None:
     """Refuse to start if a previous sweep left a mutation standing.
 
@@ -562,6 +786,7 @@ def check_subjects() -> list[str]:
         instrument still has everything it needs to be honest.
     """
     assert_roster_populated()
+    assert_frontend_roster_populated()
     src = SRC.read_text(encoding="utf-8")
     bad = []
     for label, old, new, n, _test in GUARDS:
@@ -584,6 +809,24 @@ def check_subjects() -> list[str]:
                            % (label, test))
     finally:
         sys.path.remove(str(ROOT))
+    spec = VISUAL_SPEC.read_text(encoding="utf-8")
+    for label, title in FRONTEND_GUARDS:
+        quoted = '"%s"' % title
+        if spec.count(quoted) != 1:
+            bad.append(
+                "%s: Playwright title %r appears %d times in %s; the exact "
+                "observation test no longer resolves"
+                % (label, title, spec.count(quoted), VISUAL_SPEC.name))
+    try:
+        bundle = frontend_bundle()
+        pristine = bundle.read_text(encoding="utf-8")
+        mutated, _helper = ablate_font_wait(pristine)
+        if mutated == pristine:
+            bad.append(
+                "App.initial_font_wait: mutation is a no-op in %s"
+                % bundle.name)
+    except (OSError, RuntimeError) as exc:
+        bad.append("App.initial_font_wait: %s" % exc)
     return bad
 
 
@@ -610,7 +853,8 @@ def main() -> int:
         broken = check_subjects()
         if not broken:
             print("guard_mutants: %d mutants, every anchor applies and "
-                  "every named test resolves" % len(GUARDS))
+                  "every named test resolves"
+                  % (len(GUARDS) + len(FRONTEND_GUARDS)))
             return 0
         for line in broken:
             sys.stderr.write("  %s\n" % line)
@@ -618,10 +862,11 @@ def main() -> int:
             "%d of %d guard mutants have lost a subject. This instrument "
             "cannot give an honest answer until they are re-pointed; then "
             "run `python3 tests/guard_mutants.py` for the full sweep.\n"
-            % (len(broken), len(GUARDS)))
+            % (len(broken), len(GUARDS) + len(FRONTEND_GUARDS)))
         return 1
     original = SRC.read_text(encoding="utf-8")
     assert_pristine(original)
+    assert_frontend_roster_populated()
     only = argv[0] if argv else None
     rows = []
     for label, old, new, n, test in GUARDS:
@@ -630,6 +875,12 @@ def main() -> int:
         status = run_one(old, new, n, test, original)
         rows.append((label, status, test))
         print("%-34s %-11s %s" % (label, status, test.split(".")[-1]))
+    for label, title in FRONTEND_GUARDS:
+        if only and only not in label:
+            continue
+        status = run_font_wait_guard(title)
+        rows.append((label, status, title))
+        print("%-34s %-11s %s" % (label, status, title))
     bad = [r for r in rows if r[1] != "KILLED"]
     print()
     print("%d/%d guards observed by their named test"

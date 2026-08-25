@@ -86,8 +86,9 @@ repos:
         files: ^(skills/wysiwyg-grilling/scripts/canvas\.py|tests/.*\.py)$
 
   # ------------------------------------------------------- the guard census
-  # `tests/guard_mutants.py` deletes each pin guard out of canvas.py and
-  # demands the named test go red. It is the repo's answer to "is this
+  # `tests/guard_mutants.py` deletes each backend pin guard and the shipped
+  # frontend font-readiness barrier, then demands the named test go red. It
+  # is the repo's answer to "is this
   # guard observed" — and until now nothing ran it, so it could be broken
   # indefinitely and say nothing. An instrument that cannot report its own
   # death is not an instrument.
@@ -101,9 +102,10 @@ repos:
   # silent-instrument defect one level up, and half a second does not buy
   # one.
   #
-  # The SWEEP stays manual. It costs 32s (23 mutants x one test run each)
-  # and, decisively, it REWRITES canvas.py in place and restores it in a
-  # `finally` — a pre-commit run interrupted at the wrong moment would
+  # The SWEEP stays manual. It costs about 2 minutes (23 backend mutants plus
+  # one browser mutant and its pristine control) and, decisively, it REWRITES
+  # guarded runtime files in place and restores them in a `finally` — a
+  # pre-commit run interrupted at the wrong moment would
   # leave a mutation in the working tree. That risk is fine in a
   # curator's hands and wrong on every commit. Run it whenever a guard is
   # added, moved or re-worded:
@@ -126,7 +128,7 @@ repos:
       # somebody deliberately asked for, reporting success for not having
       # run. Caught here by running the documented command.
       - id: guard-mutants-sweep
-        name: guard census full sweep (manual stage, rewrites canvas.py)
+        name: guard census full sweep (manual, rewrites guarded runtime)
         entry: python3 tests/guard_mutants.py
         language: system
         pass_filenames: false

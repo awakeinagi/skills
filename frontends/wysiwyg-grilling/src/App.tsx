@@ -125,6 +125,32 @@ const fontsSettled = async (): Promise<void> => {
   } catch { /* a face that refuses to load must not block the export */ }
 };
 
+/**
+ * Wait until Excalidraw has registered and loaded the skill's canvas face.
+ *
+ * The blank editor registers its programmatic `FontFace` objects after this
+ * app's first effect can run. Calling `document.fonts.load()` before that is
+ * a successful no-op against a fallback face, so poll for Nunito's actual
+ * registration before requesting it. The bounded wait preserves the existing
+ * best-effort behavior if a browser cannot register the bundled face.
+ * @returns Resolves when Nunito is loaded or the registration wait expires.
+ */
+const canvasFontSettled = async (): Promise<void> => {
+  if (typeof document === "undefined" || !document.fonts) return;
+  try {
+    for (let attempt = 0; attempt < 120; attempt++) {
+      const faces = Array.from(
+        document.fonts as unknown as Iterable<FontFace>);
+      if (faces.some((face) =>
+        face.family.replace(/["']/g, "") === "Nunito")) {
+        await document.fonts.load("16px Nunito");
+        return;
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 16));
+    }
+  } catch { /* a face that refuses to load must not block the canvas */ }
+};
+
 /** Clear air between an imported diagram and the drawing already there. */
 const IMPORT_GAP = 120;
 
@@ -824,9 +850,22 @@ export default function App() {
   }, [showArtifact, loadScene, mergePinOnlyGap, addStoredFiles]);
 
   useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, POLL_MS);
-    return () => clearInterval(t);
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const beginPolling = async (): Promise<void> => {
+      // The first refresh restores bound text and measures it once. If that
+      // happens against the fallback face, Nunito later paints into a box up
+      // to 11% too narrow and clips both ends until the next scene restore.
+      await canvasFontSettled();
+      if (cancelled) return;
+      await refresh();
+      if (!cancelled) timer = setInterval(refresh, POLL_MS);
+    };
+    void beginPolling();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) clearInterval(timer);
+    };
     // mount-only: refresh is ref-based and stable in practice
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
