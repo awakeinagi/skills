@@ -214,21 +214,25 @@ python3 tests/livedoc.py refresh
 # Lint + docstrings + annotations
 uvx ruff check .
 
-# Type check
-uvx mypy skills/wysiwyg-grilling/scripts/canvas.py
+# Type check — canvas.py + tests/, ~1.2s. Scope and the five ignored rules
+# live in pyproject.toml `[tool.ty]`; the version is pinned in
+# .pre-commit-config.yaml. BY HAND or manual-stage — NOT in the gate, because
+# it is not yet clean; § Known debt says what is left and why.
+uvx ty check
 
 # Frontend (requires: npm --prefix frontends/wysiwyg-grilling ci)
 npm --prefix frontends/wysiwyg-grilling run lint
 npm --prefix frontends/wysiwyg-grilling run typecheck
 
-# The gate — the <!-- live:gate_hooks_automatic -->18<!-- /live:gate_hooks_automatic --> hooks that fire on a commit.
+# The gate — the <!-- live:gate_hooks_automatic -->17<!-- /live:gate_hooks_automatic --> hooks that fire on a commit.
 # NOBODY RUNS THIS FOR YOU. There is no CI in this repo.
 uvx pre-commit run --all-files
 
-# The line above is not "everything": <!-- live:gate_hooks_manual -->2<!-- /live:gate_hooks_manual --> hooks are manual-stage,
+# The line above is not "everything": <!-- live:gate_hooks_manual -->3<!-- /live:gate_hooks_manual --> hooks are manual-stage,
 # and `--all-files` leaves them out without saying so.
 uvx pre-commit run guard-mutants-sweep --hook-stage manual  # ~2m, rewrites guarded runtime files
 uvx pre-commit run e2e-tests --hook-stage manual            # Playwright
+uvx pre-commit run ty --hook-stage manual                   # ~1.2s, the type check above
 ```
 
 **That first comment said "Everything, as CI runs it" until 2026-08-20, and
@@ -262,7 +266,7 @@ versions, `uvx pre-commit autoupdate`.
 Two ways a hook here passes without checking anything, both worth knowing
 because both print green. A `files:`-scoped hook whose pattern matches nothing
 prints `Skipped` and exits 0 — on a commit, that is correct behaviour and is
-why `mypy`, `backend-tests`, `frontend-deps`, `eslint` and `tsc` carry
+why `backend-tests`, `frontend-deps`, `eslint` and `tsc` carry
 patterns; under `--all-files` every pattern matches, so the gate is the run
 that closes it. A manual-stage hook is skipped by `--all-files` outright.
 Neither is a defect, and neither is visible to a reader who was told
@@ -357,6 +361,17 @@ Three of the code-quality findings are defect-shaped rather than stylistic and
 are worth reading before they are auto-fixed: `B023` (a closure capturing a
 loop variable), `SIM115` (a file opened without a context manager), and `E741`
 (an ambiguous `l`/`I`/`O` name).
+
+`ty` is the other half of this burn-down, and it is out of the gate for the
+same reason the rows above exist: it is not clean yet. Measure with `uvx ty
+check`. Nearly all of what it reports traces to two annotation gaps rather
+than to defects — an unannotated dict literal whose inferred value union is
+narrower than the Excalidraw JSON it models, and tests that monkeypatch a
+module attribute with a stub of a different signature. Both are paid by the
+retrofit rule below. **Widening `[tool.ty.rules]` to reach zero is the one
+repair that is not allowed**, because it retires the finding instead of the
+debt, and a checker configured until it is silent is the arrangement `ty`
+replaced.
 
 Retrofit rule: **when you touch a function, bring it to standard** — full
 Google docstring and full annotations — even if the change was one line. That
