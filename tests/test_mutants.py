@@ -33086,6 +33086,25 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
 # Proved below against two independently-worded repairs — one of them the
 # expression `fix-refusal-vocab-acfa` actually lands — and against a third
 # that is wrong in the other direction.
+#
+# WHICH IS WHY THE SECOND POLE COUNTS ARMS AND NOT WORDS. Reading the whole
+# message is what makes pole one fix-agnostic, and it is exactly what makes
+# a naive pole two false-fire: ten of the thirteen kinds outside this arm
+# are ordinary English — `agent`, `context`, `source`, `control`, `store`,
+# `lane`, `entity`, `system`, `sink`, `actor`. Measured 2026-08-25 against a
+# CORRECTLY repaired sentence with one ordinary clause appended:
+#
+#   "Ask the agent that drew it for an SVG instead."      -> ['agent']
+#   "In this context the SVG is strictly more…"           -> ['context']
+#   "The layout is the source of the meaning here."       -> ['source']
+#   "Nothing in the drawing is a control mermaid knows…"  -> ['control']
+#
+# — four false reds, each telling its author the refusal "offers ['context']
+# as wireframe kinds", which is not what happened. `_names_kind`'s bias
+# toward reporting a kind UNNAMED is the safe direction for pole one and
+# INVERTS for pole two, where a false presence is a false red. So an arm is
+# only OFFERED when its whole vocabulary is named: seven flow kinds or five
+# sequence kinds in one sentence is an enumeration, not prose.
 # ---------------------------------------------------------------------------
 
 
@@ -33124,6 +33143,38 @@ def kinds_the_refusal_names(message: str) -> tuple[list[str], list[str]]:
     for kind in canvas.WIREFRAME_KINDS:
         (named if _names_kind(message, kind) else unnamed).append(kind)
     return named, unnamed
+
+
+def arms_the_refusal_enumerates(message: str) -> list[str]:
+    """Name every non-wireframe arm whose WHOLE vocabulary a message lists.
+
+    Whole-arm and not per-kind, because per-kind cannot tell a foreign
+    kind being offered from the English word it happens to be — see this
+    section's header for the four measured false reds. Seven flow kinds
+    or five sequence kinds in one sentence is an enumeration; `context`
+    on its own is a preposition's object.
+
+    WHAT THIS CANNOT SEE, stated rather than left to be discovered. A
+    widening that adds SOME of a foreign arm and not all of it is
+    invisible. So is one that adds only `entity`: the domain arm has a
+    single member, that member is an ordinary word, and a one-word arm
+    admits no distinction between enumeration and prose at all — which
+    is why single-kind arms are skipped rather than silently trusted.
+    Both would close if the read were scoped to the parenthesised list,
+    and that would key the pin to today's punctuation, which is the
+    coupling pole one exists to avoid. The trade is deliberate.
+
+    Args:
+        message: The refusal text to read.
+
+    Returns:
+        Arm names from `KINDS_BY_TYPE`, sorted; empty when the message
+        enumerates no foreign arm.
+    """
+    return sorted(
+        arm for arm, kinds in canvas.KINDS_BY_TYPE.items()
+        if arm != "wireframe" and len(kinds) > 1
+        and all(_names_kind(message, k) for k in kinds))
 
 
 def _repair_by_interpolating_the_tuple(aid: str, kind: str) -> str | None:
@@ -33180,6 +33231,12 @@ def _repair_reaching_for_the_union(aid: str, kind: str) -> str | None:
     completely, because a superset omits nothing. A screen has no
     `lane` and no `lifeline`; a sentence offering them as wireframe
     kinds is wrong in the other direction and has to fail too.
+
+    It fails on the ARM rule rather than on any single word: this
+    message names all seven flow kinds and all five sequence ones, so
+    both arms read as enumerated. That is the distinction the
+    whole-arm rule buys — the same message minus six of those names
+    would be prose, and would correctly pass.
 
     Args:
         aid: Artifact id, for the message.
@@ -33240,17 +33297,17 @@ class TestTheWireframeRefusalNamesTheWholeVocabulary(unittest.TestCase):
             "owner of the set and the sentence should be built from it"
             % (len(named), len(canvas.WIREFRAME_KINDS), len(unnamed),
                unnamed, len(unnamed)))
-        foreign = sorted(k for k in set(canvas.KNOWN_KINDS)
-                         - set(canvas.WIREFRAME_KINDS)
-                         if _names_kind(message, k))
+        offered = arms_the_refusal_enumerates(message)
         self.assertEqual(
-            foreign, [],
-            "the wireframe refusal offers %s as wireframe kinds and they "
-            "belong to other arms. A repair that reached for KNOWN_KINDS "
-            "(the union six lines below the tuple) instead of "
-            "WIREFRAME_KINDS is wrong in the other direction: a screen has "
-            "no lane and no lifeline, and a refusal that says it does is "
-            "as false as one that omits `help`" % foreign)
+            offered, [],
+            "the wireframe refusal lists the WHOLE vocabulary of another "
+            "arm beside this one: %s. A repair that reached for "
+            "KNOWN_KINDS — the union six lines below the tuple in "
+            "canvas.py — instead of WIREFRAME_KINDS is wrong in the other "
+            "direction, and telling a reader a screen has a `lane` and a "
+            "`lifeline` is as false as telling them its `help` panel has "
+            "a mermaid spelling"
+            % {arm: list(canvas.KINDS_BY_TYPE[arm]) for arm in offered})
 
     def _pin_over(self, repair: Callable[[str, str], str | None]) -> None:
         """Run the red's own assertion against a candidate repair.
@@ -33319,6 +33376,52 @@ class TestTheWireframeRefusalNamesTheWholeVocabulary(unittest.TestCase):
             "the reader cannot see %r missing from a message that lists "
             "every other kind, so it cannot see the omission the red is "
             "about either" % dropped)
+
+    #: A correctly repaired sentence with one ordinary clause appended.
+    #: Each clause contains a kind belonging to another arm as an
+    #: ordinary English word; the last carries three at once. Kept as
+    #: data so a fifth is one line, because the class of sentence is
+    #: unbounded and the pin has to survive all of it.
+    INNOCENT_PROSE: ClassVar[tuple[str, ...]] = (
+        "Ask the agent that drew it for an SVG instead.",
+        "In this context the SVG is strictly more than mermaid could hold.",
+        "The layout is the source of the meaning here.",
+        "Nothing in the drawing is a control mermaid knows how to place.",
+        "Every entity, every store, every lane of it is a picture.")
+
+    def test_ordinary_prose_is_not_a_foreign_arm_being_offered(self) -> None:
+        """The false red pole two would otherwise carry, pinned shut.
+
+        Ten of the thirteen kinds outside the wireframe arm are ordinary
+        English words, and the first version of pole two fired on any of
+        them anywhere in the message. Over a CORRECTLY repaired sentence
+        that is a false red, and its wording — "offers ['agent'] as
+        wireframe kinds" — describes something that did not happen,
+        which is how a pin earns being deleted rather than fixed.
+
+        Latent, not live: the shipped sentence, the fixed one and all
+        three candidate repairs were clean. It would have gone live the
+        first time anybody edited that prose, which is the worst moment
+        for a pin to start lying. So the whole-arm rule is asserted
+        against the sentences that broke the word-level one.
+        """
+        for clause in self.INNOCENT_PROSE:
+            with self.subTest(clause=clause):
+                message = "%s %s" % (
+                    _repair_by_interpolating_the_tuple("wf", "wireframe"),
+                    clause)
+                self.assertEqual(
+                    arms_the_refusal_enumerates(message), [],
+                    "a repaired refusal followed by ordinary prose reads "
+                    "as offering another arm's vocabulary. The clause is "
+                    "%r; the pin is supposed to fire on an ENUMERATION of "
+                    "a foreign arm, not on the English words its kinds "
+                    "are spelled with" % clause)
+                self.assertEqual(
+                    kinds_the_refusal_names(message)[1], [],
+                    "appending prose to a repaired refusal made pole one "
+                    "report a wireframe kind missing, so the two poles "
+                    "are not independent the way this class assumes")
 
     def test_two_independently_worded_repairs_both_satisfy_the_pin(
             self) -> None:
