@@ -10,7 +10,11 @@ The four things most likely to trip you up:
 2. **Python floor is 3.9.** Use `from __future__ import annotations` so you can
    still write `list[str]` and `X | None`.
 3. **Docstrings on every module, class, function, and method** — Google style
-   with `Args:` / `Returns:` / `Raises:`. Enforced by ruff.
+   with `Args:` / `Returns:` / `Raises:`. Ruff enforces this everywhere except
+   `canvas.py` and `tests/test_backend.py`, which hold standing exemptions
+   while their existing debt burns down. Those are the two files you are most
+   likely to be editing, so write to standard there by hand — the gate will
+   not catch you.
 4. **No autoformatter.** Don't run `ruff format` or `black`; match the
    surrounding packed style by hand. See AGENTS.md § Formatting.
 

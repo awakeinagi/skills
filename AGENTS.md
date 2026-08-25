@@ -83,7 +83,11 @@ human is supposed to stop and read the change.
 ## Documentation standard
 
 Every **module, class, function, and method** carries a docstring — public and
-private alike. This is enforced (`ruff` rule set `D`, Google convention).
+private alike. `ruff` enforces this (rule set `D`, Google convention)
+everywhere except `canvas.py` and `tests/test_backend.py`, which hold standing
+`D`-rule exemptions in *Known debt* below. Those two files are where most of
+this repo's code is, so in them the standard is upheld by hand and not by the
+gate — do not read a green `ruff` run as evidence that a docstring is there.
 
 ### Python — Google style
 
@@ -315,19 +319,24 @@ trailing comments.
 
 ## Known debt
 
-Tracked in `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`, most
-lines annotated with a measured count (`D105` and `D401` carry none, and
-`ANN` is annotated by the comment block above it rather than in line). Delete
-a line once that code is clean — the ignore list is a burn-down chart, not a
-permanent exemption.
+Tracked in `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`. Each
+row names one rule suppressed for one file. Delete a row once that code is
+clean — the ignore list is a burn-down chart, not a permanent exemption.
 
-**Re-measure before you quote any of this, and use the command below, not
-`uvx ruff check --statistics`.** A bare `ruff check` is silent about every row
-in this table by construction: the per-file-ignores *are* the table, so the
-gate's own invocation prints nothing and exits 0. That is the correct
-behaviour for a gate and a useless one for a burn-down, and it is why the
-"re-measure rather than trusting these" instruction here sat broken while the
-numbers under it went stale. You have to switch the ignores off:
+**Those rows carry no counts, deliberately, and neither does this section.**
+They used to. The numbers went wrong faster than anyone corrected them — a
+sweep found most of them stale and several off by multiples — and nothing in
+the repo reads them, so nothing ever failed to say so. They are also a
+function of an *unpinned* external tool: a new `ruff` release that adds a rule
+moves every one of them with nothing in this repo having changed. A live
+marker would therefore rewrite them on somebody else's release schedule, and
+the frontend figures need `node_modules`, which the gate itself proves may be
+absent. So there is no table here to go stale: measure when you need a number.
+
+**Measure with the command below, not a bare `uvx ruff check --statistics`.**
+A bare run is silent about all of this by construction — the per-file-ignores
+*are* the debt, so the gate's own invocation prints nothing and exits 0. That
+is right for a gate and useless for a burn-down. Switch the ignores off:
 
 ```bash
 # Python — the ignore list is what is being measured, so clear it
@@ -338,45 +347,19 @@ uvx ruff check --config 'lint.per-file-ignores={}' --statistics \
 npm --prefix frontends/wysiwyg-grilling run lint
 ```
 
-Snapshot measured 2026-08-20. Every Python row moves with the tree, so treat
-these as a reading with a date on it, not as a fact:
-
-| Debt | Count | Where |
-| --- | --- | --- |
-| Missing docstrings (`D101`/`D102`/`D103`/`D107`) | 61 | `canvas.py` |
-| Docstrings not in Google shape (`D205`/`D209`/`D4xx`) | 75 | `canvas.py` |
-| Missing `Returns:` / `Raises:` (`DOC201`/`DOC501`) | 55 | `canvas.py` |
-| Missing annotations (`ANN`) | 1317 | `canvas.py` |
-| Code-quality findings (`SIM`/`PERF`/`B`/`UP`…) | 97 | `canvas.py`, tests |
-| Missing TSDoc (`jsdoc/require-*`) | 30 | `src/` |
-| `: any` in TypeScript | 205 | `src/` |
-| `react-hooks/exhaustive-deps` | 29 | `src/` |
-| `strict: false` in `tsconfig.json` | — | frontend |
+Where it lives: in `canvas.py`, missing docstrings, docstrings out of Google
+shape, missing `Returns:`/`Raises:` sections, and missing annotations — the
+last being the largest item by a wide margin. Assorted code-quality findings
+sit in `canvas.py` and the tests. On the frontend: missing TSDoc, `: any`,
+`react-hooks/exhaustive-deps`, and `strict: false` in `tsconfig.json`.
 
 Three of the code-quality findings are defect-shaped rather than stylistic and
 are worth reading before they are auto-fixed: `B023` (a closure capturing a
-loop variable), `SIM115` ×2 (a file opened without a context manager), and
-`E741` (an ambiguous `l`/`I`/`O` name). 34 of the 97 clear with
-`uvx ruff check --fix`.
-
-**These nine stay literals by decision, not by omission** — along with the
-suite runtime and the `ruff format` blast radius above, which are the only
-other measured numbers here that a marker does not cover. Three reasons, each
-of which alone would be enough. They are a function of an *unpinned* external
-tool: a new `ruff`
-release that adds a rule moves them with nothing in this repo having changed,
-and `refresh` would rewrite the table on somebody else's release schedule —
-the same objection that keeps the suite runtime a literal. The frontend rows
-need `node_modules`, which the gate itself proves may be absent, so a
-calculator for them would fail `livedoc` on a clean clone and take the other
-eight live values down with it. And pinning `ruff` inside `tests/livedoc.py`
-would put the version in a second place, next to
-`.pre-commit-config.yaml`'s `rev:`, where the two can drift. So: dated
-literals with a working derivation printed above them, and no marker to imply
-otherwise.
+loop variable), `SIM115` (a file opened without a context manager), and `E741`
+(an ambiguous `l`/`I`/`O` name).
 
 Retrofit rule: **when you touch a function, bring it to standard** — full
 Google docstring and full annotations — even if the change was one line. That
-is how the counts above go down without a stop-the-world commit.
+is how this debt goes down without a stop-the-world commit.
 
 New code has no exemption. Write it to standard the first time.
