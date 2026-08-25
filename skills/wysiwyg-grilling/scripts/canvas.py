@@ -10247,6 +10247,152 @@ def composed_group_gaps(els):
     return sorted(out)
 
 
+def composed_part_floor(el: dict[str, Any]) -> int | None:
+    """How many parts this host's own stored geometry guarantees, if any.
+
+    DERIVE THE FLOOR, NEVER COUNT WHAT IS THERE, and that choice is the
+    whole rule rather than an implementation taste. "This host has 0
+    parts" reads 0 for a `body` block whose waves were eaten AND for an
+    `entity` a user declared with no attributes, which is legal — one
+    scalar, two meanings, and the carve-out would have to be bolted on
+    afterwards. A floor is recomputable from the stored element with no
+    history at all, so the two cases separate by construction: `entity`
+    is the one composed kind that has none, and it answers None here.
+
+    THE ENUMERATION IS `_interpret_user_composites`' EIGHT, in the same
+    order, and it is the third copy of that list in this file — the
+    other two are that gate and `reconcile_composed`'s arms. Nothing
+    stops the three drifting except
+    `TestComposedHostFloors.test_every_composed_kind_has_a_floor_ruling`,
+    which reads this function's source and the gate's tuple and fails on
+    a kind named in one and not the other. A kind added there with no
+    ruling here would arrive silently exempt, which is the failure mode
+    this check exists to end.
+
+    Args:
+        el: Any element. Only a `rectangle` carrying a composed `kind`
+            can have a floor — every composite block in `make_element`
+            gates on that type, so a `kind: "slider"` diamond never
+            minted a track and is not owed one.
+
+    Returns:
+        The part count the kind guarantees, or None when this element
+        is not a floored composed host — `entity` (the carve-out),
+        `input` with no settled value (its row is minted only when one
+        exists), and everything that is not a composed host at all.
+    """
+    if el.get("type") != "rectangle" or el.get("isDeleted"):
+        return None
+    cd = el.get("customData") or {}
+    kind = cd.get("kind")
+    if kind == "image":
+        return 2                      # the two X strokes (`x_of`)
+    if kind == "entity":
+        # THE CARVE-OUT. An entity's rows ARE the storage for its
+        # attribute list — the host keeps no `attributes` key of its
+        # own — so an entity declared with none is indistinguishable,
+        # from the stored element, in every way except that it is
+        # correct. `reconcile_composed` agrees by declining to rebuild
+        # rows it cannot find (`if rows:`).
+        return None
+    if kind == "kpi":
+        return 1                      # the big value row (`value_of`)
+    if kind == "checkbox":
+        # The box always; the check stroke only when the state says so,
+        # and `_interpret_user_composites` reads a deleted stroke as an
+        # uncheck — so a user clearing a tick lowers this floor rather
+        # than tripping it.
+        return 2 if cd.get("checked") else 1
+    if kind in ("toggle", "slider"):
+        return 2                      # pill/track plus thumb
+    if kind == "input":
+        # Gated the way the mint is: `make_element` composes the value
+        # row only when the spec carried a value, so a bare input owes
+        # nothing until `mod value` gives it one.
+        return None if cd.get("value") is None else 1
+    if kind == "body":
+        # Spelled out rather than calling `_compose_body_lines`, which
+        # would mint n throwaway elements per lint and needs an id set;
+        # the two are held together by
+        # `test_the_body_floor_is_the_count_the_seeder_mints`, which
+        # sweeps heights and compares this against `len()` of the real
+        # thing.
+        return max(2, int(max(el.get("height", 48), 16) // 16))
+    return None
+
+
+def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
+    """Composed hosts drawing a different number of parts than they owe.
+
+    THE BLINDNESS THIS CLOSES IS STRUCTURAL, NOT A SHORT-CIRCUIT.
+    `composed_group_gaps` next door walks PARTS and resolves each one's
+    owner, so a host with NO parts yields nothing to walk — there is no
+    comparison in that loop to reach and nothing to return early from —
+    and a part naming a host absent from the scene is dropped by its
+    `owner is None: continue`. Measured on a real pre-fix save, every
+    registered detector returned the same findings for the damaged
+    stored scene and the healthy one. A host is the subject here, and
+    that is why this is a second walk rather than a widening.
+
+    THE COUNT IS OF TAGGED PARTS, never of bound labels: a caption
+    carries no `*_of` key, belongs to hosts that are not composites at
+    all, and is not what a kind mints. `_composed_part` is the same
+    predicate `normalize_z_order` and `_close_widget_group` ask, so a
+    part that bands above its owner is a part counted here.
+
+    WHAT THIS DOES NOT SEE, measured rather than assumed and named so
+    the check is not read as covering its whole class: part-shaped
+    decoration owned by NOBODY. Duplicate a `body` or a `checkbox` and
+    the paste gate composes the copy a full set of fresh parts, so the
+    damage is the orphaned UNTAGGED strokes left beside them — five
+    wave lines where five belong, plus five more carrying no backlink.
+    Floor against tagged parts reads 5 == 5 and says nothing, and the
+    surplus arm cannot see it either, because untagged ink is not a
+    part. That is a second instrument and it is not this one.
+
+    Args:
+        els: An element list.
+
+    Returns:
+        `[(host_id, kind, floor, drawn)]` sorted by host id, empty when
+        every floored composed host draws exactly what its kind owes.
+        `drawn` differs from `floor` in both directions.
+    """
+    parts: dict[str, int] = {}
+    pinned: set[str] = set()
+    for e in els:
+        if e.get("isDeleted") or not _composed_part(e.get("customData")
+                                                   or {}):
+            continue
+        oid = part_owner_id(e)
+        if not oid:
+            continue
+        parts[oid] = parts.get(oid, 0) + 1
+        if pinned_to_canvas(e):
+            pinned.add(oid)
+    out = []
+    for e in els:
+        floor = composed_part_floor(e)
+        if floor is None:
+            continue
+        drawn = parts.get(e["id"], 0)
+        # A PINNED PART SUPPRESSES THE SURPLUS ARM AND ONLY THAT ARM,
+        # because this file's own reconciler produces the reading.
+        # `reconcile_composed`'s `body` branch deletes every wave and
+        # re-mints from the new height, skipping ids already standing —
+        # so pinning the LAST wave of a 64px block and shrinking it to
+        # 32px leaves three waves against a floor of two (measured
+        # 2026-08-25). That is a pin honoured, not damage. The missing
+        # arm needs no such guard: a pin can only keep a part alive,
+        # never remove one, so it cannot push a count below the floor.
+        if drawn > floor and e["id"] in pinned:
+            continue
+        if drawn != floor:
+            out.append((e["id"], (e.get("customData") or {}).get("kind"),
+                        floor, drawn))
+    return sorted(out)
+
+
 def normalize_z_order(els):
     """Paint order (layout.md): frames → backdrops → arrows/lines →
     nodes → composed parts → bound labels & pins. Excalidraw renders
@@ -19505,6 +19651,48 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             "without it. Did you ungroup it deliberately? If so, %s"
             % (name(owner), len(parts), ", ".join(sorted(parts)[:4]),
                waive_hint(key)))
+    # ---- ERROR: a composed host whose parts are not on the canvas ------
+    # THE SECOND WALK, AND IT HAD TO BE ONE. The note above walks PARTS,
+    # so a host with none yields nothing to walk and the loop is silent
+    # by construction rather than by a guard — the shape the duplicate-
+    # backlink data loss left on disk, where every registered detector
+    # returned identical findings for the damaged scene and the healthy
+    # one. `composed_host_gaps` makes the HOST the subject and compares
+    # what its own geometry owes against what the scene draws.
+    #
+    # ERROR, not a note, and the tier doctrine at the top of this
+    # function is what settles it: a `slider` with no track and no thumb
+    # is not a legibility defect and not a style observation, it is a
+    # drawing that does not say what the agent meant — an empty
+    # rectangle claiming to be a control. Repair in the same move,
+    # before narrating.
+    #
+    # NO WAIVE HINT, unlike the note above, and for the reason that note
+    # HAS one: Ctrl+Shift+G is a blessed gesture that produces its exact
+    # reading, so the honest answer there is a question. There is no
+    # gesture that legitimately strips a host of the parts its kind
+    # mints. The one scene that looks like this and is correct — an
+    # entity declared with no attributes — is carved out in
+    # `composed_part_floor` by having no floor at all, which is a
+    # silence nobody has to remember to ask for.
+    #
+    # ZERO ON THE FROZEN CORPUS, measured 2026-08-25 rather than hoped:
+    # 67 composed hosts across the artifacts and saves, 27 of them
+    # entities and so exempt, 40 carrying a floor, and every one of the
+    # 40 draws exactly what it owes. The corpus census does not move.
+    for hid, kind, floor, drawn in composed_host_gaps(els):
+        errors.append(
+            "%s is a composed %s whose own geometry draws %d part(s), "
+            "and the scene has %d — %d %s. %s"
+            % (name(hid), kind, floor, drawn, abs(floor - drawn),
+               "missing" if drawn < floor else "surplus",
+               "A host short of its parts renders as a bare rectangle "
+               "that says nothing about what it is: re-add it so the "
+               "kind composes whole, because a `mod` re-derives a "
+               "body's waves and never re-mints a slider's track or a "
+               "checkbox's box" if drawn < floor else
+               "The extra parts are drawn over the widget's own ink: "
+               "delete the ones that do not belong, or re-add the host"))
     bound_ids = set()
     for a in arrows:
         for key in ("startBinding", "endBinding"):
