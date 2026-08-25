@@ -141,6 +141,21 @@ Two absolute rules, both cheap to break and expensive to have broken:
   pin catching a real defect. Run it, read the message, confirm it is
   the mismatch you predicted — not a typo'd import.
 
+**Put a fixture's refusal where it fails as one test, never where it
+fails as the class.** A stage that damages a tree should refuse a tree
+that is already damaged — a stage which silently no-ops is this skill's
+own disease one level in. But raise that refusal from *shared setup* and
+it takes the whole class down as an ERROR before any check in it runs.
+Measured: a guard that names a duplicated constant, correct and ready to
+fire, printed nothing at all — the reader got the neighbouring stage's
+complaint about its anchor instead, which is the one message that does
+not help. Nothing was wrong with the check; it could not get a word out.
+That is silence arriving through the **reporting channel** rather than
+through the detector, and it wears a different enough coat that people
+who would never trust a quiet check will trust a quiet class. Assert the
+precondition inside the test that needs it, so the refusal reads as an
+ordinary failure and every sibling still speaks.
+
 **The flip has a second half: re-earn the control.** A pin that goes
 green must be re-proven — stub the check it calls so it reports nothing,
 and confirm the test now FAILS. A test that still passes was asserting
