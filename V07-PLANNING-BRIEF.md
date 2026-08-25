@@ -120,7 +120,7 @@ agent draws onto a branch.
 
 ```bash
 python3 -m unittest discover -s tests -q
-uvx ruff check . && uvx mypy skills/wysiwyg-grilling/scripts/canvas.py
+uvx ruff check . && uvx ty check   # ty replaced mypy/pyright 2026-08-25
 npm --prefix frontends/wysiwyg-grilling run lint && … run typecheck && … run build
 uvx pre-commit run --all-files          # before EVERY commit
 ```
