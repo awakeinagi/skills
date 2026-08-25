@@ -22707,9 +22707,13 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same grey, spelled `#d3d3d3`, is measured and not reported."""
         self._run_neighbour("unreadable_stroke_is_reported_not_skipped")
 
-    @unittest.expectedFailure
     def test_mutant_composed_host_stripped_is_invisible(self) -> None:
         """A body block drawing 0 of the 4 waves its height owes."""
+        # FLIPPED 2026-08-25 by the WP that owns the composed-group-gaps
+        # lint. `composed_part_floor` + `composed_host_gaps` in canvas.py
+        # make the HOST the subject, which is what the walk next door
+        # structurally could not do. The assertion below is the
+        # curator's, unedited; only this decorator moved.
         self._run("composed_host_stripped_is_invisible")
 
     def test_neighbour_composed_host_stripped_is_invisible(self) -> None:
@@ -23603,6 +23607,24 @@ ASPIRATIONAL: dict[str, str] = {
 # hands that wrote the fix should not also write its acceptance test.
 
 UNCOVERED: dict[str, str] = {
+    # DRAINED 2026-08-25 by the lint it was waiting for —
+    # `composed_part_floor` + `composed_host_gaps` in canvas.py, filed
+    # as an ERROR from `lint_layout`, and `composed_host_stripped_is_
+    # invisible` flipped in the same change. The whole reason below is
+    # kept rather than deleted, the way `text_over_text`'s and
+    # `runs_on_node`'s were: it is the only written record of what the
+    # check had to satisfy, and a drained row whose reason went with it
+    # cannot be audited against the thing that drained it. TWO CLAIMS
+    # IN IT ARE NOW MEASUREMENTS RATHER THAN FORECASTS. The rule below
+    # was satisfiable: the shipped check names `b` at (4, "missing"),
+    # stays silent on the carve-out entity and on the unmutated base,
+    # and reaches (2, "surplus") through the same regex. And the gap
+    # the row names — part-shaped decoration owned by nobody — is still
+    # a gap: the shipped check counts TAGGED parts against a floor, so
+    # it reads 5 == 5 over the orphaned untagged strokes exactly as
+    # predicted. That second instrument is unwritten and is not this
+    # one.
+    #
     # `composed_host_stripped` — curator batch 45, 2026-08-20, and the
     # only row this dict has ever held for a check that does not EXIST.
     # `text_over_text` and `unreadable_color` each stood here as a
@@ -23661,13 +23683,6 @@ UNCOVERED: dict[str, str] = {
     # a SECOND instrument — "part-shaped decoration owned by nobody" —
     # and it is named here so the day this check lands nobody reads it
     # as covering the whole class.
-    "composed_host_stripped":
-        "registered 2026-08-20 with its mutant and no lint behind it — "
-        "the check is the owning WP's to write and the acceptance "
-        "mutant is the curator's. UNCOVERED for the ordinary reason: "
-        "the evidence would be an ungated FindingSpec on this check, "
-        "and a check that emits nothing cannot give one. Drains when "
-        "`composed_host_stripped_is_invisible` flips",
     # `text_over_text` stood here TWICE, and the second stay is the more
     # instructive one. It landed 2026-08-18 with the check itself
     # (TASK-ENTITY-LINEHEIGHT), the second row this dict ever held that
@@ -24916,7 +24931,13 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"composed_host_stripped_is_invisible"}
+CATALOGUE_RED_IDS: set[str] = set()
+# EMPTIED AGAIN 2026-08-25 by the lint the entry below was waiting for:
+# `composed_part_floor` + `composed_host_gaps` in canvas.py, filed as an
+# ERROR from `lint_layout`. The mutant, its `FindingSpec` and its
+# neighbour are the curator's and were not touched — only the decorator,
+# this set, the append-site pin and the `UNCOVERED` row moved, which is
+# the four-site flip the doctrine in the mutants skill §6 describes.
 # ARRIVED 2026-08-20 (curator batch 45), the first entry this set has held
 # since the half-pixel pair below emptied it, and the only one so far that
 # is red because its CHECK does not exist rather than because a known check
@@ -34920,13 +34941,41 @@ class TestCoverage(unittest.TestCase):
         in the corpus; this one reads `customData` directly. A neighbour
         built on a KINDLESS element would be silent under both and prove
         nothing, which is why the row above requires `kind: "block"`.
+
+        72 -> 73 on 2026-08-25: `composed_host_stripped`, the composed
+        host whose parts are not on the canvas. It DRAINS an `UNCOVERED`
+        row rather than adding one — the reverse of every arrival above
+        — because the registered name and its proving mutant had been
+        waiting five days for a lint to exist, and this is that lint.
+
+        A SECOND WALK, not a widened population, and the distinction is
+        the whole reason the site is new. The composed-group note twelve
+        lines up walks PARTS and resolves each one's owner, so a host
+        with no parts yields nothing to walk: there is no comparison in
+        that loop to widen and nothing to return early from. Making the
+        HOST the subject is a different traversal with a different
+        remedy — that one asks "did you ungroup this deliberately?" and
+        offers a waive, this one says the widget is not drawn.
+
+        ONE SITE FOR A TWO-ENDED FAULT, which is 49 -> 50's judgement:
+        `missing` and `surplus` are one finding about one host with one
+        magnitude, and the direction picks the tail.
+
+        THE CORPUS CANNOT EXERCISE IT, measured rather than inherited:
+        across the frozen artifacts and saves there are 67 composed
+        hosts, 27 of them entities and so carved out, and every one of
+        the 40 that carries a floor draws exactly what it owes. ZERO
+        findings added to every shipped drawing, so `corpus_census` does
+        not move. That zero is an EMPTY population and not an
+        unreachable one — Ctrl+Shift+G then Ctrl+D on a slider reaches
+        it through `_rehost_duplicated_parts`' two-owner drop branch.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 72,
+        self.assertEqual(sites, 73,
                          "canvas.py lint_layout append-site count changed "
-                         "(72 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(73 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 
