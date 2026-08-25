@@ -24369,8 +24369,22 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # not the one the handover named; a note here that had transcribed the
 # named repair would have described a tree that does not exist. Read the
 # class, not the paragraph that commissioned it.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheWireframeRefusalNamesTheWholeVocabulary": 1}
 
+# ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
+# batch), and it re-opens this dict after it had emptied. It belongs to the
+# family the two entries below opened — one fact spelled twice, with nothing
+# binding the copies — and it is the TRANSCRIBED-INTO-PROSE case rather than
+# the duplicated-in-code one: `WIREFRAME_KINDS` owns the set, and the
+# wireframe mermaid refusal types ten of its seventeen names into a sentence.
+# What makes it worth a red rather than a note is the direction of the
+# wrongness: the sentence's own claim is that no wireframe kind has a
+# mermaid spelling, so naming a subset asserts the opposite about the rest.
+# It is expected to lose its LINE and not a number — the class has exactly
+# one red and one owning surface — which is the shape the entries below say
+# is usual, and unusually the fix was already in flight when the red landed.
+#
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
 # `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
 # fold, so the dict lost a LINE and not a number — the tenth time that has
@@ -33031,6 +33045,313 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
                     % (path.name, len(doubled),
                        "; ".join("%s at lines %s" % (n, at)
                                  for n, at in sorted(doubled.items()))))
+
+
+# ---------------------------------------------------------------------------
+# THE SAME DISEASE ONE LAYER OUT: the wireframe refusal TRANSCRIBES the
+# vocabulary into prose instead of duplicating it in code, and the
+# transcription has drifted. `canvas.py export --format mermaid` on a
+# wireframe refuses by name and, to explain why, enumerates the kinds mermaid
+# cannot spell — a list typed into the string. Measured on fold-wp4 @ 2c544c5
+# on 2026-08-25: `WIREFRAME_KINDS` holds 17, the sentence names 10, and the
+# seven it omits are `link, tab, body, priority, help, sticky-bar, feedback`.
+#
+# AN OMISSION HERE IS NOT UNDER-INFORMING, IT IS A CLAIM. The sentence exists
+# to say that a wireframe's meaning IS its layout and no mermaid diagram
+# holds one — equally true of all seventeen, so no principle separates the
+# ten from the rest. Naming ten tells a user whose screen is a help panel, a
+# feedback banner and a sticky bar that mermaid has a spelling for those. By
+# silence, which is the form of wrongness nobody reads as wrong.
+#
+# NOTHING OWNED IT. `test_wireframe_refuses_by_name_and_points_at_the_svg`
+# (test_backend.py:11888) asks only that the refusal names the word
+# "wireframe" — green over any list, including the ten, including none.
+# `TestTheKindVocabularyHasOneOwner` binds the constant to
+# references/wireframe.md, to `KINDS_BY_TYPE`, to the wire and to the
+# client's selector: four surfaces, and this sentence is not one of them.
+# Grepped 2026-08-25: no test in the tree reads the refusal's kind list.
+#
+# THE READER IS TOKEN-BASED AND NOT A REGEX OVER `Its kinds (…)`, because
+# the red has to flip under ANY honest repair and not under the one shape
+# today's sentence happens to have. It asks whether each kind is NAMED
+# anywhere in the message and never how the list is punctuated or ordered.
+# Proved below against two independently-worded repairs — one of them the
+# expression `fix-refusal-vocab-acfa` actually lands — and against a third
+# that is wrong in the other direction.
+# ---------------------------------------------------------------------------
+
+
+def _names_kind(message: str, kind: str) -> bool:
+    """Say whether `message` names `kind` as a whole token.
+
+    Hyphens are excluded on both sides as well as word characters, so
+    `nav` does not match inside `nav-bar` and `bar` does not match
+    inside `sticky-bar`. That errs toward reporting a kind UNNAMED,
+    which is the safe direction for a pin: a false absence is a red
+    somebody reads, a false presence is the silence being pinned.
+
+    Args:
+        message: The refusal text to read.
+        kind: A kind name, possibly hyphenated.
+
+    Returns:
+        True when the message names that kind on its own.
+    """
+    return re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(kind),
+                     message) is not None
+
+
+def kinds_the_refusal_names(message: str) -> tuple[list[str], list[str]]:
+    """Split the wireframe vocabulary by whether a message names each kind.
+
+    Args:
+        message: The sentence a wireframe mermaid export puts on screen.
+
+    Returns:
+        `(named, unnamed)`, each in `WIREFRAME_KINDS` order so a failure
+        message reads in the reference's order rather than sorted.
+    """
+    named: list[str] = []
+    unnamed: list[str] = []
+    for kind in canvas.WIREFRAME_KINDS:
+        (named if _names_kind(message, kind) else unnamed).append(kind)
+    return named, unnamed
+
+
+def _repair_by_interpolating_the_tuple(aid: str, kind: str) -> str | None:
+    """Candidate fix 1: the sentence keeps its shape, the tuple fills it.
+
+    Copied to its EXPRESSION and not to its prose from the repair
+    `fix-refusal-vocab-acfa` actually lands, so the fix-agnosticism
+    proof runs against a real candidate rather than a convenient one.
+
+    Args:
+        aid: Artifact id, for the message.
+        kind: Artifact type; only `wireframe` is answered here.
+
+    Returns:
+        The repaired refusal, or None for any other kind.
+    """
+    if kind != "wireframe":
+        return None
+    return ("ERROR=%r is a wireframe, and mermaid has no diagram whose "
+            "subject is a screen. Its kinds (%s) have no mermaid spelling."
+            % (aid, ", ".join(canvas.WIREFRAME_KINDS)))
+
+
+def _repair_by_listing_them_backticked(aid: str, kind: str) -> str | None:
+    """Candidate fix 2: the same fact, sharing no wording with fix 1.
+
+    Deliberately different on every axis a lazy pin could be keyed to:
+    the kinds arrive backticked, one per bullet, in alphabetical rather
+    than reference order, and the words "Its kinds" never appear. A pin
+    that flips under one of these and not the other is keyed to a fix's
+    prose instead of to the fact it exists to assert.
+
+    Args:
+        aid: Artifact id, for the message.
+        kind: Artifact type; only `wireframe` is answered here.
+
+    Returns:
+        The repaired refusal, or None for any other kind.
+    """
+    if kind != "wireframe":
+        return None
+    return ("ERROR=%r cannot go to mermaid: a screen's meaning is where "
+            "its parts sit, and mermaid can spell none of them.%s"
+            % (aid, "".join("\n  - `%s`" % k
+                            for k in sorted(canvas.WIREFRAME_KINDS))))
+
+
+def _repair_reaching_for_the_union(aid: str, kind: str) -> str | None:
+    """The WRONG repair, kept so the pin's second pole has a subject.
+
+    `KNOWN_KINDS` is the union of all four arms and it is defined six
+    lines below `WIREFRAME_KINDS` in canvas.py, so reaching for it is
+    the plausible slip — and it satisfies the first assertion
+    completely, because a superset omits nothing. A screen has no
+    `lane` and no `lifeline`; a sentence offering them as wireframe
+    kinds is wrong in the other direction and has to fail too.
+
+    Args:
+        aid: Artifact id, for the message.
+        kind: Artifact type; only `wireframe` is answered here.
+
+    Returns:
+        The over-wide refusal, or None for any other kind.
+    """
+    if kind != "wireframe":
+        return None
+    return ("ERROR=%r is a wireframe. Its kinds (%s) have no mermaid "
+            "spelling." % (aid, ", ".join(sorted(canvas.KNOWN_KINDS))))
+
+
+class TestTheWireframeRefusalNamesTheWholeVocabulary(unittest.TestCase):
+    """One vocabulary, two spellings, and nothing binding them.
+
+    `WIREFRAME_KINDS` is the owner of the set — `api_state` serves those
+    same names to the inspector's selector precisely so the client holds
+    no list of its own — and the refusal a user reads when a wireframe
+    export is turned down types the list out again. The header above
+    carries the measurement and the survey of what already covers this
+    (nothing).
+
+    THE RELATION, NOT THE SEVENTEEN. Nothing here names a kind, a count
+    or an order: a kind added to the vocabulary tomorrow moves no
+    literal in this class, and a kind added to the vocabulary WITHOUT
+    reaching the sentence fails it. The seven omitted names appear only
+    inside failure messages, computed at the moment of failure.
+
+    WHO FLIPS THE RED: whoever owns `_mermaid_refusal`'s wireframe arm
+    in canvas.py. Named as a SURFACE and not as an agent, because the
+    surface is still there next week — the entry above
+    `HAND_AUTHORED_RED_CLASSES` records what naming an agent cost.
+    """
+
+    def _assert_it_names_the_arm_and_only_the_arm(self, message: str) -> None:
+        """The pin's whole claim, factored so a candidate fix can run it.
+
+        Both poles live here and not in the red, which is the point:
+        `test_two_independently_worded_repairs_both_satisfy_the_pin`
+        drives THIS method under monkeypatched repairs, so the proof
+        that the red flips is a proof about the red's own assertion
+        rather than about a paraphrase of it.
+
+        Args:
+            message: The refusal text a wireframe export would print.
+        """
+        named, unnamed = kinds_the_refusal_names(message)
+        self.assertEqual(
+            unnamed, [],
+            "the wireframe refusal names %d of the %d kinds a wireframe "
+            "may declare and omits %d: %s. Every wireframe kind is equally "
+            "unspellable in mermaid — that is the fact this sentence "
+            "exists to state — so naming a subset does not under-inform, "
+            "it tells a reader those %d have a mermaid spelling. The list "
+            "is transcribed into the string; WIREFRAME_KINDS is the one "
+            "owner of the set and the sentence should be built from it"
+            % (len(named), len(canvas.WIREFRAME_KINDS), len(unnamed),
+               unnamed, len(unnamed)))
+        foreign = sorted(k for k in set(canvas.KNOWN_KINDS)
+                         - set(canvas.WIREFRAME_KINDS)
+                         if _names_kind(message, k))
+        self.assertEqual(
+            foreign, [],
+            "the wireframe refusal offers %s as wireframe kinds and they "
+            "belong to other arms. A repair that reached for KNOWN_KINDS "
+            "(the union six lines below the tuple) instead of "
+            "WIREFRAME_KINDS is wrong in the other direction: a screen has "
+            "no lane and no lifeline, and a refusal that says it does is "
+            "as false as one that omits `help`" % foreign)
+
+    def _pin_over(self, repair: Callable[[str, str], str | None]) -> None:
+        """Run the red's own assertion against a candidate repair.
+
+        Patches the function the red calls rather than passing a string
+        in, so what is proved is that the RED flips — its call site
+        included — and not merely that a predicate likes some text.
+
+        Args:
+            repair: A stand-in for `canvas._mermaid_refusal`, taking an
+                artifact id and an artifact type.
+        """
+        with mock.patch.object(canvas, "_mermaid_refusal", repair):
+            self._assert_it_names_the_arm_and_only_the_arm(
+                canvas._mermaid_refusal("wf", "wireframe"))
+
+    def test_a_wireframe_export_still_refuses_by_name(self) -> None:
+        """The premise, ungated: there is a sentence here to read at all.
+
+        The red below asks what a sentence SAYS. If the sentence moves —
+        `_mermaid_refusal` renamed, the wireframe arm answering None, the
+        list assembled up in `_export_mermaid` instead — the red would go
+        on failing for a reason with nothing to do with its subject, and
+        `expectedFailure` reports that identically to a real finding.
+        This is the test that says so out loud, so a relocation reads as
+        "re-point the pin" rather than as "the defect is still there".
+        """
+        message = canvas._mermaid_refusal("wf", "wireframe")
+        self.assertIsInstance(
+            message, str,
+            "`_mermaid_refusal('wf', 'wireframe')` returned %r, so the "
+            "refusal the red below reads is assembled somewhere else now "
+            "— re-point the pin at wherever a user's sentence is built"
+            % (message,))
+        for word in ("wireframe", "mermaid"):
+            self.assertIn(
+                word, message,
+                "the wireframe refusal no longer says %r, so this is not "
+                "the sentence the red is about" % word)
+        self.assertIsNone(
+            canvas._mermaid_refusal("wf", "flow"),
+            "premise: a flow exports rather than refusing, so this "
+            "function is still the refusal gate and not something else")
+
+    def test_the_reader_tells_a_whole_list_from_a_short_one(self) -> None:
+        """THE LIVE HALF, ungated: the reader discriminates, both ways.
+
+        Without it the red below could be failing because the reader
+        matches nothing at all — a regex that stopped compiling against
+        real names, a vocabulary that emptied — and a pin that reports
+        every kind missing over a perfect sentence is worth less than no
+        pin, because somebody will eventually "fix" the sentence to
+        satisfy it. Driven over synthetic messages, so this stays green
+        whatever canvas.py's own sentence says today or after the fix.
+        """
+        whole = "kinds: %s." % ", ".join(canvas.WIREFRAME_KINDS)
+        self.assertEqual(
+            kinds_the_refusal_names(whole)[1], [],
+            "the reader calls a kind unnamed in a message that lists the "
+            "whole vocabulary, so the red below would fail over a repaired "
+            "sentence and prescribe a repair nobody can make")
+        dropped = canvas.WIREFRAME_KINDS[-1]
+        short = "kinds: %s." % ", ".join(canvas.WIREFRAME_KINDS[:-1])
+        self.assertEqual(
+            kinds_the_refusal_names(short)[1], [dropped],
+            "the reader cannot see %r missing from a message that lists "
+            "every other kind, so it cannot see the omission the red is "
+            "about either" % dropped)
+
+    def test_two_independently_worded_repairs_both_satisfy_the_pin(
+            self) -> None:
+        """Fix-agnostic, proved rather than claimed.
+
+        A red that flips under exactly one repair has silently
+        PRESCRIBED that repair, and the prescription is invisible until
+        somebody makes the other honest choice and watches a green test
+        go red. So both candidates are run through the red's own
+        assertion, and so is a third that gets it wrong in the opposite
+        direction — otherwise the second pole would be decoration nobody
+        had ever seen bite.
+        """
+        for repair in (_repair_by_interpolating_the_tuple,
+                       _repair_by_listing_them_backticked):
+            with self.subTest(repair=repair.__name__):
+                self._pin_over(repair)
+        with self.assertRaises(
+                self.failureException,
+                msg="a refusal built from KNOWN_KINDS satisfies this pin, "
+                    "so its second pole asserts nothing and a repair may "
+                    "quietly tell a screen it has lanes"):
+            self._pin_over(_repair_reaching_for_the_union)
+
+    @unittest.expectedFailure
+    def test_the_refusal_names_every_kind_a_wireframe_may_declare(
+            self) -> None:
+        """THE RED: 10 of 17 named on fold-wp4 @ 2c544c5, 7 omitted.
+
+        Magnitude is the seven the sentence leaves out and direction is
+        that it UNDER-names — it never offers a kind a wireframe cannot
+        declare, which is the other pole and is asserted beside this one
+        so a repair cannot satisfy the pin by widening past the arm.
+
+        Flips when `_mermaid_refusal`'s wireframe arm builds its list
+        from `WIREFRAME_KINDS` instead of transcribing it. Proved
+        fix-agnostic by the test above, which runs this same assertion
+        under two independently-worded repairs.
+        """
+        self._assert_it_names_the_arm_and_only_the_arm(
+            canvas._mermaid_refusal("wf", "wireframe"))
 
 
 class TestCoverage(unittest.TestCase):
