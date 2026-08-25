@@ -32933,6 +32933,14 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
         which is the one message a reader needs. So the stage moved to
         `_damaged`, where its precondition reads as an ordinary failure
         and the guard still runs beside it.
+
+        THE GENERAL RULE, because the next person writing a
+        damaged-tree stage will reach for `setUpClass` by reflex: a
+        fixture that refuses is a check whose reporting channel ate the
+        verdict, which is doctrine §1's disease wearing a different
+        coat. Nothing was wrong with the check — it could not get a word
+        out. Put the refusal where it fails as one test, never where it
+        fails as the class.
         """
         path, _ = cls.MODULES[0]
         cls.SOURCE = path.read_text(encoding="utf-8")
