@@ -26046,7 +26046,15 @@ def mermaid_dropped_roles(fmt: str) -> list[str]:
     Returns:
         Role tokens, all of them keys of `MERMAID_DROP_LABELS`.
     """
-    roles = list(MERMAID_DROP_ROLES)
+    # ANNOTATED, and the annotation is doing work. `list()` over a tuple
+    # of string literals infers `list[Literal["pin", …]]` under pyright,
+    # and `list` is invariant, so the widening this return type needs
+    # never happens and `-> list[str]` is refused at the `return`. mypy
+    # widens instead and says nothing, so the two disagree about the
+    # same line. Declaring the local is what makes them agree; widening
+    # the return to `Sequence[str]` would only move the complaint into
+    # `_mermaid_dropped_names`, which takes a `list[str]`.
+    roles: list[str] = list(MERMAID_DROP_ROLES)
     if fmt != "er":
         roles.extend(MERMAID_DROP_ROLES_NON_ER)
     return roles
