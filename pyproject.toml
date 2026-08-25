@@ -135,21 +135,78 @@ suppress-dummy-args = true       # _ and __ need no annotation
 ]
 
 # ---------------------------------------------------------------------------
-# mypy — strengthens automatically as annotations land: unannotated function
-# bodies are skipped by default, so every function you annotate becomes
-# type-checked without changing this config.
+# ty — the type checker. Replaced mypy AND pyright on 2026-08-25; one checker,
+# same vendor as ruff and uv.
+#
+# THE VERSION PIN LIVES IN `.pre-commit-config.yaml`, not here. ty is 0.0.x and
+# its defaults move between releases, so it is invoked as `uvx ty@<rev>` the
+# way the ruff hook carries a `rev:`. To move the pin: bump that one string,
+# re-run `uvx pre-commit run --all-files`, and re-triage anything new before
+# committing. This file configures ty; it does not choose ty's version.
+#
+# WHY BOTH PREDECESSORS WENT. mypy's green was largely vacuous: it skips the
+# bodies of untyped functions by default and canvas.py carries the `ANN` debt
+# above, so `uvx mypy` printed "Success: no issues found" while
+# `--check-untyped-defs` printed 109 errors (measured 2026-08-25). pyright was
+# a `pyrightconfig.json` in no hook and in no document — a gate by convention.
 # ---------------------------------------------------------------------------
-[tool.mypy]
-python_version = "3.9"
-files = ["skills/wysiwyg-grilling/scripts/canvas.py"]
-ignore_missing_imports = true
-warn_unused_ignores = true
-warn_redundant_casts = true
-warn_unreachable = true
-no_implicit_optional = true
-# Target state — flip on once the ANN debt above is retired:
-# disallow_untyped_defs = true
-# disallow_incomplete_defs = true
+[tool.ty.environment]
+# Matches the 3.9 floor in `requires-python`. Stated rather than inferred so a
+# later floor bump is one deliberate edit in two places, not a silent move.
+python-version = "3.9"
+# `import canvas` from tests/, which is how every test in this repo reaches the
+# backend. This is pyright's `extraPaths` carried over verbatim: without it ty
+# reports 9 `unresolved-import` and then types every `canvas.*` access as
+# Unknown, which is a checker that has stopped checking.
+extra-paths = ["skills/wysiwyg-grilling/scripts", "tests"]
+
+[tool.ty.src]
+# THE WHOLE TRACKED PYTHON SURFACE — canvas.py plus the 16 modules in tests/.
+# `git ls-files '*.py'` outside tests/fixtures/ lists exactly these 17 files,
+# so this is pyright's effective scope (it set no `include`, so it walked the
+# project root minus its excludes) and is deliberately WIDER than mypy's
+# canvas.py-only `files`. Narrowing to canvas.py would have made a tool swap
+# into a silent coverage cut.
+include = ["skills/wysiwyg-grilling/scripts/canvas.py", "tests"]
+exclude = [
+    "tests/fixtures",                        # byte-exact scene fixtures, no code
+    "skills/wysiwyg-grilling/scripts/web",   # committed Vite build output
+]
+
+# ---------------------------------------------------------------------------
+# RULE POLICY. Five rules off, and the list is not a convenience — it is
+# `pyrightconfig.json`'s seven suppressions translated one-for-one, so the swap
+# changes the TOOL and not what this repo considers an error. The mapping,
+# because the file that held the originals is deleted and this is now the only
+# place the decision is written down:
+#
+#   pyright                                        ty
+#   reportOptionalSubscript + reportIndexIssue  -> not-subscriptable
+#   reportOptionalMemberAccess                  -> unresolved-attribute
+#   reportOptionalIterable                      -> not-iterable
+#   reportOptionalOperand + reportOperatorIssue -> unsupported-operator
+#   reportArgumentType                          -> invalid-argument-type
+#
+# All five report the SAME underlying thing on this codebase: an Excalidraw
+# element is loose JSON, AGENTS.md § Type hints rules that `dict[str, Any]` is
+# the correct and honest annotation for one, and a checker reading such a dict
+# infers `str | int | list | None` from whichever keys a literal happened to
+# set, then objects when the next line legitimately writes or reads a wider
+# value. That is a fact about the annotation, not about the code.
+#
+# THESE ARE OFF BECAUSE THE MODEL IS LOOSE, NOT BECAUSE THE FINDINGS ARE
+# UNINTERESTING. `unsupported-operator` in particular is over-suppressed today:
+# 16 of its 21 hits in canvas.py come from one unannotated module-level dict
+# and vanish when it is annotated (measured 2026-08-25, see the § Type check
+# note in AGENTS.md). Retire entries from this list as the ANN debt above is
+# paid; it is a burn-down like the ruff one, not a permanent exemption.
+# ---------------------------------------------------------------------------
+[tool.ty.rules]
+not-subscriptable = "ignore"
+unresolved-attribute = "ignore"
+not-iterable = "ignore"
+unsupported-operator = "ignore"
+invalid-argument-type = "ignore"
 
 # ---------------------------------------------------------------------------
 # Dev/test dependencies — AGENTS.md constraint 5: stdlib-only binds ONLY the
