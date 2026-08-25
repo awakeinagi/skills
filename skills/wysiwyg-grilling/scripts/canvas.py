@@ -25942,15 +25942,30 @@ def _mermaid_refusal(aid, kind):
         # absolute positioning and no frame nesting, and the vendored
         # converter cannot read it back either. A wireframe's subject
         # IS its layout, so a form that discards layout says nothing.
+        #
+        # THE KIND LIST IS DERIVED, NOT TRANSCRIBED. It was typed into
+        # this string on the day the sentence was written (4823855) and
+        # named ten kinds; `body`, `priority`, `help`, `sticky-bar` and
+        # `feedback` were already documented and left out, and `link`
+        # and `tab` joined the vocabulary later without anybody coming
+        # back here. No principle separates the ten from the rest —
+        # every wireframe kind is equally unspellable, which is the
+        # fact this refusal exists to state — so an omission does not
+        # merely under-inform: it reads as a distinction, telling a user
+        # whose screen is a help panel and a feedback banner that
+        # mermaid has a spelling for those. `WIREFRAME_KINDS` is the one
+        # owner of that set — `api_state` serves those same names to the
+        # inspector's selector rather than the client holding a list — so
+        # a kind added there arrives in this sentence with nobody
+        # retyping it, in the reference's own order.
         return ("ERROR=%r is a wireframe, and mermaid has no diagram whose "
                 "subject is a screen — a wireframe's meaning IS its layout, "
                 "and every mermaid diagram is a graph of named things that "
-                "an auto-layout then places. Its kinds (nav, block, kpi, "
-                "input, button, checkbox, slider, toggle, image, fold) have "
-                "no mermaid spelling. Use `canvas.py export --with-footnotes` "
+                "an auto-layout then places. Its kinds (%s) have no mermaid "
+                "spelling. Use `canvas.py export --with-footnotes` "
                 "— the SVG keeps the positions AND carries the tooltips as "
                 "numbered footnotes, which is strictly more than mermaid "
-                "could hold." % aid)
+                "could hold." % (aid, ", ".join(WIREFRAME_KINDS)))
     if kind == "sequence":
         # DEFERRED, not impossible — and the difference is stated so
         # nobody re-derives the design. `sequenceDiagram` is a good
