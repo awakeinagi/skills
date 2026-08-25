@@ -25437,6 +25437,276 @@ class TestComposedWidgetsAreRealGroups(Base):
         self.assertEqual(followers, {"b", "c"})
 
 
+class TestComposedHostFloors(Base):
+    """A composed host is measured against what its own kind owes.
+
+    The poles the acceptance mutant cannot reach. `composed_host_
+    stripped_is_invisible` asserts ONE scene — a 64px `body` stripped to
+    nothing — which is the right size for an acceptance test and says
+    nothing about the other seven kinds, about the carve-outs, or about
+    the direction the rule must NOT fire in. Those are here, because a
+    check proven on one arm is a check whose other arms are unheld.
+    """
+
+    # The mint specs, one per kind, with the floor each one's stored
+    # element guarantees AFTER `make_element`'s own clamps: `kpi` is
+    # lifted to 64px, `checkbox`/`toggle` to 28, `slider` to 44, and
+    # `body` is not clamped at all, so 60px gives it `60 // 16` = 3.
+    # `entity` and a valueless `input` are the two Nones — the whole
+    # false-positive cost of the rule, and both are here rather than
+    # trusted.
+    SPECS = (
+        ({"kind": "slider", "value": 60}, 2),
+        ({"kind": "checkbox", "checked": True}, 2),
+        ({"kind": "checkbox", "checked": False}, 1),
+        ({"kind": "toggle", "checked": True}, 2),
+        ({"kind": "kpi", "value": "$4.2M"}, 1),
+        ({"kind": "input", "value": "09:00"}, 1),
+        ({"kind": "input"}, None),
+        ({"kind": "image"}, 2),
+        ({"kind": "entity", "attributes": ["id", "total"]}, None),
+        ({"kind": "body"}, 3),
+    )
+
+    def _mint(self, spec):
+        """Mint one composed widget the way the `add` path does.
+
+        Args:
+            spec: The op spec's kind-bearing fields.
+
+        Returns:
+            The minted element list, `out[0]` the host.
+        """
+        errors = []
+        out = canvas.make_element(
+            dict({"id": "w", "type": "rectangle", "x": 100, "y": 200,
+                  "width": 160, "height": 60, "label": "W"}, **spec),
+            set(), errors, 0)
+        self.assertEqual(errors, [])
+        return out
+
+    def test_every_composed_kind_has_a_floor_ruling(self):
+        """The three copies of the kind vocabulary are one list.
+
+        `_interpret_user_composites` carries the enumeration the `add`
+        path composes and says in its own comment that
+        `reconcile_composed`'s arms are the same list. `composed_part_
+        floor` is now the third, and a kind added to the gate with no
+        ruling here would arrive SILENTLY EXEMPT — the check would go
+        quiet on a whole kind and no test would fail, which is the
+        failure mode the check itself exists to end. Read out of the
+        source rather than restated, so this cannot be the fourth copy.
+        """
+        gate = inspect.getsource(canvas._interpret_user_composites)
+        kinds = re.search(
+            r'if kind in \((\s*"[a-z]+",?\s*)+\):', gate)
+        self.assertIsNotNone(
+            kinds, "the composed-kind tuple in `_interpret_user_"
+                   "composites` has been reshaped past this reader — "
+                   "re-point it, do not delete it")
+        named = set(re.findall(r'"([a-z]+)"', kinds.group(0)))
+        self.assertEqual(len(named), 8, sorted(named))
+        floor_src = inspect.getsource(canvas.composed_part_floor)
+        missing = sorted(k for k in named
+                         if '"%s"' % k not in floor_src)
+        self.assertEqual(
+            missing, [],
+            "these composed kinds are minted by the gate and have no "
+            "ruling in `composed_part_floor`, so a host of one of them "
+            "drawing nothing is invisible: %s. Give each a floor, or an "
+            "explicit `return None` with the reason it has none" % missing)
+
+    def test_the_body_floor_is_the_count_the_seeder_mints(self):
+        """The floor is the seeder's own n, swept, not a copy of it.
+
+        `composed_part_floor` spells `max(2, int(max(h, 16) // 16))`
+        rather than calling `_compose_body_lines`, which would mint n
+        throwaway elements on every lint. The arithmetic is therefore
+        duplicated, and this is what stops the two drifting: the
+        expectation comes from the OTHER function, never from the
+        subject, so a change to either side that the other did not make
+        fails here. The sweep crosses every band boundary in the range,
+        including the `max(2, ...)` and `max(h, 16)` floors, which is
+        where a rounding change would land.
+        """
+        for h in [0, 1, 15, 16, 17, 31, 32, 33, 47, 48, 63, 64, 65,
+                  100, 160, 257]:
+            with self.subTest(height=h):
+                host = mk_el(id="b", type="rectangle", x=0, y=0,
+                             width=160, height=h,
+                             customData={"kind": "body", "role": "node"})
+                self.assertEqual(
+                    canvas.composed_part_floor(host),
+                    len(canvas._compose_body_lines(host, set())),
+                    "the body floor and the count the seeder mints have "
+                    "parted at height %s" % h)
+
+    def test_every_minted_widget_draws_what_it_owes(self):
+        """The false-positive pole across the whole kind vocabulary.
+
+        A rule of this shape fires on every widget this skill mints if
+        it counts the wrong thing — bound labels, say, or parts by group
+        rather than by backlink. Every kind is minted whole here and the
+        check must be silent on all of them.
+        """
+        for spec, _floor in self.SPECS:
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                self.assertEqual(
+                    canvas.composed_host_gaps(out), [],
+                    "%r was minted whole and reported anyway" % (spec,))
+
+    def test_each_kind_owes_the_count_its_stored_element_implies(self):
+        """The floor per kind, and the two kinds that have none."""
+        for spec, floor in self.SPECS:
+            with self.subTest(spec=spec):
+                host = self._mint(spec)[0]
+                self.assertEqual(canvas.composed_part_floor(host), floor)
+
+    def test_a_stripped_host_of_every_floored_kind_is_named(self):
+        """Strip the parts and every floored kind speaks, with its count.
+
+        The mutant proves ONE kind at ONE magnitude. This is the same
+        claim over the vocabulary: a `slider` back from a duplicate with
+        0 of its 2 parts is the witnessed defect, and it must read as
+        `(2, missing)` for the same reason the body reads `(4, missing)`.
+        """
+        for spec, floor in self.SPECS:
+            if floor is None:
+                continue
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                kept = [e for e in out
+                        if not canvas._composed_part(
+                            e.get("customData") or {})]
+                self.assertEqual(
+                    canvas.composed_host_gaps(kept),
+                    [("w", spec["kind"], floor, 0)],
+                    "%r drew none of its parts and was not named" % (spec,))
+
+    def test_an_entity_with_no_rows_is_never_reported(self):
+        """The carve-out, at the level the neighbour cannot reach.
+
+        The mutant's neighbour asserts this for one scene through
+        `collect_findings`. The reason it holds is that `entity` has NO
+        FLOOR — its rows are the storage for its attribute list and the
+        host keeps no `attributes` key — so the silence is structural
+        and not a special case somebody has to remember. Asserted on the
+        floor itself, so a later hand that gives `entity` a floor and a
+        suppression somewhere downstream fails here rather than shipping
+        a rule with a hole in its reasoning.
+        """
+        bare = mk_el(id="e", type="rectangle", x=400, y=0, width=160,
+                     height=64,
+                     customData={"kind": "entity", "role": "node"})
+        self.assertIsNone(canvas.composed_part_floor(bare))
+        self.assertEqual(canvas.composed_host_gaps([bare]), [])
+
+    def test_a_bare_input_owes_nothing_until_it_has_a_value(self):
+        """The second carve-out, gated exactly as the mint is.
+
+        `make_element` composes an input's value row only when the spec
+        carried a value, so an input minted bare has no part and owes
+        none. The moment `mod value` settles one, the floor is 1 — and
+        `_recompose_input_value` treats a missing row as a FIRST
+        assembly, so the two move together.
+        """
+        bare = self._mint({"kind": "input"})[0]
+        self.assertIsNone(canvas.composed_part_floor(bare))
+        settled = dict(bare, customData=dict(bare["customData"],
+                                             value="09:00"))
+        self.assertEqual(canvas.composed_part_floor(settled), 1)
+        self.assertEqual(
+            canvas.composed_host_gaps([settled]),
+            [("w", "input", 1, 0)],
+            "an input with a settled value and no row drew nothing")
+
+    def test_a_checkbox_floor_follows_the_state_it_stores(self):
+        """A cleared tick lowers the floor rather than tripping it.
+
+        `_interpret_user_composites` reads a deleted check stroke as an
+        uncheck, so the user gesture that removes a part also removes
+        the obligation. A floor that ignored `checked` would report
+        every unchecked box in the project.
+        """
+        on = self._mint({"kind": "checkbox", "checked": True})
+        off = [dict(e, customData=dict(e.get("customData") or {},
+                                       checked=False))
+               if e["id"] == "w" else e
+               for e in on
+               if (e.get("customData") or {}).get("chk_of") != "w"]
+        self.assertEqual(canvas.composed_part_floor(on[0]), 2)
+        self.assertEqual(canvas.composed_host_gaps(on), [])
+        self.assertEqual(canvas.composed_host_gaps(off), [])
+
+    def test_a_pinned_part_suppresses_only_the_surplus_arm(self):
+        """This file's own reconciler produces a legitimate surplus.
+
+        MEASURED, NOT IMAGINED. `reconcile_composed`'s `body` branch
+        deletes every wave and re-mints from the new height, skipping
+        ids already standing — so pinning the LAST wave of a 64px block
+        and shrinking it to 32px leaves three waves against a floor of
+        two. That is a pin honoured, not damage, and it is the one
+        reading of this shape the check must not report. The missing arm
+        is NOT suppressed by a pin, and that half matters just as much:
+        a pin can only keep a part alive, never remove one, so a
+        suppression there would be a hole with no case behind it.
+        """
+        els = self._mint({"kind": "body", "height": 64})
+        for e in els:
+            if (e.get("customData") or {}).get("body_of") == "w":
+                last = e
+        last["locked"] = True
+        els[0]["height"] = 32
+        canvas.reconcile_composed(els, None, None, els[0])
+        drawn = [e for e in els
+                 if (e.get("customData") or {}).get("body_of") == "w"]
+        self.assertEqual(len(drawn), 3, [e["id"] for e in drawn])
+        self.assertEqual(canvas.composed_part_floor(els[0]), 2)
+        self.assertEqual(
+            canvas.composed_host_gaps(els), [],
+            "a pin honoured by the reconciler was reported as surplus")
+        # and the missing arm still speaks with the same pin standing
+        stripped = [e for e in els
+                    if (e.get("customData") or {}).get("body_of") != "w"
+                    or e is last]
+        self.assertEqual(canvas.composed_host_gaps(stripped),
+                         [("w", "body", 2, 1)])
+
+    def test_a_bound_label_is_not_one_of_the_parts_counted(self):
+        """A caption is not what a kind mints.
+
+        `part_owner_id` answers a bound label's `containerId` and
+        `_composed_part` does not — the one class those two disagree on,
+        and the count here has to be on the second. A slider with its
+        track and thumb gone but its name still drawn is a dead widget,
+        and a count that took the label would read 1 of 2 and call it
+        half alive.
+        """
+        out = self._mint({"kind": "slider", "value": 60})
+        kept = [e for e in out
+                if not canvas._composed_part(e.get("customData") or {})]
+        self.assertTrue(any(e.get("containerId") == "w" for e in kept),
+                        "the bound label is not in this scene at all, so "
+                        "this test proves nothing")
+        self.assertEqual(canvas.composed_host_gaps(kept),
+                         [("w", "slider", 2, 0)])
+
+    def test_a_soft_deleted_part_is_absent_ink_and_counts_as_gone(self):
+        """A tombstone is not drawn, so it does not satisfy a floor.
+
+        The picture judged here is the one on screen. Counting a
+        tombstone would make the check silent on exactly the scene a
+        client posts after deleting a widget's parts by hand.
+        """
+        out = self._mint({"kind": "slider", "value": 60})
+        ghosts = [dict(e, isDeleted=True)
+                  if canvas._composed_part(e.get("customData") or {}) else e
+                  for e in out]
+        self.assertEqual(canvas.composed_host_gaps(ghosts),
+                         [("w", "slider", 2, 0)])
+
+
 class TestPinnedAddSpec(Base):
     """`add` may mint a born-pinned element."""
 
