@@ -32855,10 +32855,14 @@ def with_a_second_assignment(source: str, name: str) -> str:
 
     The duplicate's VALUE is read off the live module instead of typed
     here, so this stage cannot go stale against the constant it copies —
-    which is the very defect class it is staged inside. Identical rather
-    than drifted on purpose: two copies of one tuple are the case every
-    tool in the gate was measured silent on, so it is the case the
-    census has to see.
+    which is the very defect class it is staged inside. VALUE-identical
+    and not byte-identical: the splice is `repr()` on one line where the
+    original is three wrapped ones, and the census reads assignment
+    NODES, so the difference in source text is not a difference it can
+    see. Equal in value rather than drifted on purpose, because two
+    copies holding the same tuple are the case every tool in the gate
+    was measured silent on — mypy included — and so are the case the
+    census has to catch.
 
     Args:
         source: The module source to damage.
@@ -32901,15 +32905,21 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
     three tests below is that comparison, run on purpose.
     """
 
-    #: The modules whose module-level constants are read BY NAME from
-    #: outside them, each paired with a name that must be found in it.
-    #: The anchor is what stops the walk from going quietly vacuous:
-    #: constants moved inside a class would empty the census, and an
-    #: empty census passes the guard for having read nothing.
-    MODULES: ClassVar[tuple[tuple[Path, str], ...]] = (
-        (Path(canvas.__file__).resolve(), "WIREFRAME_KINDS"),
-        (Path(__file__).resolve().parent / "test_mutants_render.py",
-         "MIN_FONT_FLOOR"))
+    #: The file every stage in this class damages, and the constant it
+    #: duplicates there. `canvas.py` because that is where the merge was
+    #: witnessed; `WIREFRAME_KINDS` because that is what it merged.
+    SUBJECT: ClassVar[tuple[Path, str]] = (
+        Path(canvas.__file__).resolve(), "WIREFRAME_KINDS")
+    #: Files whose named constant must still be found, so the census
+    #: cannot go quietly vacuous on the ones that matter most. NOT every
+    #: file: four of the seventeen legitimately hold zero module-level
+    #: assignments (`test_failure_paths`, `test_instruments`,
+    #: `test_pngdiff`, `tests_helpers`, measured 2026-08-25), so
+    #: per-file non-emptiness is not the rule and cannot be.
+    ANCHORS: ClassVar[dict[str, str]] = {
+        "canvas.py": "WIREFRAME_KINDS",
+        "test_mutants.py": "DETECTORS",
+        "test_mutants_render.py": "MIN_FONT_FLOOR"}
     #: canvas.py is 29k lines and `ast.parse` of it costs the better part
     #: of a second, so its source and its clean census are read once here
     #: rather than per test. Three parses across the class, not ten.
@@ -32942,22 +32952,37 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
         out. Put the refusal where it fails as one test, never where it
         fails as the class.
         """
-        path, _ = cls.MODULES[0]
+        path, _ = cls.SUBJECT
         cls.SOURCE = path.read_text(encoding="utf-8")
         cls.CLEAN = module_level_sites(cls.SOURCE)
 
+    @staticmethod
+    def owned_modules() -> list[Path]:
+        """Every Python file this repo owns, in a stable order.
+
+        The shipped backend plus the whole `tests/` tree — seventeen
+        files, 0.89s to parse them all, which is why there is nothing
+        here to curate and no rule to get wrong.
+
+        Returns:
+            Paths, `canvas.py` first so the memoized census can serve it.
+        """
+        here = Path(__file__).resolve().parent
+        return [Path(canvas.__file__).resolve(),
+                *sorted(p for p in here.glob("*.py"))]
+
     def _damaged(self) -> dict[str, list[int]]:
-        """Census canvas.py with one extra site for the anchor spliced in.
+        """Census canvas.py with one extra site for its constant spliced in.
 
         Memoized on the class: two tests want it and the parse is the
         expensive part.
 
         Returns:
             Each module-level name against the lines binding it, in a
-            copy of canvas.py carrying a byte-identical duplicate of the
-            first module's anchor constant.
+            copy of canvas.py carrying a second, value-identical
+            assignment of `SUBJECT`'s constant.
         """
-        path, anchor = self.MODULES[0]
+        path, anchor = self.SUBJECT
         self.assertEqual(
             len(self.CLEAN.get(anchor) or []), 1,
             "premise: %s must be assigned exactly once in %s before this "
@@ -32983,7 +33008,7 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
         in the gate can see, and the census is required to name it and
         to name nothing else.
         """
-        path, anchor = self.MODULES[0]
+        path, anchor = self.SUBJECT
         damaged = self._damaged()
         self.assertEqual(
             sorted(n for n, at in damaged.items() if len(at) > 1), [anchor],
@@ -33005,6 +33030,15 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
         source the census above calls out, the two NAME sets are
         identical — so that guard would ship, pass, and report nothing
         for as long as the duplicate lived.
+
+        THE SECOND ASSERTION COMPARED WHOLE DICTS UNTIL REVIEW A2, and
+        that claimed more than it earned: the splice shifts every
+        following line number, so `CLEAN != DAMAGED` also holds over a
+        COMMENT-only splice that injects no duplicate at all. The
+        load-bearing half was always sound and the trap was never a
+        tautology, but a message saying "counting sites answers the
+        same" has to be backed by counting sites. So both halves now
+        compare the DOUBLED-NAME sets, which line numbers cannot move.
         """
         damaged = self._damaged()
         self.assertEqual(
@@ -33012,33 +33046,60 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
             "premise: this stage adds no NEW name, it adds a second site "
             "for one that already exists — if that stopped being true the "
             "trap below is not the trap")
-        self.assertNotEqual(
-            self.CLEAN, damaged,
-            "counting sites answers the same as counting names on the "
+        self.assertEqual(
+            (sorted(n for n, at in self.CLEAN.items() if len(at) > 1),
+             sorted(n for n, at in damaged.items() if len(at) > 1)),
+            ([], [self.SUBJECT[1]]),
+            "counting sites answers the same as counting names over this "
             "damaged file, so this guard has collapsed into the one it "
             "exists to be different from")
 
     def test_each_module_level_name_is_assigned_exactly_once(self) -> None:
-        """THE GUARD: one definition per name, in both read-by-name files.
+        """THE GUARD: one definition per name, in every file this repo owns.
 
         Every name, not a list of load-bearing ones. A roster would have
         to be maintained by the same hands the merge accident slips
-        past, and the census costs about a second for both files; the
-        one name in either that is not upper-case (`_unlabelled`, in
-        canvas.py) is covered for free rather than argued about.
+        past; the one name in the tree that is not upper-case
+        (`_unlabelled`, in canvas.py) is covered for free rather than
+        argued about.
+
+        AND EVERY FILE, which review A1 is the reason for. This read two
+        of the seventeen under a comment claiming to cover "the modules
+        whose module-level constants are read BY NAME from outside
+        them" — a rule that admits five more (`guard_mutants.GUARDS`,
+        four in `instruments`, `livedoc.CALCULATORS`,
+        `pngdiff.PNG_SIGNATURE`) and, pointedly, THIS FILE, which
+        `mutants_mortality.py` imports `DETECTORS` from, which holds 90
+        module-level names, and which is the hottest parallel-edit
+        target in the repo — the exact place a fold drops a duplicate.
+        Meanwhile `test_mutants_render.py` was IN scope and has no
+        constant read by name from anywhere: `MIN_FONT_FLOOR` is read
+        out of its source by regex. The sentence matched neither the
+        inclusions nor the exclusions, which is this repo's own named
+        defect class committed inside the pin against it.
+
+        Censusing all seventeen costs 0.89s, so the fix is to widen
+        rather than to reword. `ANCHORS` keeps the vacuity check on the
+        three files where a specific name is load-bearing; the other
+        fourteen are guarded by the relation alone, and four of them
+        hold no module-level assignment at all.
         """
-        for path, anchor in self.MODULES:
+        seen: set[str] = set()
+        for path in self.owned_modules():
             with self.subTest(module=path.name):
                 self.assertTrue(path.is_file(), "%s is missing — moved, "
                                 "not cleaned: re-point this guard" % path)
-                sites = (self.CLEAN if path == self.MODULES[0][0]
+                seen.add(path.name)
+                sites = (self.CLEAN if path == self.SUBJECT[0]
                          else module_level_sites(
                              path.read_text(encoding="utf-8")))
-                self.assertIn(
-                    anchor, sites,
-                    "%s binds no module-level %s, so this census has lost "
-                    "its subject and passes for having read nothing"
-                    % (path.name, anchor))
+                anchor = self.ANCHORS.get(path.name)
+                if anchor is not None:
+                    self.assertIn(
+                        anchor, sites,
+                        "%s binds no module-level %s, so this census has "
+                        "lost its subject and passes for having read "
+                        "nothing" % (path.name, anchor))
                 doubled = {n: at for n, at in sites.items() if len(at) > 1}
                 self.assertEqual(
                     doubled, {},
@@ -33053,6 +33114,13 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
                     % (path.name, len(doubled),
                        "; ".join("%s at lines %s" % (n, at)
                                  for n, at in sorted(doubled.items()))))
+        self.assertEqual(
+            sorted(set(self.ANCHORS) - seen), [],
+            "the walk never reached %s, so its anchor was never checked "
+            "and the vacuity guard on the file that matters most passed "
+            "for not having run. `owned_modules` discovers by glob; a "
+            "file that moved out of tests/ has to be re-pointed here"
+            % sorted(set(self.ANCHORS) - seen))
 
 
 # ---------------------------------------------------------------------------
