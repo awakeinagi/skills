@@ -214,8 +214,10 @@ python3 tests/livedoc.py refresh
 # Lint + docstrings + annotations
 uvx ruff check .
 
-# Type check
-uvx mypy skills/wysiwyg-grilling/scripts/canvas.py
+# Type check — canvas.py + tests/, ~1.2s, clean. Also a gate hook, so this
+# is for running it yourself. Scope and the five ignored rules live in
+# pyproject.toml `[tool.ty]`; the version is pinned in .pre-commit-config.yaml.
+uvx ty check
 
 # Frontend (requires: npm --prefix frontends/wysiwyg-grilling ci)
 npm --prefix frontends/wysiwyg-grilling run lint
@@ -262,7 +264,7 @@ versions, `uvx pre-commit autoupdate`.
 Two ways a hook here passes without checking anything, both worth knowing
 because both print green. A `files:`-scoped hook whose pattern matches nothing
 prints `Skipped` and exits 0 — on a commit, that is correct behaviour and is
-why `mypy`, `backend-tests`, `frontend-deps`, `eslint` and `tsc` carry
+why `backend-tests`, `frontend-deps`, `eslint` and `tsc` carry
 patterns; under `--all-files` every pattern matches, so the gate is the run
 that closes it. A manual-stage hook is skipped by `--all-files` outright.
 Neither is a defect, and neither is visible to a reader who was told
@@ -357,6 +359,23 @@ Three of the code-quality findings are defect-shaped rather than stylistic and
 are worth reading before they are auto-fixed: `B023` (a closure capturing a
 loop variable), `SIM115` (a file opened without a context manager), and `E741`
 (an ambiguous `l`/`I`/`O` name).
+
+`ty` is **not** on this list: it is clean and it gates. Keeping it that way is
+a standing constraint, and **`[tool.ty.rules]` is not how you do it** — that
+retires the finding instead of the debt. Per-line suppressions exist and each
+carries its derivation beside it — `grep -rn 'ty: ignore\['` is the inventory,
+deliberately given as a command because a count here would go stale the first
+time one is added or paid. **Match the bracket**: the unbracketed spelling
+also finds this sentence, which is how an inventory returns one more than it
+should. They are the monkeypatch sites in `test_backend.py`, where the stub's
+shape is *not* the cause — ty declares a module-level `def` as that exact
+function, so any reassignment is rejected, an identical signature included.
+Everything else was paid by annotating, renaming or repairing — including the
+one finding that was argued down as unreachable first: the argument was wrong,
+the one-word rename was always the answer, and **a suppression carrying a
+proof is a bet that the proof is right.**
+Note also that the `ANN` rows above hide nothing from `ty`: unlike mypy it
+checks unannotated function bodies, so that debt never shielded a type error.
 
 Retrofit rule: **when you touch a function, bring it to standard** — full
 Google docstring and full annotations — even if the change was one line. That

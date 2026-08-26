@@ -519,7 +519,7 @@ def _bezier(c: Any, t: float) -> tuple[float, float]:
     u = 1.0 - t
     return tuple(u ** 3 * c[0][i] + 3 * u * u * t * c[1][i] +
                  3 * u * t * t * c[2][i] + t ** 3 * c[3][i]
-                 for i in (0, 1))                   # type: ignore[return-value]
+                 for i in (0, 1))
 
 
 def _newton(f: Any, t0: float, s0: float, tol: float = 1e-3,

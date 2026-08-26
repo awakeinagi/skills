@@ -1049,7 +1049,7 @@ class TestEveryManualHookRunsWithNothingStaged(unittest.TestCase):
         numbers.
         """
         found = {h["id"] for h in hooks_in(self.text)}
-        for hook in ("backend-tests", "livedoc", "mypy", "ruff-check",
+        for hook in ("backend-tests", "livedoc", "ty", "ruff-check",
                      "guard-mutants-check", "guard-mutants-sweep",
                      "e2e-tests", "eslint", "tsc", "frontend-deps"):
             with self.subTest(hook=hook):

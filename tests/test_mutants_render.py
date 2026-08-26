@@ -9168,11 +9168,17 @@ def _face_advances() -> dict[str, float]:
             self.end_headers()
             self.wfile.write(b"ok")
 
-        def log_message(self, *a: Any) -> None:
+        def log_message(self, format: str, *args: Any) -> None:
             """Keep the access log out of the test output.
 
+            Parameter named `format` to match
+            `BaseHTTPRequestHandler.log_message`, which is what makes this
+            a substitutable override rather than a same-named different
+            method.
+
             Args:
-                *a: Ignored.
+                format: Ignored.
+                *args: Ignored.
             """
 
     probe = web / "_face_probe.html"

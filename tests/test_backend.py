@@ -26,7 +26,7 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
@@ -3424,7 +3424,7 @@ class TestAcceptanceFixes(Base):
         # an L-elbow whose chord crosses a box its path misses: path goes
         # right along y=100 then down at x=400; the box sits at the chord's
         # middle (200-260, 200-260) — chord hits it, real path doesn't
-        els = [
+        els: list[dict[str, Any]] = [
             {"id": "a", "type": "rectangle", "x": 0, "y": 68, "width": 60,
              "height": 64, "customData": {"role": "node"}},
             {"id": "b", "type": "rectangle", "x": 370, "y": 300,
@@ -4872,9 +4872,13 @@ class FixtureReplayBase(unittest.TestCase):
         doc = json.loads(path.read_text())
         edited = next((e for e in doc["elements"]
                        if e.get("type") == "text" and e.get("text")), None)
-        self.assertIsNotNone(edited, "fixture %s has no text to edit — the "
-                                     "premise of this control is gone"
-                             % self.FIXTURE)
+        # NOT `assertIsNotNone` then subscript: `unittest`'s assertions do
+        # not narrow, so that pair reads as a narrowing that is not one —
+        # the reason `tests_helpers.measured` exists, and `ty` reports it.
+        if edited is None:
+            raise AssertionError(
+                "fixture %s has no text to edit — the premise of this "
+                "control is gone" % self.FIXTURE)
         edited["text"] = edited["originalText"] = "OUT OF SESSION"
         path.write_text(json.dumps(doc))
         rec = canvas.Store(self.project).catch_up()
@@ -5369,10 +5373,11 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
         # arrow — so the re-derivation is proved directly below and this
         # test keeps the half only a real project can show: that the
         # propagation mints nothing.
-        both = [{"id": "s", "type": "arrow", "x": 0, "y": 0,
-                 "points": [[0, 0], [100, 0]], "roundness": {"type": 2}},
-                {"id": "e", "type": "arrow", "x": 0, "y": 0,
-                 "points": [[0, 0], [100, 0], [100, 60]], "roundness": None}]
+        both: list[dict[str, Any]] = [
+            {"id": "s", "type": "arrow", "x": 0, "y": 0,
+             "points": [[0, 0], [100, 0]], "roundness": {"type": 2}},
+            {"id": "e", "type": "arrow", "x": 0, "y": 0,
+             "points": [[0, 0], [100, 0], [100, 60]], "roundness": None}]
         for a in both:
             a["customData"] = {"routed": canvas._route_sig(a)}
         canvas.rebuild_bound_elements(both)
@@ -10619,10 +10624,11 @@ class TestOrphanLabelHonoursIntent(unittest.TestCase):
         Returns:
             The two-element scene.
         """
-        label = {"id": "g1-label", "type": "text", "x": 10, "y": 20,
-                 "width": 100, "height": 20, "text": "GHOST",
-                 "originalText": "GHOST", "opacity": 100,
-                 "containerId": "g1"}
+        label: dict[str, Any] = {
+            "id": "g1-label", "type": "text", "x": 10, "y": 20,
+            "width": 100, "height": 20, "text": "GHOST",
+            "originalText": "GHOST", "opacity": 100,
+            "containerId": "g1"}
         label.update(over)
         return [{"id": "g1", "type": "rectangle", "x": 0, "y": 0,
                  "width": 120, "height": 60, "opacity": 0,
@@ -12575,9 +12581,10 @@ class TestLintHygiene(Base):
         self.assertEqual(len(hits), 1)
 
     def test_offgrid_ignores_user_drawn_elements(self):
-        els = [{"id": "note-user-1", "type": "rectangle", "x": 3, "y": 7,
-                "width": 101, "height": 53, "isDeleted": False,
-                "customData": {"role": "node", "author": "user"}}]
+        els: list[dict[str, Any]] = [
+            {"id": "note-user-1", "type": "rectangle", "x": 3, "y": 7,
+             "width": 101, "height": 53, "isDeleted": False,
+             "customData": {"role": "node", "author": "user"}}]
         notes = canvas.lint_layout(els, artifact_type="flow")["notes"]
         self.assertFalse(any("off the 4px grid" in n for n in notes))
         els[0]["customData"]["author"] = "agent"
@@ -17152,7 +17159,7 @@ class TestObliqueArrivals(Base):
     measure would have gone silent on the loudest fossils there are.
     """
 
-    def scene(self, x, y, points):
+    def _scene(self, x, y, points):
         """One node and one arrow bound to it at a chosen angle.
 
         Args:
@@ -17172,22 +17179,22 @@ class TestObliqueArrivals(Base):
     def test_a_square_arrival_is_not_counted(self):
         # foot on the right edge, leg leaving straight out along it
         self.assertEqual(canvas.oblique_arrivals(
-            self.scene(120, 30, [[0, 0], [90, 0]])), [])
+            self._scene(120, 30, [[0, 0], [90, 0]])), [])
 
     def test_a_leg_running_along_the_side_it_lands_on_is_counted(self):
         # the `along` class: foot on the TOP edge, leg horizontal — dead
         # cardinal, so `_arrival_lean` scores it 0.0 and sees nothing
-        scene = self.scene(60, 0, [[0, 0], [90, 0]])
+        scene = self._scene(60, 0, [[0, 0], [90, 0]])
         self.assertEqual(canvas._arrival_lean(scene[1]), 0.0)
         self.assertEqual(canvas.oblique_arrivals(scene),
                          [("a1", "start")])
 
     def test_an_oblique_arrival_is_counted(self):
         self.assertEqual(canvas.oblique_arrivals(
-            self.scene(120, 30, [[0, 0], [90, 60]])), [("a1", "start")])
+            self._scene(120, 30, [[0, 0], [90, 60]])), [("a1", "start")])
 
     def test_an_unbound_end_has_nothing_to_be_square_to(self):
-        scene = self.scene(120, 30, [[0, 0], [90, 60]])
+        scene = self._scene(120, 30, [[0, 0], [90, 60]])
         scene[1]["startBinding"] = None
         self.assertEqual(canvas.oblique_arrivals(scene), [])
 
@@ -17425,7 +17432,15 @@ class TestTheDeclineRunsOnePass(unittest.TestCase):
             seen["n"] += 1
             return real(els)
 
-        canvas.reroute_scene = wrapper
+        # ty: MONKEYPATCH, and the stub's shape is not why this fires. ty
+        # gives a module-level `def` a declared type that is THAT function,
+        # so no other function is assignable to the attribute whatever it
+        # looks like — a byte-identical `def wrapper(els)` is rejected in
+        # the same words (measured). So there is nothing to fix in the
+        # stub; the `finally` below restores the real one. Per-line, not
+        # `invalid-assignment` switched off — that rule catches the
+        # subscript-on-None class, which found a live defect in this file.
+        canvas.reroute_scene = wrapper  # ty: ignore[invalid-assignment]
         try:
             yield seen
         finally:
@@ -19053,9 +19068,10 @@ class TestStateVariantFrames(Base):
         els = []
         for fid, lbl, fx in (("f-normal", normal, 0),
                              ("f-degraded", degraded, 900)):
-            frame = {"id": fid, "type": "frame", "x": fx, "y": 100,
-                     "width": 720, "height": 480,
-                     "name": fid.replace("f-", "")}
+            frame: dict[str, Any] = {
+                "id": fid, "type": "frame", "x": fx, "y": 100,
+                "width": 720, "height": 480,
+                "name": fid.replace("f-", "")}
             if variant_of and fid == "f-degraded":
                 frame["customData"] = {"variant_of": "f-normal"}
             els.append(frame)
@@ -19411,7 +19427,12 @@ class TestRouterTotalityAndSelfLoops(Base):
         def boom(*args, **kwargs):
             raise ValueError("boom")
 
-        canvas.route_arrow = boom
+        # ty: MONKEYPATCH. Not about the stub's shape — ty declares a
+        # module-level `def` as THAT function, so any reassignment is
+        # rejected, an identical signature included (measured). The
+        # `finally` below restores it. See the note at the
+        # `reroute_scene` patch for why this is per-line.
+        canvas.route_arrow = boom  # ty: ignore[invalid-assignment]
         try:
             with self.assertRaises(canvas.BatchError) as ctx:
                 self.store.apply_batch({
@@ -19446,7 +19467,12 @@ class TestRouterTotalityAndSelfLoops(Base):
         def boom(*args, **kwargs):
             raise ValueError("boom")
 
-        canvas.route_arrow = boom
+        # ty: MONKEYPATCH. Not about the stub's shape — ty declares a
+        # module-level `def` as THAT function, so any reassignment is
+        # rejected, an identical signature included (measured). The
+        # `finally` below restores it. See the note at the
+        # `reroute_scene` patch for why this is per-line.
+        canvas.route_arrow = boom  # ty: ignore[invalid-assignment]
         try:
             result = self.store.check_batch({
                 "base_revn": 1, "artifact": "f",
@@ -21537,7 +21563,11 @@ class TestGrazeSceneGuard(Base):
             els = canvas.normalize_scene_doc(doc)["elements"]
             shipped, _ = canvas.reroute_scene(copy.deepcopy(els))
             real = canvas._grazing_terminal_legs
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
             try:
                 plain, _ = canvas.reroute_scene(copy.deepcopy(els))
             finally:
@@ -21634,7 +21664,11 @@ class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
         els, ops = self._batch()
         real = canvas._grazing_terminal_legs
         if not graze:
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
         try:
             return canvas.apply_ops(copy.deepcopy(els),
                                     copy.deepcopy(ops), [])
@@ -21716,7 +21750,11 @@ class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
             doc, _ = canvas.validate_scene(json.loads(path.read_text()), name)
             els = canvas.normalize_scene_doc(doc)["elements"]
             real = canvas._grazing_terminal_legs
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
             try:
                 plain, _ = canvas.reroute_scene(copy.deepcopy(els))
             finally:
@@ -22648,7 +22686,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
     finding below is the new one.
     """
 
-    def scene(self, unbound_x=220):
+    def _scene(self, unbound_x=220):
         """One bound source and two boxes the arrow only passes.
 
         `a` is 60..220 on x and 148..228 on y, so its RIGHT border is
@@ -22698,7 +22736,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         so a check that had merely started double-counting `a` would
         fail here rather than pass by coincidence.
         """
-        els = self.scene()
+        els = self._scene()
         a, b, c, _d, ag = els
         rpath = canvas._rendered_path(ag)
 
@@ -22734,7 +22772,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         shared opening is deliberate: it is the same claim about the
         same pixels, and one detector regex reads both.
         """
-        found = self.runs(self.scene())
+        found = self.runs(self._scene())
         for m in found:
             self.assertIn("neither its source nor destination", m)
             self.assertIn("route it clear of that edge", m)
@@ -22747,7 +22785,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         the boxes are still beside the arrow at x=232, just not under
         it.
         """
-        self.assertFalse(self.runs(self.scene(unbound_x=232)))
+        self.assertFalse(self.runs(self._scene(unbound_x=232)))
 
     def test_a_shape_the_arrow_binds_is_not_reported_twice(self):
         """The bound arm keeps its own sentence and its own tier.
@@ -22786,7 +22824,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         for one stroke — the arrangement the graze check's own
         `continue` chain already keeps.
         """
-        els = self.scene()
+        els = self._scene()
         els[4]["x"] = 300           # the drop now cuts b and c in half
         lint = canvas.lint_layout(els, artifact_type="flow")
         crossed = [m for m in lint["warnings"] if "passes through" in m]
@@ -22812,7 +22850,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
             "ops": [add("a", 60, 148), add("b", 220, 250),
                     add("c", 220, 360), add("d", 530, 438)]})
         els = [dict(e) for e in self.store.scenes["brd"]]
-        els.append(self.scene()[4])
+        els.append(self._scene()[4])
         self.store.commit(author="agent", new_scenes={"brd": els},
                           base_revn=self.store.head_revn())
         store = canvas.Store(self.project)
@@ -28252,7 +28290,8 @@ class TestAPinnedComposedPartIsKinToItsOwner(Base):
         """
         _checkbox_widget(self.store)
         box = _part_id(self.store, "w", "box_of", "cb")
-        els = [dict(e, groupIds=[]) for e in self.store.scenes["w"]]
+        els: list[dict[str, Any]] = [dict(e, groupIds=[])
+                                     for e in self.store.scenes["w"]]
         for e in els:
             if e["id"] == box:
                 e["locked"] = True

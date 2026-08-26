@@ -45,17 +45,47 @@ repos:
         args: [--fix]
 
   # ------------------------------------------------------ python type checking
-  # Runs on the real interpreter floor (3.9), not the local default.
+  # `ty` replaced mypy AND pyright on 2026-08-25 — one checker, same vendor as
+  # ruff and uv. Scope, the five ignored rules, and the reason for each are in
+  # pyproject.toml `[tool.ty]`; ty reads that file, so this hook passes no
+  # flags and cannot disagree with it.
+  #
+  # THIS IS WHERE THE VERSION IS PINNED. ty is 0.0.x and its defaults move
+  # between releases, so `ty@0.0.21` is written out the way the ruff hook above
+  # carries `rev: v0.16.2`. To move it: bump the string, run the hook, triage
+  # whatever is new, then commit. `uvx pre-commit autoupdate` does NOT touch
+  # this line — it only walks `rev:` on remote repos, and this is a local hook.
+  #
+  # AUTOMATIC, AND NOT A LIKE-FOR-LIKE REPLACEMENT OF THE mypy HOOK IT TOOK
+  # OVER FROM — it checks more. mypy skips the bodies of untyped functions, and
+  # canvas.py carries the `ANN` debt, so `uvx mypy` printed "Success: no issues
+  # found" while `--check-untyped-defs` printed errors it had been silent
+  # about. ty has no such mode: the same error injected into an unannotated def
+  # is reported, where mypy was silent. So the hook count did not change but
+  # the checked surface grew, and it grew before any of that debt was paid.
+  #
+  # `always_run`, not a `files:` pattern. A pattern would have to name
+  # canvas.py and tests/, and this hook's real input is `[tool.ty]` in
+  # pyproject.toml as well — a scope or rule edit with no .py staged has to
+  # re-check, and it is 1.2s for the whole 17-file surface.
+  #
+  # IT IS GREEN, AND THE WAY TO KEEP IT GREEN IS NOT `[tool.ty.rules]`. Every
+  # finding that stood between this hook and the automatic stage was paid by
+  # annotating, renaming or repairing; the rest are suppressed one line at a
+  # time with the derivation written beside them, and
+  # `grep -rn 'ty: ignore\['` is the inventory. No count here on purpose —
+  # this sentence carried one, a later repair in the same branch removed a
+  # suppression, and the number went from stale to simply wrong.
+  # Widening the ignore list retires the finding instead of the debt.
   - repo: local
     hooks:
-      - id: mypy
-        name: mypy (canvas.py)
-        entry: uvx mypy@1.18.2
+      - id: ty
+        name: ty (canvas.py + tests)
+        entry: uvx ty@0.0.21 check
         language: system
         pass_filenames: false
         require_serial: true
-        files: ^skills/wysiwyg-grilling/scripts/canvas\.py$
-        args: [skills/wysiwyg-grilling/scripts/canvas.py]
+        always_run: true
 
   # -------------------------------------------------------------- live values
   # The `<!-- live:NAME -->` values in tracked markdown, recomputed from

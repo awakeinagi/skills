@@ -1521,7 +1521,7 @@ def normalize_scene_doc(doc):
 ELEMENT_TYPES = {"rectangle", "ellipse", "diamond", "arrow", "line", "text",
                  "frame", "freedraw", "image"}
 
-BASE_DEFAULTS = {
+BASE_DEFAULTS: dict[str, Any] = {
     "fillStyle": "solid",
     "strokeWidth": 1,
     "strokeStyle": "solid",
@@ -21442,7 +21442,7 @@ class Store:
                     # keeping its half-written registry is the exact
                     # failure this block exists to prevent.
                     self.registry = cast("dict[str, Any]", pre_registry)
-                    self.artifact_meta = pre_meta
+                    self.artifact_meta = cast("dict[str, Any]", pre_meta)
                     raise
                 # a registry op can change artifact META, and `meta` was
                 # snapshotted above — BEFORE these ran. A rename landing
@@ -25859,8 +25859,8 @@ def make_handler(app):
         protocol_version = "HTTP/1.1"
         server_version = "wysiwyg-grilling/%d" % PROTOCOL_VERSION
 
-        def log_message(self, fmt, *args):
-            app.log("http: " + (fmt % args))
+        def log_message(self, format, *args):
+            app.log("http: " + (format % args))
 
         def _send_json(self, obj, status=200):
             data = json.dumps(obj, ensure_ascii=False).encode("utf-8")
