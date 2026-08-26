@@ -48,8 +48,51 @@ from tests_helpers import el, ink_box, measured
 # were verified against canvas.py (lines 5083, 5097-5102, 5475, 5689).
 # ---------------------------------------------------------------------------
 
+# ONE SPELLING FOR THE CONNECTOR NOUN, because canvas.py has exactly one
+# too. `lint_layout` binds `arrows = [... type in ("arrow", "line") ...]`,
+# and every check walking that list opens its sentence with
+# `canvas.connector_noun(...)`, which answers "arrow", "line" or
+# "connector" (mixed pair). NO CALL-SITE COUNT IS WRITTEN HERE: this
+# comment carried "45 call sites", and an AST walk for `ast.Call` nodes
+# says 46 at the fold and 42 at this branch's own fork, so 45 matched
+# neither end and was never right rather than merely stale. `grep -c`
+# answers one higher than the AST at both, because it counts the `def`
+# line. Derive it if you need it. Nine detectors below opened
+# with the literal `arrow`, and MEASURED on 2026-08-20 by retyping every
+# arrow in each catalogue scene to a line: on eight of the nine the lint
+# still spoke the same sentence about the same elements and
+# `collect_findings` returned NOTHING. That is the vacuous pass this
+# harness exists to kill — a `Silence` on a detector that cannot read its
+# own check's sentence is indistinguishable from a `Silence` on a check
+# that is correctly quiet.
+#
+# Widened here rather than in canvas.py, which is the ruling
+# `_RUNS_INSIDE_RE` and `_ARRIVAL_SIDE_RE` already record for their own
+# second openings: the message is right and the regex has to reach it,
+# not the other way round. Not `.+?` — the noun is a CLOSED set that
+# `connector_noun` returns and `test_the_connector_alternation_matches_
+# every_noun_canvas_prints` pins against the function itself, so a fourth
+# word arriving reaches this constant instead of being swallowed.
+#
+# `_FALSE_BIDI_LINT_RE` is deliberately NOT widened and keeps its literal
+# `arrows`: `false_bidirectional` gates on `arrowhead_of(e, ...) is not
+# None` for BOTH members, and `arrowhead_of` returns None for anything
+# that is not an `arrow` — so its population is arrow-only by
+# construction and canvas.py hard-codes the plural at that one site.
+#
+# The reason NOT to widen it is that widening would be a NO-OP, not that
+# it would loosen anything — this comment said "loosening" and that was
+# measured false at the fold. canvas.py holds exactly ONE template
+# containing "end on the same", and it hard-codes the plural `arrows`,
+# so a widened pattern has nothing else to match: sweeping the widened
+# form over every scene-form changes findings on ZERO of 105. Leaving it
+# narrow is right; the sentence explaining why was not. A wrong
+# explanation and a right one look identical on the page, which is why
+# this is corrected rather than quietly dropped.
+_CONN = r"(?:arrow|line|connector)"
+
 _ENDPOINT_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) claims to bind .+ but its "
+    _CONN + r" (?P<element>[\w-]+) claims to bind .+ but its "
     r"(?:start|end) point ends (?P<mag>\d+)px "
     r"(?P<dir>away|inside the shape)")
 # Two openings, one check. v0.9 WP4 gave `runs_on_node` a second
@@ -58,10 +101,10 @@ _ENDPOINT_RE = re.compile(
 # never goes inside. Widened here rather than distorting the message to fit
 # the regex, which is what the fix's first round did (task 19 review, F6).
 _RUNS_INSIDE_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) (?:enters .+ and runs|runs) "
+    _CONN + r" (?P<element>[\w-]+) (?:enters .+ and runs|runs) "
     r"(?P<mag>\d+)px (?:inside|along .+ own border)")
 _PASSES_THROUGH_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) passes through .+, which is neither its "
+    _CONN + r" (?P<element>[\w-]+) passes through .+, which is neither its "
     r"source nor destination")
 # The one lint template that names TWO arrows and one node. `element` is the
 # NODE, not either arrow: the pair is symmetric, so naming one of the two
@@ -71,7 +114,8 @@ _PASSES_THROUGH_RE = re.compile(
 # fix has to change — and both arrow ids survive in `raw`. The trailing
 # `[\w-]+` stops before the ` ('Label')` suffix `canvas.name()` appends.
 _SHARED_ATTACH_RE = re.compile(
-    r"arrows [\w-]+ and [\w-]+ share an attach point on (?P<element>[\w-]+)")
+    _CONN + r"s [\w-]+ and [\w-]+ share an attach point on "
+    r"(?P<element>[\w-]+)")
 # WP4b's e1 (canvas.py), landed by task 24 and the second template naming
 # two arrows and one node — `element` is the NODE for the same reason as
 # above, and here it is also the thing the finding is ABOUT: the claim is
@@ -94,9 +138,9 @@ _SHARED_ATTACH_RE = re.compile(
 # "has arrow drawn over" is 0 by construction, and a template that
 # reported 80 in those words would be a message that lies.
 _PHANTOM_RE = re.compile(
-    r"arrows [\w-]+ and [\w-]+ read as one stroke through "
+    _CONN + r"s [\w-]+ and [\w-]+ read as one stroke through "
     r"(?P<element>[\w-]+).*?so (?P<mag>\d+)px of it "
-    r"(?:has arrow drawn over|is completed across)")
+    r"(?:has " + _CONN + r" drawn over|is completed across)")
 # The other symmetric-pair template, and the only one that names no third
 # party to blame: two labels, and the reader has to be told BOTH or the
 # finding says nothing actionable. So `element` is the quoted pair verbatim
@@ -126,7 +170,7 @@ _TEXT_ON_TEXT_RE = re.compile(
 # does. This is the entry curator batch 19 said `label_on_foreign_node`
 # was waiting on.
 _LABEL_ON_FOREIGN_RE = re.compile(
-    r"arrow label .+ lands on (?P<element>[\w-]+), which is neither end")
+    _CONN + r" label .+ lands on (?P<element>[\w-]+), which is neither end")
 # The composed-widget group note (canvas.py), registered by curator batch
 # 36 to drain the row TASK-PIN-BACKEND filed against itself. `element` is
 # the OWNER — the body the loose parts belong to and the thing a re-group
@@ -313,7 +357,7 @@ _MIN_CLEARANCE_RE = re.compile(
 # already gates, so a check reporting it as its headline would be
 # restating its own threshold.
 _SHARED_LANE_RE = re.compile(
-    r"arrows (?P<element>[\w-]+) and [\w-]+ run together for "
+    _CONN + r"s (?P<element>[\w-]+) and [\w-]+ run together for "
     r"(?P<mag>\d+)px, \d+px apart on the same "
     r"(?P<dir>horizontal|vertical) line")
 _FALSE_BIDI_LINT_RE = re.compile(
@@ -496,7 +540,7 @@ _UNREADABLE_COLOR_RE = re.compile(
 # the alternation buys is that the start-end half of the same check is
 # readable by the harness at all.
 _ARRIVAL_SIDE_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) (?:arrives at|leaves) .+?'s "
+    _CONN + r" (?P<element>[\w-]+) (?:arrives at|leaves) .+?'s "
     r"(?P<dir>left|right|top|bottom) edge (?P<mag>\d+) degrees off square")
 
 
@@ -27516,6 +27560,121 @@ def rule_eight_rot(exempt: dict[str, str], catalogue: dict[str, Mutant],
     return stale
 
 
+# The checks that ARE allowed to fall silent when their subject is drawn
+# as a `line`, each with the canvas.py or instruments.py gate that makes
+# it so. Two kinds sit here and the difference is worth reading, because
+# only one of them is a decision this repo has taken deliberately.
+#
+# CORRECTLY TYPE-SPECIFIC — the check's population is arrow-only where
+# the code makes the claim, and widening it would be loosening a check:
+# `false_bidirectional` and `activation_never_closes`.
+#
+# POPULATION-COUPLED, and FILED rather than blessed. The sentence that
+# stood here said "the three `tests/instruments` detectors all funnel
+# through `instruments._arrows`, which is `type == \"arrow\"`". It was
+# wrong TWICE, and both halves were found at the fold rather than by the
+# guard, which is a boundary worth naming below. `_arrows` is no longer
+# arrow-only — it selects arrows AND non-decorative lines, and is
+# role-aware — and `float_diamond` never funnelled through it at all,
+# which was already false when the sentence was written. Only
+# `float_diamond` remains, and it is here on its OWN gate.
+#
+# WHAT THIS TABLE'S GUARD DOES NOT CHECK, since the above is the proof:
+# `test_the_noun_scoped_exemptions_cannot_rot` asks whether a row's
+# CONCLUSION still holds — is this check still lost on some twin — and
+# never whether its stated REASON is still true. A row whose reason goes
+# false while its conclusion holds sits here silently, which is exactly
+# what the deleted rows' grouping sentence did. Not a hole in what the
+# guard claims; a boundary the prose has to carry.
+#
+# THE ONE THAT WAS NOT IN THIS TABLE AND WAS WORSE — now CLOSED, and
+# recorded rather than deleted because the shape recurs. `crossings_count`
+# read the same `_arrows` and emitted unconditionally, so it never went
+# silent: it reported a FALSE ZERO. Measured at this branch's fork, six
+# catalogue scenes dropped from 1, 2 or 4 crossings to 0 on their line
+# twins while the check spoke with every appearance of health. Re-measured
+# at the fold: ZERO of 34 move, and `_arrows`' own docstring names that
+# defect as closed by the same widening that made the two rows above
+# stale. So the instance is gone.
+#
+# THE DOCTRINE IS NOT, AND IS STILL UNGUARDED: a guard that watches for
+# SILENCE cannot see a check that speaks with a wrong value. Nothing in
+# this file watches for that. What would is a magnitude-comparing sibling
+# — run the twin, compare each check's magnitudes rather than its
+# presence — and it is still not written.
+NOUN_SCOPED: dict[str, str] = {
+    "false_bidirectional":
+        "arrow-only BY CONSTRUCTION: the pair check refuses any member "
+        "without a head (`if not all(arrowhead_of(e, True) is not None or "
+        "arrowhead_of(e, False) is not None ...)`), and `arrowhead_of` "
+        "returns None for anything whose type is not `arrow` — the "
+        "client's shape generator draws heads inside `if (e.type === "
+        "\"arrow\")`, so a line's stored `endArrowhead` paints nothing. "
+        "canvas.py hard-codes the plural `arrows` at that one site "
+        "accordingly, and `_FALSE_BIDI_LINT_RE` is the one connector "
+        "pattern deliberately left un-widened",
+    "activation_never_closes":
+        "arrow-only BY CONSTRUCTION and reasoned in canvas.py at the "
+        "narrowing: the sequence block re-filters the mixed list with "
+        "`msgs = [a for a in arrows if a.get(\"type\") == \"arrow\"]` "
+        "because a sequence message asserts a direction in time, which "
+        "is the arrowhead. Its sentences claim \"not a back-arrow\" and "
+        "\"travels UP the page\"; the population is narrowed there so "
+        "the wording is correct rather than lucky",
+    # `shared_corridor` and `false_bidi` STOOD HERE and were deleted at
+    # the fold, on this file's own guard's say-so.
+    # `test_the_noun_scoped_exemptions_cannot_rot` named them both: they
+    # described a narrowing `instruments._arrows` no longer performs.
+    # At this branch's fork `_arrows` was `[e for e in elements if
+    # e["type"] == "arrow"]`; 205 commits later it selects "arrows AND
+    # non-decorative lines" and is role-aware, so both instruments now
+    # see the line pairs these rows excused them from seeing. The rows
+    # outlived their reason and the anti-ratchet arm caught it — which is
+    # the single best piece of evidence for this table's design, and the
+    # reason it is recorded here rather than silently removed.
+    "float_diamond":
+        "population-coupled, FILED not blessed: `instruments.float_"
+        "diamond` opens `if e[\"type\"] != \"arrow\": continue` — its "
+        "OWN gate, not `_arrows`, which it never called even at this "
+        "row's fork. That is why it survived the deletion above: its "
+        "narrowing is its own line and nothing upstream has repaired "
+        "it. It has no live-lint sibling either, so unlike the deleted "
+        "rows there is no second surface still reading the scene — a "
+        "bound line floating off a diamond's outline is seen by nothing",
+}
+
+
+def _line_twin(scene: list[dict]) -> list[dict]:
+    """The same scene with every arrow retyped as a `line`.
+
+    The geometry, the ids, the bindings and the labels are untouched:
+    the ONLY difference is the word `canvas.connector_noun` will print
+    about them. That is what makes the comparison in
+    `test_no_detector_goes_quiet_when_its_subject_is_a_line` a
+    controlled one — any check that changes its answer changed it
+    because of the noun or because of a type gate, and nothing else.
+
+    Arrowheads are left exactly as stored rather than nulled out.
+    `canvas.arrowhead_of` already answers None for a non-arrow, so
+    clearing them would be a second variable buying nothing, and
+    leaving them keeps `false_bidirectional`'s gate honest: it goes
+    quiet here because of the TYPE, which is the fact the NOUN_SCOPED
+    row claims.
+
+    Args:
+        scene: The scene to twin; never mutated.
+
+    Returns:
+        A deep copy in which every `type: "arrow"` element is
+        `type: "line"`.
+    """
+    out = copy.deepcopy(scene)
+    for e in out:
+        if e.get("type") == "arrow":
+            e["type"] = "line"
+    return out
+
+
 class TestTheCurvedFinalsCrossRatherThanRun(unittest.TestCase):
     """The numbers `curved_short_finals_escape_the_corridor` rests on.
 
@@ -38037,6 +38196,152 @@ class TestCoverage(unittest.TestCase):
                     any(want in line for line in said),
                     "a row that is %r drew %s — the guard is blind to one "
                     "of the four rots it names" % (want, said))
+
+    def test_no_detector_goes_quiet_when_its_subject_is_a_line(self) -> None:
+        """A detector must read its own check about a `line`, not just an arrow.
+
+        THE GUARD ASSERTS WHAT MUST NOT BE LOST, and it is deliberately
+        NOT a census of the regexes' spelling. A syntactic sweep for the
+        word `arrow` is coupled to spelling — the same class of defect it
+        would be deployed against — so it passes a widening that
+        over-matches and says nothing at all about a check written next
+        year with a noun nobody thought to grep for. This runs
+        `canvas.lint_layout` twice on one geometry and compares what came
+        out.
+
+        `lint_layout` binds `arrows = [... type in ("arrow", "line")
+        ...]` and opens those sentences with `connector_noun`, so the
+        same picture drawn with lines says "line e1 …" where it said
+        "arrow e1 …". A detector whose pattern only reads the second
+        matches NOTHING on the first — and a check that matches nothing
+        does not fail, it goes SILENT, which is how `Silence` becomes
+        indistinguishable from coverage and every positive case becomes
+        red-forever. Measured 2026-08-20 before the widening beside it:
+        eight of the nine `arrow`-opening detectors were lost this way,
+        with the lint still speaking the same sentence about the same
+        elements.
+
+        SCOPE, stated because the gate's silence about the rest is not
+        evidence about them: this walks `CATALOGUE` scenes, the same
+        population Rule 8 walks and for the same reason — they are the
+        scenes the harness owns and can rebuild. It says nothing about
+        the hand-authored silences in `test_backend.py` or the render
+        tier.
+        """
+        for mid in sorted(CATALOGUE):
+            mutant = CATALOGUE[mid]
+            scene = OPERATORS[mutant.op](mutant.build(), **mutant.args)
+            if not any(e.get("type") == "arrow" for e in scene):
+                continue
+            arrowed = {f["check"] for f in collect_findings(scene)}
+            lined = {f["check"] for f in collect_findings(_line_twin(scene))}
+            for check in sorted(arrowed - lined):
+                with self.subTest(mutant=mid, check=check):
+                    # `longMessage` off deliberately: with it on, unittest
+                    # prepends the whole NOUN_SCOPED dict — about 1200
+                    # characters — ahead of the sentence that says what to
+                    # do, so the actionable half arrives last. On a guard
+                    # whose whole premise is that an agent READS these
+                    # sentences and acts on them, burying the instruction
+                    # behind the container is the same defect one level up.
+                    self.longMessage = False
+                    self.assertIn(
+                        check, NOUN_SCOPED,
+                        "%s: check %r speaks about this scene's arrows and "
+                        "says NOTHING about the same geometry drawn as "
+                        "lines. If its pattern lost the noun, widen the "
+                        "pattern (`_CONN`); if the check is genuinely "
+                        "arrow-only, say so in NOUN_SCOPED with the "
+                        "canvas.py gate that makes it so" % (mid, check))
+
+    def test_the_noun_scoped_exemptions_cannot_rot(self) -> None:
+        """`NOUN_SCOPED` may not outlive the narrowings it records.
+
+        The discipline `ASPIRATIONAL` and `RULE8_EXEMPT` carry, for the
+        identical reason: an exception table nobody prunes becomes a list
+        of pins that stopped being read. THIS IS THE OTHER DIRECTION of
+        the guard above: the guard alone can be satisfied forever by
+        adding rows, so every row must still name a check that is lost on
+        some twin. The day one of these grows a line-reading sibling the
+        row is obsolete and has to go. IT WORKS — at the fold it named
+        `shared_corridor` and `false_bidi`, whose narrowing
+        `instruments._arrows` had been repaired 205 commits upstream, and
+        both rows were deleted on its say-so.
+
+        WHAT THE PAIR IS NOT, and an earlier version of this docstring
+        claimed it was: a PROOF rather than a ratchet. It is not. Measured
+        at the fold — narrow a detector back to the literal `arrow` and
+        add a row declaring it arrow-only, and BOTH arms go green. The
+        pair accepts a false arrow-only claim, because this arm asks only
+        whether the check is still lost on some twin, which a narrowed
+        pattern makes true by construction. The word "genuinely" above
+        was doing work no assertion does.
+
+        WHAT WOULD CLOSE IT, filed rather than built because this is a
+        fold: read the RAW lint output instead of doing pattern surgery.
+        If the twin's lint still emits the same sentence with the noun
+        swapped, the lint SPOKE and the detector missed it — a PATTERN
+        failure, not a type gate. If the sentence is gone, the check went
+        quiet upstream and the row is honest. That discriminator
+        classifies all three surviving rows as TYPE-GATE and catches the
+        narrow-and-declare repair as PATTERN.
+        """
+        for name, reason in sorted(NOUN_SCOPED.items()):
+            with self.subTest(exemption=name):
+                self.assertIn(name, DETECTORS,
+                              "NOUN_SCOPED names %r, which is not a "
+                              "detector" % name)
+                self.assertTrue(str(reason).strip(),
+                                "NOUN_SCOPED %s has no reason" % name)
+        still_lost = set()
+        for mid in sorted(CATALOGUE):
+            mutant = CATALOGUE[mid]
+            scene = OPERATORS[mutant.op](mutant.build(), **mutant.args)
+            if not any(e.get("type") == "arrow" for e in scene):
+                continue
+            still_lost |= ({f["check"] for f in collect_findings(scene)}
+                           - {f["check"]
+                              for f in collect_findings(_line_twin(scene))})
+        stale = sorted(set(NOUN_SCOPED) - still_lost)
+        self.assertEqual(stale, [],
+                         "NOUN_SCOPED names %s, which no catalogue scene "
+                         "loses on its line twin any more — the narrowing "
+                         "the row excused is gone; delete the row" % stale)
+
+    def test_the_connector_alternation_matches_every_noun_canvas_prints(
+            self) -> None:
+        """`_CONN` is a closed set, pinned against `connector_noun` itself.
+
+        The alternation is the one place the widened patterns are still
+        coupled to a spelling, so it is pinned to the FUNCTION that
+        chooses the word rather than to a list retyped here. Every
+        combination of the two types `lint_layout`'s `arrows` list can
+        hold — and a mixed pair, which is the case that produces
+        "connector" — must be a word the alternation matches, so a
+        fourth answer arriving lands on this assertion instead of
+        silently unmatching eight detectors.
+
+        A NEW TYPE IS IN THE INPUT SET, and it is the path that matters.
+        `connector_noun`'s body cannot return a fourth word today, so a
+        fourth word requires an edit — and the edit that produces one is
+        a new branch for a NEW connector type, which a pin built only
+        from `arrow` and `line` would never reach. Reviewed at the fold
+        with exactly that hole: patching the function to answer a fourth
+        noun for a `line` was caught, and patching it to answer one for
+        an unseen type was NOT. `elbow` and the empty dict are here to
+        close it, and they cost nothing while the answer stays three.
+        """
+        kinds = ({"type": "arrow"}, {"type": "line"},
+                 {"type": "elbow"}, {})
+        words = {canvas.connector_noun(a) for a in kinds}
+        words |= {canvas.connector_noun(a, b) for a in kinds for b in kinds}
+        for word in sorted(words):
+            with self.subTest(noun=word):
+                self.assertIsNotNone(
+                    re.compile(_CONN + "$").match(word),
+                    "connector_noun can print %r and the detector patterns "
+                    "cannot read it — every check that opens with _CONN "
+                    "goes silent on that noun" % word)
 
     def test_every_detector_is_proven_or_named(self) -> None:
         """Every DETECTORS entry is either proven or carries an UNCOVERED reason."""
