@@ -9794,7 +9794,13 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                     # THE UNGROUP MARK IS NOT WRITABLE THROUGH THIS DOOR
                     # EITHER, for the reason `make_element` drops it at
                     # mint: it records that a PERSON pulled a widget
-                    # apart, and `_honour_ungroup` is its single writer.
+                    # apart. `_honour_ungroup` writes it for the GESTURE
+                    # and `_reconcile_ungroup_marks` writes it for
+                    # reconciliation — this comment said "single writer"
+                    # and was the THIRD such claim; the other two were
+                    # corrected while this one, inside the comment
+                    # justifying the very pop a reader would weigh
+                    # deleting, was missed by that same correction.
                     # This became load-bearing the moment
                     # `reconcile_composed` grew a grouping post-condition
                     # — before that a forged `mod` mark was inert (the

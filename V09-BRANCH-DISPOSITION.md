@@ -1,4 +1,4 @@
-# v0.9 branch disposition — why 37 branches were folded or dropped
+# v0.9 branch disposition — why 38 branches were folded or dropped
 
 **This file exists because the record nearly did not.** The close ran its
 ledgers under `.unlazy/`, which is gitignored, so the reasons below lived in
@@ -7,7 +7,7 @@ caught it: the branches and the record were on opposite sides of the merge,
 and pruning the branches would have destroyed the only account of why.
 
 Every branch carrying unabsorbed work was reviewed at its head and then FOLDED
-or DROPPED with a measured reason. The census was 39 names across 26 unique
+or DROPPED with a measured reason. The census was 38 names across 36 unique
 heads — two pairs were the same commit under two names. **Exactly ONE head
 carried unabsorbed release-grade content**; every other was superseded, and
 about a dozen would have REGRESSED the tip if folded.
@@ -154,11 +154,11 @@ leaf-1.2.11. NOT a mechanical artefact, proved on CONTENT rather than on the nam
 
 ## DROPPED `worktree-agent-ad597ad6ed5b962cd`
 
-leaf-1.2.11. THE GENERALISATION COVERS THE BRANCH'S CASE, verified by RUNNING the lint rather than reading it: on the branch's own diagonal scene tip emits `arrow a runs diagonally (1140x46px)`, identical to the branch's sentence, and the same scene typed `line` emits `line a ...` where the branch still says `arrow`. All three commits at tip byte-identical; canvas.py has ZERO absent added lines; all four canvas names byte-identical. IMPORTANT: folding its test_backend.py would strip `# ty: ignore[invalid-assignment]` from three lines and take `uvx ty@0.0.21` from clean to 3 diagnostics — one of the three instruments run at every fold. Disclosure check CLEARED: its message holds a SECOND, distinct environment trap (a `tsc` failure from the main checkout sitting on a `main` whose package.json predates @mermaid-js/layout-elk) — NOT the npm-ci omission salvaged at 3308ed9, different failure and cause — and e7bdb8e at tip carries that message byte-for-byte, so nothing is lost.
+leaf-1.2.11. THE GENERALISATION COVERS THE BRANCH'S CASE, verified by RUNNING the lint rather than reading it: on the branch's own diagonal scene tip emits `arrow a runs diagonally (1140x46px)`, identical to the branch's sentence, and the same scene typed `line` emits `line a ...` where the branch still says `arrow`. All three commits at tip byte-identical; canvas.py has ZERO absent added lines; all four canvas names byte-identical. IMPORTANT: folding its test_backend.py would strip the three `ty: ignore` suffixes (each bracketed with `invalid-assignment`, spelled apart here on purpose: AGENTS.md prescribes a BRACKETED grep as the inventory, and quoting the bracketed form in tracked prose makes that grep count this sentence — the doctrine's own instance 4, minted by the commit that shipped the doctrine) and take `uvx ty@0.0.21` from clean to 3 diagnostics — one of the three instruments run at every fold. Disclosure check CLEARED: its message holds a SECOND, distinct environment trap (a `tsc` failure from the main checkout sitting on a `main` whose package.json predates @mermaid-js/layout-elk) — NOT the npm-ci omission salvaged at 3308ed9, different failure and cause — and e7bdb8e at tip carries that message byte-for-byte, so nothing is lost.
 
 ## DROPPED `line-binding-error`
 
-leaf-1.2.11. This was the ONLY head in the entire 26-head census with a genuinely absent CODE residual, and the residual says something unsaid at tip but NOT TRUE. Its comment claims "`lint_layout` remains the load-path answer, and already names such a scene precisely". Probed: a bound `line` whose end sits 264px off its node draws ZERO findings at the branch head AND at its own merge-base when it carries `role: decoration` — which every line in the corpus carries — while the `role: edge` control draws 1 finding in the same tree, so the probe earned its silence. Tip does not merely drop those two lines: it REPLACES them with an explicit correction, VERIFIED BY ME at `canvas.py:9225` as of b4c9299 (cite the sha: line numbers drift) — "THAT LAST CLAIM WAS WRONG WHEN IT WAS FIRST WRITTEN and is worth keeping as a correction rather than an edit ... that check walks `arrows`, which filters `role: decoration` out first ... the net the silence above leans on had a hole shaped like the whole population" — plus a role-blind, geometry-blind check landed in 5adbfd9. Folding the residual would DELETE A RECORDED CORRECTION and reinstate a disproved claim.
+leaf-1.2.11. This was the ONLY head in the entire 36-head census with a genuinely absent CODE residual, and the residual says something unsaid at tip but NOT TRUE. Its comment claims "`lint_layout` remains the load-path answer, and already names such a scene precisely". Probed: a bound `line` whose end sits 264px off its node draws ZERO findings at the branch head AND at its own merge-base when it carries `role: decoration` — which every line in the corpus carries — while the `role: edge` control draws 1 finding in the same tree, so the probe earned its silence. Tip does not merely drop those two lines: it REPLACES them with an explicit correction, VERIFIED BY ME at `canvas.py:9225` as of b4c9299 (cite the sha: line numbers drift) — "THAT LAST CLAIM WAS WRONG WHEN IT WAS FIRST WRITTEN and is worth keeping as a correction rather than an edit ... that check walks `arrows`, which filters `role: decoration` out first ... the net the silence above leans on had a hole shaped like the whole population" — plus a role-blind, geometry-blind check landed in 5adbfd9. Folding the residual would DELETE A RECORDED CORRECTION and reinstate a disproved claim.
 
 ## DROPPED `fix-handover-roster-prose`
 

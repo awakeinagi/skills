@@ -1141,13 +1141,17 @@ The instances, each real:
 10. THREE separate agents, and the controller, enumerated the same thing the
     same wrong way: they grepped CALL SITES of a function, when the writes they
     were hunting also occur as dict literals and keyword arguments. An AST
-    census found 11 writes across 5 functions where the greps found 5. A shared
+    census found TEN additions across five functions — twelve if the
+    strips that remove a gid are counted too — where the greps found 5.
+    (This line said "11 writes", which is neither convention; the twin
+    figure in `canvas.py` was corrected and this copy was not, inside the
+    section about counts going wrong.) A shared
     method produces a shared blind spot, and agreement between reviewers is not
     independent confirmation when they used the same instrument.
 
 **IT HAS A SECOND DIRECTION, and the same root cause produces both.** An
 extraction-vs-checkout mismatch makes an instrument that reads NOTHING go
-silently green — that is most of the list below. It also makes an instrument that
+silently green — that is most of the list ABOVE. It also makes an instrument that
 correctly REFUSES throw a spurious RED, loudly. Instance 5 is that second
 kind: one failure in 2047 tests that looked exactly like a finding about the
 code under ablation.
