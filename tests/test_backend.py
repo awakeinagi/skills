@@ -11901,6 +11901,129 @@ class TestMermaidExport(MermaidExportDriver, Base):
         self.assertIn("--with-footnotes", out)
         self.assertFalse((self.tmp / "project_knowledge" / "wf.mmd").exists())
 
+    @staticmethod
+    def kinds_named_by(message):
+        """The kinds `message` names as WHOLE TOKENS, never as substrings.
+
+        A TOKENISER AND NOT `kind in message`, which is what the guard
+        below was first written with. `k in out` is sound only by luck of
+        vocabulary: the day a kind name turns up anywhere else the command
+        prints — `image` inside a path, `block` inside a future sentence —
+        the assertion starts passing for a reason unrelated to the list it
+        exists to read. Splitting on everything that is neither a word
+        character nor a hyphen keeps `sticky-bar` whole and stops `nav`
+        matching inside `nav-bar`, in both directions.
+
+        NOT A REGEX OVER `Its kinds (…)` EITHER, which was the other
+        candidate and is the worse one: it keys the check to the shape
+        today's sentence happens to have, so a repair that listed the
+        kinds as bullets or in another order would read as "the list is
+        gone" rather than as "the list is fine". That is
+        anchor-as-prescription — silence-is-a-bug §8, which cites this
+        very sentence as one of its four instances. The fuller reader
+        lives in `tests/test_mutants.py` as `kinds_the_refusal_names`,
+        beside the pin that proves it flips under three independently
+        worded repairs; this is the same token rule spelled locally
+        because importing a 34k-line sibling module for one predicate
+        would cost more than it saves.
+
+        Args:
+            message: The text a refusal put on a user's terminal.
+
+        Returns:
+            The set of `WIREFRAME_KINDS` members it names.
+        """
+        tokens = set(re.split(r"[^\w-]+", message))
+        return {k for k in canvas.WIREFRAME_KINDS if k in tokens}
+
+    def test_a_screen_built_from_the_vocabulary_is_refused_not_described(self):
+        """A screen that HOLDS kinds still refuses, and writes no file.
+
+        THE OTHER HALF OF THE VOCABULARY DEFECT. The refusal used to type
+        its kind list out by hand and named ten of the documented set for
+        as long as it existed; `body`, `priority`, `help`, `sticky-bar`
+        and `feedback` were the five it dropped, so they were the five
+        with no evidence anywhere that the export path had ever seen one.
+        The sibling pin in `tests/test_mutants.py` proves the SENTENCE is
+        derived from `WIREFRAME_KINDS`; it calls `_mermaid_refusal`
+        directly and says nothing about what `cmd_export` does to a
+        wireframe that actually contains those kinds. A refusal that
+        describes a kind and then exports it would be worse than the
+        omission, because the file it wrote would be believed.
+
+        Nothing here names a kind or a count: the screen is built FROM
+        the vocabulary, so a kind added tomorrow arrives in this test
+        with nobody retyping it, and the five above appear only in this
+        docstring as history.
+
+        Three things a passing run has to mean, and the third is why this
+        is not two assertions:
+
+        1. the kinds are IN the scene under test. `kind` rides in
+           `customData`, not as a top-level key, so an add that dropped
+           it would leave a screen of anonymous rectangles and every
+           other assertion here would still hold — this test would then
+           be proving the refusal over content it never contained;
+        2. the wireframe exits 2, leaves no `.mmd` behind, and names
+           every kind it holds;
+        3. **an artifact that is not a wireframe still exports**, ungated,
+           in the same run. Without it, a `cmd_export` that had degraded
+           to refusing everything would pass 1 and 2 and read as healthy.
+        """
+        kinds = list(canvas.WIREFRAME_KINDS)
+        ops = [{"op": "add", "element": {
+            "type": "frame", "id": "scr", "label": "Screen", "x": 0,
+            "y": 0, "width": 360, "height": 480}}]
+        ops += [{"op": "add", "element": {
+            "type": "rectangle", "id": k.replace("-", ""),
+            "label": k.title(), "kind": k, "x": 20, "y": 20 + i * 24,
+            "width": 200, "height": 20, "frameId": "scr",
+            "role": "node"}} for i, k in enumerate(kinds)]
+        self.seed(atype="wireframe", aid="wfk", ops=ops)
+        drawn = {canvas.kind_of(e) for e in self.scene("wfk")}
+        self.assertFalse(
+            set(kinds) - drawn,
+            "the screen under test does not hold %r — `kind` lives in "
+            "customData, and a drop there would leave this test proving "
+            "the refusal over a screen of anonymous rectangles"
+            % sorted(set(kinds) - drawn))
+
+        # THE READER DISCRIMINATES, proved before it is trusted. A
+        # `kind in message` sweep passes this test more often than the
+        # token rule does, so the weaker reader has to be excluded here
+        # rather than in a comment: a kind buried inside a longer word is
+        # not that kind being named.
+        buried = "the export wrote nothing to %s-panel.mmd" % kinds[0]
+        self.assertEqual(
+            self.kinds_named_by(buried), set(),
+            "the reader counts %r as named by %r, so it is matching "
+            "substrings and this guard would pass over a sentence that "
+            "lists no kind at all" % (kinds[0], buried))
+
+        code, out = self.run_export(artifact="wfk")
+        self.assertEqual(code, 2, out)
+        self.assertFalse(
+            (self.tmp / "project_knowledge" / "wfk.mmd").exists(),
+            "a screen holding the whole kind vocabulary was EXPORTED — "
+            "the refusal describes those kinds and then wrote a file a "
+            "reader would believe")
+        self.assertEqual(
+            self.kinds_named_by(out), set(kinds),
+            "the refusal a user reads omits %r. Every wireframe kind is "
+            "equally unspellable in mermaid — that is the fact the "
+            "sentence exists to state — so naming a subset tells a reader "
+            "the rest have a mermaid spelling"
+            % sorted(set(kinds) - self.kinds_named_by(out)))
+
+        # THE FIRING POLE, ungated: an export that refused everything
+        # would satisfy every assertion above.
+        self.seed(atype="domain", aid="dm2")
+        self.assertEqual(self.run_export(artifact="dm2")[0], 0)
+        self.assertTrue(
+            (self.tmp / "project_knowledge" / "dm2.mmd").exists(),
+            "the refusal half passed only because export writes nothing "
+            "at all — a domain in the same project produced no file")
+
     def test_sequence_refuses_as_deferred_and_says_why(self):
         """DEFERRED, not impossible — the corpus carries zero sequence
         artifacts, so the mapping has never been measured. The word
