@@ -107,12 +107,12 @@ load-bearing, not decoration.
 `ungrouped` is the user's Ctrl+Shift+G, remembered. The server writes it on
 the save that carries the gesture and reads it on every save after, which is
 what makes "nothing re-groups them" true beyond the next save rather than
-just on it. It is a record of what a person did, so it is not yours to set —
-and it is not yours to set in the operational sense too, because setting it
-does not work. Through `add` the key is dropped at mint. Through `mod` it
-reaches the store, but the widget stays assembled and the next ordinary save
-removes it again. Neither door is an ERROR — nothing refuses the batch — so
-the only thing writing it earns you is a key that quietly disappears.
+just on it. It is a record of what a person did, so it is not yours to set — and setting
+it does not work. Both doors drop the key: `add` at mint, `mod` on the merge.
+Neither is an ERROR, deliberately, because `mod` documents `customData` as
+merged and an agent re-sending an element it read back would otherwise have
+its batch rejected for echoing a key it never authored. So the only thing
+writing it earns you is a key that quietly disappears.
 
 Reading it is useful: a host carrying `ungrouped: true` is one the user
 pulled apart on purpose, so its parts are meant to be loose. Don't offer to

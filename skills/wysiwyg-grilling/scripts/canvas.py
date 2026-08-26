@@ -2873,44 +2873,46 @@ def _close_widget_group(out):
     # two of them reading the reader. It is NOT `part_owner_id`: that one
     # answers `containerId` for a bound label, and a plain labelled box
     # would then mint itself a group.
+    # A REMEMBERED UNGROUP IS CHECKED BEFORE `tagged`, AND THE ORDER IS A
+    # BUG FIX. It used to sit below the early-return two lines down, so a
+    # marked host with no tagged parts never reached it — and `mod
+    # attributes: []` makes exactly that host: `_compose_attribute_rows`
+    # puts `gid` on the entity BEFORE minting rows, then mints none, so
+    # the widget came to rest alone in a group of one and stayed there
+    # across every later save. Measured on the grid below at
+    # `entity/attributes-empty`. Asking about the mark first costs
+    # nothing — only a composite can carry one — and it means the answer
+    # does not depend on how much of the widget currently exists.
+    gid = body["id"] + "-grp"
+    if (body.get("customData") or {}).get(UNGROUP_MARK) is True:
+        # STRIPS rather than merely declining, because several compose
+        # blocks hand their parts `gid` at construction — `_deco` bakes it
+        # into every decoration it builds — so a gate that only skipped
+        # the loop would leave freshly minted parts in a group their host
+        # is not in. Ensuring the id is ABSENT is the same shape as
+        # ensuring it is present, one branch down, and it is idempotent:
+        # this function's job is to make a widget's grouping right, and
+        # for a widget the user pulled apart, right means gone.
+        for e in [body, *parts]:
+            if gid in (e.get("groupIds") or []):
+                e["groupIds"] = [g for g in e["groupIds"] if g != gid]
+        return
     tagged = [e for e in parts if _composed_part(e.get("customData") or {})]
     if not tagged:
         return          # a plain labelled element is not a composite
-    # A REMEMBERED UNGROUP OUTRANKS EVERY DOOR, and the gate lives HERE
-    # rather than at the callers because there are five of them and the
-    # user's gesture is not a property of which one ran. `_honour_ungroup`
-    # used to be the only site that read the mark, so the AGENT path
-    # walked straight past it: measured on this tree, `mod attributes` on
-    # an ungrouped entity and a `mod label` that mints a caption both
-    # welded the widget back together with the mark still sitting on it,
-    # and the next ordinary save then DELETED the mark and narrated
+    # THE GATE ABOVE IS WHY THE AGENT PATH CANNOT OVERRULE THE USER, and
+    # it lives HERE rather than at the callers because there are five of
+    # them and the user's gesture is not a property of which one ran.
+    # `_honour_ungroup` used to be the only site that read the mark, so
+    # the AGENT path walked straight past it: `mod attributes` on an
+    # ungrouped entity and a `mod label` that mints a caption both welded
+    # the widget back together with the mark still sitting on it, and the
+    # next ordinary save then DELETED the mark and narrated
     # `saved_no_changes` — the gesture gone from the picture AND from the
     # record, with a fresh Ctrl+Shift+G the only way back.
     # `_reset_attribute_rows`' own docstring calls `mod attributes`
     # "exactly what a grilling session revises repeatedly", so that is
     # not an exotic door.
-    #
-    # IT IS ALSO WHAT MAKES THE CLEAR EDGE TRUE. `_honour_ungroup` clears
-    # the mark when `<id>-grp` is back in the posted scene, reasoning that
-    # only this code mints that id so its return means the client undid
-    # past the ungroup. That reasoning was sound about the ID and wrong
-    # about the INFERENCE while any server path could put the group back
-    # underneath the user. With every writer gated, the only route left
-    # for a marked host is the client, and the inference holds.
-    # It STRIPS rather than merely declining, because several compose
-    # blocks hand their parts `gid` at construction — `_compose_input_
-    # value` bakes it into the row it mints — so a gate that only skipped
-    # the loop would leave a freshly minted part alone in a group of one
-    # while its host sat outside. Ensuring the id is ABSENT is the same
-    # shape as ensuring it is present, one branch up, and it is
-    # idempotent: this function's job is to make a widget's grouping
-    # right, and for a widget the user pulled apart, right means gone.
-    gid = body["id"] + "-grp"
-    if (body.get("customData") or {}).get(UNGROUP_MARK) is True:
-        for e in [body, *parts]:
-            if gid in (e.get("groupIds") or []):
-                e["groupIds"] = [g for g in e["groupIds"] if g != gid]
-        return
     for e in [body, *parts]:
         if gid not in (e.get("groupIds") or []):
             e["groupIds"] = [*(e.get("groupIds") or []), gid]
@@ -3169,10 +3171,30 @@ def _compose_input_slot(els, el, value_text, existing_ids):
         value_text: The value string, already stringified.
         existing_ids: Ids already in use, mutated with the row minted.
     """
-    # THE OWNER'S HALF IS OPEN-CODED HERE and so is its gate: this line
-    # is the one writer of `<id>-grp` that does NOT go through
-    # `_close_widget_group`, so the gate that function carries cannot
-    # cover it.
+    # THE OWNER'S HALF IS OPEN-CODED HERE and so is its gate. This line
+    # used to be described as "the one writer of `<id>-grp` that does not
+    # go through `_close_widget_group`", which was wrong and wrong in the
+    # way that matters: it was arrived at by grepping CALLS of
+    # `_close_widget_group` and stopping there, the same enumeration that
+    # had already produced a miscount one review earlier. An AST census
+    # of every site that puts a widget group id on an element —
+    # assignments AND dict literals AND `groupIds=` keywords — finds
+    # eleven writes in five functions, and FOUR of the writes do not
+    # reach that function on their own:
+    #
+    #     `_compose_input_slot`     the owner's half, here
+    #     `_compose_attribute_rows` the entity host, then each row
+    #     `_deco`                   `groupIds: [gid]` on every
+    #                               decoration it builds, reached from
+    #                               six compose helpers
+    #
+    # The other three are covered where they land rather than here:
+    # `reconcile_composed` now ends with a `_close_widget_group`
+    # post-condition, which is what catches a part `_deco` minted, and
+    # the gate in that function sits above its `tagged` early-return so
+    # a host with no parts left is still reached. Keep the census
+    # honest if you add a writer: `grep _close_widget_group` will not
+    # find it.
     #
     # DEFENSIVE, AND SAID SO RATHER THAN DRESSED UP. Unlike the two agent
     # doors `_close_widget_group` closes, this one is not known to open:
@@ -3455,11 +3477,28 @@ def _honour_ungroup(els, el, ungrouped_by_user):
       the user, this bullet read the group's return as an undo, and the
       next ordinary save deleted the gesture from the record while
       narrating `saved_no_changes`. Measured on that tree, 11 of 29
-      (kind, agent-door) pairs revoked — every kind through a `mod
-      label` that MINTS a caption, plus all three entity doors through
-      `_reset_attribute_rows`. The gate is what makes the sentence
-      above true rather than merely well-argued; do not weaken one
-      without the other.
+      pairs revoked — every kind through a `mod label` that MINTS a
+      caption, plus all three entity doors through
+      `_reset_attribute_rows`.
+
+      THE DENOMINATOR, spelled out because a number a reader cannot
+      rebuild is one they have to take on faith. A pair is (composed
+      kind, agent `mod` op). The kinds are the eight this file
+      composes; the ops were six — `label`, `label` on a spec minted
+      WITHOUT one, `attributes`, `value`, `value` on a spec minted
+      without one, `width`. 8 x 6 = 48 pairs, of which 19 are not
+      applicable (the kind has no such attribute, or the bare variant
+      leaves something that is not a composite at all — a valueless
+      `input` is a labelled box until `mod value` composes it) leaving
+      29 live. The bare variants are load-bearing and were the whole
+      reason the first count of this was wrong at 3: `_set_label` only
+      reaches `_close_widget_group` when it MINTS a caption, so a spec
+      that already carries `label` never opens the door it is named
+      for. The grid that supersedes this one is wider and its
+      definition is in `_interpret_user_composites`.
+
+      The gate is what makes the sentence above true rather than merely
+      well-argued; do not weaken one without the other.
     * Cleared, too, on a host that is not in the base at all (the
       `False` call in `_interpret_user_composites`), which is what stops
       a `Ctrl+Shift+G`, save, `Ctrl+D` duplicate from carrying an
@@ -3975,9 +4014,20 @@ def _interpret_user_composites(new_els: list[dict[str, Any]],
         # the second did not follow — OUR OWN HAND included the agent
         # path, which re-welded a marked widget through
         # `_reset_attribute_rows` and `_set_label` and made this read a
-        # server repair as a user's undo. With every writer of that id
-        # gated on the mark, the client is the only route left and the
-        # inference holds.
+        # server repair as a user's undo.
+        #
+        # WHAT IS CLAIMED NOW IS A MEASUREMENT AND NOT A UNIVERSAL, and
+        # the difference is the point: the sentence this replaces said
+        # "with every writer gated, the only route left is the client",
+        # which is the shape of claim that let the previous hole survive
+        # a review. What is actually known: over a 144-cell grid — 8
+        # composed kinds x 9 agent `mod` ops x {ungrouped, welded} — no
+        # agent op puts `<id>-grp` back on a marked host or any of its
+        # parts, in the agent's own committed scene or after the next
+        # save, while the 45 welded control cells stay welded. That is
+        # evidence about the ops the grid drives, not a proof about
+        # every possible caller. If you add a writer of that id, the
+        # grid is where to find out whether this comment is still true.
 
         gid = el["id"] + "-grp"
         old_el = old_ix.get(el["id"]) or {}
@@ -4167,6 +4217,28 @@ def reconcile_composed(els, index, existing, el):
         was = pinned_before.get(e["id"])
         if was is not None and (e.get("x"), e.get("y")) != was:
             e["x"], e["y"] = was
+    # THE SECOND POST-CONDITION, and it is the same argument as the first.
+    # Arms above MINT parts, and a minted part is born carrying `gid` —
+    # `_deco` writes `groupIds: [gid]` into every decoration it builds, so
+    # `_compose_body_lines` hands back waves already in the group. For a
+    # widget the user pulled apart that is a breach the arm cannot see:
+    # measured on the grid, a marked body block came out of `mod width`
+    # (and `label`, `label-bare`, `height`) with its waves inside `w-grp`
+    # and its box outside — the waves dragging as a unit without the thing
+    # they belong to, in a scene `apply_batch` commits and the client
+    # renders. It lasted one revision, because the next user save reached
+    # `_honour_ungroup` and tidied it; a defect that survives exactly one
+    # commit is still a defect, and nothing guaranteed it would be the
+    # last word.
+    #
+    # Stated as a post-condition rather than patched into the body arm for
+    # the reason the block above gives about pins: the failure is a CLASS
+    # — an arm that mints a part — so holding it here holds it for every
+    # arm, including one added later by someone who never read this
+    # comment. `_close_widget_group` is idempotent in both directions, so
+    # for an unmarked widget this is the invariant it already had.
+    _close_widget_group([el, *[e for e in els
+                               if part_owner_id(e) == el["id"]]])
 
 
 def edge_anchor(el, other_cx, other_cy):
@@ -9600,7 +9672,27 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                     _reset_attribute_rows(els, index, existing, el, value)
                 elif attr == "customData":
                     cd = dict(el.get("customData") or {})
-                    cd.update(value or {})
+                    incoming = dict(value or {})
+                    # THE UNGROUP MARK IS NOT WRITABLE THROUGH THIS DOOR
+                    # EITHER, for the reason `make_element` drops it at
+                    # mint: it records that a PERSON pulled a widget
+                    # apart, and `_honour_ungroup` is its single writer.
+                    # This became load-bearing the moment
+                    # `reconcile_composed` grew a grouping post-condition
+                    # — before that a forged `mod` mark was inert (the
+                    # widget stayed assembled and the next save dropped
+                    # the key), and after it the same forgery pulled a
+                    # healthy widget apart on the spot and made it stick,
+                    # because a stripped widget no longer trips the clear
+                    # edge. Caught by re-running the forge probe rather
+                    # than by reasoning about the change.
+                    #
+                    # Popped, not refused: `mod` documents `customData`
+                    # as MERGED, so an agent re-sending an element it
+                    # read back would otherwise have its batch rejected
+                    # for echoing a key it never authored.
+                    incoming.pop(UNGROUP_MARK, None)
+                    cd.update(incoming)
                     el["customData"] = cd
                 elif attr == "strategic":
                     apply_strategic(el, value, errors, i,
