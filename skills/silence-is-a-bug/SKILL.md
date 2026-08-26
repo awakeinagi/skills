@@ -416,6 +416,58 @@ measurement with a date on it, how to state a deflating calibration.
 It is short, and it is the difference between a report that is right and
 a report that sounds right.
 
+### 8. A pin's anchor is as prescriptive as its assertion
+
+Where a pin *looks* is part of what it demands. A pin that locates its
+subject by matching source text has quietly named one repair as the only
+acceptable one, and the assertion never says so — the anchor does it
+silently, which is why this survives review that reads only the
+`assert`.
+
+The shape: a guard greps for a sentence, a decorator spelling or a
+regex, and asserts something about what it found. Reword the subject in
+any way that keeps its meaning, and the guard does not report a
+mismatch — it reports **nothing found**, or it fires with a message
+about the anchor. The repair was honest, the behaviour is correct, and
+the pin is red anyway. Now the pin is not measuring the defect; it is
+enforcing a spelling.
+
+Four instances, all real, all from one project:
+
+- A guard reading `^@unittest\.skipUnless\(RENDER\s*,` off a class's
+  source misses three legitimate spellings — a second decorator above
+  it, a line break after the open paren, and the keyword form
+  `skipUnless(condition=RENDER, ...)` — and each miss fires a message
+  saying the class "is either never run by the documented command, or it
+  is ungated", which is wrong in all three.
+- A probe anchored on `^GUARDS\s*=` did not bite, because the real
+  definition had grown a type annotation. Running *both* forms against
+  an intact roster is what separated "no defect" from "no instrument".
+- A branch proposed pinning a refusal by matching `Its kinds (...)` in
+  the message. The tree had already rejected exactly that regex in
+  favour of a token-based reader, and said why in its own header: the
+  red has to flip under ANY honest repair.
+- A guard whose anchor and whose subject were the same string counted
+  its own instruction: a doc telling the reader to run a grep returned
+  7 for 6, because the sentence saying "run this grep" matched it.
+
+**Anchor on the outcome, not on the prose.** Parse the structure, ask
+the object, read the value — anything whose identity survives a rewrite.
+When you genuinely must match text, match the smallest invariant part
+and say in a comment which rewrites you are choosing to break under.
+
+**The test: does it flip under EVERY honest repair, or just one?** Write
+down the repairs a reasonable person might make — two or three, worded
+differently, not variations of one edit. Monkeypatch each from a
+throwaway plugin and confirm the pin goes green under all of them. A pin
+that flips under exactly one has prescribed that one, and you have
+learned it before shipping rather than from the person whose correct fix
+it rejected.
+
+The cost of getting this wrong is not a false alarm, which is cheap and
+loud. It is that the next person reads the red as "my repair is wrong",
+believes it, and rewrites a correct fix to satisfy a regex.
+
 ## Discovery: finding defect classes nobody witnessed
 
 Everything above re-finds defects you know about. Discovery asserts the
@@ -537,6 +589,8 @@ boundary:
 - [ ] Every finding is `proven`, `deferred`, or `UNPROVEN` with a reason.
 - [ ] Every flip in this window was re-earned (stub the check, the
       flipped test fails).
+- [ ] Every pin added in this window flips under **more than one**
+      honest repair, so no anchor has silently prescribed a spelling.
 - [ ] The stub sweep ran over the checks this window touched.
 - [ ] Mortality ran; no check dropped to a single witness unnoticed.
 - [ ] The discovery sweep has no undispositioned survivors.
