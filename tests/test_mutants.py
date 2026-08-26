@@ -17499,6 +17499,573 @@ def _entity_without_rows() -> list[dict]:
             *_composed_widget(grouped=False)]
 
 
+def _orphaned_widget_copy(with_ink: bool) -> list[dict]:
+    """A duplicated slider whose copy owns nothing, drawn or bare.
+
+    THE ONE DIFFERENCE BETWEEN THE POLES IS WHETHER THE INK IS THERE,
+    and that is the reader's whole distinction. `with_ink=True` is what
+    Ctrl+Shift+G, save, Ctrl+D, save really lands: `wc` renders as a
+    complete slider — a track across it and a thumb at its midpoint —
+    while no element names `wc` as its owner, because
+    `_rehost_duplicated_parts` drops the copy's backlinks and
+    `reconcile_composed`'s slider arm only RE-DERIVES parts that already
+    exist. `with_ink=False` is the same host with that ink gone: a truly
+    bare rectangle. A person shown the two tells them apart instantly.
+
+    HAND-BUILT, AND COPIED FROM A MEASURED SAVE. Every shape here is
+    what the real path emits for `{"kind": "slider", "width": 160,
+    "height": 48}` duplicated 300px right (measured 2026-08-25): track a
+    140-wide line at the host's y+34, thumb a 12x12 square at the
+    midpoint, both `role: decoration`, neither carrying `track_of` or
+    `thumb_of`. Moved to the origin and stripped of the router's
+    `routed` hash, which are the only edits — ownership is resolved by
+    `part_owner_id` from `customData` backlinks alone and never from an
+    id, so the ids are cosmetic and kept in the save's own spelling.
+
+    WHY SLIDER AND NOT `body`. Measured across all seven composed
+    scenes, this class splits exactly on which arm of
+    `reconcile_composed` a kind has: `body` (4 owned) and `kpi` (1
+    owned) MINT the copy fresh backlinked parts and are silent, while
+    `slider`, `toggle`, `image` (0 owned) and `checkbox` (0 unchecked, 1
+    checked) only re-derive and are reported. Slider is the smallest of
+    the four that are wrong — two parts, both drawn, none owned.
+
+    Args:
+        with_ink: Whether the copy's own track and thumb are drawn.
+
+    Returns:
+        The host `wc` alone, or `wc` with the two unowned decorations
+        that sit inside its box.
+    """
+    out = [el(id="wc", type="rectangle", x=0, y=0, width=160, height=48,
+              customData={"kind": "slider", "role": "node", "value": 50})]
+    if with_ink:
+        out += [el(id="w-trackc", type="line", x=10, y=34, width=140,
+                   height=0, points=[[0, 0], [140, 0]],
+                   strokeColor="#8d877a", strokeWidth=2,
+                   customData={"role": "decoration"}),
+                el(id="w-thumbc", type="rectangle", x=74, y=28, width=12,
+                   height=12, backgroundColor="#1e1e1e",
+                   customData={"role": "decoration"})]
+    return out
+
+
+# ---------------------------------------------------------------------------
+# The remedy-fixpoint sweep. `duplicated_widget_reported_as_bare` and
+# `composed_host_remedy_reproduces_itself` each pin ONE instance with a
+# quadruple; this asks the same question of every composed kind through
+# every documented door, so the answer carries a denominator.
+# ---------------------------------------------------------------------------
+_COMPOSED_KINDS = ("body", "kpi", "input", "slider", "toggle", "checkbox",
+                   "image", "entity")
+# The settled state each kind's floor is a function of. `body` derives its
+# floor from height, `image` and `entity` from the kind alone, so those
+# three declare nothing here and that is not an omission.
+_KIND_STATE: dict[str, dict] = {
+    "input": {"value": "09:00"}, "kpi": {"value": "42"},
+    "slider": {"value": 40}, "checkbox": {"checked": True},
+    "toggle": {"checked": True}}
+_SWEEP_BOX = {"type": "rectangle", "id": "h", "label": "H", "x": 0, "y": 0,
+              "width": 200, "height": 64}
+
+
+def _hosts_reported_stripped(els: list[dict]) -> list[str]:
+    """Host ids the composed-host ERROR names in this scene.
+
+    Args:
+        els: A scene.
+
+    Returns:
+        Sorted ids, empty when the check said nothing.
+    """
+    lines = canvas.lint_layout(els)["errors"]
+    return sorted({e["id"] for e in els
+                   if any(ln.startswith(e["id"] + " ") and
+                          "is a composed" in ln for ln in lines)})
+
+
+def _reissue_from_stored_state(els: list[dict],
+                               hid: str) -> tuple[list[dict], list[str]]:
+    """Perform the repair a reader of the scene can perform.
+
+    Args:
+        els: The scene the finding fired on.
+        hid: The host the finding named.
+
+    Returns:
+        `(scene, op_errors)` after `del` + `add` of that host as stored.
+    """
+    stored = copy.deepcopy(next(e for e in els if e["id"] == hid))
+    for key in ("seed", "version", "versionNonce", "updated",
+                "boundElements", "index"):
+        stored.pop(key, None)
+    errors: list[str] = []
+    out = canvas.apply_ops(copy.deepcopy(els),
+                           [{"op": "del", "id": hid},
+                            {"op": "add", "element": stored}], errors)
+    return out, errors
+
+
+def _door_add_top(kind: str) -> tuple[list[dict], list[str]]:
+    """`add` with the kind and its settled state as top-level keys.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": dict(
+        _SWEEP_BOX, kind=kind, **_KIND_STATE.get(kind, {}))}], errors)
+    return els, errors
+
+
+def _door_add_custom(kind: str) -> tuple[list[dict], list[str]]:
+    """`add` with the kind and its state inside `customData`.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": dict(
+        _SWEEP_BOX,
+        customData=dict({"kind": kind}, **_KIND_STATE.get(kind, {})))}],
+        errors)
+    return els, errors
+
+
+def _door_mod_kind(kind: str) -> tuple[list[dict], list[str]]:
+    """`mod {"kind": K}` then the state, top-level, on a bare rectangle.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add",
+                                 "element": dict(_SWEEP_BOX)}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "h",
+                                  "attrs": {"kind": kind}}], errors)
+    if _KIND_STATE.get(kind):
+        els = canvas.apply_ops(els, [{"op": "mod", "id": "h",
+                                      "attrs": dict(_KIND_STATE[kind])}],
+                               errors)
+    return els, errors
+
+
+def _door_mod_custom(kind: str) -> tuple[list[dict], list[str]]:
+    """`mod {"customData": {...}}` on a bare rectangle.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add",
+                                 "element": dict(_SWEEP_BOX)}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "h", "attrs": {
+        "customData": dict({"kind": kind},
+                           **_KIND_STATE.get(kind, {}))}}], errors)
+    return els, errors
+
+
+def _door_duplicate(kind: str) -> tuple[list[dict], list[str]]:
+    """Ungroup, save, duplicate host and parts, save — no op at all.
+
+    THIS DOOR IS IN THE SWEEP BECAUSE IT MUST NOT BE ASSUMED. Measured
+    2026-08-25 it CLEARS for every kind, which is exactly why
+    `duplicated_widget_reported_as_bare` pins a different invariant. But
+    that is a fact about today's arms of `reconcile_composed`, not a
+    property, and the day one of them changes this door is where the
+    change shows up.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)` after the second commit.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-sweep-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": dict(
+                _SWEEP_BOX, kind=kind, **_KIND_STATE.get(kind, {}))}]})
+
+        def save(scene: list[dict]) -> list[dict]:
+            """Commit as the browser does.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                The stored scene after the commit.
+            """
+            store.commit(author="user", new_scenes={"f": list(scene)},
+                         base_revn=store.head_revn())
+            return [dict(e) for e in store.scenes["f"]]
+
+        ungrouped = save([dict(e, groupIds=[]) for e in store.scenes["f"]])
+        copied = list(ungrouped)
+        for src in [x for x in ungrouped
+                    if x["id"] == "h" or canvas.part_owner_id(x) == "h"]:
+            dup = copy.deepcopy(src)
+            dup["id"], dup["x"] = src["id"] + "c", src.get("x", 0) + 400
+            dup.pop("boundElements", None)
+            copied.append(dup)
+        return save(copied), []
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+# WHICH PAIRS ARE TRAPPED TODAY, transcribed so a reader can tell WITHOUT
+# re-running the sweep — a denominator that needs a re-run to interpret is
+# halfway to a count that goes stale. It cannot go stale here: the sweep's
+# UNGATED companion compares this set to the measurement and fails naming
+# the difference, so it costs one line per flip, which is the line the flip
+# already costs, and it did: this set was RE-DERIVED on `734f238` rather
+# than carried over, after the guard below named the difference for free.
+#
+# THE TWO `input` PAIRS CLEARED on that fold — the flip contract arriving,
+# and the reason the sweep's numerator dropped from 3 to 2 while its
+# denominator held at 40 and its fired count fell 16 -> 12.
+#
+#   checkbox / mod kind        — the pair that survived the fold.
+#   checkbox / mod customData  — the pair the fold UNCOVERED, and this
+#       entry is the prediction in this file's own history coming true:
+#       the sweep's docstring said in advance that patching the input
+#       paths "UNCOVERS a second checkbox door rather than closing one",
+#       measured against a patched copy before the repair was written.
+#
+# BOTH ARE THE SAME TRAP, and its shape CHANGED under the repair rather
+# than going away, which is the part a bare count would have hidden.
+# Each door reports `(2, 1) missing`; re-issuing the host from its own
+# stored state now returns `(2, 3) SURPLUS`. Before the repair the
+# remedy also silently unchecked the box — `make_element` read
+# `spec.get("checked", False)` over a stored `customData.checked` of
+# True — and `_composed_state` fixed exactly that, so `checked` now
+# survives. What it did not fix is the re-add minting a second `h-box`
+# and `h-chk` while the originals stand, which leaves the scene holding
+# TWO ELEMENTS SHARING THE ID `h-chk`. An id collision is a worse
+# outcome than the uncheck it replaced, and nothing but this sweep says
+# so.
+#
+# EMPTY on 2026-08-26, and BOTH checkbox doors cleared at once — the last
+# two of the three this sweep has ever held. `24f008e` is the cause, and
+# that is a MEASURED claim rather than an attribution read off a commit
+# message: reverting that one commit's `canvas.py` hunk against an
+# otherwise identical tree puts both pairs back, with the mask lifted and
+# the same assertion text, the same two pairs, and the same 12-of-40
+# denominator. Re-applying it clears them. The mechanism is the one the
+# paragraph above named in advance: `del` collected a host's parts by
+# `groupIds` and a `mod`-composed host has none, so the re-add minted a
+# second `h-box` and `h-chk` beside the originals; sweeping by backlink
+# collects them, so the re-issue replaces rather than duplicates.
+#
+# WHAT THE FLIP COST, said plainly because the numerator moving to zero is
+# the least informative part: the numerator fell 2 -> 0 while the
+# denominator held at 40 and the fired count held at 12. Twelve pairs
+# still file an ERROR; all twelve can now escape it by the repair the
+# finding prescribes, which is the whole claim this sweep makes. A
+# denominator that moved would have meant the walk stopped asking.
+_TRAPPED_PAIRS: set[tuple[str, str]] = set()
+
+_REMEDY_DOORS: dict[str, Callable[[str], tuple[list[dict], list[str]]]] = {
+    "add (top-level)": _door_add_top, "add (customData)": _door_add_custom,
+    "mod kind": _door_mod_kind, "mod customData": _door_mod_custom,
+    "duplicate + save": _door_duplicate}
+
+
+def sweep_remedy_fixpoints() -> dict[str, list]:
+    """Ask every kind through every door whether its ERROR is escapable.
+
+    Returns:
+        `{"asked", "fired", "looped", "refused"}`, each a sorted list of
+        `(kind, door)` pairs (`looped` carries the surviving host ids
+        too), so a caller reports what was found and the denominator it
+        was found in rather than a bare boolean.
+    """
+    out: dict[str, list] = {"asked": [], "fired": [], "looped": [],
+                            "refused": []}
+    for kind in _COMPOSED_KINDS:
+        for door, build in _REMEDY_DOORS.items():
+            els, errors = build(kind)
+            if errors:
+                # A refused batch is not a looping one; recorded rather
+                # than skipped, so the denominator never shrinks quietly.
+                out["refused"].append((kind, door, errors[0]))
+                continue
+            out["asked"].append((kind, door))
+            hosts = _hosts_reported_stripped(els)
+            if not hosts:
+                continue
+            out["fired"].append((kind, door))
+            survived = []
+            for host in hosts:
+                after, aerrors = _reissue_from_stored_state(els, host)
+                # A refused re-issue counts as surviving: the remedy has
+                # to be a thing the op layer accepts, or the host is
+                # trapped just as surely as by a looping one.
+                if aerrors or host in _hosts_reported_stripped(after):
+                    survived.append(host)
+            if survived:
+                out["looped"].append((kind, door, survived))
+    return out
+
+
+def _saved_twice_part_ink_count() -> int:
+    """Part-shaped ink standing at the copy after two real user saves.
+
+    THE ONLY THING IN EITHER POLE THAT TOUCHES THE SAVE PATH, and it is
+    here because the poles deliberately do not. `_orphaned_widget_copy`
+    is hand-built, so it cannot notice a "repair" that empties the
+    finding by discarding unowned decoration on commit — the sentence
+    would become true by the picture being destroyed, and a hand-built
+    scene is blind to that by construction. This drives the real
+    gestures instead: mint a slider, ungroup it, save, duplicate host
+    and parts, save. Two decorations stood at the copy on 2026-08-25,
+    which is the number the ERROR under test calls zero.
+
+    Returns:
+        How many `role: decoration` elements are drawn at the copy's x
+        after the second commit.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-dup-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "w", "kind": "slider",
+                "label": "W", "x": 0, "y": 0, "width": 160,
+                "height": 48}}]})
+
+        def save(scene: list[dict]) -> list[dict]:
+            """Commit as the browser does; return what landed.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                The stored scene after the commit.
+            """
+            store.commit(author="user", new_scenes={"f": list(scene)},
+                         base_revn=store.head_revn())
+            return [dict(e) for e in store.scenes["f"]]
+
+        ungrouped = save([dict(e, groupIds=[]) for e in store.scenes["f"]])
+        copied = list(ungrouped)
+        for src in [x for x in ungrouped
+                    if x["id"] == "w" or canvas.part_owner_id(x) == "w"]:
+            dup = copy.deepcopy(src)
+            dup["id"], dup["x"] = src["id"] + "c", src.get("x", 0) + 300
+            dup.pop("boundElements", None)
+            copied.append(dup)
+        return sum(1 for x in save(copied)
+                   if (x.get("customData") or {}).get("role") == "decoration"
+                   and x.get("x", 0) >= 250)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _settled_input_through_customdata() -> list[dict]:
+    """A bare input, then its value settled the way the reference says.
+
+    MINTED, NOT HAND-BUILT, and that inverts `_body_block`'s rule on
+    purpose. Every other builder here refuses the seeder because a
+    mutant should not depend on it to state its defect. Here the seeder
+    IS the defect: the claim is about what the OP LAYER hands the lint,
+    so a hand-built scene would assert nothing at all. Both ops are
+    documented and both return zero op errors — `ops-reference.md` says
+    `mod` takes `customData` "merged, not replaced", and this is that
+    sentence followed literally.
+
+    THE ONE MUTATION IS WHERE THE `value` KEY SITS. `mod {"value":
+    "09:00"}` composes the row and lints clean (measured 2026-08-25);
+    the identical value routed through `customData` does not, because
+    `make_element` gates the mint on the top-level `spec["value"]` while
+    `composed_part_floor` reads `cd["value"]`, and the post-`mod`
+    reconcile gate (`width`/`height`/`label`/`kind`) never names
+    `customData` at all. Two fields, one meaning, nothing holding them
+    together — and `input` is the only kind that can drift, since every
+    other mint block overwrites `custom[...]` from the spec.
+
+    Returns:
+        The three-element scene: host `inp1`, its bound label, and
+        whatever the op layer composed for it — which today is nothing.
+
+    Raises:
+        EngineError: If either op is refused. "Zero op errors" is half
+            of what makes this a defect rather than a malformed batch,
+            so it is asserted here and not left to the reader.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": {
+        "type": "rectangle", "id": "inp1", "kind": "input",
+        "label": "Run at", "x": 0, "y": 0, "width": 200,
+        "height": 40}}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "inp1", "attrs": {
+        "customData": {"value": "09:00"}}}], errors)
+    if errors:
+        raise EngineError("the documented batch this mutant is about must "
+                          "return zero op errors; got %r" % (errors,))
+    return els
+
+
+def _input_after_taking_its_own_prescribed_remedy() -> list[dict]:
+    """The scene the finding condemns, after its own remedy was taken.
+
+    THE PROPERTY, AND WHY IT IS A TWO-SCENE ONE. A finding that
+    prescribes a repair must not survive that repair being performed.
+    An ERROR whose remedy reproduces it verbatim is worse than silence:
+    silence leaves the agent looking, a looping remedy sends it round
+    the same corner forever, and `lint_layout`'s ERROR tier says
+    "repair in the same move, before narrating".
+
+    THE REPAIR PERFORMED HERE IS RE-ISSUING THE HOST FROM ITS OWN
+    STORED STATE — `del` then `add` the element exactly as the scene
+    holds it. That is not a transcription of today's sentence, which is
+    already scheduled to change. It is the only repair a reader of the
+    SCENE can perform: the lint is handed elements, never an op log, so
+    the sole description of the condemned element available to whoever
+    must repair it is the element itself. If re-issuing an element as
+    the scene stores it does not clear the finding, the scene holds no
+    self-description the op layer will accept, and no wording can make
+    that false.
+
+    THE REMEDY IS CONDITIONAL, because the property is. A repair that
+    was never prescribed cannot loop, so a fix that stops the finding
+    firing at all satisfies this pole vacuously and correctly — that is
+    what makes the pin flip under repairs of different blast radius
+    rather than prescribing one of them. Measured 2026-08-25 against
+    four patched copies of `canvas.py`, all four green: naming
+    `customData` in the post-`mod` reconcile gate (the `mod` composes,
+    so nothing is prescribed); gating the mint on `custom.get("value")`
+    (the `mod` stays broken, the re-issue starts working); making all
+    three input paths agree — `make_element`, `reconcile_composed` and
+    `composed_part_floor` currently read `spec["value"]`, nothing, and
+    `cd["value"]` respectively; and the first two together. Opposite
+    blast radii, none of them named in this builder.
+
+    WHAT THIS POLE CANNOT SEE ALONE, said out loud because it is the
+    hole a subtraction always leaves: deleting the `input` floor
+    outright also empties this scene's findings, and would read green
+    here while the check went blind. That is what the neighbour is for,
+    and it is why the neighbour is an INPUT and not the `body` block the
+    sibling mutant uses — a `body` pole survives an input-shaped
+    lobotomy without noticing.
+
+    THE POPULATION IS THE OP PATH, AND ONLY THE OP PATH. A browser save
+    HEALS this drift: `reconcile_composed`'s input arm mints the value
+    row through `_recompose_input_value` whether or not one was asked
+    for, so the same scene committed through `Store.commit(author=
+    "user")` lands on disk with `inp1-value` present and no gap at all
+    (measured 2026-08-25). The loop therefore lives strictly between
+    ops — which is exactly where it bites, since the ERROR tier says
+    "repair in the same move, before narrating" and the agent has no
+    way to know a later save it cannot make would have healed it. Do
+    not read this pin as covering the persisted class.
+
+    THE OTHER HALF OF THE CLASS IS NOT PINNED HERE, and the boundary is
+    a judgement rather than an omission. Ctrl+Shift+G, save, Ctrl+D,
+    save — two blessed gestures, no op anywhere — persists this same
+    ERROR for `slider`, `toggle`, `image` at (2, 0) and `checkbox` at
+    (2, 1) when checked, because `_rehost_duplicated_parts` drops the
+    copy's backlinks and those five arms of `reconcile_composed` only
+    re-derive parts that already exist. That population is wider, it is
+    on disk, and it is re-read every session. It is NOT this pin's
+    subject: measured across all five, re-issuing the copy from its own
+    stored state CLEARS the finding, so the looping-remedy invariant is
+    not what it violates. It is wrong a different way — the copy's
+    track and thumb are on the canvas at x=310 and x=394 under the
+    ERROR's claim that the host "renders as a bare rectangle" — and it
+    has a different root cause and a different fix. It deserves its own
+    pin and does not have one.
+
+    Returns:
+        The post-remedy scene: unchanged when the check said nothing,
+        else the same drawing with `inp1` re-issued from its own
+        stored form.
+
+    Raises:
+        EngineError: If the re-issue is itself refused. The remedy has
+            to be a thing the op layer accepts, or this pole would be
+            measuring a rejected batch instead of a looping one.
+    """
+    els = _settled_input_through_customdata()
+    if not [f for f in collect_findings(els)
+            if f["check"] == "composed_host_stripped"
+            and f["element"] == "inp1"]:
+        return els
+    stored = copy.deepcopy(next(e for e in els if e["id"] == "inp1"))
+    for key in ("seed", "version", "versionNonce", "updated",
+                "boundElements", "index"):
+        stored.pop(key, None)
+    errors: list[str] = []
+    out = canvas.apply_ops(els, [{"op": "del", "id": "inp1"},
+                                 {"op": "add", "element": stored}], errors)
+    if errors:
+        raise EngineError("re-issuing a host from its own stored state is "
+                          "the remedy under test and must not itself be "
+                          "refused; got %r" % (errors,))
+    return out
+
+
+def _input_slot_stripped() -> list[dict]:
+    """An input minted whole, then robbed of the row it really owes.
+
+    THE LIVE HALF, AND IT IS AN INPUT ON PURPOSE. The mutant beside it
+    expects silence, so this pole is the only thing standing between
+    that silence and a dead check — and the specific death it has to
+    survive is an `input`-shaped one, since the drift the mutant pins
+    is reachable on no other kind. `composed_host_stripped_is_invisible`
+    already proves the check speaks about a `body`; that firing is
+    untouched by deleting the `input` arm of `composed_part_floor`, so
+    it cannot stand in for this one.
+
+    The value goes in through the TOP-LEVEL key, which is the route
+    that composes: the host really does own a `inp1-value` row, and
+    removing it is real damage rather than a bookkeeping difference.
+    Floor 1, drawn 0 — the smallest gap the check can report, which is
+    also the one an off-by-one in either direction gets wrong.
+
+    Returns:
+        The host `inp1` and its bound label, with the composed value row
+        removed.
+
+    Raises:
+        EngineError: If the mint did not produce the value row this
+            pole exists to remove — a neighbour that strips nothing
+            proves nothing.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": {
+        "type": "rectangle", "id": "inp1", "kind": "input",
+        "label": "Run at", "x": 0, "y": 0, "width": 200, "height": 40,
+        "value": "09:00"}}], errors)
+    kept = [e for e in els if e["id"] != "inp1-value"]
+    if errors or len(kept) == len(els):
+        raise EngineError("the top-level `value` route must mint "
+                          "`inp1-value`; errors=%r ids=%r"
+                          % (errors, [e["id"] for e in els]))
+    return kept
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -21917,6 +22484,102 @@ _register(Mutant(
                         FindingSpec("widget_group_incomplete", element="w",
                                     magnitude=(3, 0.10)))))
 
+# Curator batch 46, 2026-08-25, from a review of the branch that landed
+# `composed_host_stripped` itself. WHAT THE DRAWING GETS WRONG: an input
+# whose value was settled through `customData` — the merge
+# `ops-reference.md:271` documents — draws no value row, and is
+# correctly reported for it. WHAT MAKES IT A DEFECT rather than a true
+# reading is the REMEDY: the finding asks for the host to be re-issued,
+# and re-issuing it reproduces the finding verbatim, on a three-op batch
+# that returns zero op errors at every step. The escape is a top-level
+# `value` key that nothing in the message, the reference, or the scene
+# names.
+#
+# THIS IS THE FAMILY'S SECOND ARM, NOT A DUPLICATE OF THE FIRST.
+# `composed_host_stripped_is_invisible` proves the check SPEAKS, on a
+# `body`, at magnitude 4. This one proves its remedy is a way OUT, on an
+# `input`, at the floor's other gate — `composed_part_floor`'s only
+# stateful arm, and the only kind whose `customData` can drift, since
+# every other mint block overwrites `custom[...]` from the spec. The
+# coverage table calls this check `proven` either way; its own footer
+# says `proven` is per CHECK and not per ARM, and this is one of the
+# arms that footer is about.
+#
+# WHO FLIPS IT: the WP repairing the input paths. FOUR repairs of very
+# different blast radius all turn it green, measured against patched
+# copies of `canvas.py` rather than reasoned about — naming `customData`
+# in the post-`mod` reconcile gate (canvas.py:9372); gating the mint on
+# `custom.get("value")` (canvas.py:2695); making all three input paths
+# agree, which is the one most likely to land; and the first two
+# together. Three WRONG repairs each leave it red, and each is caught by
+# a different leg of the pair, which is the whole reason there are three
+# legs: deleting `composed_part_floor`'s `input` arm empties the mutant
+# scene but kills the NEIGHBOUR; having the mint discard a `customData`
+# value it did not mint for clears the finding but trips the VALUE
+# GUARD, re-opening the v0.5 silent-drop defect at canvas.py:2696; and
+# rewording the message to name the top-level key leaves the MUTANT red.
+# That last one is the pin's opinion and not an oversight — it documents
+# the trap without removing it, and the op layer still returns zero
+# errors for a three-op batch whose result the ERROR tier condemns.
+# Curator batch 46, 2026-08-25, subject two of the same review. WHAT THE
+# DRAWING GETS WRONG: nothing about the COUNT — `wc` really does own no
+# parts. What is wrong is that the ERROR's stated cause contradicts the
+# scene it fired on. The sentence says the host "renders as a bare
+# rectangle that says nothing about what it is" while the copy's track
+# and thumb are drawn inside its box, and on a product whose contract is
+# that the agent narrates its reading of the picture, an agent relaying
+# that tells the user their slider is an empty box while they are
+# looking at a slider.
+#
+# THE PAIR IS THE CONTRACT, AND IT NEEDS NO WORDING. Neither pole reads
+# the message. The mutant says the check must be quiet where the parts
+# are drawn; the neighbour says it must speak where they are not. Held
+# together, they assert the one thing a rewrite cannot supply: that this
+# check DISTINGUISHES the two pictures. It does not today — measured
+# 2026-08-25, the two scenes produce a byte-identical ERROR sentence,
+# which is why no honest rewording can be true of both.
+#
+# THE REPO ALREADY RULED THIS OUT OF SCOPE, which is why silence and not
+# a truer sentence is the right pole. `composed_host_gaps`' own
+# docstring carves the class out — "part-shaped decoration owned by
+# NOBODY ... That is a second instrument and it is not this one" — and
+# believed the carve-out automatic ("Floor against tagged parts reads
+# 5 == 5 and says nothing"). Measured, that holds for exactly the two
+# kinds whose `reconcile_composed` arm MINTS (`body` at 4 owned, `kpi`
+# at 1) and is FALSE for the four whose arms only re-derive: `slider`,
+# `toggle`, `image` at 0 owned with the ink drawn, and `checkbox` at 0
+# unchecked / 1 checked. The check fires on a class its author
+# documented as belonging to somebody else.
+#
+# WHO FLIPS IT: the WP that owns the paste gate, by making the
+# documented carve-out real — re-hosting the copy's backlinks in
+# `_rehost_duplicated_parts` so `wc` owns the ink drawn inside it, or
+# routing this class to the second instrument that docstring names. A
+# REWORDING DOES NOT FLIP IT, and that is the pin's opinion stated up
+# front rather than discovered later: a sentence hedged until it is true
+# of both pictures has not repaired the blindness, it has paid for the
+# lie with the information. If the owning WP disagrees, that is a
+# decision to take in the open.
+_register(Mutant(
+    "duplicated_widget_reported_as_bare",
+    build=lambda: _orphaned_widget_copy(with_ink=True),
+    op="unchanged", args={},
+    expect=Silence("composed_host_stripped"),
+    neighbour=Neighbour(lambda: _orphaned_widget_copy(with_ink=False),
+                        FindingSpec("composed_host_stripped", element="wc",
+                                    magnitude=(2, 0.0),
+                                    direction="missing"))))
+
+_register(Mutant(
+    "composed_host_remedy_reproduces_itself",
+    build=_input_after_taking_its_own_prescribed_remedy,
+    op="unchanged", args={},
+    expect=Silence("composed_host_stripped"),
+    neighbour=Neighbour(_input_slot_stripped,
+                        FindingSpec("composed_host_stripped", element="inp1",
+                                    magnitude=(1, 0.0),
+                                    direction="missing"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -22782,6 +23445,98 @@ class TestMutantCatalogue(unittest.TestCase):
              and f["element"] == "e"], [],
             "an entity declared with no attributes has no rows to draw "
             "and must never be reported as stripped")
+
+    @unittest.expectedFailure
+    def test_mutant_duplicated_widget_reported_as_bare(self) -> None:
+        """A drawn slider is called a bare rectangle that says nothing."""
+        # TWO CLAIMS, and the second names the wrong repair this pole
+        # would otherwise sit green over. `_run` asserts the check is
+        # quiet where the parts are drawn. The cheapest way to make it
+        # quiet is to make the sentence TRUE instead — have the save
+        # path discard part-shaped decoration that names no owner — and
+        # this pin's own scene is hand-built, so it would never notice.
+        # That repair deletes a user's slider to settle an argument
+        # about a lint. So the second claim is measured through the
+        # real save path: the ink a duplicate lands with must still be
+        # there after another save. It is the same discipline the
+        # value-survival guard on `composed_host_remedy_reproduces_
+        # itself` carries, aimed at this subject's own nearest miss.
+        self._run("duplicated_widget_reported_as_bare")
+        self.assertEqual(_saved_twice_part_ink_count(), 2,
+                         "the duplicate's own track and thumb must "
+                         "survive the save path; a repair that makes "
+                         "'renders as a bare rectangle' true by erasing "
+                         "the ink has destroyed the picture to vindicate "
+                         "the sentence")
+
+    def test_neighbour_duplicated_widget_reported_as_bare(self) -> None:
+        """The same host with the ink really gone is reported, at 2."""
+        self._run_neighbour("duplicated_widget_reported_as_bare")
+
+    def test_mutant_composed_host_remedy_reproduces_itself(self) -> None:
+        """Doing what the ERROR asks brings the same ERROR back."""
+        # FLIPPED 2026-08-26 by `f87c34c`, "make the input paths agree,
+        # rather than documenting the trap" — candidate repair (iii) of
+        # the four this pin was measured green against, and NOT the
+        # message-only one it was measured still-red against. The
+        # decorator moved and nothing else; the assertions below are
+        # unedited.
+        #
+        # THE RED WAS WITNESSED, from an isolated tree with this
+        # module's own file copied beside the tree under test, so the
+        # only thing that varied is `canvas.py`:
+        #
+        #     PRE-FIX   38afe37 -> OK (expected failures=1)
+        #     POST-FIX  734f238 -> FAILED (unexpected successes=1)
+        #     CONTROL   the neighbour below passed on BOTH trees
+        #
+        # THE PRE-FIX SHA IS THIS BRANCH'S BASE AND NOT A POINT ON THE
+        # FOLDED LINEAGE, which is a fact about that lineage worth
+        # keeping rather than tidying away: it never held a state where
+        # this red was red AND its neighbour green. It went from no
+        # check at all (`b6caadc`, where the neighbour cannot pass
+        # because `composed_host_stripped` does not exist) straight to a
+        # window — `9a387da` and `e07384d` — where `composed_part_floor`
+        # gave `input` NO FLOOR. That window is exactly WRONG-1 from
+        # this pin's own fix-agnosticism matrix: the mutant reads green
+        # there because the check went blind, and the NEIGHBOUR FAILS,
+        # which is the whole reason the neighbour is an `input` and not
+        # the sibling's `body`. Measured on both shas. The tip settled
+        # on "ONE ROW, ALWAYS" instead, with all three readers brought
+        # to agree, and the neighbour passes again.
+        #
+        # So the flip is honest at the tip and the intermediate states
+        # were not, and only the pair could tell those apart.
+        # TWO CLAIMS, and the second is here because the first has a
+        # hole every subtraction has. `_run` asserts the property: the
+        # finding must not survive its own prescribed repair. A fix
+        # that stops the finding firing satisfies that — including the
+        # WRONG one, deleting `composed_part_floor`'s `input` arm,
+        # which empties this scene and reads green. The neighbour
+        # catches that death; what the neighbour cannot catch is the
+        # OTHER wrong fix, and it is the nearer of the two: making
+        # `make_element` drop a `customData` value it did not mint for.
+        # That clears the finding honestly-looking and silently
+        # re-opens the v0.5 defect named at canvas.py:2696, where an
+        # input was handed a value, dropped it, and drew "Run at" with
+        # no time in it while nothing complained. So the value the ops
+        # declared is asserted to still be READABLE off the scene —
+        # stored on the host or drawn as a part, this pin does not care
+        # which, because both are honest and the choice belongs to the
+        # WP that owns the fix.
+        self._run("composed_host_remedy_reproduces_itself")
+        els = _input_after_taking_its_own_prescribed_remedy()
+        self.assertTrue(
+            any("09:00" in str((e.get("customData") or {}).get("value") or "")
+                or "09:00" in str(e.get("text") or "") for e in els),
+            "the value these ops settled must survive somewhere in the "
+            "scene — stored on the host or drawn as its value row; a "
+            "repair that clears this finding by discarding the agent's "
+            "own datum is the v0.5 silent-drop defect returning")
+
+    def test_neighbour_composed_host_remedy_reproduces_itself(self) -> None:
+        """An input robbed of its real value row is still reported."""
+        self._run_neighbour("composed_host_remedy_reproduces_itself")
 
     def test_mutant_entity_name_dragged_onto_its_row(self) -> None:
         """A dragged name covers its own row by 1080px², and is named."""
@@ -24528,6 +25283,85 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # still reading the prose or the pin it was written about, so a fifth copy
 # of the 1.25 error or a pin drifting back onto a literal fails there rather
 # than shipping.
+# ONE ENTRY AGAIN on 2026-08-25 (curator batch 46), and this value was read
+# off the guard rather than typed, the way the paragraph above says to.
+# `TestNoErrorTrapsTheAgentBehindIt` holds the remedy-fixpoint SWEEP, which
+# is the generalisation of `composed_host_remedy_reproduces_itself` from one
+# instance to its class: every composed kind through every documented door,
+# asking whether the ERROR a batch produces can be escaped by the repair the
+# finding itself prescribes. It is hand-authored rather than a catalogue
+# entry because a sweep has no neighbour and asserts no magnitude — its
+# claim is a DENOMINATOR — and it sits outside `TestMutantCatalogue`
+# because every red in that class must map to a mutant id or the
+# red-by-assertion guard walks past it. Its second, UNGATED method does the
+# neighbour's job: a sweep that crashed or asked nothing satisfies
+# `looped == []` perfectly, so the companion asserts the walk reached every
+# pair, was refused by none, and heard the check speak.
+# WHY IT IS NOT A DUPLICATE OF THE MUTANT, measured rather than argued:
+# patching the three input paths into agreement clears both `input` pairs
+# and leaves this red on `checkbox`, whose remedy turns a `(2, 1) missing`
+# into a `(1, 2) surplus` and silently unchecks the box. The two do not
+# flip together, so neither subsumes the other.
+#
+# A SECOND ENTRY the same day, and it is the one the sweep above FOUND.
+# `TestADeclaredDatumSurvivesTheDoorItCameThrough` pins the half of the
+# `customData` split that no instrument can reach: `add` rewrites a datum
+# the caller declared — `kpi` value `'42'` to `''`, `slider` 40 to the
+# default 50.0, `checkbox` and `toggle` `checked: True` to False — AND
+# mints the parts matching the rewritten state, so the scene is internally
+# coherent, `composed_host_gaps` is empty and every registered check is
+# correctly silent. It is hand-authored for a sharper reason than the
+# sweep's: registering a check name for it would state a contract no
+# scene-level lint can meet, because the disagreement is between the store
+# and the REQUEST and no rule over elements can reach a request. Measured
+# identical at `3aa3839`, so it is red against the tree that landed the
+# input repair rather than waiting on it. Two opposite repairs turn it
+# green — mint from whichever door supplied the datum, or refuse the batch
+# out loud — which is what keeps it from prescribing either.
+#
+# BACK TO ONE on 2026-08-26, READ OFF THE GUARD the way the entries above
+# say to: the marker was dropped, `test_the_hand_authored_red_classes_are_
+# the_ones_that_exist` was run, it reported `measured
+# {'TestNoErrorTrapsTheAgentBehindIt': 1}`, and the measured side was
+# transcribed. `TestADeclaredDatumSurvivesTheDoorItCameThrough` lost a
+# LINE and not a number — the twelfth time that has been the shape here —
+# and it lost it to `3acf67d`, the user's ruling to HONOUR the datum,
+# which is one of the two opposite repairs it was measured against. The
+# class stays in the file at two green tests; only the colour moved.
+# THE SWEEP DID NOT FLIP AND SHOULD NOT HAVE: it is red on both checkbox
+# doors, one of which this fold UNCOVERED. That is the separation between
+# a pin and its generalisation arriving exactly as the sweep's own
+# docstring predicted it would.
+#
+# EMPTY AGAIN, hours later on 2026-08-26, and the entry directly above is
+# WRONG AS WRITTEN — it says the sweep "did not flip and should not have",
+# which was true on the branch it was written on and false on the tree it
+# landed in. That is the third failure shape this file keeps recording:
+# true when written, false where it shipped. It is left standing rather
+# than edited because the correction is the record.
+#
+# `TestNoErrorTrapsTheAgentBehindIt` FLIPPED on the fold, not on a repair
+# made here: `24f008e` had already closed both checkbox doors on the tip
+# while the sweep sat red on a branch forked 34 commits earlier, so the
+# fold is where the two met. WITNESSED rather than assumed, because a red
+# that arrives green is the shape that gets waved through: at the branch
+# head `66de974` the class runs `OK (expected failures=1)` with its
+# ungated companion `ok` as the live control, and with the mask lifted it
+# is `FAILED (failures=1)` on an ASSERTION naming both checkbox pairs —
+# not an error wearing the same word. On the fold result the same method
+# is an `unexpected success`. Cause proved by counterfactual, not by
+# reading `24f008e`'s message: reverting only its `canvas.py` hunk turns
+# it red again with the identical assertion text.
+#
+# THE VALUE BELOW WAS READ OFF THE GUARD, as every entry above says to:
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
+# `measured {}` against the declared `{'TestNoErrorTrapsTheAgentBehindIt':
+# 1}`, and the measured side was transcribed. The class stays in the file
+# at two green tests, both still asking the same 40 pairs; only the colour
+# moved — a class losing a LINE and not a number, the shape the entries
+# above keep recording. No ordinal is claimed: the running count in those
+# entries was inherited rather than re-derived, and incrementing an
+# inherited number is how a figure goes false without anyone editing it.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
@@ -25037,7 +25871,42 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"duplicated_widget_reported_as_bare"}
+# DOWN TO ONE on 2026-08-26, and READ OFF THE GUARD rather than typed:
+# the decorator was dropped first, `test_the_catalogue_reds_are_the_ones_
+# declared` was run, and the measured side was transcribed.
+# `composed_host_remedy_reproduces_itself` left by the route its own entry
+# named — `f87c34c` made the three input paths agree, which was candidate
+# repair (iii) of the four it was measured green against, and not the
+# message-only one it was measured still-red against. Its row carries the
+# witnessing, including the finding that the folded lineage never held a
+# state where that red was red AND its neighbour green: it passed through
+# a window at `9a387da`/`e07384d` where `input` had no floor at all, which
+# is WRONG-1 from its own matrix, and the neighbour is what said so.
+# `duplicated_widget_reported_as_bare` stays: nothing in this fold touched
+# `_rehost_duplicated_parts`, and a slider whose track and thumb are drawn
+# is still reported as a bare rectangle that says nothing about what it is.
+# BOTH ARRIVED 2026-08-25 (curator batch 46), from one review of the branch
+# that landed `composed_host_stripped`, and they are two SUBJECTS and not a
+# pair — the boundary between them was measured, not assumed. The remedy one
+# is the op path: a finding whose prescribed repair reproduces it. The bare
+# one is the save path: a finding whose stated cause the picture refutes.
+# Re-issuing the host CLEARS the second and LOOPS on the first, which is the
+# measurement that says they are different defects with different fixes.
+# ARRIVED 2026-08-25 (curator batch 46), refilling this set the same day the
+# entry below emptied it, and against the very check that flip landed. It is
+# red for a reason no entry here has had before: the check FIRES, and what it
+# says is TRUE. What is wrong is the REMEDY — the finding asks for the host to
+# be re-issued, and re-issuing it reproduces the finding verbatim, on a
+# three-op batch that returns zero op errors at every step. So the pin is a
+# two-scene property (a prescribed repair must not be reproducible by
+# performing it) rather than a magnitude, which is why its `expect` is a
+# `Silence` over a scene the builder has already tried to repair. It flips
+# when the WP owning `input` makes `make_element`, `reconcile_composed` and
+# `composed_part_floor` read one field instead of three; four candidate
+# repairs of differing blast radius were measured green against patched
+# copies of `canvas.py` before it was filed, and three wrong ones measured
+# still-red, each caught by a different leg of the pair.
 # EMPTIED AGAIN 2026-08-25 by the lint the entry below was waiting for:
 # `composed_part_floor` + `composed_host_gaps` in canvas.py, filed as an
 # ERROR from `lint_layout`. The mutant, its `FindingSpec` and its
@@ -35750,6 +36619,323 @@ class TestTheHalfPixelProseStatesTheSpacingItMeasures(unittest.TestCase):
             "quantum, the heights that claim implies, the heights "
             "measured at the label's own spacing)"
             % "; ".join(repr(w) for w in wrong))
+
+
+_ABSENT = object()
+
+
+def declared_datum_after_add(kind: str, field: str, value: Any,
+                             through_custom_data: bool) -> tuple:
+    """`add` one composed host declaring `field`, and read it back.
+
+    THE INSTRUMENT IS THE STORE, NOT THE LINT, and it has to be: the
+    scenes this measures are internally CONSISTENT — the parts drawn
+    match the state as rewritten — so `composed_host_gaps` is empty and
+    every registered check is correctly quiet. Nothing scene-level can
+    see this, because nothing scene-level ever saw the request. The
+    evidence exists only in the relation between what was asked for and
+    what came back.
+
+    Args:
+        kind: The composed kind to declare.
+        field: The state key the kind's floor is a function of.
+        value: What the caller declares.
+        through_custom_data: Route it through `customData` rather than
+            as a top-level op key. Both doors are documented.
+
+    Returns:
+        `(stored, op_errors, gaps)` — the value read back off the host
+        (`_ABSENT` if the key is gone), the batch's op errors, and
+        `composed_host_gaps` on the result.
+    """
+    spec = dict(_SWEEP_BOX)
+    if through_custom_data:
+        spec["customData"] = {"kind": kind, field: value}
+    else:
+        spec["kind"], spec[field] = kind, value
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": spec}], errors)
+    host = next(e for e in els if e["id"] == "h")
+    return ((host.get("customData") or {}).get(field, _ABSENT), errors,
+            canvas.composed_host_gaps(els))
+
+
+def sweep_declared_data(through_custom_data: bool) -> list[tuple]:
+    """Every kind whose declared datum comes back changed, and silently.
+
+    Args:
+        through_custom_data: Which of the two documented doors to use.
+
+    Returns:
+        Sorted `(kind, field, declared, stored)` for each kind where the
+        value came back different with no op error to say so. Value
+        equality, not string equality: `slider` legitimately widens an
+        int 40 to 40.0 and that is a coercion, not a discard.
+    """
+    out = []
+    for kind in sorted(_KIND_STATE):
+        for field, value in _KIND_STATE[kind].items():
+            stored, errors, _ = declared_datum_after_add(
+                kind, field, value, through_custom_data)
+            if errors:
+                continue          # refused out loud is an honest answer
+            if stored is _ABSENT or stored != value:
+                out.append((kind, field, value,
+                            "<absent>" if stored is _ABSENT else stored))
+    return out
+
+
+class TestADeclaredDatumSurvivesTheDoorItCameThrough(unittest.TestCase):
+    """A datum the caller declared must not come back changed in silence.
+
+    THE SUBJECT HAS NO CHECK, AND CANNOT HAVE ONE OF THE USUAL SHAPE.
+    Found 2026-08-25 by `sweep_remedy_fixpoints` while it was hunting
+    something else, which is the argument for sweeps in one line. Every
+    other pin in this file hangs off a detector that speaks; here every
+    detector is correctly quiet, because the scene it is handed is
+    internally coherent — `add` rewrites the state AND mints the parts
+    that match the rewritten state, so floor equals drawn and the
+    picture agrees with the store. What disagrees is the store and the
+    REQUEST, and no scene-level rule can reach a request.
+
+    THAT IS WHY IT IS A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT.
+    Registering a check name for it — the `composed_host_stripped`
+    red-by-absence pattern — would state a contract no lint can meet
+    and quietly prescribe a rule that cannot exist. The remedy lives at
+    the op boundary, so the pin does too.
+    """
+
+    def test_a_customdata_datum_is_kept_or_refused_but_never_rewritten(
+            self) -> None:
+        """Four kinds discard the caller's own datum without a word.
+
+        FLIPPED 2026-08-26 by `3acf67d`, "a mint block may not clobber
+        the customData it is about to overwrite" — the user ruled
+        HONOUR IT and `_composed_state` now reads whichever door
+        supplied the datum, testing `is None` rather than truthiness so
+        a declared `0` or `False` survives too. That is candidate repair
+        (1) of the two this pin was measured against; the other, refusing
+        the batch out loud, would have flipped it equally, which is why
+        the pin never named either.
+
+        THE RED WAS WITNESSED BEFORE THE FLIP, and the observation is
+        recorded here because a born-green red with no recorded red
+        observation is indistinguishable from a vacuous test six months
+        from now. Both halves were run from an isolated tree — this
+        module's own file copied beside the tree under test — so the
+        only thing that varied is `canvas.py`. Per tree: `git archive
+        <sha> | tar -x -C <tree>`, then `cp tests/test_mutants.py
+        <tree>/tests/`, then from `<tree>/tests` run `python3 -m
+        unittest` naming this class and this method:
+
+            PRE-FIX   f87c34c -> OK (expected failures=1)
+            POST-FIX  734f238 -> FAILED (unexpected successes=1)
+
+        AND THE CONTROL IS WHAT MAKES THAT A FINDING, because a one-way
+        "green on the post-fix tree" proves nothing — a red can be green
+        for failing to run at all. The neighbour pole below,
+        `test_the_same_data_through_the_top_level_door_is_kept`, was run
+        on BOTH trees and passed on both: the reader was alive across
+        the flip, so the colour change is the subject moving and not the
+        instrument dying.
+
+        WHAT IT USED TO SAY, kept because the row is the record. Through
+        `customData`, with zero op errors and no finding anywhere: `kpi`
+        value `'42'` came back `''`, `slider` value `40` came back
+        `50.0` (the default, not the request), `checkbox` and `toggle`
+        `checked: True` came back `False`. `input` was the one kind that
+        kept it — before its own repair as an inconsistency the ERROR
+        tier reported, after it as a value row on the canvas.
+
+        THE PROPERTY IS NOT "HONOUR IT", which is what keeps this red
+        fix-agnostic and stops it prescribing the repair the implementer
+        is weighing. Three answers are honest — mint from whichever door
+        supplied it, refuse the batch and say why, or leave the caller's
+        `customData` alone — and only one is not: rewriting a stored
+        datum to a value nobody asked for while reporting success. A
+        refusal passes this test by construction, since an op error is
+        the batch saying so out loud.
+
+        THE THIRD ASSERTION IS THE NEAREST WRONG REPAIR. Honouring the
+        datum without minting the part it implies would clear this test
+        and open the one next door: a `checked` checkbox owing two parts
+        and drawing one. So the scene is required to stay internally
+        consistent under whatever repair lands, which is the half a
+        request/response contract cannot express on its own.
+        """
+        self.assertEqual(
+            sweep_declared_data(through_custom_data=True), [],
+            "a documented `add` rewrote a datum the caller declared in "
+            "`customData` and reported no error: %s. Honour it, or refuse "
+            "the batch and say why — but a stored value nobody asked for, "
+            "under a scene every check calls healthy, is the v0.5 "
+            "silent-drop defect on a second field"
+            % (sweep_declared_data(through_custom_data=True),))
+        for kind, state in sorted(_KIND_STATE.items()):
+            for field, value in state.items():
+                with self.subTest(kind=kind, field=field):
+                    _, _, gaps = declared_datum_after_add(
+                        kind, field, value, True)
+                    self.assertEqual(
+                        gaps, [],
+                        "%s: whatever repair lands must leave the parts "
+                        "agreeing with the state — honouring the datum "
+                        "and not minting what it owes trades this defect "
+                        "for the one composed_host_stripped reports"
+                        % kind)
+
+    def test_the_same_data_through_the_top_level_door_is_kept(self) -> None:
+        """The live half: the store read is real and the doors differ.
+
+        THE NEIGHBOUR'S JOB, for a pin with no detector. The red above
+        is an emptiness claim, and an emptiness claim is satisfied
+        perfectly by a broken instrument — a `declared_datum_after_add`
+        that stopped reading `customData`, or an `apply_ops` that
+        stopped building anything, would report "nothing rewritten" and
+        look like a fix. This asserts the same five declarations through
+        the OTHER documented door and requires every one to survive, so
+        the pair says something a single pole cannot: the datum is not
+        unstorable, and the difference the red measures is the door.
+
+        Ungated and asserted in every commit, for the reason every
+        neighbour is: the mask over the red hides errors as readily as
+        failures.
+        """
+        self.assertEqual(
+            sweep_declared_data(through_custom_data=False), [],
+            "the top-level door must keep every declared datum, or the "
+            "red beside this one is measuring a broken reader rather "
+            "than a difference between two doors: %s"
+            % (sweep_declared_data(through_custom_data=False),))
+
+
+class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
+    """The remedy-fixpoint property, swept across kinds and doors.
+
+    NOT IN `TestMutantCatalogue`, and the placement is the guard's
+    ruling rather than a preference: every `expectedFailure` in that
+    class must map to a catalogue mutant, or
+    `test_red_mutants_are_red_by_mismatch_not_by_error` walks past it
+    and reports health it never checked. This is a sweep, not a mutant,
+    so it lives beside its own companion instead — which does the job a
+    neighbour does, one class down.
+    """
+
+    def test_no_error_survives_its_own_prescribed_remedy(self) -> None:
+        """No composed kind is trapped behind an ERROR it cannot escape.
+
+        THE GENERALISATION OF ONE MUTANT TO ITS CLASS. Every ERROR-tier
+        finding a documented op batch can produce must clear when the
+        host it names is re-issued from its own stored state — the only
+        repair a reader of the SCENE can perform, since the lint is
+        handed elements and never an op log. A finding whose remedy
+        reproduces it is worse than silence: silence leaves the agent
+        looking, a looping remedy sends it round the same corner
+        forever, while the ERROR tier says "repair in the same move".
+
+        WHY THIS DOES NOT REPLACE `composed_host_remedy_reproduces_
+        itself`, which is the obvious objection and the reason both
+        exist. That mutant is the CONTRACT for one instance: a full
+        quadruple with a neighbour that dies if the check goes blind, a
+        magnitude-bearing pole, a value-survival guard for the nearest
+        wrong repair, and four candidate fixes proved to flip it. None
+        of that is expressible here — a sweep has no neighbour, asserts
+        no magnitude, and cannot tell a fix from a lobotomy. This is the
+        DENOMINATOR instead: how many doors were asked and how many came
+        back trapped. THEY DO NOT EVEN FLIP TOGETHER, which settles the
+        duplication question by measurement: patching the three input
+        paths into agreement clears both `input` pairs and leaves this
+        red on `checkbox`, where the remedy turns a `(2, 1) missing`
+        into a `(1, 2) surplus` and silently unchecks the box on the way
+        — because `make_element` reads `spec.get("checked", False)` over
+        a stored `customData.checked` that says True. Measured
+        2026-08-25, and that repair UNCOVERS a second checkbox door
+        rather than closing one.
+
+        IT REPORTS RATHER THAN EXPECTS, which is the second reason it is
+        shaped as a sweep. Nothing here encodes which pairs are supposed
+        to loop, so a kind that starts looping arrives named in the
+        failure text instead of passing under a stale allowance — and
+        the `duplicate + save` door is in the walk for exactly that
+        reason, measured rather than assumed to clear.
+
+        WHICH PAIRS ARE TRAPPED is deliberately not restated here.
+        `_TRAPPED_PAIRS` above carries them with a line each on why, and
+        the ungated companion below compares that transcription to the
+        measurement — so the list is readable without a run AND cannot
+        drift from one. Read the constant, not this paragraph.
+
+        WHAT IT DOES NOT REACH, so nobody reads the denominator as the
+        space: five doors and eight kinds is a sample of the documented
+        op surface, not a cover of it. Batches that combine doors, ops
+        other than `add`/`mod`, and every geometry other than one 200x64
+        box are outside it.
+        """
+        found = sweep_remedy_fixpoints()
+        self.assertEqual(
+            found["looped"], [],
+            "%d of the %d (kind, door) pairs asked file an ERROR, and %d "
+            "of those cannot be escaped by the repair the finding itself "
+            "prescribes: %s. Refused batches (not counted as asked): %s"
+            % (len(found["fired"]), len(found["asked"]),
+               len(found["looped"]), found["looped"],
+               [(k, d) for k, d, _ in found["refused"]]))
+
+    def test_the_sweep_reaches_every_door_and_hears_the_check(self) -> None:
+        """The companion: the walk above is neither crashed nor vacuous.
+
+        THIS IS THE NEIGHBOUR'S JOB, DONE FOR A SWEEP. The assertion
+        above sits under `expectedFailure`, which swallows errors as
+        well as failures, so a builder that started raising — or a door
+        that quietly stopped reaching the op layer — would read as the
+        same healthy red as a live defect. Worse, `looped == []` is
+        satisfied perfectly by a walk that asks nothing at all: delete
+        the ERROR and this sweep goes green while proving less than
+        nothing. So this half is ungated and asserted in every commit,
+        and it claims the three facts that make the red mean something:
+        every kind reached every door, no batch was refused, and the
+        check under test actually SPOKE somewhere in the walk.
+
+        The numbers are floors and not equalities on purpose. A door or
+        a kind added later must not fail this by existing; what must
+        fail it is a walk that shrank, went silent, or started being
+        turned away by the op layer.
+        """
+        found = sweep_remedy_fixpoints()
+        self.assertEqual(
+            len(found["asked"]),
+            len(_COMPOSED_KINDS) * len(_REMEDY_DOORS),
+            "the sweep did not reach every (kind, door) pair: asked %d of "
+            "%d, refused %s" % (len(found["asked"]),
+                                len(_COMPOSED_KINDS) * len(_REMEDY_DOORS),
+                                [(k, d) for k, d, _ in found["refused"]]))
+        self.assertEqual(
+            found["refused"], [],
+            "every door in this sweep is documented and must be accepted; "
+            "a refused batch measures the op layer's manners, not the "
+            "remedy property: %s" % (found["refused"],))
+        self.assertGreaterEqual(
+            len(found["fired"]), 1,
+            "no door in the whole walk produced the ERROR this sweep is "
+            "about, so `looped == []` above would pass over a check that "
+            "says nothing at all — a corpse, not a clean bill")
+        # AND THE TRANSCRIPTION, checked here rather than trusted. The
+        # red's own failure text names the trapped pairs, but only to
+        # somebody who ran it and lifted the mask; `_TRAPPED_PAIRS` is
+        # what a reader sees. Comparing the two is what stops that
+        # comment becoming the fifth hand copy in this repo to go quietly
+        # wrong — and it fails in BOTH directions, so a pair that clears
+        # forces the edit exactly as a pair that appears does.
+        self.assertEqual(
+            {(kind, door) for kind, door, _ in found["looped"]},
+            _TRAPPED_PAIRS,
+            "the trapped pairs have moved: measured %s against the "
+            "transcription in `_TRAPPED_PAIRS`, %s. Update that constant "
+            "and the paragraph above it — a pair that CLEARED is the "
+            "flip contract arriving, and a pair that APPEARED is a new "
+            "defect this sweep exists to name"
+            % (sorted((k, d) for k, d, _ in found["looped"]),
+               sorted(_TRAPPED_PAIRS)))
 
 
 class TestCoverage(unittest.TestCase):
