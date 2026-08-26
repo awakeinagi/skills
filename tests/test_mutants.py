@@ -38573,22 +38573,52 @@ class _GroupingBench:
         "entity": {"kind": "entity", "width": 200, "height": 120,
                    "attributes": ["a", "b", "c"]}}
 
-    def __init__(self, kind: str = "slider") -> None:
+    def __init__(self, kind: str = "slider",
+                 custom: dict[str, Any] | None = None) -> None:
         """Mint one grouped composed host through the ops layer.
+
+        `custom` IS THE FORGERY DOOR, and it shares this bench rather
+        than getting one of its own so that the `add` door and the `mod`
+        door are measured over the identical widget — a difference in
+        reading is then a difference in door and not in fixture.
+
+        A REFUSAL IS RECORDED, NOT RAISED, but only for a mint that was
+        deliberately forged. Shutting the door with an op error instead
+        of dropping the key is an honest repair, and a bench that died
+        in its constructor would turn that repair into an ERROR the
+        caller cannot tell from a broken fixture. An ordinary mint has
+        nothing to refuse, so a `BatchError` there is a broken bench and
+        still raises.
 
         Args:
             kind: A key of `SPECS` — which widget this bench is about.
+            custom: `customData` posted with the `add`. `None` is the
+                ordinary mint every other door in this file uses.
+
+        Raises:
+            canvas.BatchError: If an ORDINARY mint is refused, which is
+                a broken bench and not a finding. A forged mint records
+                the refusal in `mint_error` instead.
         """
         self.root = Path(tempfile.mkdtemp(prefix="mutants-grouping-"))
         self.project = canvas.Project(self.root)
         self.project.ensure_tree()
         self.store = canvas.Store(self.project)
-        self.store.apply_batch({
-            "base_revn": 0, "artifact": self.AID,
-            "create": {"id": self.AID, "name": "F", "type": "wireframe"},
-            "ops": [{"op": "add", "element": dict(
-                self.SPECS[kind], type="rectangle", id=self.HOST,
-                label="W", x=0, y=0)}]})
+        self.mint_error: str | None = None
+        spec = dict(self.SPECS[kind], type="rectangle", id=self.HOST,
+                    label="W", x=0, y=0)
+        if custom is not None:
+            spec["customData"] = custom
+        try:
+            self.store.apply_batch({
+                "base_revn": 0, "artifact": self.AID,
+                "create": {"id": self.AID, "name": "F",
+                           "type": "wireframe"},
+                "ops": [{"op": "add", "element": spec}]})
+        except canvas.BatchError as exc:
+            if custom is None:
+                raise
+            self.mint_error = str(exc)
 
     def close(self) -> None:
         """Remove the scratch project."""
@@ -38635,10 +38665,16 @@ class _GroupingBench:
             `"split(h=…,parts=n/m)"` for the half-states that are
             neither — a shape worth naming rather than rounding, since
             a host left alone in a group of one is a real defect this
-            file has seen before.
+            file has seen before. `"no-host"` when the mint was refused
+            and there is no widget at all, which is a READING and not an
+            error: a door that shuts is one of the shapes an honest
+            repair takes, and a `StopIteration` here would report it as
+            a broken fixture.
         """
-        els = self.store.scenes[self.AID]
-        host = next(e for e in els if e["id"] == self.HOST)
+        els = self.store.scenes.get(self.AID) or []
+        host = next((e for e in els if e["id"] == self.HOST), None)
+        if host is None:
+            return "no-host"
         parts = [e for e in els if canvas.part_owner_id(e) == self.HOST]
         in_host = self.GID in (host.get("groupIds") or [])
         in_parts = sum(1 for p in parts
@@ -38776,25 +38812,52 @@ def grouping_through_the_unswept_doors() -> dict[str, tuple[str, str, str]]:
     return out
 
 
-def grouping_after_a_forged_ungroup_mark() -> tuple[str, str, list[str]]:
-    """Try to pull a widget apart through the ops layer, two ways.
+def grouping_after_a_forged_ungroup_mark() -> tuple[str, str, list[str], str]:
+    """Try to pull a widget apart through the `mod` door, two ways.
 
     THE STRUCTURAL HAZARD, DRIVEN. The memory of an ungroup is written
     and cleared on the user save path and read on every path, so every
     door that can WRITE it is a way to take apart a widget the user
-    never touched. This drives the two the schema exposes: `customData`,
-    which `mod` documents as merged, and the terse top-level key.
+    never touched. This drives the two the `mod` schema exposes:
+    `customData`, which `mod` documents as merged, and the terse
+    top-level key. The THIRD door — the `add` that mints the widget and
+    the mark in one op — is `a_forged_add_cannot_mint_an_unassembled_
+    widget` below, and it is separate because a mint has no widget to
+    take apart, only one to build wrong.
 
     Nothing here is forged into the store by hand — both attempts go
     through `apply_batch`, so a door that is shut answers for itself.
 
+    `canvas.UNGROUP_MARK` IS READ WITHOUT A DEFAULT, and the `getattr(…,
+    "ungrouped")` that stood here was measured before it was replaced,
+    because "a default cannot refuse" is an argument and this is a
+    reading. The tree: `canvas.py` at `d6f9bf1` with the constant
+    renamed to `UNGROUP_GESTURE`, its stored key renamed to
+    `"user_ungrouped"`, and BOTH pops deleted — an honest rename over
+    two wide-open doors. The shipped driver falls back to `"ungrouped"`,
+    posts a key the product no longer knows, gets `("grouped",
+    "grouped")` because nothing read it, and the test REPORTS A PASS.
+    The bare read raises `AttributeError` from the one test that calls
+    this and refuses to report a result it did not earn. The assertion
+    side hardcoded the same literal, so the two halves would have
+    disagreed under exactly that rename; both now come off one symbol.
+
     Returns:
-        `(after_the_forged_mod, after_a_geometry_mod, terse_errors)` —
-        the grouping readings around the `customData` attempt, and
-        whatever the terse-key attempt was told, empty when it was
-        accepted in silence.
+        `(after_the_forged_mod, after_a_geometry_mod, terse_errors,
+        terse_grouping)` — the grouping readings around the `customData`
+        attempt, whatever the terse-key attempt was told (empty when it
+        was accepted in silence), and `"<after the terse batch>/<after a
+        geometry mod>"`, which is the half the mark actually owns.
+
+    THE TERSE READING CARRIES BOTH POINTS BECAUSE ONE CANNOT REFUSE, and
+    that was measured rather than assumed. Against a `canvas.py` patched
+    to HONOUR the terse key instead of refusing it, the widget reads
+    `grouped` immediately after the batch — nothing recomposes on that
+    op — and `apart` only after the next ordinary edit. A reading taken
+    at the first point alone is green over a wide-open door, which is
+    this repo's own disease one level in.
     """
-    mark = getattr(canvas, "UNGROUP_MARK", "ungrouped")
+    mark = canvas.UNGROUP_MARK
     bench = _GroupingBench()
     try:
         bench.save()
@@ -38819,9 +38882,118 @@ def grouping_after_a_forged_ungroup_mark() -> tuple[str, str, list[str]]:
                          "attrs": {mark: True}}]})
         except canvas.BatchError as exc:
             errors = [str(exc)]
-        return (forged, after, errors)
+        settled = terse.grouping()
+        terse.geometry_mod()
+        return (forged, after, errors, "%s/%s" % (settled, terse.grouping()))
     finally:
         terse.close()
+
+
+def a_forged_add_cannot_mint_an_unassembled_widget() -> tuple[str, str]:
+    """Mint a widget through `add` with the ungroup mark forged onto it.
+
+    THE DOOR NOTHING WATCHED. `make_element` drops this key and its own
+    comment states the defect it closed as MEASURED — "a forged mark on
+    an `add` really did mint a widget that came back unassembled and
+    stayed that way". Nothing held it: with that one line deleted and
+    `tests/` held at `d6f9bf1`, the WHOLE of `test_mutants.py` (641
+    tests) and the WHOLE of `test_backend.py` (1079 tests, 1 skipped)
+    pass, while this driver reads `apart` at every one of its three
+    points. The fix shipped without a witness; this is the witness.
+
+    WHY THE `mod` DOOR'S DRIVER WILL NOT DO. That one takes an ASSEMBLED
+    widget apart, so the mark is applied to a composite that already
+    exists. Here the mark and the widget arrive in the SAME op, the
+    parts are built with the group already stripped, and no later save
+    has a base to compare against — which is exactly the state
+    `_honour_ungroup`'s docstring says cannot be re-derived from the
+    picture, so nothing downstream can repair it.
+
+    THREE READINGS AND NOT ONE, because the comment's claim has two
+    halves: `at the mint` is "came back unassembled" and the other two
+    are "and stayed that way". A repair that only cleaned up on the
+    next save would satisfy one and not the sentence.
+
+    NOTHING HERE READS `canvas.py` SOURCE, and that is deliberate under
+    the anchor rule: a driver that looked for `custom.pop(UNGROUP_MARK`
+    would name one repair as the only acceptable one and reject two
+    honest ones silently. Measured against patched copies of a
+    pop-deleted `canvas.py`, three differently-shaped repairs all clear
+    this — stripping the key in `make_element`'s CALLER, REFUSING the
+    op out loud, and letting the key land and RECONCILING every host
+    the batch minted afterwards. The refusal is why `"refused"` is a
+    verdict rather than a crash.
+
+    Returns:
+        `(verdict, evidence)`. `verdict` is `"assembled"` when the
+        widget reads `"grouped"` at the mint, after a plain save and
+        after an ordinary geometry `mod`; `"refused"` when the batch was
+        rejected and no widget was minted at all; otherwise the FIRST
+        reading that was neither — `"apart"`, or a `split(…)` — so the
+        caller reports what it read and not merely that it was wrong.
+        `evidence` names all three readings, or the refusal.
+    """
+    bench = _GroupingBench(custom={canvas.UNGROUP_MARK: True})
+    try:
+        if bench.mint_error is not None:
+            got = bench.grouping()
+            if got != "no-host":
+                return ("refused-but-minted",
+                        "the batch was rejected and a widget was minted "
+                        "anyway, reading %s: %s" % (got, bench.mint_error))
+            return ("refused", bench.mint_error)
+        at_mint = bench.grouping()
+        bench.save()
+        after_save = bench.grouping()
+        bench.geometry_mod()
+        after_mod = bench.grouping()
+        reads = (at_mint, after_save, after_mod)
+        evidence = ("at the mint %s, after a plain save %s, after a `mod "
+                    "{width: 200}` %s" % reads)
+        for got in reads:
+            if got != "grouped":
+                return (got, evidence)
+        return ("assembled", evidence)
+    finally:
+        bench.close()
+
+
+def a_real_ungroup_survives_an_agent_batch() -> tuple[str, str]:
+    """Pull a widget apart for real, then let the ops layer run over it.
+
+    THE POLE THE DRIVER ABOVE CANNOT BE, and the trap is specific to
+    this subject. That driver asserts a widget comes back ASSEMBLED, and
+    a `canvas.py` that has stopped honouring the ungroup gesture
+    entirely satisfies it perfectly — the widget is grouped because
+    nothing is ever allowed to be apart. Measured against exactly that
+    patch (`_honour_ungroup` forced to its closing branch, with the mark
+    stripped wherever a group is closed): the driver above still returns
+    `"assembled"` and THIS one reverses, reading `grouped/grouped` where
+    the user's own hands asked for `apart`.
+
+    THE GESTURE IS REAL AND THE EDIT SAYS NOTHING ABOUT GROUPING, which
+    is what makes the second reading a claim rather than a restatement:
+    `mod {width: 200}` runs the same `apply_ops` -> `reconcile_composed`
+    -> `_close_widget_group` path the forged `add` runs through, so this
+    proves the mark is load-bearing THROUGH THE ENTRY POINT the pin is
+    about, not merely somewhere in the product.
+
+    Returns:
+        `(reading, evidence)` — `"apart/apart"` when the gesture is
+        honoured on the save that carries it and still honoured after an
+        agent batch, and the two readings joined by `/` otherwise.
+    """
+    bench = _GroupingBench()
+    try:
+        bench.ungroup()
+        settled = bench.grouping()
+        bench.geometry_mod()
+        after = bench.grouping()
+        return ("%s/%s" % (settled, after),
+                "the gesture settled at %s and a `mod {width: 200}` left "
+                "it %s" % (settled, after))
+    finally:
+        bench.close()
 
 
 def a_minted_composite_is_one_draggable_thing() -> tuple[str, str]:
@@ -38866,6 +39038,16 @@ class TestOnlyAGroupingGestureChangesGrouping(unittest.TestCase):
     composites` clears the memory the moment a scene arrives carrying
     the group, so no request can leave that pair behind. The world
     leaves it anyway, and the doors below are the routes.
+
+    THREE OP DOORS CAN WRITE THE MARK, AND ALL THREE ARE WATCHED HERE
+    as of 2026-08-26. `mod {"customData"}` and the terse top-level key
+    are `test_a_forged_mark_cannot_take_a_widget_apart`; the `add` that
+    mints the widget and the mark in ONE op is `test_a_forged_add_
+    cannot_mint_an_unassembled_widget`, and until that method existed
+    nothing in this repo watched it — `make_element`'s pop could be
+    deleted with two whole suites still green. The three are one law
+    from three sides and share `_GroupingBench`, so a difference in
+    reading between them is a difference in DOOR and not in fixture.
 
     EVERY COLOUR IN THIS DOCSTRING NAMES A SHA, and that rule was paid
     for by this docstring breaking it. It used to say the red failed on
@@ -38940,6 +39122,15 @@ class TestOnlyAGroupingGestureChangesGrouping(unittest.TestCase):
     round 2's `attributes: []` class returning through a repair this
     pin used to bless; the entity door is what refuses it now, and it
     is the reason a KIND axis exists here at all.
+
+    A FOURTH IS CAUGHT AND IT IS THE OTHER DIRECTION, added with the
+    `add` door. Everything above refuses a product that stops CLOSING
+    groups; `test_a_real_ungroup_still_takes_the_widget_apart` refuses
+    one that stops OPENING them. That pole is not decoration: a
+    `canvas.py` which has stopped honouring the gesture entirely passes
+    the forged-`add` method perfectly — nothing is ever apart, so
+    nothing can be wrongly apart — and was measured doing exactly that,
+    with the pole the only method in this class's own subject to fail.
     """
 
     def test_neither_unswept_door_lets_a_mod_decide_the_grouping(
@@ -39020,16 +39211,120 @@ class TestOnlyAGroupingGestureChangesGrouping(unittest.TestCase):
         the door is shut — and those are two different reasons for one
         colour, which is exactly the state a live guard is for.
         """
-        forged, after, terse = grouping_after_a_forged_ungroup_mark()
+        forged, after, terse, terse_group = \
+            grouping_after_a_forged_ungroup_mark()
         self.assertEqual(
             (forged, after), ("grouped", "grouped"),
             "an agent batch naming only `customData` took a widget the "
             "user assembled apart: %r after the forged mod, %r after an "
             "ordinary geometry edit" % (forged, after))
+        # THE TERSE DOOR'S OUTCOME, ADDED 2026-08-26, and it is the half
+        # this method could not previously make. The assertion below it
+        # reads the REFUSAL MESSAGE, and that message is the generic
+        # unknown-attribute validator: `{"bogusattr": True}` earns a
+        # byte-equivalent one, so it measures the validator's existence
+        # and not the mark's. True and worth keeping — a door that
+        # refuses in silence is a worse door — but it proves nothing
+        # about this key in particular. THIS line does: whatever the
+        # terse attempt was told, the widget it was aimed at is still
+        # one draggable thing afterwards, which is the product law the
+        # mark actually owns and is measured at the outcome rather than
+        # in the prose.
+        #
+        # IT WAS RUN AGAINST AN OPEN DOOR BEFORE IT WAS TRUSTED, and the
+        # first draft of it could not refuse: it read the grouping once,
+        # immediately after the terse batch, and a `canvas.py` patched to
+        # HONOUR the key reads `grouped` at that point — nothing
+        # recomposes on that op — going `apart` only on the next
+        # ordinary edit. Both points, or the line is decoration.
+        self.assertEqual(
+            terse_group, "grouped/grouped",
+            "the terse top-level door took a widget the user assembled "
+            "apart; it read %s after the attempt and after an ordinary "
+            "geometry edit" % terse_group)
         self.assertTrue(
-            terse and "ungrouped" in terse[0],
+            terse and canvas.UNGROUP_MARK in terse[0],
             "the terse door must refuse out loud and name the attribute "
             "it will not take; it answered %r" % (terse or "nothing"))
+
+    def test_a_forged_add_cannot_mint_an_unassembled_widget(self) -> None:
+        """The third door: `add` mints the widget and the mark at once.
+
+        GREEN AT BIRTH, AND SAID SO. This is a REGRESSION pin, not a
+        record of a live defect: `make_element` already drops the key,
+        and its own comment states the damage it closed as measured.
+        What was missing was any witness — with that single line deleted
+        and `tests/` held at `d6f9bf1`, `test_mutants.py` reports `Ran
+        641 tests ... OK` and `test_backend.py` reports `Ran 1079 tests
+        ... OK (skipped=1)`. Two whole suites, 1720 tests, and the door
+        stood open. The `mod` door is watched by the method above; this
+        one was watched by nothing, which is "kill each check and see
+        who notices" applied to a fix that shipped without one.
+
+        RE-EARNED, WHICH IS WHAT A GREEN PIN OWES. A pin asserting the
+        ABSENCE of a defect is satisfied by a dead mechanism, so the
+        control was run rather than reasoned about: with the pop spliced
+        out of a `canvas.py` pinned at `d6f9bf1` and nothing else
+        changed, this method FAILS BY ASSERTION reading `apart` at the
+        mint, `apart` after a plain save and `apart` after a `mod
+        {width: 200}` — the exact sentence `make_element`'s comment
+        wrote down. The two poles beside it stay green over that same
+        tree, which is what separates "the door is shut" from "the
+        widget was never assembled in the first place".
+
+        IT PRESCRIBES NO REPAIR, and three were measured to prove it
+        rather than argued. Against that same pop-deleted tree, each
+        monkeypatched from a throwaway plugin and applied alone:
+        stripping the key in `make_element`'s CALLER, REFUSING the op
+        out loud with an error naming the attribute, and letting the key
+        land then RECONCILING every host the batch minted. All three
+        turn this green. That is why the verdict admits `"refused"`: a
+        door that shuts is a different product answer from a door that
+        drops the key, and both honour the law this asserts.
+        """
+        verdict, evidence = a_forged_add_cannot_mint_an_unassembled_widget()
+        self.assertIn(
+            verdict, ("assembled", "refused"),
+            "an `add` carrying the ungroup mark minted a widget that came "
+            "back unassembled: %s. The mark records that a PERSON pulled "
+            "a widget apart, so an op that arrives carrying one is "
+            "claiming a gesture nobody made — the door either drops the "
+            "key or refuses the op, and this one did neither" % evidence)
+
+    def test_a_real_ungroup_still_takes_the_widget_apart(self) -> None:
+        """The pole that dies when the mark stops meaning anything.
+
+        THE SPECIFIC TRAP FOR THIS SUBJECT. The pin above asserts a
+        widget comes back ASSEMBLED, and a `canvas.py` that has stopped
+        honouring the ungroup gesture entirely satisfies that perfectly:
+        nothing is ever allowed to be apart, so nothing can be wrongly
+        apart. Measured against exactly that patch — `_honour_ungroup`
+        forced to its closing branch and the mark stripped wherever a
+        group is closed — the pin above still returns `"assembled"` and
+        THIS method is the one that fails, reading `grouped/grouped`
+        where the user's own hands asked for `apart`.
+
+        AND IT RUNS THROUGH THE SAME ENTRY POINT, which is the half that
+        is easy to get wrong. Proving the gesture works SOMEWHERE would
+        close the dead-substrate hole and leave the dead-door hole open;
+        the second reading here is an agent `mod {width: 200}`, so the
+        mark's authority is proven along the `apply_ops` ->
+        `reconcile_composed` -> `_close_widget_group` path the forged
+        `add` above travels.
+
+        NOT A COPY OF ITS NEIGHBOURS. `test_the_ungroup_is_honoured_on_
+        the_save_that_carries_it` next door reads the save alone and
+        never runs an op; the four doors above it all restart the store
+        or strip `customData` first. A plain in-session ungroup followed
+        by an ordinary agent batch is a route neither of them drives.
+        """
+        reading, evidence = a_real_ungroup_survives_an_agent_batch()
+        self.assertEqual(
+            reading, "apart/apart",
+            "the ungroup mark has to MEAN something for the pin beside "
+            "this one to be worth anything: %s. A product that has "
+            "stopped honouring the gesture passes that pin vacuously, "
+            "and this is the reading that refuses it" % evidence)
 
     def test_the_grouping_mechanism_is_still_alive(self) -> None:
         """A widget nobody touched is one thing, before and after an edit.
