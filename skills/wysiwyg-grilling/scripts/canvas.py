@@ -10371,9 +10371,17 @@ def _ink_shape(el):
 
     SIZE AND NOT POSITION, because a paste MOVES the copy — the client's
     own duplicate offset is 10px — while the thing that makes it a copy
-    is that it is the same shape. Rounded to the tenth, the precision
-    `normalize_element` stores geometry at, so two elements the scene
-    cannot tell apart are not told apart here either.
+    is that it is the same shape.
+
+    THE TENTH IS A FLOAT-NOISE FLOOR AND NOT A STORAGE PRECISION, which
+    an earlier draft of this sentence got backwards by citing
+    `normalize_element`. That path rounds through `_round_geom`, which
+    is `int(round(v))` — WHOLE pixels — so on any scene that has been
+    through a commit this rounding is a no-op and exact equality would
+    do. It earns its place on the scenes that have NOT: a hand-built
+    fixture or an in-flight `apply_ops` result can carry a wave 114.08
+    wide, and there a tenth is far tighter than any real difference
+    between two shapes and far looser than the noise of recomputing one.
 
     Args:
         el: Any element dict.
@@ -10808,19 +10816,38 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
     fresh set read 5 tagged against a floor of 5 while five untagged
     copies stood on top of it, and every check called that healthy.
 
-    THE SECOND INSTRUMENT IS `unowned_ink_inside`, AND IT IS GATED ON
-    CONGRUENCE. Unowned ink counts as drawn only where its type and
-    drawn size match a part this host ALREADY OWNS, which is what a
-    pasted copy of a part is and what an authored backdrop is not. The
-    two cheaper rules were measured and both cost a pole: counting every
-    unowned decoration standing inside a host silences a `slider` whose
-    ink is drawn-but-unlinked at 2 == 2 — the narrowing the user ruled
-    against on 2026-08-26, contract C12 — and counting it on the surplus
-    arm only bills the user `1 surplus` for the `reorder index 0` panel
-    `layout.md` instructs the agent to author. Congruence is also what
-    makes the narrowing structurally impossible rather than merely
-    avoided: a host that owns NOTHING has nothing to be congruent to, so
-    its count stays 0 and it goes on being reported.
+    THE SECOND INSTRUMENT IS `unowned_ink_inside`, AND IT IS READ BY THE
+    SURPLUS ARM ONLY. The missing arm counts OWNED parts and nothing
+    else, exactly as it did before that instrument existed, and THAT is
+    what makes the narrowing contract C12 forbids structurally
+    unreachable: loose decoration is not an input to it, so no
+    arrangement of loose decoration can quiet it. The surplus arm can
+    only ADD a finding where there was none.
+
+    AN EARLIER DRAFT PUT THE GUARANTEE IN THE WRONG PLACE and the
+    correction is worth keeping, because the wrong version reads as
+    sound. It claimed congruence was what made the narrowing impossible
+    — "a host that owns NOTHING has nothing to be congruent to, so its
+    count stays 0". True, and about the wrong door: the door is
+    `0 < owned < floor`. With one number, `drawn = owned + copies`, an
+    ownership count and an ink count CANCEL — strip a backlink and
+    `owned` falls by one while `copies` rises by one, because the
+    orphan is congruent to its own surviving siblings. Measured through
+    `Store.commit`, that silenced `body` at 1 and 2 stripped backlinks
+    and `image` at 1, on scenes where dragging the host leaves the ink
+    behind. `slider`, `toggle` and `checkbox` escaped only because their
+    parts have DIFFERENT shapes from each other, so nothing was
+    congruent to anything — which is why a slider-shaped pole cannot see
+    this class and why the arms are split rather than the predicate
+    tightened.
+
+    CONGRUENCE STILL BOUNDS THE SURPLUS ARM, and that is the job it can
+    do: unowned ink counts as drawn only where its type and drawn size
+    match a part this host ALREADY OWNS, which is what a pasted copy of
+    a part is and what an authored backdrop is not. Splitting the arms
+    WITHOUT the gate was measured too, and bills the user `1 surplus`
+    for the `reorder index 0` panel `layout.md` instructs the agent to
+    author.
 
     WHICH KINDS REACH WHICH ARM is still worth stating, and an earlier
     draft of it named `body` and `checkbox`, which was wrong in both
@@ -10863,24 +10890,43 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         if floor is None:
             continue
         owned = parts.get(e["id"], [])
-        # THE CONGRUENCE GATE, AND IT IS THE WHOLE RULE. Unowned ink
-        # counts as drawn only where it is the same TYPE and the same
-        # SIZE as a part this host already owns, which is what a pasted
-        # copy of a part is and what an authored backdrop is not — a
-        # 152x56 panel over 144x3 waves matches nothing and is not
-        # billed. The cheaper rules were both measured and both cost
-        # something the poles refuse: counting every unowned decoration
-        # inside the host silences `wc` at 2 == 2, the narrowing
-        # contract C12 forbids, and splitting the arms so that only
-        # surplus counts loose ink bills the authored panel `1 surplus`.
-        # Requiring a part to be congruent WITH is also why the
-        # narrowing cannot happen by accident: a host that owns nothing
-        # has nothing to be congruent to, so its count stays 0 and it
-        # goes on being reported.
+        kind = (e.get("customData") or {}).get("kind")
+        # THE TWO ARMS READ TWO DIFFERENT NUMBERS, AND THAT SEPARATION IS
+        # THE RULE. The missing arm asks an OWNERSHIP question — how many
+        # parts does this host own — and the surplus arm asks an INK
+        # question — how much part-shaped ink is drawn on it. A single
+        # `drawn = owned + copies` compared against the floor in both
+        # directions looks tidier and is WRONG, because the two quantities
+        # then CANCEL: strip one backlink and `owned` falls by one while
+        # `copies` rises by one, the sum is unchanged, and the check goes
+        # silent on a `body` that has genuinely lost a part. Measured
+        # through `Store.commit` on 2026-08-26, that shape silenced
+        # `body` at 1 and 2 stripped backlinks and `image` at 1 — the
+        # exact damage the user's ruling is about, since dragging such a
+        # host leaves the orphaned wave behind.
+        #
+        # SO THE MISSING ARM NEVER READS UNOWNED INK AT ALL. It counts
+        # what this check has always counted, which is what makes the
+        # narrowing contract C12 forbids structurally unreachable rather
+        # than merely avoided: nothing about loose decoration is an input
+        # to it, so no arrangement of loose decoration can quiet it. The
+        # surplus arm is the only reader of `unowned_ink_inside`, and it
+        # can only ADD a finding where there was none.
+        #
+        # THE CONGRUENCE GATE BOUNDS THE SURPLUS ARM AND ONLY IT. Unowned
+        # ink counts as drawn only where its type and drawn size match a
+        # part this host ALREADY OWNS, which is what a pasted copy of a
+        # part is and what an authored backdrop is not — a 152x56 panel
+        # over 144x3 waves matches nothing and is not billed. Splitting
+        # the arms WITHOUT this gate was measured and bills the user
+        # `1 surplus` for the `reorder index 0` panel `layout.md`
+        # instructs the agent to author.
+        if len(owned) < floor:
+            out.append((e["id"], kind, floor, len(owned)))
+            continue
         shapes = {_ink_shape(p) for p in owned}
-        copies = [g for g in unowned_ink_inside(els, e)
-                  if _ink_shape(g) in shapes]
-        drawn = len(owned) + len(copies)
+        ink = len(owned) + sum(
+            1 for g in unowned_ink_inside(els, e) if _ink_shape(g) in shapes)
         # A PINNED PART SUPPRESSES THE SURPLUS ARM AND ONLY THAT ARM,
         # because this file's own reconciler produces the reading.
         # `reconcile_composed`'s `body` branch deletes every wave and
@@ -10890,11 +10936,8 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         # 2026-08-25). That is a pin honoured, not damage. The missing
         # arm needs no such guard: a pin can only keep a part alive,
         # never remove one, so it cannot push a count below the floor.
-        if drawn > floor and e["id"] in pinned:
-            continue
-        if drawn != floor:
-            out.append((e["id"], (e.get("customData") or {}).get("kind"),
-                        floor, drawn))
+        if ink > floor and e["id"] not in pinned:
+            out.append((e["id"], kind, floor, ink))
     return sorted(out)
 
 
@@ -20344,10 +20387,22 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # is the cheapest thing that makes the two pictures readable
         # apart AND is worth having on its own — they are what the
         # reader has to go and look at.
+        #
+        # SCENE ORDER, NOT SORTED, and the truncation SAYS it truncates.
+        # A lexicographic sort here read `h-body1, h-body10, h-body11,
+        # h-body12` off a twelve-wave block — three of the four ids a
+        # string sort happens to put first, which tells a reader looking
+        # for the ink almost nothing and looks like a claim about which
+        # waves are loose. `unowned_ink_inside` answers in scene order,
+        # so the first four are the first four ON THE CANVAS, and the
+        # count is printed against the list so "4 of 12" cannot read as
+        # "4".
         loose = unowned_ink_inside(els, ix[hid]) if hid in ix else []
-        seen = "%d unowned decoration(s) (%s)" % (
-            len(loose), ", ".join(e["id"] for e in sorted(
-                loose, key=lambda e: e["id"])[:4]))
+        shown = [g["id"] for g in loose[:4]]
+        seen = "%d unowned decoration(s) (%s%s)" % (
+            len(loose), ", ".join(shown),
+            " and %d more" % (len(loose) - len(shown))
+            if len(loose) > len(shown) else "")
         remint = kind in ("body", "kpi", "input")
         if drawn > floor:
             said = "The extra parts are drawn over the widget's own ink."
