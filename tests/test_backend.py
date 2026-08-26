@@ -20087,6 +20087,474 @@ class TestComposedReconciliation(Base):
         self.assertNotEqual(rec["summary"]["headline"], "no changes")
 
 
+class TestDuplicatedWidgetKeepsItsOwnInk(Base):
+    """Curator batch 45, 2026-08-20: the pins for the duplicate-backlink
+    data loss, witnessed in a real browser before this class existed.
+
+    Excalidraw's `duplicateElements` remaps `id`, `groupIds`,
+    `containerId` and every binding through one per-operation map and
+    passes `customData` through VERBATIM — so after a Ctrl+D each part
+    of the copy still names the ORIGINAL as its host, and
+    `reconcile_composed` finds its targets by exactly those backlinks.
+    The observed save gave the untouched original FOUR attribute rows
+    (its own two, twice), gave the copy NONE, deleted the user's two
+    rows from the store, and billed the original three facts it had not
+    earned. `lint_layout` returned the same reading on the damaged scene
+    as on the healthy one.
+
+    THE MEASURE IS ROW TEXT PER HOST, NEVER ID SURVIVAL, and the
+    difference is why this class can say anything at all. A probe that
+    counted "elements the user posted that the save DELETED" reads the
+    same on both arms: the entity path re-mints rows on every save, so
+    healthy and damaged both delete the same ids. Text and offset
+    survive a re-mint at the same place; they do not survive a part
+    being eaten by the wrong host. Every pin here scores ink as CONTENT
+    — `(dx, dy, w, h, text, points)` relative to its OWN host — so a
+    faithful copy compares equal to its source and a vanished part
+    cannot hide behind a fresh id.
+
+    The silent half is asserted too, and it matters as much: a repair
+    that re-points too eagerly moves a user's ink to the WRONG host,
+    which is the same class of damage as the bug. An untouched save
+    stays byte-identical, an honest resize still narrates, and the
+    blessed Ctrl+Shift+G ungroup keeps every backlink where the user
+    left it.
+    """
+
+    ENTITY: ClassVar[dict] = {
+        "kind": "entity", "label": "Trade",
+        "attributes": ["id: uuid", "notional: money"]}
+    BODY: ClassVar[dict] = {"kind": "body"}
+    CHECK: ClassVar[dict] = {"kind": "checkbox", "checked": True,
+                             "label": "Remember"}
+
+    def seed_widgets(self, specs, atype="wireframe"):
+        """Seed artifact `art` holding one composed widget per spec.
+
+        Args:
+            specs: List of `(element_id, attrs)` pairs; each becomes one
+                240x60 rectangle carrying `attrs`.
+            atype: Artifact type — "domain" for entities, else
+                "wireframe".
+
+        Returns:
+            The served element list at revn 1.
+        """
+        ops, y = [], 100
+        for eid, extra in specs:
+            el = {"id": eid, "type": "rectangle", "x": 100, "y": y,
+                  "width": 240, "height": 60}
+            el.update(extra)
+            ops.append({"op": "add", "element": el})
+            y += 300
+        rec, _ = self.store.apply_batch({
+            "base_revn": 0, "ops": ops,
+            "create": {"id": "art", "type": atype, "name": "Art",
+                       "concept": "domain" if atype == "domain"
+                       else "screen"}})
+        self.assertEqual(rec["revn"], 1)
+        return self.store.scenes["art"]
+
+    def ctrl_d(self, scene, host_id, dy=300, keep_groups=False):
+        """Duplicate a widget's group the way the browser's Ctrl+D does.
+
+        Mirrors `duplicateElements`: fresh ids, `containerId` and
+        `boundElements` remapped through one map, group ids regenerated
+        — and `customData` deep-copied UNCHANGED, which is the defect
+        under test and so is spelled here rather than assumed.
+
+        Args:
+            scene: Posted element list; the copy is appended in place.
+            host_id: Id of the host to duplicate.
+            dy: Y offset for the copy.
+            keep_groups: Carry group ids over verbatim instead of
+                remapping them. This is the EDITING-GROUP corner —
+                `getNewGroupIdsForDuplication` preserves every group at
+                or above the one being edited, so a duplicate made
+                inside the widget's own group leaves both hosts sharing
+                one innermost key and the group stops being a witness.
+
+        Returns:
+            The copy's host id.
+        """
+        host = next(e for e in scene if e["id"] == host_id)
+        gids = set(host.get("groupIds") or [])
+        members = [e for e in scene
+                   if e["id"] == host_id
+                   or (gids & set(e.get("groupIds") or []))
+                   or e.get("containerId") == host_id]
+        idmap = {e["id"]: e["id"] + "C" for e in members}
+        for e in members:
+            c = copy.deepcopy(e)
+            c["id"], c["y"] = idmap[e["id"]], e.get("y", 0) + dy
+            c["groupIds"] = list(e.get("groupIds") or []) if keep_groups \
+                else [g + "C" for g in (e.get("groupIds") or [])]
+            if c.get("containerId"):
+                c["containerId"] = idmap.get(c["containerId"],
+                                             c["containerId"])
+            if c.get("boundElements"):
+                c["boundElements"] = [dict(b, id=idmap.get(b["id"], b["id"]))
+                                      for b in c["boundElements"]]
+            scene.append(c)
+        return idmap[host_id]
+
+    def save_scene(self, posted, must_reconcile):
+        """Commit a posted scene as a user save, spying on the reconciler.
+
+        A probe that calls nothing proves nothing, so this refuses to
+        return unless every named host actually reached
+        `reconcile_composed`: the pins below all turn on what that
+        function did, and a save that never reached it would print a
+        reassuring pass over an untested path.
+
+        Args:
+            posted: The element list the browser posted.
+            must_reconcile: Host ids that MUST have been handed to
+                `reconcile_composed` during this save.
+
+        Returns:
+            `(record, stored_elements)`.
+        """
+        seen, real = [], canvas.reconcile_composed
+
+        def spy(els, index, existing, el):
+            """Record the host handed in, then delegate to the real one."""
+            seen.append(el.get("id"))
+            return real(els, index, existing, el)
+
+        with mock.patch.object(canvas, "reconcile_composed", spy):
+            rec = self.store.commit("user", {"art": posted},
+                                    base_revn=self.store.head_revn())
+        for want in must_reconcile:
+            self.assertIn(want, seen,
+                          "%r never reached reconcile_composed (saw %r) — "
+                          "this pin tested nothing" % (want, seen))
+        return rec, self.store.scenes["art"]
+
+    @staticmethod
+    def parts_of(els, host):
+        """Live elements whose `*_of` backlink names `host`.
+
+        Args:
+            els: Element list.
+            host: Host id.
+
+        Returns:
+            List of element dicts.
+        """
+        return [e for e in els
+                if any(k.endswith("_of") and v == host
+                       for k, v in (e.get("customData") or {}).items())]
+
+    @classmethod
+    def rows_of(cls, els, host):
+        """The TEXT of `host`'s parts, in drawn order.
+
+        Args:
+            els: Element list.
+            host: Host id.
+
+        Returns:
+            List of strings, y-ordered.
+        """
+        return [e.get("text", "") for e in
+                sorted(cls.parts_of(els, host), key=lambda e: e.get("y", 0))]
+
+    @classmethod
+    def ink_of(cls, els, host):
+        """`host`'s parts scored as CONTENT, keyed off `host`'s corner.
+
+        Position is RELATIVE to the host, so a faithful copy 300px down
+        compares equal to its source, and a part re-minted under a fresh
+        id at the same place reads as the user's ink intact.
+
+        Args:
+            els: Element list.
+            host: Host id.
+
+        Returns:
+            Sorted `(dx, dy, w, h, text, points)` tuples; empty when
+            `host` is not in the scene.
+        """
+        h = next((e for e in els if e["id"] == host), None)
+        if h is None:
+            return []
+        return sorted(
+            (round(e.get("x", 0) - h.get("x", 0), 3),
+             round(e.get("y", 0) - h.get("y", 0), 3),
+             round(e.get("width", 0), 3), round(e.get("height", 0), 3),
+             e.get("text", ""), json.dumps(e.get("points")))
+            for e in cls.parts_of(els, host))
+
+    def facts_on(self, rec, eid):
+        """The fact verbs this save billed to element `eid`.
+
+        Args:
+            rec: A commit record.
+            eid: Element id.
+
+        Returns:
+            Sorted list of fact verbs.
+        """
+        facts = ((rec or {}).get("artifacts") or {}).get("art", {}) \
+            .get("facts") or []
+        return sorted(f.get("fact") for f in facts if f.get("element") == eid)
+
+    # -- 1/2. the ink lands on the host that owns it -------------------
+
+    def test_duplicated_entity_rows_split_two_and_two(self):
+        # The witnessed shape: [4 on the original, 0 on the copy]. Both
+        # halves are asserted, because either alone passes a scene that
+        # is still wrong — a copy with two rows proves nothing if the
+        # original also kept four.
+        served = self.seed_widgets([("ent", self.ENTITY)], "domain")
+        want = self.rows_of(served, "ent")
+        self.assertEqual(want, ["id: uuid", "notional: money"])
+        posted = copy.deepcopy(served)
+        cid = self.ctrl_d(posted, "ent")
+        _, after = self.save_scene(posted, must_reconcile=("ent",))
+        self.assertEqual(self.rows_of(after, "ent"), want,
+                         "the untouched original absorbed the copy's rows")
+        self.assertEqual(self.rows_of(after, cid), want,
+                         "the copy came back with no rows of its own")
+        self.assertEqual(self.ink_of(after, cid), self.ink_of(after, "ent"),
+                         "the copy is not a faithful copy")
+
+    def test_duplicated_body_waves_land_on_the_copy(self):
+        # `body` is the second delete-and-remint-by-backlink arm, and it
+        # fails DIFFERENTLY from `entity`: the original's waves are
+        # re-derived from its own height so it looks untouched, while
+        # the copy's three posted waves are deleted outright. An
+        # original-only assertion is blind to exactly this shape.
+        #
+        # WHAT THIS PIN CANNOT SEE, measured rather than assumed, so the
+        # next reader does not mistake its green for a stronger claim
+        # than it is. TWO live clauses reach this outcome — re-hosting
+        # the copy's waves, and `body`'s arrival in the new-host paste
+        # gate — and either alone repairs it: ablate `_rehost_duplicated
+        # _parts` and the picture is byte-identical, because a wave is
+        # pure derivation and a canonical re-mint under the copy's own
+        # id is indistinguishable from the user's own. So this pin goes
+        # red only against the pre-fix file with both clauses gone, and
+        # deleting either one on its own is invisible HERE. The clauses
+        # are held separately: the paste gate by
+        # `test_bare_pasted_body_host_composes_its_waves`, the
+        # re-hosting by the entity, stencil and editing-group pins,
+        # where the part carries text a re-mint cannot recreate.
+        served = self.seed_widgets([("bod", self.BODY)])
+        want = self.ink_of(served, "bod")
+        self.assertTrue(want, "the seed drew no waves — nothing to lose")
+        posted = copy.deepcopy(served)
+        cid = self.ctrl_d(posted, "bod")
+        _, after = self.save_scene(posted, must_reconcile=("bod",))
+        self.assertEqual(self.ink_of(after, "bod"), want)
+        self.assertEqual(self.ink_of(after, cid), want,
+                         "the copy's waves were deleted, not re-hosted")
+
+    # -- 3. nothing is billed to the widget the user never touched -----
+
+    def test_duplicate_bills_no_fact_to_the_untouched_original(self):
+        # THE NARRATION FACE OF THE SAME DEFECT, and the one the first
+        # pass missed: `resized` is named explicitly here because the
+        # original spike reported only the two `attribute_added` facts
+        # and a second pass found the third. Duplicating one `Trade`
+        # told the user their untouched `Trade` had gained two
+        # attributes and been resized.
+        served = self.seed_widgets([("ent", self.ENTITY)], "domain")
+        posted = copy.deepcopy(served)
+        cid = self.ctrl_d(posted, "ent")
+        rec, _ = self.save_scene(posted, must_reconcile=("ent",))
+        billed = self.facts_on(rec, "ent")
+        self.assertNotIn("resized", billed)
+        self.assertNotIn("attribute_added", billed)
+        self.assertEqual(billed, [],
+                         "the save billed the untouched original for an "
+                         "edit the user never made")
+        self.assertTrue(self.facts_on(rec, cid),
+                        "the copy the user DID make earned no fact — the "
+                        "save went silent instead of going honest")
+
+    # -- 4. a bare pasted host composes, backlinks or no backlinks -----
+
+    def test_bare_pasted_body_host_composes_its_waves(self):
+        # SEPARATE FROM THE RE-HOSTING FIX, deliberately. This host
+        # arrives with NO parts and NO stale backlink, so nothing here
+        # depends on re-pointing: it is the new-host gate in
+        # `_interpret_user_composites`, whose kind list omitted `body`
+        # from the day it was written while `reconcile_composed` carried
+        # a working `body` arm the whole time. A pasted body block drew
+        # as an empty rectangle and nothing said so.
+        served = self.seed_widgets([("bod", self.BODY), ("cb", self.CHECK)])
+        want = len(self.parts_of(served, "bod"))
+        self.assertTrue(want)
+        posted = copy.deepcopy(served)
+        src = next(e for e in posted if e["id"] == "bod")
+        pasted = copy.deepcopy(src)
+        pasted["id"], pasted["y"] = "bod2", src["y"] + 500
+        pasted["groupIds"], pasted["boundElements"] = [], []
+        posted.append(pasted)
+        _, after = self.save_scene(posted, must_reconcile=("bod2",))
+        self.assertEqual(len(self.parts_of(after, "bod2")), want,
+                         "the pasted body block drew as an empty rectangle")
+
+    # -- 5. `kind` is a door into recomposition, like width and label --
+
+    def test_mod_kind_body_alone_composes_the_waves(self):
+        # The agent-facing face of the same silence. `kind` does not
+        # change an input to a derivation, it changes WHAT THE PARTS
+        # ARE, so it belongs beside width/height/label in the gate. The
+        # relation, not the count: sending `kind` alone must give the
+        # same widget as sending `kind` with the height it already has.
+        self.seed_widgets([("p", {})])
+        both = self.store.head_revn()
+        self.store.apply_batch({
+            "base_revn": both, "artifact": "art",
+            "ops": [{"op": "mod", "id": "p", "attrs": {"kind": "body"}}]})
+        alone = self.ink_of(self.store.scenes["art"], "p")
+        self.assertTrue(alone, "`mod kind` left a body block with no waves")
+        store2 = canvas.Store(self.project)
+        store2.apply_batch({
+            "base_revn": store2.head_revn(), "artifact": "art",
+            "ops": [{"op": "mod", "id": "p", "attrs": {"kind": "body",
+                                                       "height": 60}}]})
+        self.assertEqual(alone, self.ink_of(store2.scenes["art"], "p"),
+                         "the agent had to send a height it did not want "
+                         "to change to get the waves")
+
+    # -- 6. the stencil case: the original host is not in the scene ----
+
+    def test_pasted_stencil_rehosts_when_the_original_is_absent(self):
+        # A user-authored library stencil built from a composed widget,
+        # dropped into an artifact that has never held it.
+        # `addElementsFromPasteOrLibrary` calls `duplicateElements`, so
+        # the parts arrive naming a host that IS NOT IN THIS SCENE — and
+        # `composed_group_gaps`, whose loop drops any part whose owner
+        # it cannot resolve, is blind to precisely that. The parts must
+        # follow the pasted host, and nothing may be left naming a
+        # ghost.
+        # A SEPARATE PROJECT, so nothing ties the stencil's host to the
+        # scene it is dropped into — which is what a library entry is.
+        donor_root = Path(tempfile.mkdtemp(prefix="wysiwyg-stencil-"))
+        self.addCleanup(shutil.rmtree, donor_root, ignore_errors=True)
+        donor_project = canvas.Project(donor_root)
+        donor_project.ensure_tree()
+        donor = canvas.Store(donor_project)
+        donor.apply_batch({
+            "base_revn": 0, "create": {"id": "sten", "type": "domain",
+                                       "concept": "domain", "name": "S"},
+            "ops": [{"op": "add", "element": dict(
+                {"id": "ent", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 240, "height": 60}, **self.ENTITY)}]})
+        stencil = copy.deepcopy(donor.scenes["sten"])
+        want = self.rows_of(stencil, "ent")
+        served = self.seed_widgets([("cb", self.CHECK)], "domain")
+        posted = copy.deepcopy(served)
+        host = next(e for e in stencil if e["id"] == "ent")
+        gids = set(host.get("groupIds") or [])
+        members = [e for e in stencil
+                   if e["id"] == "ent"
+                   or (gids & set(e.get("groupIds") or []))
+                   or e.get("containerId") == "ent"]
+        idmap = {e["id"]: "P" + e["id"] for e in members}
+        for e in members:
+            c = copy.deepcopy(e)
+            c["id"], c["y"] = idmap[e["id"]], e.get("y", 0) + 700
+            c["groupIds"] = [g + "P" for g in (e.get("groupIds") or [])]
+            if c.get("containerId"):
+                c["containerId"] = idmap.get(c["containerId"],
+                                             c["containerId"])
+            if c.get("boundElements"):
+                c["boundElements"] = [dict(b, id=idmap.get(b["id"], b["id"]))
+                                      for b in c["boundElements"]]
+            posted.append(c)
+        # `cb` is the resident widget: it proves the save path ran even
+        # in the arm where the pasted host is never reconciled, which is
+        # the finding rather than a broken pin.
+        _, after = self.save_scene(posted, must_reconcile=("cb",))
+        self.assertEqual(self.rows_of(after, "Pent"), want,
+                         "the stencil's rows did not follow the host that "
+                         "was actually pasted")
+        self.assertEqual([e["id"] for e in self.parts_of(after, "ent")], [],
+                         "a part is still naming a host that is not in "
+                         "this scene")
+
+    # -- 7. the editing-group corner, where the group is not a witness -
+
+    def test_editing_group_duplicate_prefers_the_newly_minted_host(self):
+        # THE ONE CORNER THE FIX'S AUTHOR NAMED AS UNOBSERVED.
+        # `getNewGroupIdsForDuplication` preserves every group id at or
+        # above the group being EDITED, so a Ctrl+D made from inside the
+        # widget's own group hands the copy's parts the SAME
+        # `groupIds[0]` the original's parts carry. The group stops
+        # discriminating, both hosts answer the lookup, and the only
+        # thing left standing is the tie-break that prefers the host
+        # that is not in the base scene.
+        served = self.seed_widgets([("ent", self.ENTITY)], "domain")
+        want = self.rows_of(served, "ent")
+        posted = copy.deepcopy(served)
+        gid = (next(e for e in posted
+                    if e["id"] == "ent").get("groupIds") or [None])[0]
+        self.assertIsNotNone(gid, "the seed minted no widget group — the "
+                                  "corner this pin describes cannot arise")
+        cid = self.ctrl_d(posted, "ent", keep_groups=True)
+        self.assertEqual(
+            (next(e for e in posted if e["id"] == cid).get("groupIds")
+             or [None])[0], gid,
+            "the copy did not keep the editing group — this pin tested "
+            "the ordinary duplicate, not the corner")
+        _, after = self.save_scene(posted, must_reconcile=("ent",))
+        self.assertEqual(self.rows_of(after, "ent"), want)
+        self.assertEqual(self.rows_of(after, cid), want,
+                         "inside an editing group the copy's rows still "
+                         "went to the original")
+
+    # -- the silent half: a false re-point is the same damage ----------
+
+    def test_untouched_save_of_composed_widgets_changes_nothing(self):
+        # A re-hosting pass that runs on parts it should not touch moves
+        # a user's ink to the wrong host. The strongest available
+        # statement of "it did not run" is that the stored scene came
+        # back byte-identical and the save narrated as a no-op.
+        served = self.seed_widgets(
+            [("ent", self.ENTITY), ("bod", self.BODY), ("cb", self.CHECK)],
+            "domain")
+        before = json.dumps(served, sort_keys=True)
+        rec, after = self.save_scene(copy.deepcopy(served),
+                                     must_reconcile=("ent", "bod", "cb"))
+        self.assertEqual(json.dumps(after, sort_keys=True), before)
+        self.assertEqual(rec["summary"]["headline"],
+                         "saved without changing anything")
+
+    def test_honest_resize_still_rederives_and_narrates(self):
+        # The other pole of pin 3: `resized` must NOT vanish from a save
+        # where the user really did resize. A pin that only forbids
+        # facts is satisfied by a narrator that has gone mute.
+        served = self.seed_widgets([("bod", self.BODY)])
+        posted = copy.deepcopy(served)
+        next(e for e in posted if e["id"] == "bod")["height"] = 160
+        rec, after = self.save_scene(posted, must_reconcile=("bod",))
+        self.assertIn("resized", self.facts_on(rec, "bod"))
+        self.assertGreater(len(self.parts_of(after, "bod")),
+                           len(self.parts_of(served, "bod")),
+                           "a taller body block did not re-derive more "
+                           "waves")
+
+    def test_blessed_ungroup_keeps_every_backlink(self):
+        # Ctrl+Shift+G is a deliberate act this design blesses, and it
+        # produces the same reading a duplicate does — parts whose
+        # groups no longer name their host. A repair that touched them
+        # would silently undo a decision the user made with their hands.
+        # Only parts ABSENT FROM THE BASE may be re-pointed.
+        served = self.seed_widgets([("ent", self.ENTITY)], "domain")
+        want = self.rows_of(served, "ent")
+        posted = copy.deepcopy(served)
+        for e in posted:
+            e["groupIds"] = []
+        _, after = self.save_scene(posted, must_reconcile=("ent",))
+        self.assertEqual(self.rows_of(after, "ent"), want,
+                         "the ungroup gesture cost the user their rows")
+
+
 class TestPictureIsTheTruth(Base):
     """WP4 (r4-12, r4-1, D15, B6, E-4, D24): the measurements that decide
     legibility must agree with the renderer the user actually sees."""

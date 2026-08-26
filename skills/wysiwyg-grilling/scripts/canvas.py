@@ -3476,15 +3476,24 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
     for e in fresh:
         gids = e.get("groupIds") or []
         owners = hosts.get(gids[0], []) if gids else []
-        # A COPY BELONGS TO THE COPY — a belt this file has not yet
-        # proved it needs. Ctrl+D reaches the SINGULAR
-        # `duplicateElement(appState.editingGroupId, ...)`, and
-        # `getNewGroupIdsForDuplication` regenerates every id strictly
-        # BELOW the editing group's index, so the widget group is always
-        # freshly minted and names exactly one host: measured over the
-        # duplicate-inside-an-editing-group gesture, this tie-break is
-        # never reached. Kept because it costs one line and the arm it
-        # guards — two hosts under one group — otherwise degrades to
+        # A COPY BELONGS TO THE COPY, and this tie-break IS REACHED —
+        # the sentence that stood here said the opposite, and said it
+        # was "a belt this file has not yet proved it needs". It reads
+        # `getNewGroupIdsForDuplication` correctly and then draws the
+        # wrong conclusion from it. That function regenerates every id
+        # strictly BELOW the editing group's index, which mints a fresh
+        # widget group only while the editing group is an OUTER one.
+        # When the user is editing INSIDE the widget's own group, the
+        # widget group IS the editing group, `indexOf` answers 0,
+        # `endIndex` is 0, the loop maps nothing, and the group id
+        # survives verbatim onto the copy. Both hosts then answer
+        # `hosts[gids[0]]`, `owners` has length 2, and the line below is
+        # the only thing choosing the copy over the original.
+        #
+        # Proved by ablation rather than by reading: with `pick =
+        # owners`, `test_editing_group_duplicate_prefers_the_newly_
+        # minted_host` is the SOLE test in 1760 that goes red. The arm
+        # it guards — two hosts under one group — otherwise degrades to
         # dropping a user's backlink, which is the expensive answer.
         minted = [o for o in owners if o not in old_ix]
         pick = minted or owners
