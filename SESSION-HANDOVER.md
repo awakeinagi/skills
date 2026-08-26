@@ -1027,6 +1027,39 @@ the plan. `erDiagram → domain` is an unambiguous win (0.27s, no browser).
   of my dismissals — see [[assess-the-picture-not-the-path]] and
   `~/docs/optimization/r5/cold-look-triage.md`.
 
+### 6a. `npm ci` and the elk packages — witnessed once, NOT reproducing
+
+Salvaged from a commit message on a branch that was dropped, because it was the
+only record of it in the tree — and then corrected, because its stated cause is
+wrong and acting on it would have cost a tracked-file change for nothing.
+
+**What was seen.** On 2026-08-18, building the web bundle (`693534e`,
+TASK-ELBOX), `npm ci` omitted `@mermaid-js/layout-elk` and `elkjs` from
+`node_modules` despite both being plain non-optional lockfile entries with valid
+integrity; `vite build` then failed to resolve the dynamic import in
+`ensureElkLayouts`. Seen three times that day, with and without `--prefix`, in
+two checkouts. Worked around by unpacking the two tarballs and verifying them
+against the lockfile's own sha512.
+
+**Re-measured 2026-08-26, and it does not reproduce.** Same coin, not a
+different one: node v24.14.0 and npm 11.9.0 are the exact versions named, and
+the lockfile is byte-identical to the one it was seen against —
+`git rev-list --count fd52255..HEAD -- frontends/wysiwyg-grilling/package-lock.json`
+is **0**. A real `npm ci` in an isolated extraction exits 0 and both packages
+land on disk at 0.2.2 and 0.9.3, with `vite`, `react` and `mermaid` present as
+controls and 263 top-level dirs. `--dry-run` was not accepted as the answer: a
+resolution plan cannot speak to what lands on disk.
+
+**So the original note's advice is WITHDRAWN.** It said "a stale lockfile is the
+likely cause and regenerating it is a tracked-file change that wants its own
+review". The lockfile is not the cause — it is fine, and regenerating it would
+be a tracked-file change, a review and a fold spent on a wrong diagnosis.
+Whatever bit that build three times was environment-transient. If it recurs,
+clear the npm cache before touching a tracked file.
+
+Kept rather than deleted only because the workaround is worth having written
+down if it comes back.
+
 ## 7. Live state you may want, or may want to clean up
 
 Both assessment servers are **still running**, so the projects are browsable:
