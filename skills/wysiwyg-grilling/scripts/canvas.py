@@ -3325,20 +3325,96 @@ def _slider_thumb_x(el, value):
     return el["x"] + 10 + (w - 20 - 12) * (float(value) / 100.0)
 
 
-def _honour_ungroup(els, el, ungrouped_by_user):
-    """Close a composite's group — unless the user just opened it.
+# The remembered gesture, on the HOST's `customData`. It reads "the
+# user has settled this widget's grouping and the server may not mint
+# `<id>-grp` around it again" — which is what makes it survive a
+# hand-made Ctrl+G as readily as the Ctrl+Shift+G that set it, and why
+# it is not named for the shape of the picture it happens to sit over.
+UNGROUP_MARK = "ungrouped"
 
-    DELTA-BASED, NEVER STATE-BASED, for the same reason the check-stroke
-    gesture above is: the two cases are INDISTINGUISHABLE in the new
-    scene alone. A widget the user pulled apart with Ctrl+Shift+G and a
-    widget that was never assembled at all — a paste, a template insert,
-    an agent `add` that ran before the compose blocks existed — both
-    arrive with no shared group and nothing to tell them apart. Only the
-    BASE scene separates them, which is why the rule lives in the one
-    pass that holds both and NOT in `reconcile_composed`: the agent and
-    seed paths call that with no base, and a state-based rule there
+
+def _honour_ungroup(els, el, ungrouped_by_user):
+    """Close a composite's group — unless the user has opened it.
+
+    DELTA ONCE, THEN A MARK, and the second half is the whole point. The
+    delta alone — the base carried this widget's group and the posted
+    scene does not — is a rule that can only remember ONE SAVE BACK. It
+    is right on the save that carries Ctrl+Shift+G and wrong on every
+    save after it: by then the base no longer holds the group either,
+    the gesture and an unfinished assembly are indistinguishable again,
+    and the branch below closed the widget. Measured through
+    `Store.commit` at `d145e5e`: a slider ungrouped and saved came back
+    with `w`, `w-track`, `w-thumb` and `w-label` all carrying `w-grp` on
+    the VERY NEXT save, one that posted the stored scene back verbatim
+    and narrated `saved_no_changes` over the four elements it rewrote.
+    The save before it had just promised, in its own headline, "I will
+    not put them back together".
+
+    THE USER RULED: REMEMBER THE GESTURE. So the delta is now the thing
+    that SETS a mark rather than the thing every later save re-derives,
+    and `_interpret_user_composites` reads the mark back off the base
+    host. The cost the ruling accepted is one more piece of durable
+    state per widget, and the two paragraphs below are what keeps it
+    from rotting.
+
+    WHY IT CANNOT BE RE-DERIVED FROM THE PICTURE, which is the argument
+    this docstring has always made and which is unchanged: a widget the
+    user pulled apart and a widget that was never assembled at all — a
+    paste, a template insert, an agent `add` that ran before the compose
+    blocks existed — both arrive with no shared group and nothing to
+    tell them apart. That is also why the rule lives in the one pass
+    that holds both scenes and NOT in `reconcile_composed`: the agent
+    and seed paths call that with no base, and a state-based rule there
     would emit a phantom "you ungrouped this" on every pasted widget
     while fighting a real ungroup on every save.
+
+    WHAT KEEPS THE MARK CORRECT. It is set here and cleared here, and
+    both edges are gestures rather than inferences:
+
+    * SET when the gesture arrives, and re-asserted on later saves only
+      if it is somehow absent — the write is conditional, so a marked
+      widget resaved a hundred times writes `customData` zero times and
+      emits no `mod`. That matters: `customData` sits in
+      `significant_attrs`, and `user_placed_ids` records what an
+      unconditional stamp cost when it was tried for `placed_by` (a
+      `mod` beside every `move`, which `mark_consequences` then skipped,
+      silently ending every "these all shifted" collapse). Here the one
+      write rides on the save that already mods `groupIds` on the same
+      element, so no element becomes newly-modded and no line is added
+      to any narration.
+    * CLEARED when `<id>-grp` is back in the POSTED scene. Only this
+      code mints that id — Excalidraw's own Ctrl+G mints a random one —
+      so its reappearance means the client restored a state we wrote,
+      i.e. the user undid past the ungroup and has handed the grouping
+      back. Cleared, too, on a host that is not in the base at all (the
+      `False` call in `_interpret_user_composites`), which is what stops
+      a `Ctrl+Shift+G`, save, `Ctrl+D` duplicate from carrying an
+      inherited mark onto a copy this code is about to close: the copy
+      arrives as an `add`, so the clear costs no `mod` either.
+
+    A HAND-MADE Ctrl+G KEEPS THE MARK, deliberately, and is the case the
+    naming turns on. The user ungroups, then re-groups host and parts
+    themselves into `'mine'`; the mark stands, and this function strips
+    only `<id>-grp`, which is not there. The widget comes back at
+    `['mine']` — one group, the user's. Without the mark it came back at
+    `['mine', 'w1-grp']`, two groups for one widget, which
+    `_rehost_duplicated_parts` records as an observed oddity. The mark
+    is stale in NAME there and exactly right in MEANING, which is why it
+    is documented as "the user settled this" and not as "it looks
+    ungrouped".
+
+    WHAT A SCENE SAVED BEFORE THE MARK EXISTED COSTS, stated plainly
+    because it is not zero. A pre-mark widget that is GROUPED — every
+    widget in every existing project, including every one the old bug
+    had already put back — takes the branch below, writes nothing, and
+    is unaffected. A pre-mark widget left UNGROUPED on disk can only be
+    one whose ungroup was the most recent save, because any save after
+    it revoked the gesture; that one is closed once, on the first save
+    after the upgrade, exactly as it would have been without this
+    change. So the boundary is one save wide and never worse than the
+    defect it replaces. Backfilling it would mean reading the base's
+    STATE to infer a gesture, which is the repair the user considered
+    and did not choose.
 
     `semantic_facts` has stated the ungroup half as product law since
     the gesture existed — "LOUD, AND NEVER REPAIRED... silently
@@ -3353,29 +3429,41 @@ def _honour_ungroup(els, el, ungrouped_by_user):
     state neither the user nor the composer asked for.
 
     The other branch is not a belt on that brace. A host with no group
-    in EITHER scene is an unfinished assembly, and closing it silently
-    is what makes a pre-compose insert reach the canvas as one draggable
-    thing; it emits no fact because nothing about it is a user's claim.
+    in EITHER scene AND no mark is an unfinished assembly, and closing
+    it silently is what makes a pre-compose insert reach the canvas as
+    one draggable thing; it emits no fact because nothing about it is a
+    user's claim.
 
     Args:
         els: The new scene, mutated in place.
         el: The composed host.
-        ungrouped_by_user: The delta, READ BEFORE THE RECOMPOSITION RAN
-            — the base carried this widget's group and the posted scene
-            did not. It cannot be re-derived here: `_reset_attribute_rows`
-            has already put the entity's group back by the time this is
-            called, so a gate reading the live element would see a
-            grouped widget and close it again. (It did, in the first cut
-            of this function, and the entity case stayed broken while
-            every other kind went green — which is how it got caught.)
+        ungrouped_by_user: Whether the user has settled this widget's
+            grouping — the delta on the save that carries the gesture,
+            the remembered mark on every save after it. READ BEFORE THE
+            RECOMPOSITION RAN, and it cannot be re-derived here:
+            `_reset_attribute_rows` has already put the entity's group
+            back by the time this is called, so a gate reading the live
+            element would see a grouped widget and close it again. (It
+            did, in the first cut of this function, and the entity case
+            stayed broken while every other kind went green — which is
+            how it got caught.)
     """
     gid = el["id"] + "-grp"
     parts = [e for e in els if part_owner_id(e) == el["id"]]
+    cd = el.get("customData") or {}
     if ungrouped_by_user:
         for e in [el, *parts]:
             if gid in (e.get("groupIds") or []):
                 e["groupIds"] = [g for g in e["groupIds"] if g != gid]
+        if cd.get(UNGROUP_MARK) is not True:
+            el["customData"] = dict(cd, **{UNGROUP_MARK: True})
         return
+    # Only ever off a real composite, so a key of this name on anything
+    # else is not this code's to delete — `_close_widget_group` draws
+    # the same line one call later, through the same reader.
+    if UNGROUP_MARK in cd and any(
+            _composed_part(e.get("customData") or {}) for e in parts):
+        el["customData"] = {k: v for k, v in cd.items() if k != UNGROUP_MARK}
     _close_widget_group([el, *parts])
 
 
@@ -3774,13 +3862,28 @@ def _interpret_user_composites(new_els: list[dict[str, Any]],
             continue
         cd = el.get("customData") or {}
         kind = cd.get("kind")
-        # THE DELTA, read off the POSTED scene before anything below
+        # THE GESTURE, read off the POSTED scene before anything below
         # recomposes it — `_reset_attribute_rows` puts an entity's group
-        # back, so this cannot be asked again afterwards
+        # back, so this cannot be asked again afterwards.
+        #
+        # THE MARK IS THE FIRST WITNESS AND THE DELTA IS THE SECOND, and
+        # the order is the fix rather than a preference. The delta is
+        # true for exactly one save — the one carrying Ctrl+Shift+G —
+        # and false on every save after it, because by then the base has
+        # no group either; reading it alone is what let the next save,
+        # any save, silently put the widget back together (see
+        # `_honour_ungroup`, which now writes the mark this reads). The
+        # mark is read off the BASE host, not the posted one, so a
+        # client that drops `customData` cannot revoke a gesture it
+        # never made; and both witnesses are gated on the posted scene
+        # still lacking the group, which is the CLEAR edge — `<id>-grp`
+        # can only come back by our own hand, so its reappearance means
+        # the user undid past the ungroup.
         gid = el["id"] + "-grp"
-        ungrouped_by_user = \
-            gid in ((old_ix.get(el["id"]) or {}).get("groupIds") or []) and \
-            gid not in (el.get("groupIds") or [])
+        old_el = old_ix.get(el["id"]) or {}
+        ungrouped_by_user = gid not in (el.get("groupIds") or []) and (
+            gid in (old_el.get("groupIds") or []) or
+            (old_el.get("customData") or {}).get(UNGROUP_MARK) is True)
         if el["id"] not in old_ix:
             # a NEW host (paste, template insert, pre-compose add): parts
             # absent in both scenes → recompose silently, no gesture

@@ -94,13 +94,24 @@ noise. Never read meaning into coordinates that large.
   "intent": "free-text: why this element exists",
   // pins only:
   "question": "…", "target": "element-id",
-  "status": "open" | "answered" | "resolved", "answer": "…" }
+  "status": "open" | "answered" | "resolved", "answer": "…",
+  // composed-widget host, SERVER-OWNED — read it, never write it:
+  "ungrouped": true }
 ```
 
 `role` drives narration semantics (label geometry never narrates; pin
 lifecycle facts; annotation facts). `kind: "button" | "nav"` makes wireframe
 `label_renamed` fire mapping tripwires — real labels on nav/buttons are
 load-bearing, not decoration.
+
+`ungrouped` is the user's Ctrl+Shift+G, remembered. The server writes it on
+the save that carries the gesture and reads it on every save after, which is
+what makes "nothing re-groups them" true beyond the next save rather than
+just on it. It is a record of what a person did, so it is not yours to set:
+writing it through a `mod` forges a gesture they never made, and the widget
+you drew stops being assembled with no one having asked. Leave it where you
+find it — `customData` merges rather than replaces, so an ordinary `mod` on
+a host preserves it without you doing anything.
 
 ## Font family ids
 
