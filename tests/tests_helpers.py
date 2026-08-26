@@ -83,12 +83,18 @@ def measured(value: float | None, what: str) -> float:
 
     DELIBERATELY NOT `self.assertIsNotNone(v)` FOLLOWED BY THE
     COMPARISON, which is what this repo's first draft used and what a
-    reader will reach for. Measured 2026-08-18 under this repo's
-    `pyrightconfig.json`: `assertIsNotNone` leaves the type `float |
-    None` — `unittest`'s assertions are not narrowing functions — so the
-    pair reads as a narrowing that is not one, and the comparison below
-    it stays unchecked. This raises instead, which both narrows and
-    fails with a sentence about the measurement.
+    reader will reach for. `unittest`'s assertions are not narrowing
+    functions, so that pair reads as a narrowing that is not one.
+    First measured 2026-08-18 under `pyrightconfig.json`; re-measured
+    2026-08-25 under `ty` (`[tool.ty]` in pyproject.toml), which
+    replaced both that file and mypy. Same verdict, louder route:
+    `reveal_type` after `assertIsNotNone` still answers
+    `int | float | None`, and the comparison below it is then an
+    `error[no-matching-overload]` where pyright simply left it
+    unchecked. That rule is deliberately NOT in ty's ignore list, so
+    the wrong shape now fails the check rather than passing it
+    unexamined. This raises instead, which both narrows — ty answers
+    `int | float` — and fails with a sentence about the measurement.
 
     Args:
         value: Whatever the primitive answered.

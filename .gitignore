@@ -9,9 +9,14 @@ frontends/*/node_modules
 .claude/
 docs/
 project_knowledge/
-.mypy_cache/
 .ruff_cache/
+.ty_cache/
 
 # optimization
 .ledger/
 frontends/wysiwyg-grilling/test-results/.last-run.json
+
+# unlazy pipeline scaffolding (local; conclusions land in the handover)
+.unlazy/
+.unlazy-hook-state.json
+.claude/settings.local.json

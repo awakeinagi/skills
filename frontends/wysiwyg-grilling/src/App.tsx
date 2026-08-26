@@ -1239,6 +1239,10 @@ export default function App() {
   const artifactIds = Object.keys(artifacts);
   const concepts = state?.concepts || [];
   const cadence = state?.config?.canvas_updates || "per-round";
+  // the element-kind vocabulary, owned by the backend that composes and
+  // lints against it. Read, never restated: the inspector's own copy went
+  // stale and told users their fold lines had no kind.
+  const kindVocabulary = state?.kind_vocabulary || {};
   const pending = (state?.pending || []).filter((p: any) => !dismissedPending.includes(p.id));
   const openTripwires = (state?.tripwires || []).filter((t: any) => t.status === "open");
   const freshPins = (state?.pins || []).filter(
@@ -2839,6 +2843,7 @@ export default function App() {
             <Inspector
               el={selEl}
               artifactType={artifacts[currentArtifact]?.artifact_type || "flow"}
+              kindVocabulary={kindVocabulary}
               artifacts={artifacts}
               docs={docsList}
               disabled={viewingRevn != null}

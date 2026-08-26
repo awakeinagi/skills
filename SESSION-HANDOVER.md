@@ -150,26 +150,71 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog reds live in `TestLoadFindingsReachTheAgent` (4),
-`TestBatchPathIntegrity` (3), `TestBoundsLoopReadsTheLineHeight` (1),
-`TestCornerBiasReadsVerticesNotTurns` (1),
-`TestInkExtentIsRotationBlind` (1) and
-`TestLabelledGhostKeepsItsCaption` (1) — enumerated with reasons at the
-`CATALOGUE` pointer in tests/test_mutants.py. That is the SEVENTH and
-EIGHTH recorded staleness of this transcription, both found on 2026-08-16
-by v0.9 Task 52 while here to delete one entry: `TestReplayOrderFidelity`
-(2) had drained and left, and batch 25's three arrivals — the two that
-took `TestBatchPathIntegrity` to 3, plus `TestInkExtentIsRotationBlind`
-and `TestLabelledGhostKeepsItsCaption` — had never been transcribed at
-all. Read the dict, not this sentence. `TestSnapshotTierOne` was a
-fifth, and the only one outside `tests/test_mutants.py`; it left on
-2026-08-16 when the self-report task recovered the tier-1 ceiling. Note
-that it was never in `HAND_AUTHORED_RED_CLASSES`, which scans one file and
-could not have seen it — the one red in this repo that no derived guard
-covered was the one this sentence had to be edited by hand for.
-Export, Store and PaintOrder have all drained to zero and left that list,
-ShapeBlind joined them on 2026-08-15 (Task 56) and LabelAnchor on the
-curves fold-in.
+Non-catalog red classes: `TestTheStrippedHostFindingTellsDrawnFromGone` (1), `TestAnUngroupIsNotRevokedByTheNextSave` (2)
+
+The roster is that one line and both entries sit ON it, because the guard
+reads a single line and a continuation is invisible to it — which it
+proved by passing over the second entry the first time it was written
+across two lines. The second arrived 2026-08-26 from a HANDOVER, measured at a871bee by
+the fixer who reported it and RE-MEASURED at this tree before it was
+encoded, because the tip had moved twelve commits and a report is not a
+reproduction. Ctrl+Shift+G is honoured for exactly one save and then
+silently revoked: `_interpret_user_composites` decides `ungrouped_by_user`
+against the PREVIOUS SAVE, so once the base stops carrying the group the
+widget reads as an unfinished assembly and is closed again — by any next
+save, including one that changes nothing else. It carries two reds because
+two different repairs clear two different halves, and a fix that keeps
+re-grouping while merely narrating it clears only the narrower one.
+The first was refilled the same day by a curator RELOCATION rather than by
+a discovery.
+The user ruled that a composed host whose part-shaped ink is drawn but
+linked to nothing is DEAD and must keep being reported, and that what is
+wrong is the finding calling it "missing". That left
+`duplicated_widget_reported_as_bare` right about its subject and void about
+its remedy: it took the ruling's assertable half and went green, and the
+half left over is a two-scene property (these two pictures must not read
+alike) that no catalogue `expect` slot can hold. The per-file durable count
+did not move — one decorator left `TestMutantCatalogue` and one arrived
+here.
+
+**That line is the SIXTH census guard's subject and is now CHECKED.**
+`TestCoverage.test_the_handover_transcribes_the_hand_authored_red_classes`
+parses it out of this file and compares it to the live decorators, so a
+class arriving or leaving fails the default suite in the commit that moved
+it. The grammar is fixed and small: `` `TestClassName` (N) `` entries
+separated by commas, or the literal `*none*` when there are none. Anything
+else on that line is a PARSE ERROR and not an empty read — at zero reds a
+correct transcription and a garbled one both enumerate nothing, so the
+guard cannot be allowed to accept "nothing found" as agreement. Deleting
+the line fails too. Everything after this paragraph is history; the roster
+itself lives on that one line and nowhere else.
+
+WHY IT TOOK NINE STALENESSES. This transcription kept its own casualty
+list and the list grew to eight while the sentence beside it said *"Read
+the dict, not this sentence"* — an instruction to distrust the words,
+issued by the words, with nothing behind it. The dict was guarded from
+batch 16 on; the paragraph describing the dict never was, so every drift
+had to be found by a human who happened to read both. The ninth is the one
+that made the point unarguable: `HAND_AUTHORED_RED_CLASSES` went to `{}` at
+TASK-INKBAND-SPACING on 2026-08-20 and the paragraph went on naming six
+classes and eleven reds over a tree that has none. **A pointer at a checked
+fact is not a check.** The eight before it, kept for the shape: five by
+2026-08-16, then the seventh and eighth together that day when Task 52
+arrived to delete one entry and found `TestReplayOrderFidelity` (2) had
+drained and left while batch 25's three arrivals had never been transcribed
+at all — a flip and an addition in the same window, which is the motion
+that leaves a total right and a roster wrong.
+
+`TestSnapshotTierOne` was the fifth and the only one outside
+`tests/test_mutants.py`; it left on 2026-08-16 when the self-report task
+recovered the tier-1 ceiling. It was never in `HAND_AUTHORED_RED_CLASSES`,
+which scans one module and could not have seen it. **That residual
+survives this fix**: the new guard derives from the same single-module
+scan, so a red in `tests/test_backend.py` or `tests/test_mutants_render.py`
+is invisible to it. Those two files have their own guards — the durable
+counts and the render row — and the gap is the union of what none of them
+name, stated here rather than discovered a tenth time.
+
 Batch 21's six were the biggest single-batch addition on record; Task 56 then
 took four of the twenty-one back off. Of batch 21's, four still have no
 owner: the r5b-2 cache/replay drift (2, addendum wave) and the
@@ -329,22 +374,28 @@ flip or an addition that does not edit the row fails the default suite.
 That guard exists because this hand copy went stale a FIFTH time — batch
 22 added `CATALOGUE_RED_IDS` and its comment claimed to force this table
 through the same edit, which it never did, and the row sat two ids short
-underneath it. The render row below is still an unchecked hand copy
-(its entries are method names outside `CATALOGUE`, with nothing to derive
-them from), so the warning still applies to that one:
+underneath it. The render row joined it as CHECKED at curator batch 26
+(2026-08-16): `render_red_method_names` derives that file's decorated
+method NAMES and
+`TestCoverage.test_the_handover_transcribes_the_render_rows_reds` compares
+the row to them. The `other` row is the one hand copy left in this table
+— `durable_red_counts` derives its NUMBER and nothing derives its names —
+so the warning applies to that one and only that one:
 
 | tier | red mutants |
 |---|---|
-| model (default suite) | `composed_host_stripped_is_invisible` — filed by curator batch 45 on 2026-08-20 from the duplicate-backlink data loss, and red for a reason no entry in this row has had before: its CHECK does not exist. The composed-group-gaps lint walks composed PARTS, so it is blind twice over to what that defect left on disk — a host with no parts yields nothing to walk, and a part naming a host absent from the scene is dropped by its owner-is-None guard. Measured on a real pre-fix save, every registered detector returned the same findings for the damaged stored scene and the healthy one. The save-time repair stops NEW damage; it does not repair scenes already written, and the load-time catch-up re-reads those every session. WHO FLIPS THIS: the WP that owns the composed-group-gaps lint; the contract the check must meet is written out in that check's UNCOVERED reason. Its neighbour borrows a live widget-group finding rather than carrying a lone silence — a silence on a check nobody has written is satisfied by the corpse — and the rule's one carve-out, an entity declared with no attributes and so legally part-less, rides beside it as an ungated assertion in the neighbour method. Proved satisfiable before filing rather than after — a candidate rule monkeypatched onto the lint from outside the repo turns it green at (4, missing), leaves the neighbour and the unmutated base silent, and reaches the surplus pole at (2, surplus). (No id but the mutant's is backticked in this row, deliberately: the guard harvests every backticked token as a live red, and this row's own closing warning says so.) The half-pixel pair (spelled out rather than backticked, for the reason at the end of this row) was filed by a curator on 2026-08-19 and drained by v0.9 WP4-AND-GUARDS one commit later. canvas.py computed the client's own bound-text cap and headroom with Python's round, which breaks halves to EVEN, where Math.round in the shipped bundle breaks them UP; they part only where the halved extent is a tie AND its floor is even, which is w = 4k+1 and nothing else. Flipped by floor(x + 0.5) at all five transcribed Math.round sites, not the two first reported. The chopped-token red before them was filed and drained the same day by the same task. Any id listed here is a live red owned by its own fix task. This row states what is red, never how many drains it has seen — the count is derived below and the narrative is not, so a claim about the row's *history* is one nothing checks. (Backtick an id here ONLY as a live red: the guard below harvests every backticked token in the row, so a backticked function name reads as a live red id) |
+| model (default suite) | `doubled_ink_reads_as_a_healthy_count` — one, and READ OFF the guard rather than counted by hand. This row EMPTIED and REFILLED on the same day, 2026-08-26, for two unrelated reasons, and the pair is worth reading together because they are the two ends of one axis. WHAT ARRIVED: a composed host can draw its parts TWICE — once tagged, once not — and composed_host_gaps counts tagged parts against the floor, reads 4 == 4, and says nothing; its surplus arm cannot reach it either, because untagged ink is not counted as a part. The repair on this branch stopped the ungrouped-duplicate gesture MANUFACTURING that state and did not remove it from the scenes already on disk that catch_up() re-reads every session. Its denominator is DERIVED by sweep_doubled_ink() and pinned ungated by test_every_composed_kind_can_reach_a_doubled_ink_state, so no number about it is written here. Three repairs were measured against patched copies of canvas.py and only one clears every pole: counting unowned ink toward the drawn total reports the doubled block AND silences wc, the narrowing contract C12 forbids; splitting the arms keeps wc and then bills the user for an authored backdrop panel; only requiring the ink to be CONGRUENT to a part the host already owns clears all three. WHAT LEFT, and it was EMPTIED by a USER RULING and not by a repair, which is a drain shape this row had not carried before: duplicated_widget_reported_as_bare (spelled without backticks now that it is green, for the reason at the end of this row) was RE-JUDGED, not fixed: it asked the check to go silent on a host whose part-shaped ink is drawn but linked to nothing, and the user ruled that such a widget is DEAD — drag it and the parts stay behind — so a finding there is correct and narrowing would leave the class reported by nothing at all, including in every scene already persisted to disk. Its expect now asserts the ruling's own half (the check FIRES on that picture, at 2 missing) and is green, and that green leg is what REFUSES the narrowing: measured against a patched canvas.py that takes it, the mutant's finding list is empty and the test fails. THE DEFECT DID NOT LEAVE WITH THE ROW, and reading this *none* as "nothing is red about composed hosts" is the one wrong conclusion available — what remains is a two-scene property (ink drawn and ink gone must not read alike) that no catalogue expect slot can hold, and it is now TestTheStrippedHostFindingTellsDrawnFromGone in the non-catalog roster above, which is why the per-file durable count did not move. Everything from "WHAT WAS RED HERE" onward is the superseded reading, left standing because the correction is the record. Filed by curator batch 46 on 2026-08-25; its sibling composed_host_remedy_reproduces_itself (spelled without backticks now that it is green, for the reason at the end of this row) left on 2026-08-26 by f87c34c, which made the three input paths agree — candidate repair (iii) of the four it was measured green against, and not the message-only one it was measured still-red against. Its row in test_mutants.py carries the witnessing and one finding worth reading: the folded lineage NEVER held a state where that red was red and its neighbour green. It went from no check at all straight to a window at 9a387da/e07384d where composed_part_floor gave input NO FLOOR — which is WRONG-1 from that pin's own fix-agnosticism matrix, the mutant reading green because the check had gone blind — and the NEIGHBOUR failed on both shas, which is the entire reason it is an input pole and not a copy of the sibling's body block. The tip settled on ONE ROW, ALWAYS with all three readers agreeing, and the neighbour passes again. WHAT WAS RED HERE (superseded 2026-08-26 by the ruling above; the remedy this paragraph argues for was ruled against, the subject it describes is unchanged): a duplicated widget is reported as a bare rectangle while its own track and thumb are drawn. Ctrl+Shift+G, save, Ctrl+D, save — two blessed gestures, no op and no CLI anywhere — lands a copy whose parts sit inside its box while nothing names it owner, because _rehost_duplicated_parts drops the copy's backlinks and reconcile_composed's slider arm only re-derives parts that already exist; it is persisted, so the load-time catch-up re-reads it every session. The COUNT the check publishes is true. What is wrong is that its stated cause contradicts the scene, and an agent relaying it tells the user their slider is an empty box while they are looking at a slider. Neither pole reads the message: the mutant says the check must be quiet where the parts are drawn, the neighbour says it must speak where they are not, and together they assert the one thing a rewrite cannot supply — that this check DISTINGUISHES the two pictures. It does not: the two scenes produce a byte-identical ERROR sentence, measured. Silence and not a truer sentence is the right pole because the repo already ruled the class out of scope — composed_host_gaps' own docstring carves out "part-shaped decoration owned by NOBODY ... That is a second instrument and it is not this one" and believed the carve-out automatic. Measured, it holds for exactly the two kinds whose reconcile arm MINTS (body at 4 owned, kpi at 1) and is false for the four whose arms only re-derive: slider, toggle and image at 0 owned with the ink drawn, and checkbox at 0 unchecked / 1 checked. It flips for the WP that owns the paste gate, by re-hosting the copy's backlinks or routing the class to that second instrument; two repairs were measured green against patched copies of canvas.py and three wrong ones measured still-red, each caught by a different leg — deleting the slider floor kills the NEIGHBOUR, erasing unowned ink on commit trips the INK GUARD that drives the real save path, and rewording the causal clause leaves the MUTANT red. That last is the pin's stated opinion: a sentence hedged until it is true of both pictures has not repaired the blindness, it has paid for the lie with the information. THE OTHER TWO REDS THIS BRANCH CARRIES ARE NOT CATALOGUE ENTRIES and are not named here by design — they are hand-authored classes, counted by HAND_AUTHORED_RED_CLASSES, which is the other half of this census and where the remedy-fixpoint sweep lives. Any id listed here is a live red owned by its own fix task. This row states what is red, never how many drains it has seen — the count is derived below and the narrative is not, so a claim about the row's *history* is one nothing checks. (Backtick an id here ONLY as a live red: the guard below harvests every backticked token in the row, so a backticked function name reads as a live red id) |
 | render (`tests/test_mutants_render.py`) | *none* — emptied 2026-08-17 by TASK-C4, which flipped the clean-stripe-bands red on `_refuse_unmeasurable`'s blank padding ring. Second drain in this file's life; the first, at Task 50, was refilled the same day. The row stays here empty rather than being deleted, because the guard below reads it and a deleted row is a guard matching nothing |
-| other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and only the model row is guarded, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold) |
+| other (`tests/test_backend.py`) | *none* — the glossary-challenge red (refilled 2026-08-17 by curator batch 27) drained the same day when TASK-POLISH landed the glossary ruling; this row was stale for a few hours and it is the one row of this table whose NAMES nothing derives, which is why (flagged by TASK-C4, corrected at the MICROFIX-2 fold; the claim that only the model row was guarded outlived batch 26 and was corrected on 2026-08-20) |
 
-The unchecked row proved the warning above it the same day it was
-written: v0.9 TASK-24-FOLLOW-UP flipped two of the render row's three in
-one commit and the guarded model row and the durable counts both failed
-in that commit while THIS row sat two entries stale until the next one.
-Nothing derives it, so nothing said so — which is the argument for
-deriving it, not for transcribing it more carefully.
+The render row proved the warning above it the same day it was
+written, back when it was the unchecked one: v0.9 TASK-24-FOLLOW-UP
+flipped two of its three in one commit and the guarded model row and the
+durable counts both failed in that commit while THAT row sat two entries
+stale until the next one. Nothing derived it, so nothing said so — which
+was the argument for deriving it rather than transcribing it more
+carefully, and batch 26 took that argument. It now applies unchanged to
+the `other` row.
 
 The bottom two rows are `@unittest.expectedFailure` method names rather
 than catalog ids because they sit outside `CATALOGUE`. The render row was
@@ -376,7 +427,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**1 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**4 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
@@ -733,7 +784,7 @@ the opaque label backdrop, so **r5-14's class is now caught from pixels**.
 - `python3 tests/test_mutants.py --coverage` — one row per detector: proven
   (naming its mutant), render-tier (naming its gated test), or UNCOVERED with
   a reason. Coverage totals:
-  <!-- live:detector_coverage_totals -->**37 detectors, 32 proven, 3 render-tier, 2 UNCOVERED**<!-- /live:detector_coverage_totals -->
+  <!-- live:detector_coverage_totals -->**37 detectors, 33 proven, 3 render-tier, 1 UNCOVERED**<!-- /live:detector_coverage_totals -->
   — a LIVE VALUE as of 2026-08-18: `tests/livedoc.py refresh` writes it
   from `coverage_table()`, and it is still CHECKED (since v0.9 WP7 task 29)
   by `TestCoverage.test_the_handover_transcribes_the_coverage_totals`, which
@@ -1000,6 +1051,39 @@ the plan. `erDiagram → domain` is an unambiguous win (0.27s, no browser).
   paid; the second was better because it measured pixels. It also overturned one
   of my dismissals — see [[assess-the-picture-not-the-path]] and
   `~/docs/optimization/r5/cold-look-triage.md`.
+
+### 6a. `npm ci` and the elk packages — witnessed once, NOT reproducing
+
+Salvaged from a commit message on a branch that was dropped, because it was the
+only record of it in the tree — and then corrected, because its stated cause is
+wrong and acting on it would have cost a tracked-file change for nothing.
+
+**What was seen.** On 2026-08-18, building the web bundle (`693534e`,
+TASK-ELBOX), `npm ci` omitted `@mermaid-js/layout-elk` and `elkjs` from
+`node_modules` despite both being plain non-optional lockfile entries with valid
+integrity; `vite build` then failed to resolve the dynamic import in
+`ensureElkLayouts`. Seen three times that day, with and without `--prefix`, in
+two checkouts. Worked around by unpacking the two tarballs and verifying them
+against the lockfile's own sha512.
+
+**Re-measured 2026-08-26, and it does not reproduce.** Same coin, not a
+different one: node v24.14.0 and npm 11.9.0 are the exact versions named, and
+the lockfile is byte-identical to the one it was seen against —
+`git rev-list --count fd52255..HEAD -- frontends/wysiwyg-grilling/package-lock.json`
+is **0**. A real `npm ci` in an isolated extraction exits 0 and both packages
+land on disk at 0.2.2 and 0.9.3, with `vite`, `react` and `mermaid` present as
+controls and 263 top-level dirs. `--dry-run` was not accepted as the answer: a
+resolution plan cannot speak to what lands on disk.
+
+**So the original note's advice is WITHDRAWN.** It said "a stale lockfile is the
+likely cause and regenerating it is a tracked-file change that wants its own
+review". The lockfile is not the cause — it is fine, and regenerating it would
+be a tracked-file change, a review and a fold spent on a wrong diagnosis.
+Whatever bit that build three times was environment-transient. If it recurs,
+clear the npm cache before touching a tracked file.
+
+Kept rather than deleted only because the workaround is worth having written
+down if it comes back.
 
 ## 7. Live state you may want, or may want to clean up
 

@@ -1,6 +1,6 @@
 """Prove the census guards fail when their subject drifts. Run by hand.
 
-WHY THIS FILE EXISTS. The five guards in `TestCoverage` that compare
+WHY THIS FILE EXISTS. The guards in `TestCoverage` that compare
 SESSION-HANDOVER.md against derived facts are the only thing standing
 between the census and a prose copy that has quietly stopped being true.
 A guard like that is exactly the shape doctrine §1 warns about: it is
@@ -26,8 +26,10 @@ answers the different question of whether the guard would notice.
     python tests/census_probes.py            # every probe
     python tests/census_probes.py render     # just the ones matching
 
-A probe PASSES when the guard it targets FAILS. Read the output that way:
-`caught` is the healthy result and `SILENT` is a finding about the guard.
+A probe PASSES when the guard it targets FAILS BY ASSERTION. Read the
+output that way: `caught` is the healthy result, `SILENT` is a finding
+about the guard, and `error` is a finding about the PROBE — the guard
+raised before it ever reached its own answer, so it voted on nothing.
 """
 from __future__ import annotations
 
@@ -270,6 +272,126 @@ PROBES: dict[str, dict[str, str]] = {
         "new": "**Event taxonomy** — all three types (a stale copy).\n\n"
                "**Event taxonomy** — all ",
     },
+    # THE SIXTH CENSUS GUARD, added 2026-08-20 with the guard itself: the
+    # handover's roster of non-catalogue red CLASSES. It drifted nine
+    # recorded times as unguarded prose, and the paragraph holding it
+    # published its own casualty list and the instruction "Read the dict,
+    # not this sentence" — a pointer at a checked fact, which is not a
+    # check. The four probes below take one hazard each, and the last two
+    # exist because THIS SUBJECT IS EMPTY TODAY.
+    #
+    # AN EMPTY SUBJECT IS THE HARD CASE and it is why there are four
+    # probes here where the other guards have one or two. At zero reds the
+    # honest transcription enumerates nothing, so a reader that simply
+    # collected `Test...` names would return `{}` for the correct line,
+    # for a deleted line and for a line replaced with a shopping list —
+    # green over all three, saying the same thing about a healthy
+    # paragraph and a destroyed one. `roster-deleted` and
+    # `roster-garbled` are the two probes that would catch that reader,
+    # and neither of them can be satisfied by the roster's own drift back
+    # to non-empty: whatever the classes are, a line that is GONE and a
+    # line that is UNPARSEABLE are still gone and unparseable.
+    #
+    # ANCHORED ON THE LABEL, per this file's rule — the DECLARATION
+    # `Non-catalog red classes:` rather than any class name or count in
+    # it, because the contents of a container that exists to change is
+    # the anchor that has died five times above.
+    "roster-phantom-class": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "the roster names a class the live decorators do not carry "
+               "— a flip nobody transcribed, the OVER-reporting pole the "
+               "flip contract cannot see",
+        "old": "Non-catalog red classes: *none*",
+        "new": "Non-catalog red classes: `TestNobodyFlippedThis` (2)",
+    },
+    "roster-deleted": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "THE SUBJECT IS ABSENT: the roster line is reworded away. A "
+               "check that passes when its subject is gone is not a check, "
+               "and at zero reds gone and correct both enumerate nothing",
+        "old": "Non-catalog red classes:",
+        "new": "Non-catalogue red-bearing classes are:",
+    },
+    "roster-garbled": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "NON-DISCRIMINATION: the line survives but says something "
+               "the grammar cannot read. A reader that parsed this to an "
+               "empty roster would agree with it and with the truth alike",
+        "old": "Non-catalog red classes: *none*",
+        "new": "Non-catalog red classes: see the dict",
+    },
+    # THE OTHER POLE, and it is perturbed in the CODE rather than in the
+    # prose because that is the only place it can happen: a red that
+    # ARRIVES and is never transcribed. The four probes above all break
+    # the sentence; this one leaves the sentence alone and breaks the
+    # world it describes, which is the motion that actually produced six
+    # of the nine recorded stalenesses. It also proves the guard reads
+    # LIVE DECORATORS and not `HAND_AUTHORED_RED_CLASSES` — injecting into
+    # the dict would leave this guard green, because the dict is the
+    # sibling's subject and prose-versus-constant would only have chained
+    # two hand copies together.
+    #
+    # Anchored on the column-zero declaration for the reason five comments
+    # above give, and the injected class is a whole definition prepended
+    # to it, so it works whatever the dict currently holds.
+    "roster-undisclosed-red": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "tests/test_mutants.py",
+        "why": "a red class ARRIVES in the code and the roster never "
+               "mentions it — the under-reporting pole, perturbed in the "
+               "code because the prose cannot express it",
+        "old": "\nHAND_AUTHORED_RED_CLASSES",
+        "new": "\nclass TestAnArrivalNobodyTranscribed(unittest.TestCase):\n"
+               '    """A red injected by a census probe. Never committed."""\n'
+               "\n"
+               "    @unittest.expectedFailure\n"
+               "    def test_red_the_roster_does_not_name(self) -> None:\n"
+               '        """Fails on purpose, so the class carries a red."""\n'
+               '        self.fail("census probe")\n'
+               "\n"
+               "\nHAND_AUTHORED_RED_CLASSES",
+    },
+    # THE TWO SHAPES THAT GOT THROUGH THE FIRST DRAFT, added with their
+    # fix. An independent review attacked the grammar with fifteen shapes;
+    # thirteen raised and these two parsed to an empty roster and PASSED,
+    # because every check read only what was inside backticks. Both are
+    # discriminating at zero reds in a way no other probe here is: the
+    # transcription and the live set are both empty, so the equality
+    # assertion agrees, and ONLY the unbackticked-name refusal can fail.
+    # A probe whose subject can be caught by two mechanisms proves neither.
+    "roster-bare-name-after-none": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "the roster says *none* and then names classes with the "
+               "BACKTICKS DROPPED — the line's own history after one "
+               "reflow, invisible to every check that reads inside ticks",
+        "old": "Non-catalog red classes: *none*",
+        "new": "Non-catalog red classes: *none* — TestBatchPathIntegrity "
+               "(3), TestLoadFindingsReachTheAgent (4)",
+    },
+    "roster-bare-name-in-prose": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "the same hole reached through ordinary prose rather than "
+               "through the entry grammar: a named exception to *none* "
+               "that carries no parenthesised count at all",
+        "old": "Non-catalog red classes: *none*",
+        "new": "Non-catalog red classes: *none* (except "
+               "TestLoadFindingsReachTheAgent, 4 reds)",
+    },
+    "roster-duplicate": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "THE SILENT DIRECTION: a correct copy above a stale "
+               "original. A first-match-wins reader agrees with the copy "
+               "while the human reads the original",
+        "old": "Non-catalog red classes:",
+        "new": "Non-catalog red classes: *none*\n"
+               "Non-catalog red classes:",
+    },
 }
 
 
@@ -317,27 +439,41 @@ def _tracked(pathspec: str) -> list[str]:
 
 
 def _mirror_skills(dst: Path) -> None:
-    """Mirror the TRACKED product tree, prose WRITABLE and bulk shared.
+    """Mirror the TRACKED product tree, subjects WRITABLE and bulk shared.
 
     `skills/` used to be one symlink, on the reasoning that nothing here
     perturbs the product. The taxonomy probes perturb SKILL.md, and
     writing through a symlinked directory would have edited the REAL
-    file — a probe that damages the repo it is measuring. So `.md` files
-    are COPIED (18 of them, all prose) and every other tracked file is
-    symlinked: the 23MB web bundle and the 900KB `canvas.py` are shared,
-    and the tree still costs kilobytes per probe.
+    file — a probe that damages the repo it is measuring. So prose is
+    COPIED and every other tracked file is symlinked: the 23MB web bundle
+    and the 900KB `canvas.py` are shared, and the tree still costs
+    kilobytes per probe.
+
+    THE RULE IS "COPY WHAT A PROBE MAY BREAK", not "copy `.md`". Both
+    spellings select the same files today — every `skills/` subject in
+    `PROBES` is prose — and they stop agreeing the moment one entry
+    targets `canvas.py`, which is a thing this roster has already been
+    written once and reverted. Under the suffix rule that probe would
+    open a SYMLINK and truncate the real backend: the identical damage
+    this function exists to prevent, escaping through the one clause that
+    named a file extension instead of naming the reason. So the copy set
+    is derived from `PROBES` as well, and `run_probe` refuses to write a
+    symlink even if this ever drifts back.
 
     The `__pycache__` skip this used to carry is gone rather than kept —
     `git ls-files` never returns it, and a rule that cannot fire is a
-    rule a reader has to think about anyway.
+    rule a reader has to think about anyway. The clause above is a
+    different animal: it fires on the contents of `PROBES`, which is the
+    one thing in this file that is expected to change.
 
     Args:
         dst: The `skills/` directory to build; parents created as needed.
     """
+    subjects = {spec["file"] for spec in PROBES.values()}
     for name in _tracked("skills"):
         src, out = REPO / name, dst.parent / name
         out.parent.mkdir(parents=True, exist_ok=True)
-        if src.suffix == ".md":
+        if src.suffix == ".md" or name in subjects:
             shutil.copy2(src, out)
         else:
             out.symlink_to(src)
@@ -394,26 +530,51 @@ def anchor_fault(name: str, spec: dict[str, str]) -> str:
             "silent when nothing was broken" % (name, hits, spec["file"]))
 
 
-def run_probe(name: str, spec: dict[str, str]) -> bool:
+def run_probe(name: str, spec: dict[str, str]) -> str:
     """Break one census subject and report whether its guard noticed.
+
+    THE VERDICT IS READ FROM THE RUNNER'S SUMMARY, NOT FROM THE EXIT
+    CODE, and the distinction is the same one `guard_mutants.py` had to
+    learn: an exit code answers "did the process end badly", and a probe
+    needs "did the named guard OBSERVE the drift". A test that ERRORS
+    exits non-zero exactly like a test that fails, so a probe whose `new`
+    text is malformed — and `roster-undisclosed-red` above writes Python,
+    not prose — would report `caught` while having proved only that it
+    broke the tree. `error` is therefore its own verdict, and `main`
+    counts it as a fault rather than as a catch.
 
     Args:
         name: The probe's key in `PROBES`, for the printed line.
         spec: That probe's entry — `test`, `file`, `old`, `new`, `why`.
 
     Returns:
-        True if the guard FAILED (the healthy result), False if it stayed
-        green over a broken census.
+        `"caught"` when the guard FAILED on an assertion (the healthy
+        result), `"SILENT"` when it stayed green over a broken subject,
+        `"error"` when it raised instead — which says nothing about the
+        guard and everything about the probe.
 
     Raises:
         AssertionError: If the probe's anchor is not present exactly once,
             which means the probe is measuring nothing and must be
-            re-anchored before its verdict is read.
+            re-anchored before its verdict is read; or if its subject in
+            the scratch tree is a symlink, which would send the write
+            through to the real repo.
     """
     tmp = Path(tempfile.mkdtemp(prefix="cb26-census-probe-"))
     try:
         tree = _scratch(tmp / "t")
         target = tree / spec["file"]
+        # THE WRITE-THROUGH STOP. `_mirror_skills` shares the bulk of the
+        # product tree by symlink, and `write_text` on a symlink truncates
+        # its TARGET — so a subject that fell out of the copy set would
+        # not fail here, it would silently edit the repo being measured.
+        # Cheap, and it turns a class of damage into a message.
+        if target.is_symlink():
+            raise AssertionError(
+                "probe %r targets %s, which the scratch tree SYMLINKS back "
+                "to the repo — perturbing it would edit the real file. Add "
+                "it to `_mirror_skills`'s copy set before running this"
+                % (name, spec["file"]))
         text = target.read_text(encoding="utf-8")
         fault = anchor_fault(name, spec)
         if fault:
@@ -424,13 +585,22 @@ def run_probe(name: str, spec: dict[str, str]) -> bool:
             [sys.executable, "-m", "unittest", "discover", "-s", "tests",
              "-k", spec["test"]],
             cwd=tree, capture_output=True, text=True, timeout=900)
-        ran = "Ran 1 test" in (proc.stdout + proc.stderr)
-        if not ran:
+        body = proc.stdout + proc.stderr
+        if "Ran 1 test" not in body:
+            # TWO CAUSES, and the message names both because the second
+            # arrives with any probe that perturbs Python: the guard has
+            # been renamed out from under `-k`, OR the replacement text
+            # does not parse and discovery collected nothing at all. Both
+            # mean this probe measured no guard, and a message naming only
+            # the rename sends a curator to rewrite an anchor that is fine.
             raise AssertionError(
-                "probe %r selected %d tests with -k %r, not 1 — the guard "
-                "has been renamed and this probe is measuring the wrong "
-                "thing" % (name, 0, spec["test"]))
-        return proc.returncode != 0
+                "probe %r selected no test with -k %r — either the guard "
+                "has been renamed, or its `new` text left the tree "
+                "unimportable and discovery collected nothing. Tail:\n%s"
+                % (name, spec["test"], body[-600:]))
+        if "\nFAIL:" in body:
+            return "caught"
+        return "error" if proc.returncode else "SILENT"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -442,11 +612,14 @@ def main(argv: list[str]) -> int:
         argv: Substrings selecting probes; empty means all.
 
     Returns:
-        0 if every selected guard caught its drift, 1 otherwise — so this
-        is usable as a gate in a curator's own checklist even though the
-        suite never runs it. Dead anchors are reported ALL AT ONCE and
-        before any probe runs, so a re-anchoring job cannot be discovered
-        one probe at a time.
+        0 if every selected guard caught its drift by ASSERTION, 1
+        otherwise — so this is usable as a gate in a curator's own
+        checklist even though the suite never runs it. A probe that made
+        its guard raise counts as a fault too: it reported on nothing,
+        and a run that scored it a catch would be claiming coverage it
+        never measured. Dead anchors are reported ALL AT ONCE and before
+        any probe runs, so a re-anchoring job cannot be discovered one
+        probe at a time.
     """
     picked = {k: v for k, v in PROBES.items()
               if not argv or any(a in k for a in argv)}
@@ -463,17 +636,23 @@ def main(argv: list[str]) -> int:
               "was run, because a dead anchor's verdict would be a lie "
               "about the guard" % (len(faults), len(picked)))
         return 1
-    silent = []
+    silent, errored = [], []
     for name, spec in sorted(picked.items()):
-        caught = run_probe(name, spec)
-        print("%-28s %-8s %s" % (name, "caught" if caught else "SILENT",
-                                 spec["why"]))
-        if not caught:
+        verdict = run_probe(name, spec)
+        print("%-34s %-8s %s" % (name, verdict, spec["why"]))
+        if verdict == "SILENT":
             silent.append(name)
+        elif verdict == "error":
+            errored.append(name)
     if silent:
-        print("\n%d guard(s) stayed green over a broken census: %s"
+        print("\n%d guard(s) stayed green over a broken subject: %s"
               % (len(silent), ", ".join(silent)))
-    return 1 if silent else 0
+    if errored:
+        print("\n%d probe(s) made their guard RAISE rather than fail: %s. "
+              "That is a verdict about the probe, not the guard — its "
+              "replacement text is malformed, and the guard's own answer "
+              "was never reached" % (len(errored), ", ".join(errored)))
+    return 1 if silent or errored else 0
 
 
 if __name__ == "__main__":

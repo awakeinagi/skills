@@ -26,7 +26,7 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
@@ -3424,7 +3424,7 @@ class TestAcceptanceFixes(Base):
         # an L-elbow whose chord crosses a box its path misses: path goes
         # right along y=100 then down at x=400; the box sits at the chord's
         # middle (200-260, 200-260) — chord hits it, real path doesn't
-        els = [
+        els: list[dict[str, Any]] = [
             {"id": "a", "type": "rectangle", "x": 0, "y": 68, "width": 60,
              "height": 64, "customData": {"role": "node"}},
             {"id": "b", "type": "rectangle", "x": 370, "y": 300,
@@ -4872,9 +4872,13 @@ class FixtureReplayBase(unittest.TestCase):
         doc = json.loads(path.read_text())
         edited = next((e for e in doc["elements"]
                        if e.get("type") == "text" and e.get("text")), None)
-        self.assertIsNotNone(edited, "fixture %s has no text to edit — the "
-                                     "premise of this control is gone"
-                             % self.FIXTURE)
+        # NOT `assertIsNotNone` then subscript: `unittest`'s assertions do
+        # not narrow, so that pair reads as a narrowing that is not one —
+        # the reason `tests_helpers.measured` exists, and `ty` reports it.
+        if edited is None:
+            raise AssertionError(
+                "fixture %s has no text to edit — the premise of this "
+                "control is gone" % self.FIXTURE)
         edited["text"] = edited["originalText"] = "OUT OF SESSION"
         path.write_text(json.dumps(doc))
         rec = canvas.Store(self.project).catch_up()
@@ -5369,10 +5373,11 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
         # arrow — so the re-derivation is proved directly below and this
         # test keeps the half only a real project can show: that the
         # propagation mints nothing.
-        both = [{"id": "s", "type": "arrow", "x": 0, "y": 0,
-                 "points": [[0, 0], [100, 0]], "roundness": {"type": 2}},
-                {"id": "e", "type": "arrow", "x": 0, "y": 0,
-                 "points": [[0, 0], [100, 0], [100, 60]], "roundness": None}]
+        both: list[dict[str, Any]] = [
+            {"id": "s", "type": "arrow", "x": 0, "y": 0,
+             "points": [[0, 0], [100, 0]], "roundness": {"type": 2}},
+            {"id": "e", "type": "arrow", "x": 0, "y": 0,
+             "points": [[0, 0], [100, 0], [100, 60]], "roundness": None}]
         for a in both:
             a["customData"] = {"routed": canvas._route_sig(a)}
         canvas.rebuild_bound_elements(both)
@@ -10619,10 +10624,11 @@ class TestOrphanLabelHonoursIntent(unittest.TestCase):
         Returns:
             The two-element scene.
         """
-        label = {"id": "g1-label", "type": "text", "x": 10, "y": 20,
-                 "width": 100, "height": 20, "text": "GHOST",
-                 "originalText": "GHOST", "opacity": 100,
-                 "containerId": "g1"}
+        label: dict[str, Any] = {
+            "id": "g1-label", "type": "text", "x": 10, "y": 20,
+            "width": 100, "height": 20, "text": "GHOST",
+            "originalText": "GHOST", "opacity": 100,
+            "containerId": "g1"}
         label.update(over)
         return [{"id": "g1", "type": "rectangle", "x": 0, "y": 0,
                  "width": 120, "height": 60, "opacity": 0,
@@ -11895,6 +11901,129 @@ class TestMermaidExport(MermaidExportDriver, Base):
         self.assertIn("--with-footnotes", out)
         self.assertFalse((self.tmp / "project_knowledge" / "wf.mmd").exists())
 
+    @staticmethod
+    def kinds_named_by(message):
+        """The kinds `message` names as WHOLE TOKENS, never as substrings.
+
+        A TOKENISER AND NOT `kind in message`, which is what the guard
+        below was first written with. `k in out` is sound only by luck of
+        vocabulary: the day a kind name turns up anywhere else the command
+        prints — `image` inside a path, `block` inside a future sentence —
+        the assertion starts passing for a reason unrelated to the list it
+        exists to read. Splitting on everything that is neither a word
+        character nor a hyphen keeps `sticky-bar` whole and stops `nav`
+        matching inside `nav-bar`, in both directions.
+
+        NOT A REGEX OVER `Its kinds (…)` EITHER, which was the other
+        candidate and is the worse one: it keys the check to the shape
+        today's sentence happens to have, so a repair that listed the
+        kinds as bullets or in another order would read as "the list is
+        gone" rather than as "the list is fine". That is
+        anchor-as-prescription — silence-is-a-bug §8, which cites this
+        very sentence as one of its four instances. The fuller reader
+        lives in `tests/test_mutants.py` as `kinds_the_refusal_names`,
+        beside the pin that proves it flips under three independently
+        worded repairs; this is the same token rule spelled locally
+        because importing a 34k-line sibling module for one predicate
+        would cost more than it saves.
+
+        Args:
+            message: The text a refusal put on a user's terminal.
+
+        Returns:
+            The set of `WIREFRAME_KINDS` members it names.
+        """
+        tokens = set(re.split(r"[^\w-]+", message))
+        return {k for k in canvas.WIREFRAME_KINDS if k in tokens}
+
+    def test_a_screen_built_from_the_vocabulary_is_refused_not_described(self):
+        """A screen that HOLDS kinds still refuses, and writes no file.
+
+        THE OTHER HALF OF THE VOCABULARY DEFECT. The refusal used to type
+        its kind list out by hand and named ten of the documented set for
+        as long as it existed; `body`, `priority`, `help`, `sticky-bar`
+        and `feedback` were the five it dropped, so they were the five
+        with no evidence anywhere that the export path had ever seen one.
+        The sibling pin in `tests/test_mutants.py` proves the SENTENCE is
+        derived from `WIREFRAME_KINDS`; it calls `_mermaid_refusal`
+        directly and says nothing about what `cmd_export` does to a
+        wireframe that actually contains those kinds. A refusal that
+        describes a kind and then exports it would be worse than the
+        omission, because the file it wrote would be believed.
+
+        Nothing here names a kind or a count: the screen is built FROM
+        the vocabulary, so a kind added tomorrow arrives in this test
+        with nobody retyping it, and the five above appear only in this
+        docstring as history.
+
+        Three things a passing run has to mean, and the third is why this
+        is not two assertions:
+
+        1. the kinds are IN the scene under test. `kind` rides in
+           `customData`, not as a top-level key, so an add that dropped
+           it would leave a screen of anonymous rectangles and every
+           other assertion here would still hold — this test would then
+           be proving the refusal over content it never contained;
+        2. the wireframe exits 2, leaves no `.mmd` behind, and names
+           every kind it holds;
+        3. **an artifact that is not a wireframe still exports**, ungated,
+           in the same run. Without it, a `cmd_export` that had degraded
+           to refusing everything would pass 1 and 2 and read as healthy.
+        """
+        kinds = list(canvas.WIREFRAME_KINDS)
+        ops = [{"op": "add", "element": {
+            "type": "frame", "id": "scr", "label": "Screen", "x": 0,
+            "y": 0, "width": 360, "height": 480}}]
+        ops += [{"op": "add", "element": {
+            "type": "rectangle", "id": k.replace("-", ""),
+            "label": k.title(), "kind": k, "x": 20, "y": 20 + i * 24,
+            "width": 200, "height": 20, "frameId": "scr",
+            "role": "node"}} for i, k in enumerate(kinds)]
+        self.seed(atype="wireframe", aid="wfk", ops=ops)
+        drawn = {canvas.kind_of(e) for e in self.scene("wfk")}
+        self.assertFalse(
+            set(kinds) - drawn,
+            "the screen under test does not hold %r — `kind` lives in "
+            "customData, and a drop there would leave this test proving "
+            "the refusal over a screen of anonymous rectangles"
+            % sorted(set(kinds) - drawn))
+
+        # THE READER DISCRIMINATES, proved before it is trusted. A
+        # `kind in message` sweep passes this test more often than the
+        # token rule does, so the weaker reader has to be excluded here
+        # rather than in a comment: a kind buried inside a longer word is
+        # not that kind being named.
+        buried = "the export wrote nothing to %s-panel.mmd" % kinds[0]
+        self.assertEqual(
+            self.kinds_named_by(buried), set(),
+            "the reader counts %r as named by %r, so it is matching "
+            "substrings and this guard would pass over a sentence that "
+            "lists no kind at all" % (kinds[0], buried))
+
+        code, out = self.run_export(artifact="wfk")
+        self.assertEqual(code, 2, out)
+        self.assertFalse(
+            (self.tmp / "project_knowledge" / "wfk.mmd").exists(),
+            "a screen holding the whole kind vocabulary was EXPORTED — "
+            "the refusal describes those kinds and then wrote a file a "
+            "reader would believe")
+        self.assertEqual(
+            self.kinds_named_by(out), set(kinds),
+            "the refusal a user reads omits %r. Every wireframe kind is "
+            "equally unspellable in mermaid — that is the fact the "
+            "sentence exists to state — so naming a subset tells a reader "
+            "the rest have a mermaid spelling"
+            % sorted(set(kinds) - self.kinds_named_by(out)))
+
+        # THE FIRING POLE, ungated: an export that refused everything
+        # would satisfy every assertion above.
+        self.seed(atype="domain", aid="dm2")
+        self.assertEqual(self.run_export(artifact="dm2")[0], 0)
+        self.assertTrue(
+            (self.tmp / "project_knowledge" / "dm2.mmd").exists(),
+            "the refusal half passed only because export writes nothing "
+            "at all — a domain in the same project produced no file")
+
     def test_sequence_refuses_as_deferred_and_says_why(self):
         """DEFERRED, not impossible — the corpus carries zero sequence
         artifacts, so the mapping has never been measured. The word
@@ -12575,9 +12704,10 @@ class TestLintHygiene(Base):
         self.assertEqual(len(hits), 1)
 
     def test_offgrid_ignores_user_drawn_elements(self):
-        els = [{"id": "note-user-1", "type": "rectangle", "x": 3, "y": 7,
-                "width": 101, "height": 53, "isDeleted": False,
-                "customData": {"role": "node", "author": "user"}}]
+        els: list[dict[str, Any]] = [
+            {"id": "note-user-1", "type": "rectangle", "x": 3, "y": 7,
+             "width": 101, "height": 53, "isDeleted": False,
+             "customData": {"role": "node", "author": "user"}}]
         notes = canvas.lint_layout(els, artifact_type="flow")["notes"]
         self.assertFalse(any("off the 4px grid" in n for n in notes))
         els[0]["customData"]["author"] = "agent"
@@ -17152,7 +17282,7 @@ class TestObliqueArrivals(Base):
     measure would have gone silent on the loudest fossils there are.
     """
 
-    def scene(self, x, y, points):
+    def _scene(self, x, y, points):
         """One node and one arrow bound to it at a chosen angle.
 
         Args:
@@ -17172,22 +17302,22 @@ class TestObliqueArrivals(Base):
     def test_a_square_arrival_is_not_counted(self):
         # foot on the right edge, leg leaving straight out along it
         self.assertEqual(canvas.oblique_arrivals(
-            self.scene(120, 30, [[0, 0], [90, 0]])), [])
+            self._scene(120, 30, [[0, 0], [90, 0]])), [])
 
     def test_a_leg_running_along_the_side_it_lands_on_is_counted(self):
         # the `along` class: foot on the TOP edge, leg horizontal — dead
         # cardinal, so `_arrival_lean` scores it 0.0 and sees nothing
-        scene = self.scene(60, 0, [[0, 0], [90, 0]])
+        scene = self._scene(60, 0, [[0, 0], [90, 0]])
         self.assertEqual(canvas._arrival_lean(scene[1]), 0.0)
         self.assertEqual(canvas.oblique_arrivals(scene),
                          [("a1", "start")])
 
     def test_an_oblique_arrival_is_counted(self):
         self.assertEqual(canvas.oblique_arrivals(
-            self.scene(120, 30, [[0, 0], [90, 60]])), [("a1", "start")])
+            self._scene(120, 30, [[0, 0], [90, 60]])), [("a1", "start")])
 
     def test_an_unbound_end_has_nothing_to_be_square_to(self):
-        scene = self.scene(120, 30, [[0, 0], [90, 60]])
+        scene = self._scene(120, 30, [[0, 0], [90, 60]])
         scene[1]["startBinding"] = None
         self.assertEqual(canvas.oblique_arrivals(scene), [])
 
@@ -17425,7 +17555,15 @@ class TestTheDeclineRunsOnePass(unittest.TestCase):
             seen["n"] += 1
             return real(els)
 
-        canvas.reroute_scene = wrapper
+        # ty: MONKEYPATCH, and the stub's shape is not why this fires. ty
+        # gives a module-level `def` a declared type that is THAT function,
+        # so no other function is assignable to the attribute whatever it
+        # looks like — a byte-identical `def wrapper(els)` is rejected in
+        # the same words (measured). So there is nothing to fix in the
+        # stub; the `finally` below restores the real one. Per-line, not
+        # `invalid-assignment` switched off — that rule catches the
+        # subscript-on-None class, which found a live defect in this file.
+        canvas.reroute_scene = wrapper  # ty: ignore[invalid-assignment]
         try:
             yield seen
         finally:
@@ -19053,9 +19191,10 @@ class TestStateVariantFrames(Base):
         els = []
         for fid, lbl, fx in (("f-normal", normal, 0),
                              ("f-degraded", degraded, 900)):
-            frame = {"id": fid, "type": "frame", "x": fx, "y": 100,
-                     "width": 720, "height": 480,
-                     "name": fid.replace("f-", "")}
+            frame: dict[str, Any] = {
+                "id": fid, "type": "frame", "x": fx, "y": 100,
+                "width": 720, "height": 480,
+                "name": fid.replace("f-", "")}
             if variant_of and fid == "f-degraded":
                 frame["customData"] = {"variant_of": "f-normal"}
             els.append(frame)
@@ -19411,7 +19550,12 @@ class TestRouterTotalityAndSelfLoops(Base):
         def boom(*args, **kwargs):
             raise ValueError("boom")
 
-        canvas.route_arrow = boom
+        # ty: MONKEYPATCH. Not about the stub's shape — ty declares a
+        # module-level `def` as THAT function, so any reassignment is
+        # rejected, an identical signature included (measured). The
+        # `finally` below restores it. See the note at the
+        # `reroute_scene` patch for why this is per-line.
+        canvas.route_arrow = boom  # ty: ignore[invalid-assignment]
         try:
             with self.assertRaises(canvas.BatchError) as ctx:
                 self.store.apply_batch({
@@ -19446,7 +19590,12 @@ class TestRouterTotalityAndSelfLoops(Base):
         def boom(*args, **kwargs):
             raise ValueError("boom")
 
-        canvas.route_arrow = boom
+        # ty: MONKEYPATCH. Not about the stub's shape — ty declares a
+        # module-level `def` as THAT function, so any reassignment is
+        # rejected, an identical signature included (measured). The
+        # `finally` below restores it. See the note at the
+        # `reroute_scene` patch for why this is per-line.
+        canvas.route_arrow = boom  # ty: ignore[invalid-assignment]
         try:
             result = self.store.check_batch({
                 "base_revn": 1, "artifact": "f",
@@ -20059,6 +20208,474 @@ class TestComposedReconciliation(Base):
         rec = self.user_save(els)
         self.assertIn("housekeeping only", rec["summary"]["headline"])
         self.assertNotEqual(rec["summary"]["headline"], "no changes")
+
+
+class TestDuplicatedWidgetKeepsItsOwnInk(Base):
+    """Curator batch 45, 2026-08-20: the pins for the duplicate-backlink
+    data loss, witnessed in a real browser before this class existed.
+
+    Excalidraw's `duplicateElements` remaps `id`, `groupIds`,
+    `containerId` and every binding through one per-operation map and
+    passes `customData` through VERBATIM — so after a Ctrl+D each part
+    of the copy still names the ORIGINAL as its host, and
+    `reconcile_composed` finds its targets by exactly those backlinks.
+    The observed save gave the untouched original FOUR attribute rows
+    (its own two, twice), gave the copy NONE, deleted the user's two
+    rows from the store, and billed the original three facts it had not
+    earned. `lint_layout` returned the same reading on the damaged scene
+    as on the healthy one.
+
+    THE MEASURE IS ROW TEXT PER HOST, NEVER ID SURVIVAL, and the
+    difference is why this class can say anything at all. A probe that
+    counted "elements the user posted that the save DELETED" reads the
+    same on both arms: the entity path re-mints rows on every save, so
+    healthy and damaged both delete the same ids. Text and offset
+    survive a re-mint at the same place; they do not survive a part
+    being eaten by the wrong host. Every pin here scores ink as CONTENT
+    — `(dx, dy, w, h, text, points)` relative to its OWN host — so a
+    faithful copy compares equal to its source and a vanished part
+    cannot hide behind a fresh id.
+
+    The silent half is asserted too, and it matters as much: a repair
+    that re-points too eagerly moves a user's ink to the WRONG host,
+    which is the same class of damage as the bug. An untouched save
+    stays byte-identical, an honest resize still narrates, and the
+    blessed Ctrl+Shift+G ungroup keeps every backlink where the user
+    left it.
+    """
+
+    ENTITY: ClassVar[dict] = {
+        "kind": "entity", "label": "Trade",
+        "attributes": ["id: uuid", "notional: money"]}
+    BODY: ClassVar[dict] = {"kind": "body"}
+    CHECK: ClassVar[dict] = {"kind": "checkbox", "checked": True,
+                             "label": "Remember"}
+
+    def seed_widgets(self, specs, atype="wireframe"):
+        """Seed artifact `art` holding one composed widget per spec.
+
+        Args:
+            specs: List of `(element_id, attrs)` pairs; each becomes one
+                240x60 rectangle carrying `attrs`.
+            atype: Artifact type — "domain" for entities, else
+                "wireframe".
+
+        Returns:
+            The served element list at revn 1.
+        """
+        ops, y = [], 100
+        for eid, extra in specs:
+            el = {"id": eid, "type": "rectangle", "x": 100, "y": y,
+                  "width": 240, "height": 60}
+            el.update(extra)
+            ops.append({"op": "add", "element": el})
+            y += 300
+        rec, _ = self.store.apply_batch({
+            "base_revn": 0, "ops": ops,
+            "create": {"id": "art", "type": atype, "name": "Art",
+                       "concept": "domain" if atype == "domain"
+                       else "screen"}})
+        self.assertEqual(rec["revn"], 1)
+        return self.store.scenes["art"]
+
+    def ctrl_d(self, scene, host_id, dy=300, keep_groups=False):
+        """Duplicate a widget's group the way the browser's Ctrl+D does.
+
+        Mirrors `duplicateElements`: fresh ids, `containerId` and
+        `boundElements` remapped through one map, group ids regenerated
+        — and `customData` deep-copied UNCHANGED, which is the defect
+        under test and so is spelled here rather than assumed.
+
+        Args:
+            scene: Posted element list; the copy is appended in place.
+            host_id: Id of the host to duplicate.
+            dy: Y offset for the copy.
+            keep_groups: Carry group ids over verbatim instead of
+                remapping them. This is the EDITING-GROUP corner —
+                `getNewGroupIdsForDuplication` preserves every group at
+                or above the one being edited, so a duplicate made
+                inside the widget's own group leaves both hosts sharing
+                one innermost key and the group stops being a witness.
+
+        Returns:
+            The copy's host id.
+        """
+        host = next(e for e in scene if e["id"] == host_id)
+        gids = set(host.get("groupIds") or [])
+        members = [e for e in scene
+                   if e["id"] == host_id
+                   or (gids & set(e.get("groupIds") or []))
+                   or e.get("containerId") == host_id]
+        idmap = {e["id"]: e["id"] + "C" for e in members}
+        for e in members:
+            c = copy.deepcopy(e)
+            c["id"], c["y"] = idmap[e["id"]], e.get("y", 0) + dy
+            c["groupIds"] = list(e.get("groupIds") or []) if keep_groups \
+                else [g + "C" for g in (e.get("groupIds") or [])]
+            if c.get("containerId"):
+                c["containerId"] = idmap.get(c["containerId"],
+                                             c["containerId"])
+            if c.get("boundElements"):
+                c["boundElements"] = [dict(b, id=idmap.get(b["id"], b["id"]))
+                                      for b in c["boundElements"]]
+            scene.append(c)
+        return idmap[host_id]
+
+    def save_scene(self, posted, must_reconcile):
+        """Commit a posted scene as a user save, spying on the reconciler.
+
+        A probe that calls nothing proves nothing, so this refuses to
+        return unless every named host actually reached
+        `reconcile_composed`: the pins below all turn on what that
+        function did, and a save that never reached it would print a
+        reassuring pass over an untested path.
+
+        Args:
+            posted: The element list the browser posted.
+            must_reconcile: Host ids that MUST have been handed to
+                `reconcile_composed` during this save.
+
+        Returns:
+            `(record, stored_elements)`.
+        """
+        seen, real = [], canvas.reconcile_composed
+
+        def spy(els, index, existing, el):
+            """Record the host handed in, then delegate to the real one."""
+            seen.append(el.get("id"))
+            return real(els, index, existing, el)
+
+        with mock.patch.object(canvas, "reconcile_composed", spy):
+            rec = self.store.commit("user", {"art": posted},
+                                    base_revn=self.store.head_revn())
+        for want in must_reconcile:
+            self.assertIn(want, seen,
+                          "%r never reached reconcile_composed (saw %r) — "
+                          "this pin tested nothing" % (want, seen))
+        return rec, self.store.scenes["art"]
+
+    @staticmethod
+    def parts_of(els, host):
+        """Live elements whose `*_of` backlink names `host`.
+
+        Args:
+            els: Element list.
+            host: Host id.
+
+        Returns:
+            List of element dicts.
+        """
+        return [e for e in els
+                if any(k.endswith("_of") and v == host
+                       for k, v in (e.get("customData") or {}).items())]
+
+    @classmethod
+    def rows_of(cls, els, host):
+        """The TEXT of `host`'s parts, in drawn order.
+
+        Args:
+            els: Element list.
+            host: Host id.
+
+        Returns:
+            List of strings, y-ordered.
+        """
+        return [e.get("text", "") for e in
+                sorted(cls.parts_of(els, host), key=lambda e: e.get("y", 0))]
+
+    @classmethod
+    def ink_of(cls, els, host):
+        """`host`'s parts scored as CONTENT, keyed off `host`'s corner.
+
+        Position is RELATIVE to the host, so a faithful copy 300px down
+        compares equal to its source, and a part re-minted under a fresh
+        id at the same place reads as the user's ink intact.
+
+        Args:
+            els: Element list.
+            host: Host id.
+
+        Returns:
+            Sorted `(dx, dy, w, h, text, points)` tuples; empty when
+            `host` is not in the scene.
+        """
+        h = next((e for e in els if e["id"] == host), None)
+        if h is None:
+            return []
+        return sorted(
+            (round(e.get("x", 0) - h.get("x", 0), 3),
+             round(e.get("y", 0) - h.get("y", 0), 3),
+             round(e.get("width", 0), 3), round(e.get("height", 0), 3),
+             e.get("text", ""), json.dumps(e.get("points")))
+            for e in cls.parts_of(els, host))
+
+    def facts_on(self, rec, eid):
+        """The fact verbs this save billed to element `eid`.
+
+        Args:
+            rec: A commit record.
+            eid: Element id.
+
+        Returns:
+            Sorted list of fact verbs.
+        """
+        facts = ((rec or {}).get("artifacts") or {}).get("art", {}) \
+            .get("facts") or []
+        return sorted(f.get("fact") for f in facts if f.get("element") == eid)
+
+    # -- 1/2. the ink lands on the host that owns it -------------------
+
+    def test_duplicated_entity_rows_split_two_and_two(self):
+        # The witnessed shape: [4 on the original, 0 on the copy]. Both
+        # halves are asserted, because either alone passes a scene that
+        # is still wrong — a copy with two rows proves nothing if the
+        # original also kept four.
+        served = self.seed_widgets([("ent", self.ENTITY)], "domain")
+        want = self.rows_of(served, "ent")
+        self.assertEqual(want, ["id: uuid", "notional: money"])
+        posted = copy.deepcopy(served)
+        cid = self.ctrl_d(posted, "ent")
+        _, after = self.save_scene(posted, must_reconcile=("ent",))
+        self.assertEqual(self.rows_of(after, "ent"), want,
+                         "the untouched original absorbed the copy's rows")
+        self.assertEqual(self.rows_of(after, cid), want,
+                         "the copy came back with no rows of its own")
+        self.assertEqual(self.ink_of(after, cid), self.ink_of(after, "ent"),
+                         "the copy is not a faithful copy")
+
+    def test_duplicated_body_waves_land_on_the_copy(self):
+        # `body` is the second delete-and-remint-by-backlink arm, and it
+        # fails DIFFERENTLY from `entity`: the original's waves are
+        # re-derived from its own height so it looks untouched, while
+        # the copy's three posted waves are deleted outright. An
+        # original-only assertion is blind to exactly this shape.
+        #
+        # WHAT THIS PIN CANNOT SEE, measured rather than assumed, so the
+        # next reader does not mistake its green for a stronger claim
+        # than it is. TWO live clauses reach this outcome — re-hosting
+        # the copy's waves, and `body`'s arrival in the new-host paste
+        # gate — and either alone repairs it: ablate `_rehost_duplicated
+        # _parts` and the picture is byte-identical, because a wave is
+        # pure derivation and a canonical re-mint under the copy's own
+        # id is indistinguishable from the user's own. So this pin goes
+        # red only against the pre-fix file with both clauses gone, and
+        # deleting either one on its own is invisible HERE. The clauses
+        # are held separately: the paste gate by
+        # `test_bare_pasted_body_host_composes_its_waves`, the
+        # re-hosting by the entity, stencil and editing-group pins,
+        # where the part carries text a re-mint cannot recreate.
+        served = self.seed_widgets([("bod", self.BODY)])
+        want = self.ink_of(served, "bod")
+        self.assertTrue(want, "the seed drew no waves — nothing to lose")
+        posted = copy.deepcopy(served)
+        cid = self.ctrl_d(posted, "bod")
+        _, after = self.save_scene(posted, must_reconcile=("bod",))
+        self.assertEqual(self.ink_of(after, "bod"), want)
+        self.assertEqual(self.ink_of(after, cid), want,
+                         "the copy's waves were deleted, not re-hosted")
+
+    # -- 3. nothing is billed to the widget the user never touched -----
+
+    def test_duplicate_bills_no_fact_to_the_untouched_original(self):
+        # THE NARRATION FACE OF THE SAME DEFECT, and the one the first
+        # pass missed: `resized` is named explicitly here because the
+        # original spike reported only the two `attribute_added` facts
+        # and a second pass found the third. Duplicating one `Trade`
+        # told the user their untouched `Trade` had gained two
+        # attributes and been resized.
+        served = self.seed_widgets([("ent", self.ENTITY)], "domain")
+        posted = copy.deepcopy(served)
+        cid = self.ctrl_d(posted, "ent")
+        rec, _ = self.save_scene(posted, must_reconcile=("ent",))
+        billed = self.facts_on(rec, "ent")
+        self.assertNotIn("resized", billed)
+        self.assertNotIn("attribute_added", billed)
+        self.assertEqual(billed, [],
+                         "the save billed the untouched original for an "
+                         "edit the user never made")
+        self.assertTrue(self.facts_on(rec, cid),
+                        "the copy the user DID make earned no fact — the "
+                        "save went silent instead of going honest")
+
+    # -- 4. a bare pasted host composes, backlinks or no backlinks -----
+
+    def test_bare_pasted_body_host_composes_its_waves(self):
+        # SEPARATE FROM THE RE-HOSTING FIX, deliberately. This host
+        # arrives with NO parts and NO stale backlink, so nothing here
+        # depends on re-pointing: it is the new-host gate in
+        # `_interpret_user_composites`, whose kind list omitted `body`
+        # from the day it was written while `reconcile_composed` carried
+        # a working `body` arm the whole time. A pasted body block drew
+        # as an empty rectangle and nothing said so.
+        served = self.seed_widgets([("bod", self.BODY), ("cb", self.CHECK)])
+        want = len(self.parts_of(served, "bod"))
+        self.assertTrue(want)
+        posted = copy.deepcopy(served)
+        src = next(e for e in posted if e["id"] == "bod")
+        pasted = copy.deepcopy(src)
+        pasted["id"], pasted["y"] = "bod2", src["y"] + 500
+        pasted["groupIds"], pasted["boundElements"] = [], []
+        posted.append(pasted)
+        _, after = self.save_scene(posted, must_reconcile=("bod2",))
+        self.assertEqual(len(self.parts_of(after, "bod2")), want,
+                         "the pasted body block drew as an empty rectangle")
+
+    # -- 5. `kind` is a door into recomposition, like width and label --
+
+    def test_mod_kind_body_alone_composes_the_waves(self):
+        # The agent-facing face of the same silence. `kind` does not
+        # change an input to a derivation, it changes WHAT THE PARTS
+        # ARE, so it belongs beside width/height/label in the gate. The
+        # relation, not the count: sending `kind` alone must give the
+        # same widget as sending `kind` with the height it already has.
+        self.seed_widgets([("p", {})])
+        both = self.store.head_revn()
+        self.store.apply_batch({
+            "base_revn": both, "artifact": "art",
+            "ops": [{"op": "mod", "id": "p", "attrs": {"kind": "body"}}]})
+        alone = self.ink_of(self.store.scenes["art"], "p")
+        self.assertTrue(alone, "`mod kind` left a body block with no waves")
+        store2 = canvas.Store(self.project)
+        store2.apply_batch({
+            "base_revn": store2.head_revn(), "artifact": "art",
+            "ops": [{"op": "mod", "id": "p", "attrs": {"kind": "body",
+                                                       "height": 60}}]})
+        self.assertEqual(alone, self.ink_of(store2.scenes["art"], "p"),
+                         "the agent had to send a height it did not want "
+                         "to change to get the waves")
+
+    # -- 6. the stencil case: the original host is not in the scene ----
+
+    def test_pasted_stencil_rehosts_when_the_original_is_absent(self):
+        # A user-authored library stencil built from a composed widget,
+        # dropped into an artifact that has never held it.
+        # `addElementsFromPasteOrLibrary` calls `duplicateElements`, so
+        # the parts arrive naming a host that IS NOT IN THIS SCENE — and
+        # `composed_group_gaps`, whose loop drops any part whose owner
+        # it cannot resolve, is blind to precisely that. The parts must
+        # follow the pasted host, and nothing may be left naming a
+        # ghost.
+        # A SEPARATE PROJECT, so nothing ties the stencil's host to the
+        # scene it is dropped into — which is what a library entry is.
+        donor_root = Path(tempfile.mkdtemp(prefix="wysiwyg-stencil-"))
+        self.addCleanup(shutil.rmtree, donor_root, ignore_errors=True)
+        donor_project = canvas.Project(donor_root)
+        donor_project.ensure_tree()
+        donor = canvas.Store(donor_project)
+        donor.apply_batch({
+            "base_revn": 0, "create": {"id": "sten", "type": "domain",
+                                       "concept": "domain", "name": "S"},
+            "ops": [{"op": "add", "element": dict(
+                {"id": "ent", "type": "rectangle", "x": 0, "y": 0,
+                 "width": 240, "height": 60}, **self.ENTITY)}]})
+        stencil = copy.deepcopy(donor.scenes["sten"])
+        want = self.rows_of(stencil, "ent")
+        served = self.seed_widgets([("cb", self.CHECK)], "domain")
+        posted = copy.deepcopy(served)
+        host = next(e for e in stencil if e["id"] == "ent")
+        gids = set(host.get("groupIds") or [])
+        members = [e for e in stencil
+                   if e["id"] == "ent"
+                   or (gids & set(e.get("groupIds") or []))
+                   or e.get("containerId") == "ent"]
+        idmap = {e["id"]: "P" + e["id"] for e in members}
+        for e in members:
+            c = copy.deepcopy(e)
+            c["id"], c["y"] = idmap[e["id"]], e.get("y", 0) + 700
+            c["groupIds"] = [g + "P" for g in (e.get("groupIds") or [])]
+            if c.get("containerId"):
+                c["containerId"] = idmap.get(c["containerId"],
+                                             c["containerId"])
+            if c.get("boundElements"):
+                c["boundElements"] = [dict(b, id=idmap.get(b["id"], b["id"]))
+                                      for b in c["boundElements"]]
+            posted.append(c)
+        # `cb` is the resident widget: it proves the save path ran even
+        # in the arm where the pasted host is never reconciled, which is
+        # the finding rather than a broken pin.
+        _, after = self.save_scene(posted, must_reconcile=("cb",))
+        self.assertEqual(self.rows_of(after, "Pent"), want,
+                         "the stencil's rows did not follow the host that "
+                         "was actually pasted")
+        self.assertEqual([e["id"] for e in self.parts_of(after, "ent")], [],
+                         "a part is still naming a host that is not in "
+                         "this scene")
+
+    # -- 7. the editing-group corner, where the group is not a witness -
+
+    def test_editing_group_duplicate_prefers_the_newly_minted_host(self):
+        # THE ONE CORNER THE FIX'S AUTHOR NAMED AS UNOBSERVED.
+        # `getNewGroupIdsForDuplication` preserves every group id at or
+        # above the group being EDITED, so a Ctrl+D made from inside the
+        # widget's own group hands the copy's parts the SAME
+        # `groupIds[0]` the original's parts carry. The group stops
+        # discriminating, both hosts answer the lookup, and the only
+        # thing left standing is the tie-break that prefers the host
+        # that is not in the base scene.
+        served = self.seed_widgets([("ent", self.ENTITY)], "domain")
+        want = self.rows_of(served, "ent")
+        posted = copy.deepcopy(served)
+        gid = (next(e for e in posted
+                    if e["id"] == "ent").get("groupIds") or [None])[0]
+        self.assertIsNotNone(gid, "the seed minted no widget group — the "
+                                  "corner this pin describes cannot arise")
+        cid = self.ctrl_d(posted, "ent", keep_groups=True)
+        self.assertEqual(
+            (next(e for e in posted if e["id"] == cid).get("groupIds")
+             or [None])[0], gid,
+            "the copy did not keep the editing group — this pin tested "
+            "the ordinary duplicate, not the corner")
+        _, after = self.save_scene(posted, must_reconcile=("ent",))
+        self.assertEqual(self.rows_of(after, "ent"), want)
+        self.assertEqual(self.rows_of(after, cid), want,
+                         "inside an editing group the copy's rows still "
+                         "went to the original")
+
+    # -- the silent half: a false re-point is the same damage ----------
+
+    def test_untouched_save_of_composed_widgets_changes_nothing(self):
+        # A re-hosting pass that runs on parts it should not touch moves
+        # a user's ink to the wrong host. The strongest available
+        # statement of "it did not run" is that the stored scene came
+        # back byte-identical and the save narrated as a no-op.
+        served = self.seed_widgets(
+            [("ent", self.ENTITY), ("bod", self.BODY), ("cb", self.CHECK)],
+            "domain")
+        before = json.dumps(served, sort_keys=True)
+        rec, after = self.save_scene(copy.deepcopy(served),
+                                     must_reconcile=("ent", "bod", "cb"))
+        self.assertEqual(json.dumps(after, sort_keys=True), before)
+        self.assertEqual(rec["summary"]["headline"],
+                         "saved without changing anything")
+
+    def test_honest_resize_still_rederives_and_narrates(self):
+        # The other pole of pin 3: `resized` must NOT vanish from a save
+        # where the user really did resize. A pin that only forbids
+        # facts is satisfied by a narrator that has gone mute.
+        served = self.seed_widgets([("bod", self.BODY)])
+        posted = copy.deepcopy(served)
+        next(e for e in posted if e["id"] == "bod")["height"] = 160
+        rec, after = self.save_scene(posted, must_reconcile=("bod",))
+        self.assertIn("resized", self.facts_on(rec, "bod"))
+        self.assertGreater(len(self.parts_of(after, "bod")),
+                           len(self.parts_of(served, "bod")),
+                           "a taller body block did not re-derive more "
+                           "waves")
+
+    def test_blessed_ungroup_keeps_every_backlink(self):
+        # Ctrl+Shift+G is a deliberate act this design blesses, and it
+        # produces the same reading a duplicate does — parts whose
+        # groups no longer name their host. A repair that touched them
+        # would silently undo a decision the user made with their hands.
+        # Only parts ABSENT FROM THE BASE may be re-pointed.
+        served = self.seed_widgets([("ent", self.ENTITY)], "domain")
+        want = self.rows_of(served, "ent")
+        posted = copy.deepcopy(served)
+        for e in posted:
+            e["groupIds"] = []
+        _, after = self.save_scene(posted, must_reconcile=("ent",))
+        self.assertEqual(self.rows_of(after, "ent"), want,
+                         "the ungroup gesture cost the user their rows")
 
 
 class TestPictureIsTheTruth(Base):
@@ -21537,7 +22154,11 @@ class TestGrazeSceneGuard(Base):
             els = canvas.normalize_scene_doc(doc)["elements"]
             shipped, _ = canvas.reroute_scene(copy.deepcopy(els))
             real = canvas._grazing_terminal_legs
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
             try:
                 plain, _ = canvas.reroute_scene(copy.deepcopy(els))
             finally:
@@ -21634,7 +22255,11 @@ class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
         els, ops = self._batch()
         real = canvas._grazing_terminal_legs
         if not graze:
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
         try:
             return canvas.apply_ops(copy.deepcopy(els),
                                     copy.deepcopy(ops), [])
@@ -21716,7 +22341,11 @@ class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
             doc, _ = canvas.validate_scene(json.loads(path.read_text()), name)
             els = canvas.normalize_scene_doc(doc)["elements"]
             real = canvas._grazing_terminal_legs
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
             try:
                 plain, _ = canvas.reroute_scene(copy.deepcopy(els))
             finally:
@@ -22648,7 +23277,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
     finding below is the new one.
     """
 
-    def scene(self, unbound_x=220):
+    def _scene(self, unbound_x=220):
         """One bound source and two boxes the arrow only passes.
 
         `a` is 60..220 on x and 148..228 on y, so its RIGHT border is
@@ -22698,7 +23327,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         so a check that had merely started double-counting `a` would
         fail here rather than pass by coincidence.
         """
-        els = self.scene()
+        els = self._scene()
         a, b, c, _d, ag = els
         rpath = canvas._rendered_path(ag)
 
@@ -22734,7 +23363,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         shared opening is deliberate: it is the same claim about the
         same pixels, and one detector regex reads both.
         """
-        found = self.runs(self.scene())
+        found = self.runs(self._scene())
         for m in found:
             self.assertIn("neither its source nor destination", m)
             self.assertIn("route it clear of that edge", m)
@@ -22747,7 +23376,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         the boxes are still beside the arrow at x=232, just not under
         it.
         """
-        self.assertFalse(self.runs(self.scene(unbound_x=232)))
+        self.assertFalse(self.runs(self._scene(unbound_x=232)))
 
     def test_a_shape_the_arrow_binds_is_not_reported_twice(self):
         """The bound arm keeps its own sentence and its own tier.
@@ -22786,7 +23415,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         for one stroke — the arrangement the graze check's own
         `continue` chain already keeps.
         """
-        els = self.scene()
+        els = self._scene()
         els[4]["x"] = 300           # the drop now cuts b and c in half
         lint = canvas.lint_layout(els, artifact_type="flow")
         crossed = [m for m in lint["warnings"] if "passes through" in m]
@@ -22812,7 +23441,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
             "ops": [add("a", 60, 148), add("b", 220, 250),
                     add("c", 220, 360), add("d", 530, 438)]})
         els = [dict(e) for e in self.store.scenes["brd"]]
-        els.append(self.scene()[4])
+        els.append(self._scene()[4])
         self.store.commit(author="agent", new_scenes={"brd": els},
                           base_revn=self.store.head_revn())
         store = canvas.Store(self.project)
@@ -25437,6 +26066,774 @@ class TestComposedWidgetsAreRealGroups(Base):
         self.assertEqual(followers, {"b", "c"})
 
 
+class TestComposedHostFloors(Base):
+    """A composed host is measured against what its own kind owes.
+
+    The poles the acceptance mutant cannot reach. `composed_host_
+    stripped_is_invisible` asserts ONE scene — a 64px `body` stripped to
+    nothing — which is the right size for an acceptance test and says
+    nothing about the other seven kinds, about the carve-outs, or about
+    the direction the rule must NOT fire in. Those are here, because a
+    check proven on one arm is a check whose other arms are unheld.
+    """
+
+    # The mint specs, one per kind, with the floor each one's stored
+    # element guarantees AFTER `make_element`'s own clamps: `kpi` is
+    # lifted to 64px, `checkbox`/`toggle` to 28, `slider` to 44, and
+    # `body` is not clamped at all, so 60px gives it `60 // 16` = 3.
+    # `entity` is the one None — the whole false-positive cost of the
+    # rule, and it is here rather than trusted.
+    #
+    # THE THREE `input` ROWS ARE THREE DOORS, not one case written out
+    # three times, and they are the reason this class caught a looping
+    # ERROR. Every other spec authors through top-level op keys; for
+    # `input` that used to be the only door `make_element` read, while
+    # the lint read `customData.value` and `reconcile_composed` read
+    # neither. A pole built only the top-level way never exercises the
+    # field the check reads. All three must now agree on ONE row.
+    SPECS = (
+        ({"kind": "slider", "value": 60}, 2),
+        ({"kind": "checkbox", "checked": True}, 2),
+        ({"kind": "checkbox", "checked": False}, 1),
+        ({"kind": "toggle", "checked": True}, 2),
+        ({"kind": "kpi", "value": "$4.2M"}, 1),
+        ({"kind": "input", "value": "09:00"}, 1),
+        ({"kind": "input"}, None),
+        ({"kind": "input", "customData": {"value": "09:00"}}, 1),
+        ({"kind": "image"}, 2),
+        ({"kind": "entity", "attributes": ["id", "total"]}, None),
+        ({"kind": "body"}, 3),
+    )
+
+    def _mint(self, spec):
+        """Mint one composed widget the way the `add` path does.
+
+        Args:
+            spec: The op spec's kind-bearing fields.
+
+        Returns:
+            The minted element list, `out[0]` the host.
+        """
+        errors = []
+        out = canvas.make_element(
+            dict({"id": "w", "type": "rectangle", "x": 100, "y": 200,
+                  "width": 160, "height": 60, "label": "W"}, **spec),
+            set(), errors, 0)
+        self.assertEqual(errors, [])
+        return out
+
+    def test_every_composed_kind_has_a_floor_ruling(self):
+        """The three copies of the kind vocabulary are one list.
+
+        `_interpret_user_composites` carries the enumeration the `add`
+        path composes and says in its own comment that
+        `reconcile_composed`'s arms are the same list. `composed_part_
+        floor` is now the third, and a kind added to the gate with no
+        ruling here would arrive SILENTLY EXEMPT — the check would go
+        quiet on a whole kind and no test would fail, which is the
+        failure mode the check itself exists to end. Read out of the
+        source rather than restated, so this cannot be the fourth copy.
+        """
+        gate = inspect.getsource(canvas._interpret_user_composites)
+        kinds = re.search(
+            r'if kind in \((\s*"[a-z]+",?\s*)+\):', gate)
+        self.assertIsNotNone(
+            kinds, "the composed-kind tuple in `_interpret_user_"
+                   "composites` has been reshaped past this reader — "
+                   "re-point it, do not delete it")
+        named = set(re.findall(r'"([a-z]+)"', kinds.group(0)))
+        self.assertEqual(len(named), 8, sorted(named))
+        # CODE, NOT COMMENTS. The first version of this asserted the
+        # kind's spelling appeared anywhere in the source, so deleting
+        # the `if kind in ("toggle", "slider")` arm while leaving the
+        # word "toggle" in a comment above it left this GREEN — a pin
+        # whose docstring claimed three lists were one while it read a
+        # paragraph. Comment lines are stripped before the search, so
+        # the kind has to be named in something that runs.
+        floor_src = "\n".join(
+            line for line in
+            inspect.getsource(canvas.composed_part_floor).splitlines()
+            if not line.lstrip().startswith("#"))
+        body = floor_src.split('"""', 2)[-1]
+        missing = sorted(k for k in named if '"%s"' % k not in body)
+        self.assertEqual(
+            missing, [],
+            "these composed kinds are minted by the gate and have no "
+            "ruling in `composed_part_floor`'s CODE, so a host of one of "
+            "them drawing nothing is invisible: %s. Give each a floor, "
+            "or an explicit `return None` with the reason it has none — "
+            "naming it only in a comment does not count" % missing)
+
+    def test_the_body_floor_is_the_count_the_seeder_mints(self):
+        """The floor is the seeder's own n, swept, not a copy of it.
+
+        `composed_part_floor` spells `max(2, int(max(h, 16) // 16))`
+        rather than calling `_compose_body_lines`, which would mint n
+        throwaway elements on every lint. The arithmetic is therefore
+        duplicated, and this is what stops the two drifting: the
+        expectation comes from the OTHER function, never from the
+        subject, so a change to either side that the other did not make
+        fails here. The sweep crosses every band boundary in the range,
+        including the `max(2, ...)` and `max(h, 16)` floors, which is
+        where a rounding change would land.
+        """
+        for h in [0, 1, 15, 16, 17, 31, 32, 33, 47, 48, 63, 64, 65,
+                  100, 160, 257]:
+            with self.subTest(height=h):
+                host = mk_el(id="b", type="rectangle", x=0, y=0,
+                             width=160, height=h,
+                             customData={"kind": "body", "role": "node"})
+                self.assertEqual(
+                    canvas.composed_part_floor(host),
+                    len(canvas._compose_body_lines(host, set())),
+                    "the body floor and the count the seeder mints have "
+                    "parted at height %s" % h)
+
+    def test_every_minted_widget_draws_what_it_owes(self):
+        """The false-positive pole across the whole kind vocabulary.
+
+        A rule of this shape fires on every widget this skill mints if
+        it counts the wrong thing — bound labels, say, or parts by group
+        rather than by backlink. Every kind is minted whole here and the
+        check must be silent on all of them.
+        """
+        for spec, _floor in self.SPECS:
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                self.assertEqual(
+                    canvas.composed_host_gaps(out), [],
+                    "%r was minted whole and reported anyway" % (spec,))
+
+    def test_each_kind_owes_the_count_its_stored_element_implies(self):
+        """The floor per kind, and the two kinds that have none."""
+        for spec, floor in self.SPECS:
+            with self.subTest(spec=spec):
+                host = self._mint(spec)[0]
+                self.assertEqual(canvas.composed_part_floor(host), floor)
+
+    def test_a_stripped_host_of_every_floored_kind_is_named(self):
+        """Strip the parts and every floored kind speaks, with its count.
+
+        The mutant proves ONE kind at ONE magnitude. This is the same
+        claim over the vocabulary: a `slider` back from a duplicate with
+        0 of its 2 parts is the witnessed defect, and it must read as
+        `(2, missing)` for the same reason the body reads `(4, missing)`.
+        """
+        for spec, floor in self.SPECS:
+            if floor is None:
+                continue
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                kept = [e for e in out
+                        if not canvas._composed_part(
+                            e.get("customData") or {})]
+                self.assertEqual(
+                    canvas.composed_host_gaps(kept),
+                    [("w", spec["kind"], floor, 0)],
+                    "%r drew none of its parts and was not named" % (spec,))
+
+    def test_an_entity_with_no_rows_is_never_reported(self):
+        """The carve-out, at the level the neighbour cannot reach.
+
+        The mutant's neighbour asserts this for one scene through
+        `collect_findings`. The reason it holds is that `entity` has NO
+        FLOOR — its rows are the storage for its attribute list and the
+        host keeps no `attributes` key — so the silence is structural
+        and not a special case somebody has to remember. Asserted on the
+        floor itself, so a later hand that gives `entity` a floor and a
+        suppression somewhere downstream fails here rather than shipping
+        a rule with a hole in its reasoning.
+        """
+        bare = mk_el(id="e", type="rectangle", x=400, y=0, width=160,
+                     height=64,
+                     customData={"kind": "entity", "role": "node"})
+        self.assertIsNone(canvas.composed_part_floor(bare))
+        self.assertEqual(canvas.composed_host_gaps([bare]), [])
+
+    def test_an_input_owes_a_row_exactly_when_it_carries_a_value(self):
+        """The floor may only say 1 where the mint agrees it says 1.
+
+        THE DEFECT THIS CLOSES WAS A DISAGREEMENT, not a wrong number.
+        `composed_part_floor` returned 1 on a stored `customData.value`
+        and justified it as "gated the way the mint is". It was not:
+        `make_element` read only the SPEC's TOP-LEVEL `value`, so `add
+        {"kind": "input", "customData": {"value": "09:00"}}` — reachable
+        because `mod` documents `customData` as MERGED — stored the
+        datum, drew no row for it, and raised an ERROR whose remedy was
+        to re-add it, which reproduced the finding verbatim.
+
+        The rule they now share is "a value through EITHER door means a
+        row", which is the shape the product decision forced: making
+        every input owe a row was tried and contradicts
+        `TestInputValue.test_add_without_value_stays_a_bare_field`.
+
+        THE DATUM MUST SURVIVE and that is asserted, not assumed. The
+        cheap way to clear this finding is to drop the declared
+        `customData` value at mint time — the scene goes quiet, the
+        check goes quiet, and the v0.5 silent drop this whole block
+        exists for is back.
+        """
+        for spec, rows_want in (({"kind": "input"}, 0),
+                                ({"kind": "input", "value": "09:00"}, 1),
+                                ({"kind": "input",
+                                  "customData": {"value": "09:00"}}, 1)):
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                rows = [e for e in out
+                        if (e.get("customData") or {}).get("value_of") == "w"]
+                self.assertEqual(len(rows), rows_want,
+                                 "the mint drew %d value rows for %r"
+                                 % (len(rows), spec))
+                self.assertEqual(canvas.composed_host_gaps(out), [])
+                if rows_want:
+                    self.assertEqual(rows[0].get("text"), "09:00")
+                    self.assertEqual((out[0].get("customData") or {})
+                                     .get("value"), "09:00")
+
+    def test_the_customdata_door_settles_a_value_and_draws_it(self):
+        """`mod {"customData": …}` is a merge, and now it recomposes.
+
+        The op layer returned ZERO errors for this batch while the
+        composed-host ERROR condemned the scene it produced — a batch
+        told it was fine and then reported as damage, with a remedy that
+        reproduced itself. `customData` is the fifth door on the
+        post-`mod` reconcile gate for that reason.
+
+        Asserted on the PICTURE and not only on the finding: a repair
+        that quietened the lint by dropping the agent's datum would pass
+        a silence check and re-open the defect, so what is required is
+        that the value the op settled is both stored AND drawn.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": "w", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "inp", "type": "rectangle",
+                      "x": 0, "y": 0, "width": 160, "height": 40,
+                      "label": "Run at", "kind": "input"}]})
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "w",
+             "ops": [{"op": "mod", "id": "inp",
+                      "attrs": {"customData": {"value": "09:00"}}}]})
+        els = self.store.scenes["w"]
+        host = next(e for e in els if e["id"] == "inp")
+        rows = [e for e in els
+                if (e.get("customData") or {}).get("value_of") == "inp"]
+        self.assertEqual((host.get("customData") or {}).get("value"),
+                         "09:00", "the settled value was dropped")
+        self.assertEqual([r.get("text") for r in rows], ["09:00"],
+                         "the settled value is stored but not drawn")
+        self.assertEqual(canvas.composed_host_gaps(els), [])
+
+    def test_a_checkbox_floor_follows_the_state_it_stores(self):
+        """A cleared tick lowers the floor rather than tripping it.
+
+        `_interpret_user_composites` reads a deleted check stroke as an
+        uncheck, so the user gesture that removes a part also removes
+        the obligation. A floor that ignored `checked` would report
+        every unchecked box in the project.
+        """
+        on = self._mint({"kind": "checkbox", "checked": True})
+        off = [dict(e, customData=dict(e.get("customData") or {},
+                                       checked=False))
+               if e["id"] == "w" else e
+               for e in on
+               if (e.get("customData") or {}).get("chk_of") != "w"]
+        self.assertEqual(canvas.composed_part_floor(on[0]), 2)
+        self.assertEqual(canvas.composed_host_gaps(on), [])
+        self.assertEqual(canvas.composed_host_gaps(off), [])
+
+    def test_a_pinned_part_suppresses_only_the_surplus_arm(self):
+        """This file's own reconciler produces a legitimate surplus.
+
+        MEASURED, NOT IMAGINED. `reconcile_composed`'s `body` branch
+        deletes every wave and re-mints from the new height, skipping
+        ids already standing — so pinning the LAST wave of a 64px block
+        and shrinking it to 32px leaves three waves against a floor of
+        two. That is a pin honoured, not damage, and it is the one
+        reading of this shape the check must not report. The missing arm
+        is NOT suppressed by a pin, and that half matters just as much:
+        a pin can only keep a part alive, never remove one, so a
+        suppression there would be a hole with no case behind it.
+        """
+        els = self._mint({"kind": "body", "height": 64})
+        for e in els:
+            if (e.get("customData") or {}).get("body_of") == "w":
+                last = e
+        last["locked"] = True
+        els[0]["height"] = 32
+        canvas.reconcile_composed(els, None, None, els[0])
+        drawn = [e for e in els
+                 if (e.get("customData") or {}).get("body_of") == "w"]
+        self.assertEqual(len(drawn), 3, [e["id"] for e in drawn])
+        self.assertEqual(canvas.composed_part_floor(els[0]), 2)
+        self.assertEqual(
+            canvas.composed_host_gaps(els), [],
+            "a pin honoured by the reconciler was reported as surplus")
+        # and the missing arm still speaks with the same pin standing
+        stripped = [e for e in els
+                    if (e.get("customData") or {}).get("body_of") != "w"
+                    or e is last]
+        self.assertEqual(canvas.composed_host_gaps(stripped),
+                         [("w", "body", 2, 1)])
+
+    def test_a_bound_label_is_not_one_of_the_parts_counted(self):
+        """A caption is not what a kind mints.
+
+        `part_owner_id` answers a bound label's `containerId` and
+        `_composed_part` does not — the one class those two disagree on,
+        and the count here has to be on the second. A slider with its
+        track and thumb gone but its name still drawn is a dead widget,
+        and a count that took the label would read 1 of 2 and call it
+        half alive.
+        """
+        out = self._mint({"kind": "slider", "value": 60})
+        kept = [e for e in out
+                if not canvas._composed_part(e.get("customData") or {})]
+        self.assertTrue(any(e.get("containerId") == "w" for e in kept),
+                        "the bound label is not in this scene at all, so "
+                        "this test proves nothing")
+        self.assertEqual(canvas.composed_host_gaps(kept),
+                         [("w", "slider", 2, 0)])
+
+    def _damaged_on_disk(self, spec, h, aid="a"):
+        """Add a widget, strip its parts on disk, and reopen the project.
+
+        The damage has to reach the FILE. `Store.commit` runs
+        `_interpret_user_composites`, which recomposes what it can, so a
+        strip pushed through the user save path heals three kinds before
+        anything under test is reached — and stripping `Store.scenes` in
+        memory instead leaves the store's live id set holding ids the
+        scene no longer has, which makes `reconcile_composed` skip
+        re-minting them. Both are probe artifacts that read as findings.
+        Writing the file and reopening is the real case the ledger
+        names: a scene already on disk, re-read every session.
+
+        Args:
+            spec: The composed kind's mint spec.
+            h: The host's height before `make_element`'s clamps.
+            aid: Artifact id — one per case, since these share a store.
+
+        Returns:
+            A fresh `Store` over the damaged project.
+        """
+        op = dict({"op": "add", "id": "h", "type": "rectangle", "x": 0,
+                   "y": 0, "width": 160, "height": h, "label": "H"}, **spec)
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": aid, "name": "A", "type": "wireframe"},
+             "ops": [op]})
+        f = self.project.artifacts_dir / (aid + ".excalidraw")
+        doc = json.loads(f.read_text())
+        doc["elements"] = [e for e in doc["elements"]
+                           if not canvas._composed_part(
+                               e.get("customData") or {})]
+        f.write_text(json.dumps(doc))
+        return canvas.Store(self.project)
+
+    def test_the_repair_the_message_names_is_the_one_that_works(self):
+        """The remedy is applied and watched, not spell-checked.
+
+        THIS IS THE POLE THE WHOLE REVIEW WAS ABOUT. The first version
+        of this ERROR told every kind to "re-add it", and on the one
+        route that reaches an `input` the re-add reproduced the finding
+        verbatim — an ERROR whose contract is "repair it in the same
+        move" handing back a loop. A string assertion would have been
+        satisfied by that message and by the next broken one, so this
+        parses nothing: it applies the op the sentence names and asks
+        the check again.
+
+        The split is `reconcile_composed`'s, not a taste: `body` and
+        `kpi` mint unconditionally, so a real geometry change brings
+        their parts back; `slider`, `toggle` and `image` re-derive parts
+        that must already exist, so a `mod` leaves them short and the
+        message correctly sends those to `del` + `add`. Both directions
+        are asserted, because a message that named the destructive
+        repair for a kind with a cheap one is the other half of the
+        same defect.
+        """
+        for spec, h, remint in (({"kind": "body"}, 60, True),
+                                ({"kind": "kpi", "value": "$4.2M"}, 64, True),
+                                ({"kind": "slider", "value": 60}, 44, False),
+                                ({"kind": "toggle", "checked": True}, 28,
+                                 False),
+                                ({"kind": "image"}, 60, False)):
+            with self.subTest(kind=spec["kind"]):
+                aid = "a-" + spec["kind"]
+                st = self._damaged_on_disk(spec, h, aid)
+                self.assertTrue(canvas.composed_host_gaps(st.scenes[aid]),
+                                "the scene was not damaged, so this "
+                                "subtest measures nothing")
+                st.apply_batch({"base_revn": st.head_revn(),
+                                "artifact": aid,
+                                "ops": [{"op": "mod", "id": "h",
+                                         "attrs": {"width": 161}}]})
+                after = canvas.composed_host_gaps(st.scenes[aid])
+                if remint:
+                    self.assertEqual(
+                        after, [],
+                        "the message sends a %s to a geometry `mod` and "
+                        "the `mod` did not repair it" % spec["kind"])
+                else:
+                    self.assertTrue(
+                        after,
+                        "a geometry `mod` now repairs a %s, so the "
+                        "message is sending it to `del` + `add` when a "
+                        "cheap repair exists" % spec["kind"])
+
+    def test_del_sweeps_a_hosts_parts_by_backlink_not_only_by_group(self):
+        """A host with no group still owns its parts when it is deleted.
+
+        THE CASCADE WAS `groupIds`-KEYED and a composed host is not
+        guaranteed to have a group. Two populations have none, and both
+        are designed states rather than edge cases: a widget the user
+        pulled apart with Ctrl+Shift+G, which this design explicitly
+        blesses, and any host composed through `mod`, because the mint's
+        `el["groupIds"] = [*…, gid]` runs only on `add` while
+        `reconcile_composed` never joins the host to the group it mints
+        parts into. `composed_group_gaps` exists to report exactly that
+        population.
+
+        For those, `del` left the parts standing as orphans — and since
+        `del` + `add` is the repair `lint_layout` PRESCRIBES for a
+        stripped host, the tool's own advice then met its own leftovers
+        and built a scene holding two elements with one id.
+
+        Asserted on both keys, because the group cascade must keep
+        working and a fix that replaced it rather than joining it would
+        pass a backlink-only test.
+        """
+        errors = []
+        els = canvas.apply_ops([], [{"op": "add", "element": {
+            "id": "h", "type": "rectangle", "x": 0, "y": 0, "width": 200,
+            "height": 44, "label": "H", "kind": "slider",
+            "value": 60}}], errors)
+        self.assertEqual(errors, [])
+        parts = [e["id"] for e in els if canvas.part_owner_id(e) == "h"
+                 and canvas._composed_part(e.get("customData") or {})]
+        self.assertTrue(parts, "no composed parts to sweep")
+        # the blessed ungroup: every group id gone, backlinks intact
+        loose = [dict(e, groupIds=[]) for e in els]
+        self.assertEqual(
+            [e["id"] for e in loose if canvas.part_owner_id(e) == "h"
+             and canvas._composed_part(e.get("customData") or {})],
+            parts, "the ungroup dropped the backlinks, so this scene "
+                   "cannot test the backlink cascade")
+        after = canvas.apply_ops(loose, [{"op": "del", "id": "h"}], errors)
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            [e["id"] for e in after
+             if canvas._composed_part(e.get("customData") or {})], [],
+            "`del` left an ungrouped host's parts standing as orphans")
+        # and a part of a DIFFERENT host is never swept
+        errors = []
+        two = canvas.apply_ops([], [
+            {"op": "add", "element": {"id": "a", "type": "rectangle",
+                                      "x": 0, "y": 0, "width": 200,
+                                      "height": 44, "kind": "slider",
+                                      "value": 60}},
+            {"op": "add", "element": {"id": "b", "type": "rectangle",
+                                      "x": 400, "y": 0, "width": 200,
+                                      "height": 44, "kind": "slider",
+                                      "value": 60}}], errors)
+        two = canvas.apply_ops(two, [{"op": "del", "id": "a"}], errors)
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            sorted(e["id"] for e in two
+                   if canvas._composed_part(e.get("customData") or {})),
+            ["b-thumb", "b-track"],
+            "deleting one host swept another host's parts")
+
+    def test_the_prescribed_repair_moves_the_parts_with_the_host(self):
+        """The outcome pole, at the layer that actually persists.
+
+        THE DUPLICATE NEVER REACHES DISK, so a pin on ids alone is a pin
+        at the wrong layer. `normalize_scene_doc`'s ART-003 sweep drops
+        a repeat id on the way out, keeping the FIRST occurrence — which
+        is the orphan, because it was already in the list — and
+        discarding the freshly minted part. What ships is therefore not
+        a collision but STRANDED INK: the host at its new position and
+        its check mark still at the old one.
+
+        And the check is SILENT on that scene: the orphan still carries
+        `chk_of`, so the host counts 2 parts against a floor of 2. The
+        repair this check prescribed left the check satisfied and the
+        drawing wrong, which is why the assertion here is about where
+        the ink LANDED and not about the finding or the id list. An
+        outcome assertion survives a layer change; a structural one does
+        not.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": "w", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "h", "type": "rectangle",
+                      "x": 0, "y": 0, "width": 200, "height": 44,
+                      "label": "H"}]})
+        for attrs in ({"kind": "checkbox"}, {"checked": True}):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "w",
+                 "ops": [{"op": "mod", "id": "h", "attrs": attrs}]})
+        old = [(e.get("x"), e.get("y")) for e in self.store.scenes["w"]
+               if e["id"] == "h-chk"]
+        self.assertEqual(len(old), 1, "no check stroke to strand")
+        stored = {k: v for k, v in
+                  next(e for e in self.store.scenes["w"]
+                       if e["id"] == "h").items()
+                  if k not in ("seed", "version", "versionNonce", "updated",
+                               "boundElements", "index")}
+        stored["x"], stored["y"] = 500, 300
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "w",
+             "ops": [{"op": "del", "id": "h"},
+                     {"op": "add", "element": stored}]})
+        els = self.store.scenes["w"]
+        host = next(e for e in els if e["id"] == "h")
+        chk = [e for e in els if e["id"] == "h-chk"]
+        self.assertEqual(len(chk), 1)
+        # `_check_stroke`'s own geometry, derived here rather than
+        # copied, so a change to the offsets moves both together
+        want = (host["x"] + 11,
+                host["y"] + host.get("height", 28) / 2.0 - 1)
+        self.assertEqual((chk[0]["x"], chk[0]["y"]), want,
+                         "the check stroke was left behind at %s while "
+                         "its host moved to %s — the repair stranded the "
+                         "widget's own ink"
+                         % (old[0], (host["x"], host["y"])))
+
+    def test_the_prescribed_repair_leaves_one_element_per_id(self):
+        """The repair this check prescribes may not corrupt the scene.
+
+        THE COLLISION WAS MASKED BY A SECOND DEFECT and became reachable
+        only when that one was fixed, which is why it is pinned by id
+        and not by state. Until 2026-08-25 the re-add read
+        `spec.get("checked", False)` over the stored `customData.checked`
+        of True, so the box came back UNCHECKED, no check stroke was
+        minted, and the surviving orphan met nothing. With the state
+        preserved, the fresh `h-chk` met the orphaned `h-chk` and the
+        scene came back holding both — an id collision, which is a worse
+        outcome than the uncheck it replaced, because every reader that
+        indexes by id then resolves it silently and differently.
+
+        Driven through `apply_ops` with `del` and `add` in ONE batch,
+        because that is the shape the message prescribes and the shape
+        an agent sends.
+        """
+        for attrs in ({"kind": "checkbox"},
+                      {"customData": {"kind": "checkbox"}}):
+            with self.subTest(door=sorted(attrs)[0]):
+                errors = []
+                els = canvas.apply_ops([], [{"op": "add", "element": {
+                    "id": "h", "type": "rectangle", "x": 0, "y": 0,
+                    "width": 200, "height": 44, "label": "H"}}], errors)
+                els = canvas.apply_ops(
+                    els, [{"op": "mod", "id": "h", "attrs": attrs}], errors)
+                els = canvas.apply_ops(
+                    els, [{"op": "mod", "id": "h",
+                           "attrs": {"checked": True}}], errors)
+                self.assertEqual(errors, [])
+                self.assertTrue(canvas.composed_host_gaps(els),
+                                "the host is not short of parts, so the "
+                                "prescribed remedy is not under test")
+                stored = {k: v for k, v in
+                          next(e for e in els if e["id"] == "h").items()
+                          if k not in ("seed", "version", "versionNonce",
+                                       "updated", "boundElements", "index")}
+                after = canvas.apply_ops(els, [{"op": "del", "id": "h"},
+                                               {"op": "add",
+                                                "element": stored}], errors)
+                self.assertEqual(errors, [])
+                ids = [e["id"] for e in after]
+                self.assertEqual(
+                    sorted(ids), sorted(set(ids)),
+                    "the prescribed repair left duplicate ids: %s"
+                    % sorted(i for i in set(ids) if ids.count(i) > 1))
+                self.assertIs(
+                    (next(e for e in after if e["id"] == "h")
+                     .get("customData") or {}).get("checked"), True)
+                self.assertEqual(canvas.composed_host_gaps(after), [])
+
+    def test_the_prescribed_repair_preserves_the_state_it_protects(self):
+        """`del` + `add` must not silently uncheck the user's checkbox.
+
+        THE THIRD TRAPPED CASE, and the worst shape a check can have:
+        the remedy it prescribes destroying the thing it was protecting.
+        Measured before the mint fix, with zero op errors at every step —
+        `mod {"kind": "checkbox"}` reported (1, 0); `mod {"checked":
+        true}` reported (2, 1); and the prescribed `del` + re-add came
+        back (1, 2), flipping the finding from MISSING to SURPLUS while
+        turning `checked` from True to False. `make_element` read
+        `spec.get("checked", False)` over the stored `customData.checked`
+        an agent re-adding from the read-back element has no other way
+        to send.
+
+        Driven through the real op path rather than `make_element`,
+        because the loop this closes is an agent's: read the element
+        back, delete it, add it again with what it read.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": "w", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "h", "type": "rectangle",
+                      "x": 0, "y": 0, "width": 160, "height": 28,
+                      "label": "Enabled"}]})
+        for attrs in ({"kind": "checkbox"}, {"checked": True}):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "w",
+                 "ops": [{"op": "mod", "id": "h", "attrs": attrs}]})
+        self.assertTrue(canvas.composed_host_gaps(self.store.scenes["w"]),
+                        "the host is not short of parts, so the remedy "
+                        "under test is not the one being prescribed")
+        host = dict(next(e for e in self.store.scenes["w"]
+                         if e["id"] == "h"))
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "w",
+             "ops": [{"op": "del", "id": "h"},
+                     {"op": "add", "id": "h", "type": "rectangle",
+                      "x": host["x"], "y": host["y"],
+                      "width": host["width"], "height": host["height"],
+                      "label": "Enabled",
+                      "customData": dict(host["customData"])}]})
+        back = next(e for e in self.store.scenes["w"] if e["id"] == "h")
+        self.assertIs((back.get("customData") or {}).get("checked"), True,
+                      "the repair this check prescribes silently "
+                      "unchecked the user's checkbox")
+        self.assertEqual(canvas.composed_host_gaps(self.store.scenes["w"]),
+                         [], "the prescribed repair did not clear the "
+                             "finding it was prescribed for")
+
+    def test_a_no_op_mod_repairs_nothing_and_the_message_says_so(self):
+        """`mod {height: same}` reconciles, mints, and is discarded.
+
+        The obvious first thing an agent tries, and it looks like the
+        repair the message names without being it — which is why that
+        message spells out that the value has to CHANGE. Measured on the
+        kind where a real change DOES work, so the two differ in exactly
+        one thing.
+        """
+        st = self._damaged_on_disk({"kind": "body"}, 60)
+        st.apply_batch({"base_revn": st.head_revn(), "artifact": "a",
+                        "ops": [{"op": "mod", "id": "h",
+                                 "attrs": {"height": 60}}]})
+        self.assertEqual(canvas.composed_host_gaps(st.scenes["a"]),
+                         [("h", "body", 3, 0)],
+                         "a no-op `mod` repaired the host, so the "
+                         "message's warning about it is now wrong")
+
+    def test_a_soft_deleted_part_is_absent_ink_and_counts_as_gone(self):
+        """A tombstone is not drawn, so it does not satisfy a floor.
+
+        The picture judged here is the one on screen. Counting a
+        tombstone would make the check silent on exactly the scene a
+        client posts after deleting a widget's parts by hand.
+        """
+        out = self._mint({"kind": "slider", "value": 60})
+        ghosts = [dict(e, isDeleted=True)
+                  if canvas._composed_part(e.get("customData") or {}) else e
+                  for e in out]
+        self.assertEqual(canvas.composed_host_gaps(ghosts),
+                         [("w", "slider", 2, 0)])
+
+
+class TestCompositeStateSurvivesTheCustomDataDoor(Base):
+    """A mint block may not clobber `customData` it is about to overwrite.
+
+    `_composed_state`' rule, over every kind that has a state field.
+    `custom` starts as a copy of the spec's `customData` and the generic
+    keys — `role`, `kind`, `intent`, `parent` — OVERRIDE it only when
+    the spec supplies them. Four composite blocks departed from that and
+    clobbered instead, so a datum arriving through the `customData` door
+    was replaced by the kind's default: checkbox and toggle True ->
+    False, slider 80 -> 50, kpi "$4.2M" -> "".
+
+    WHY THIS SITS BESIDE THE COMPOSED-HOST CHECK. Each drop landed a
+    CONSISTENT scene — the right part count for the wrong state — so no
+    count-based check could see it and none did. What made it this
+    task's business is the REMEDY: `lint_layout` tells a stripped
+    checkbox to `del` and re-add it, an agent re-adding from the element
+    it just read back hands the state through `customData`, and the
+    checkbox came back unchecked with the finding flipped from missing
+    to surplus. A repair a check prescribes may not destroy the state it
+    was protecting.
+
+    NOT the silent-drop detector. That a scene can be damaged this way
+    with no check saying anything is a curator's red to write, and these
+    are unit poles on the mint, not a claim that anything reports it.
+    """
+
+    STATE = (("checkbox", "checked", True, False, 28),
+             ("toggle", "checked", True, False, 28),
+             ("slider", "value", 80.0, 50.0, 44),
+             ("kpi", "value", "$4.2M", "", 64),
+             ("input", "value", "09:00", None, 40))
+
+    def _mint(self, kind, h, **spec):
+        """Mint one composite, returning its element list.
+
+        Args:
+            kind: The composed kind.
+            h: Height before `make_element`'s clamps.
+            **spec: Extra spec keys merged over the defaults.
+
+        Returns:
+            The minted element list, `out[0]` the host.
+        """
+        errors = []
+        out = canvas.make_element(
+            dict({"id": "h", "type": "rectangle", "x": 0, "y": 0,
+                  "width": 160, "height": h, "label": "H", "kind": kind},
+                 **spec), set(), errors, 0)
+        self.assertEqual(errors, [])
+        return out
+
+    def test_a_datum_declared_in_customdata_reaches_the_element(self):
+        """The door the mint used not to read at all."""
+        for kind, field, declared, _default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h, customData={field: declared})
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 declared,
+                                 "%s dropped a %s declared in customData"
+                                 % (kind, field))
+
+    def test_the_top_level_key_still_wins_over_the_stored_one(self):
+        """The op's explicit word beats the element's memory.
+
+        The documented door has to stay the loud one, or a stale
+        `customData` riding along on a paste would outrank what the
+        agent just said.
+        """
+        for kind, field, declared, _default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h, customData={field: declared},
+                                 **{field: declared})
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 declared)
+
+    def test_an_explicit_false_or_zero_is_a_word_and_not_an_absence(self):
+        """Truthiness would have been the easy spelling and is wrong.
+
+        The generic keys use `if spec.get(k)`, so copying them verbatim
+        would ignore `checked: False` over a stored `True` and `value: 0`
+        over a stored 80 — the same silent override, pointing the other
+        way. `_composed_state` tests `is None` for that reason.
+        """
+        out = self._mint("checkbox", 28, customData={"checked": True},
+                         checked=False)
+        self.assertIs((out[0].get("customData") or {}).get("checked"), False,
+                      "an explicit uncheck was read as an absence")
+        out = self._mint("slider", 44, customData={"value": 80}, value=0)
+        self.assertEqual((out[0].get("customData") or {}).get("value"), 0.0,
+                         "an explicit 0 was read as an absence")
+
+    def test_every_documented_default_is_untouched(self):
+        """Neither door supplying still lands the kind's own default."""
+        for kind, field, _declared, default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h)
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 default,
+                                 "%s's default %s moved" % (kind, field))
+
+
 class TestPinnedAddSpec(Base):
     """`add` may mint a born-pinned element."""
 
@@ -25891,8 +27288,11 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         livedoc, whose `pin_guard_sites` publishes the count into
         SKILL.md — and its prescribed repair, `livedoc refresh`, rewrote
         "Twenty-three" to "2" and went green with twenty-one guards
-        gone. A drift check cannot be this floor, because its repair is
-        to agree.
+        gone. Not "a drift check cannot be a floor", which is one notch
+        too strong and was corrected on this base: livedoc IS the floor
+        on an emptied roster, because `pin_guard_sites` refuses at zero
+        rather than deriving. It derives at two, and that is the range
+        this pin covers.
 
         SO THE OTHER SIDE OF THIS RELATION IS NOT THE ROSTER.
         `TestEachPinGuardIsObserved` holds one test per guard site — its
@@ -25909,6 +27309,19 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         in that class without an entry mutating the guard it observes,
         which is the class's own stated contract rather than a new rule.
 
+        WHERE IT REFUSES AND WHERE IT DERIVES, because that boundary is
+        the whole of what a relation like this is worth (ruling,
+        2026-08-20). `pin_guard_sites` REFUSES at a roster of zero and
+        DERIVES at a roster of two, and the derive range is exactly where
+        it launders. This one refuses on an absent `GUARDS`, on an absent
+        class, and on a class that declares no tests; it derives for
+        every roster from one entry up. So it is launderable in
+        principle — by deleting observation tests until the two sides
+        agree — and that costs one hand edit per guard, in the class
+        whose docstring says one test per guard site, with no command
+        that does it for you, ending at the floor below. `refresh` is one
+        word.
+
         The repair when it goes red is to restore the roster entry, or —
         if the guard truly left `canvas.py` — to delete its test in the
         same change and say why. Neither is a command anybody can run
@@ -25917,9 +27330,30 @@ class TestTheGuardRosterStillResolves(unittest.TestCase):
         sys.path.insert(0, str(Path(canvas.__file__).resolve().parents[3]
                                / "tests"))
         import guard_mutants
-        cls = TestEachPinGuardIsObserved
+        # BOTH SIDES LOOKED UP, NOT REFERENCED, so that a side which is
+        # GONE reports as an assertion rather than as a NameError or an
+        # AttributeError. The colour is the same either way; the sentence
+        # is not, and "name 'TestEachPinGuardIsObserved' is not defined"
+        # sends the next reader looking for a typo instead of for the
+        # half of the census somebody deleted.
+        cls = getattr(sys.modules[__name__], "TestEachPinGuardIsObserved",
+                      None)
+        self.assertIsNotNone(
+            cls,
+            "TestEachPinGuardIsObserved is gone from this module — the "
+            "class that holds one test per guard site, and the half of "
+            "this relation the roster cannot edit. Its absence is not "
+            "agreement with a short roster; it is the observing half of "
+            "the pin-guard census deleted")
+        roster = getattr(guard_mutants, "GUARDS", None)
+        self.assertIsNotNone(
+            roster,
+            "guard_mutants.GUARDS is gone — not empty, ABSENT. "
+            "`assert_roster_populated` refuses on an empty roster and "
+            "cannot speak for a roster that no longer exists, so this "
+            "relation says it here")
         prefix = cls.__name__ + "."
-        watched = {test[len(prefix):] for *_rest, test in guard_mutants.GUARDS
+        watched = {test[len(prefix):] for *_rest, test in roster
                    if test.startswith(prefix)}
         declared = set(unittest.TestLoader().getTestCaseNames(cls))
         # THE VACUITY FLOOR, and it is not hypothetical: delete the class'
@@ -26182,6 +27616,83 @@ class TestPinnedSurvivesTheBackDoors(Base):
         self.assertFalse(any(e["id"] == "pin-q2"
                              for e in self.store.scenes["checkout-flow"]),
                          "resolve_pin stopped removing glyphs")
+
+    # ---- D6: the resolve sweep reaches scenes the gate never read -------
+    def _question_elsewhere(self, locked, pid="pin-q7"):
+        """Draw a ❓ on a SECOND artifact, optionally pinned there.
+
+        The batch under test names `checkout-flow`, so the glyph has to
+        live somewhere else for the two scenes to be different at all —
+        that difference is the whole subject. Minted by a real `pin` op
+        and pinned by a real whole-scene user save, because a hand-built
+        `customData` is not how a canvas pin is represented.
+
+        Args:
+            locked: Whether the user has pinned the ❓ to the canvas.
+            pid: The pin id to mint.
+
+        Returns:
+            The pin's id.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "notes",
+             "create": {"id": "notes", "name": "Notes", "type": "flow"},
+             "ops": [{"op": "pin", "id": pid, "question": "which?"}]})
+        els = [dict(e) for e in self.store.scenes["notes"]]
+        for e in els:
+            if e["id"] == pid:
+                e["locked"] = locked
+        self.store.commit(author="user", new_scenes={"notes": els},
+                          base_revn=self.store.head_revn())
+        return pid
+
+    def test_a_resolve_from_another_artifact_is_held_by_the_pin(self):
+        """The gate must read every scene the id-global sweep will reach.
+
+        THIS IS THE GUARD-OBSERVATION TEST, and it is here rather than
+        in `TestAResolveFromAnotherArtifactHonoursACanvasPin` because
+        that class's red is `expectedFailure`: with the fix in place it
+        is an UNEXPECTED SUCCESS, so deleting the guard makes it fail —
+        which the decorator absorbs and `guard_mutants.verdict` reads as
+        SURVIVED. A roster entry pointing there would be inverted, and
+        would report a kill against the pristine tree. Its three poles
+        cannot serve either: two never touch this path, and the
+        registry-agreement pole is green both ways (the ❓ leaves and
+        the record agrees it left).
+
+        Asserted through the front door, in `del`'s own currency: the
+        batch is refused with the element named, nothing commits, and
+        the glyph is still drawn on the artifact it lives on.
+        """
+        pid = self._question_elsewhere(locked=True)
+        head = self.store.head_revn()
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": head, "artifact": "checkout-flow",
+                 "ops": [{"op": "resolve_pin", "id": pid,
+                          "answer": "settled"}]})
+        self.assertIn("%s is pinned" % pid, "\n".join(cm.exception.errors))
+        self.assertEqual(self.store.head_revn(), head,
+                         "a wholly-held batch still wrote a revision")
+        self.assertTrue(any(e["id"] == pid for e in self.store.scenes["notes"]),
+                        "a resolve from another artifact took a pinned ❓")
+
+    def test_a_resolve_from_another_artifact_still_takes_an_unpinned_glyph(
+            self):
+        """The control: r5-17's fix, which this gate may not undo.
+
+        Without it a repair that simply stopped the sweep crossing
+        artifacts would satisfy the test above — and that is the state
+        where the registry says resolved while the ❓ stays drawn
+        forever.
+        """
+        pid = self._question_elsewhere(locked=False, pid="pin-q6")
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "resolve_pin", "id": pid, "answer": "settled"}]})
+        self.assertFalse(any(e["id"] == pid for e in self.store.scenes["notes"]),
+                         "the cross-artifact sweep stopped removing glyphs")
 
     # ---- C-3: the backlink the gate could not read ----------------------
     def _checkbox(self, aid, ungroup):
@@ -27370,7 +28881,8 @@ class TestAPinnedComposedPartIsKinToItsOwner(Base):
         """
         _checkbox_widget(self.store)
         box = _part_id(self.store, "w", "box_of", "cb")
-        els = [dict(e, groupIds=[]) for e in self.store.scenes["w"]]
+        els: list[dict[str, Any]] = [dict(e, groupIds=[])
+                                     for e in self.store.scenes["w"]]
         for e in els:
             if e["id"] == box:
                 e["locked"] = True
@@ -27550,6 +29062,208 @@ class TestResolvePinHonoursACanvasPin(Base):
                 {"base_revn": self.store.head_revn(), "artifact": "f",
                  "ops": [{"op": "del", "id": "q1"}]})
         self.assertIn("q1", "\n".join(cm.exception.errors))
+
+
+class TestAResolveFromAnotherArtifactHonoursACanvasPin(Base):
+    """`resolve_pin` reaches across artifacts, and that reach has no gate.
+
+    THE SAME SHAPE AS THE FIVE IN `TestPinnedSurvivesTheBackDoors`: the
+    gate judged the batch, and a mover downstream of it did not ask the
+    predicate. `resolve_pin` IS one of `pin_held_ops`' judged kinds —
+    that fix landed at `7d9d180` and the class above holds it — but the
+    gate is handed `base_els`, the BATCH ARTIFACT's scene and nothing
+    else, while the op is id-global by design: `apply_batch` walks every
+    scene in the project and drops every ❓ carrying that id, under a
+    role gate and no pin gate. The guarded set and the removed set are
+    therefore computed over different scenes, so a ❓ pinned on artifact
+    `g` is invisible to a gate reading artifact `f`.
+
+    WHAT THE DRAWING GETS WRONG. The user tacks a question to the canvas
+    on one drawing; the agent, working on another, resolves it and the
+    tack comes off with the glyph, `pin_held` reported as None. `del` on
+    that same id, aimed at the artifact it lives on, is refused in so
+    many words. Same element, same removal, two verbs, opposite answers
+    — that asymmetry is the finding rather than the deletion, because an
+    agent told "no" by one verb should not get "yes" from another.
+
+    THE SHAPE IS THE PRODUCT'S OWN, not a contrivance. `SKILL.md` pairs
+    "one batch = one artifact" with "the batch that executes an answer
+    also carries its mirrored pin's `resolve_pin`", and the sweep exists
+    precisely because a resolve aimed at another artifact used to leave
+    the ❓ drawn forever (r5-17).
+
+    NOT A CLAIM THAT A PINNED QUESTION IS UNRESOLVABLE. The unpinned
+    pole proves the sweep still works, so a repair that simply deleted
+    it cannot pass; and the fourth test holds the r5-17 invariant, so a
+    repair that spares the glyph while still filing the record
+    `resolved` — registry and canvas disagreeing, which is that
+    finding's exact signature — cannot pass either.
+
+    Salvaged from `worktree-agent-a41021fac6987f466` (`52f6b6b`,
+    2026-08-18) and re-derived here 2026-08-26. That branch's class
+    named the SAME-ARTIFACT door, which `7d9d180` closed; its red now
+    error-reds behind `expectedFailure` on the refusal its own fixture
+    provokes, and this is the door where the finding survives.
+    """
+
+    def _seed(self, locked):
+        """Draw the ❓ on `g` while the batch under test will name `f`.
+
+        Two artifacts is the irreducible minimum here — the whole defect
+        is that the gate reads one scene and the op removes from all of
+        them — so `f` carries a single node to be a real drawing the
+        agent is working on, and `g` carries nothing but the question.
+        The ❓ is minted by a real `pin` op and pinned by a real
+        whole-scene user save, because a hand-built `customData` is not
+        how a canvas pin is represented and a scene that invents one
+        answers about nothing.
+
+        Args:
+            locked: Whether the user has pinned the ❓ to the canvas.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "box", "x": 0, "y": 0,
+                "width": 100, "height": 60, "role": "node"}}]})
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "g",
+            "create": {"id": "g", "name": "G", "type": "flow"},
+            "ops": [{"op": "pin", "id": "pin-q1",
+                     "question": "which box?"}]})
+        els = [dict(e) for e in self.store.scenes["g"]]
+        for e in els:
+            if e["id"] == "pin-q1":
+                e["locked"] = locked
+        self.store.commit(author="user", new_scenes={"g": els},
+                          base_revn=self.store.head_revn())
+
+    def _attempt(self, aid, op):
+        """Send one op as its own batch and report which way it went.
+
+        Args:
+            aid: The artifact the batch names.
+            op: The single op.
+
+        Returns:
+            `"applied"`, or the joined refusal text. Refusals are
+            returned rather than raised because the red compares two
+            verbs and needs both to answer in the same currency.
+        """
+        try:
+            self.store.apply_batch({"base_revn": self.store.head_revn(),
+                                    "artifact": aid, "ops": [op]})
+        except canvas.BatchError as exc:
+            return "\n".join(exc.errors)
+        return "applied"
+
+    def _resolve(self):
+        """Resolve the question from `f`, the artifact it is not drawn on.
+
+        Returns:
+            `"applied"`, or the joined refusal text.
+        """
+        return self._attempt("f", {"op": "resolve_pin", "id": "pin-q1",
+                                   "answer": "the one in the header"})
+
+    def _delete(self):
+        """Delete the ❓ through the front door, on the artifact it lives on.
+
+        Returns:
+            `"applied"`, or the joined refusal text.
+        """
+        return self._attempt("g", {"op": "del", "id": "pin-q1"})
+
+    def _standing(self):
+        """Whether the ❓ is still drawn on `g`.
+
+        Returns:
+            True while the glyph is in the scene.
+        """
+        return "pin-q1" in {e["id"] for e in self.store.scenes["g"]}
+
+    def test_a_resolve_from_another_artifact_cannot_take_a_pinned_glyph(self):
+        """Both removal verbs must answer the same way about one element.
+
+        THE RELATION, NOT A LITERAL. What is asserted is that the two
+        verbs agree, because "the gate protects this element" is a
+        property of the element and not of the op that named it. The
+        absolute — that a pinned ❓ stands and is refused in words — is
+        held by the ungated pole below, so a repair that made `del`
+        start deleting pinned elements cannot satisfy this by dragging
+        both sides down.
+
+        The `del` runs FIRST and on the same store deliberately: it is
+        refused today, so nothing commits and the resolve meets the
+        identical scene at the identical revision. One fixture, one
+        element, two verbs, back to back.
+        """
+        self._seed(locked=True)
+        self._delete()
+        after_del = self._standing()
+        outcome = self._resolve()
+        after_resolve = self._standing()
+        self.assertEqual(
+            after_resolve, after_del,
+            "`del` and `resolve_pin` disagree about one pinned ❓: after "
+            "`del` on artifact g it was standing=%r, after `resolve_pin` "
+            "from artifact f it was standing=%r. The resolve answered %r "
+            "— the gate read f's scene, where nothing is pinned, while "
+            "the sweep removed from g's"
+            % (after_del, after_resolve, outcome))
+
+    def test_del_on_the_pinned_glyph_is_refused_where_it_lives(self):
+        """The absolute the relation above is measured against.
+
+        UNGATED, and it holds the numbers on purpose: the red asserts
+        only that the two verbs agree, which a repair breaking `del`
+        would also satisfy. This says what the right answer IS — refused
+        in words that name the element, glyph still drawn.
+        """
+        self._seed(locked=True)
+        self.assertIn("pin-q1 is pinned", self._delete())
+        self.assertTrue(self._standing(),
+                        "`del` refused in words and removed it anyway")
+
+    def test_the_sweep_still_takes_an_unpinned_glyph_from_another_artifact(
+            self):
+        """The live half: a resolve still reaches the ❓ where it lives.
+
+        UNGATED. This is r5-17's fix, and without it the red above would
+        pass on a `resolve_pin` that had simply stopped reaching other
+        artifacts — the state where the registry says resolved and four
+        ❓ stay drawn.
+        """
+        self._seed(locked=False)
+        self.assertEqual(self._resolve(), "applied")
+        self.assertFalse(self._standing(),
+                         "the cross-artifact sweep stopped removing glyphs")
+
+    def test_no_pin_reads_resolved_while_its_glyph_is_still_drawn(self):
+        """Registry and canvas may never disagree about one question.
+
+        UNGATED, and this is the pole that catches the WRONG repair. A
+        fix that teaches the sweep to skip pinned glyphs and stops there
+        turns the red green while filing the record `resolved` over a ❓
+        still on the canvas — r5-17's exact signature, and a worse
+        failure than the deletion because the question becomes
+        unanswerable rather than merely gone. Green today (the glyph is
+        removed and the record agrees) and green under every honest
+        repair, all of which leave the record open because the op never
+        applies.
+        """
+        self._seed(locked=True)
+        self._resolve()
+        drawn = {e["id"] for els in self.store.scenes.values() for e in els
+                 if canvas.role_of(e) == "pin"}
+        resolved = {p["id"] for p in self.store.registry["pins"]
+                    if p.get("status") == "resolved"}
+        self.assertEqual(
+            drawn & resolved, set(),
+            "the registry calls %s resolved while the canvas still draws "
+            "the ❓ — a question the user can see and nothing can answer"
+            % sorted(drawn & resolved))
 
 
 def _converging_arrows(n=3, target_side=300):
@@ -27835,6 +29549,274 @@ class TestEveryPinGuardIsObservedAtItsOwnSite(Base):
         self.assertEqual(tuple(x - y for x, y in zip(now_a, was_a)),
                          tuple(x - y for x, y in zip(now_b, was_b)),
                          "the unpinned control group tore")
+
+
+class TestTheKindVocabularyHasOneOwner(unittest.TestCase):
+    """The kind vocabulary is bound to its references, in both directions.
+
+    THERE WERE FOUR COPIES AND NO BINDING. `canvas.py` switched on kinds
+    from a dozen scattered literals with no list anywhere; each arm's
+    reference carried its own table; `ops-reference.md` carried a third,
+    open-ended one ending in `…`; and `Inspector.tsx` carried a
+    hand-written fourth — thirteen wireframe kinds, no `body`, no `fold`,
+    and the flow vocabulary handed to every artifact that was not a
+    wireframe or a domain, sequences included. `composed.ts` records the
+    same failure twice over next door, both times by missing `body_of`.
+
+    Two of those copies are gone rather than watched: `canvas.py` now
+    holds the vocabulary and `api_state` SERVES it, so the client has
+    nothing to drift from. This class binds the copy that cannot be
+    generated — the prose an agent actually reads — to the constant, both
+    ways, so neither can move alone.
+
+    EVERY PARSE HERE IS PROVED NON-EMPTY BEFORE IT IS COMPARED. A regex
+    over markdown that silently stops matching would turn this into two
+    empty sets agreeing with each other, which is the exact shape of
+    check this repo keeps finding and calling mute.
+
+    IF YOU ARE EDITING ONE OF THE FOUR ARM REFERENCES, READ THIS. The
+    rule is: inside `wireframe.md`, `flow.md`, `sequence.md` and
+    `domain.md`, a `` `kind: X` `` span DECLARES that `X` belongs to that
+    arm. There is no citation form. Naming another arm's kind in that
+    shape will fail this test — twice in two days at the time of writing
+    (`domain.md`'s tripwire `"glossary"`, `sequence.md`'s cross-reference
+    to the wireframe `input`), and both were genuinely ambiguous prose
+    that got clearer when reworded. To MENTION a kind that is not this
+    arm's, name the arm and drop the `kind:` prefix — "the wireframe
+    `input` kind" — which is what both repairs did.
+
+    NARROWING THE REGEX TO TABLE ROWS WAS THE OTHER CANDIDATE AND IT IS
+    MEASURABLY WORSE. Only 21 of the 30 kinds are declared in a `|` row:
+    `fold` is declared in wireframe.md's output-mode prose, `system` and
+    `context` in a sequence.md bullet, and all six flow node kinds in a
+    paragraph. Table-only would go MUTE on nine real kinds — trading a
+    loud false positive for silence over a third of the vocabulary, which
+    is the trade this repo has twenty-one confirmed instruments regretting.
+    So the false positive is kept, and paid for by saying so here and in
+    the failure message rather than by weakening the check.
+    """
+
+    REFS = (Path(canvas.__file__).resolve().parent.parent / "references")
+    #: One rule for all four arms: an inline `kind: a | b` code span.
+    #: A span in these four files is a DECLARATION — see the class
+    #: docstring for why there is deliberately no citation form.
+    KIND_SPAN = re.compile(r"`kind:\s*([^`]+)`")
+    #: (reference stem, the constant it is the prose for)
+    ARMS = (("wireframe", "WIREFRAME_KINDS"), ("flow", "FLOW_ARM_KINDS"),
+            ("sequence", "SEQUENCE_KINDS"), ("domain", "DOMAIN_KINDS"))
+
+    def _documented(self, stem):
+        """Kinds named by one reference, refusing an empty read.
+
+        Args:
+            stem: Reference file stem ("wireframe", "flow", …).
+
+        Returns:
+            The set of kind names its `kind:` code spans declare.
+        """
+        path = self.REFS / ("%s.md" % stem)
+        self.assertTrue(path.is_file(), "%s is missing — this guard reads "
+                        "it, so its absence is a failure and never a "
+                        "pass" % path)
+        found = set()
+        for m in self.KIND_SPAN.finditer(path.read_text(encoding="utf-8")):
+            found.update(p.strip() for p in m.group(1).split("|")
+                         if p.strip())
+        self.assertTrue(found, "no `kind: …` span parsed out of %s. The "
+                        "prose changed shape and this guard went blind — "
+                        "it did not go quiet because the code is clean"
+                        % path.name)
+        return found
+
+    def test_each_arm_matches_its_reference_both_ways(self):
+        for stem, const in self.ARMS:
+            documented = self._documented(stem)
+            implemented = set(getattr(canvas, const))
+            # The "unimplemented" half has two causes and they need
+            # opposite repairs, so the message names both rather than
+            # letting the reader assume the first. A kind that is another
+            # ARM's is almost always a citation written in declaration
+            # shape — the only two failures this guard has ever had.
+            strays = sorted(documented - implemented)
+            elsewhere = sorted(k for k in strays if k in canvas.KNOWN_KINDS)
+            self.assertEqual(
+                documented, implemented,
+                "%s and references/%s.md disagree. Undocumented (live "
+                "code keys off a word no agent can find): %s. "
+                "Unimplemented (the doc promises a kind that draws as a "
+                "bare shape): %s.%s"
+                % (const, stem, sorted(implemented - documented) or "none",
+                   strays or "none",
+                   (" NOTE: %s already belong(s) to another arm, so this "
+                    "is probably a CITATION written in declaration shape. "
+                    "A `kind: X` span in an arm reference DECLARES X for "
+                    "that arm; there is no citation form. Name the arm and "
+                    "drop the prefix instead — \"the wireframe `input` "
+                    "kind\"." % elsewhere) if elsewhere else ""))
+
+    def test_the_behaviour_sets_live_inside_the_vocabulary(self):
+        """No gate may key off a kind the vocabulary does not hold.
+
+        `INTERACTIVE_KINDS` is how `link` and `tab` survived undocumented
+        for five versions: they drove the 2.5.8 target-size note and the
+        label-rename tripwire while appearing in no reference and zero
+        times in the corpus. A behaviour set outside the vocabulary is
+        capability nobody can reach.
+        """
+        for const in ("INTERACTIVE_KINDS", "FLOW_KINDS",
+                      "SEQUENCE_PARTY_KINDS", "SEQUENCE_FURNITURE_KINDS",
+                      "PARTY_KINDS"):
+            gate = set(getattr(canvas, const))
+            self.assertTrue(gate, "%s is empty" % const)
+            self.assertLessEqual(
+                gate, set(canvas.KNOWN_KINDS),
+                "%s switches on %s, which no reference documents and the "
+                "unknown-kind note would report as unimplemented"
+                % (const, sorted(gate - set(canvas.KNOWN_KINDS))))
+
+    def test_the_client_transcribes_no_vocabulary_of_its_own(self):
+        """The inspector's selector reads the server's list or none.
+
+        The defect this whole class exists for was a literal array in
+        this file. Its return would be invisible again — the UI would
+        simply stop offering a kind — so the absence is asserted where a
+        human will see it fail.
+        """
+        src = (Path(__file__).resolve().parents[1] / "frontends"
+               / "wysiwyg-grilling" / "src" / "components" / "Inspector.tsx")
+        self.assertTrue(src.is_file(), "%s is missing — moved, not "
+                        "cleaned: re-point this guard" % src)
+        text = src.read_text(encoding="utf-8")
+        self.assertIn("kindVocabulary", text,
+                      "the inspector no longer takes the server's "
+                      "vocabulary; it is transcribing one again")
+        # A LIST, not a mention. `type="checkbox"` is an HTML input
+        # attribute that happens to spell a kind, and failing on it would
+        # be a guard nobody could keep green; two kinds inside one array
+        # literal is the vocabulary coming back.
+        for arr in re.findall(r"\[[^][]*\]", text):
+            named = sorted({k for k in canvas.KNOWN_KINDS
+                            if '"%s"' % k in arr})
+            self.assertLess(
+                len(named), 2,
+                "Inspector.tsx has an array literal naming kinds %s — "
+                "that is the fourth copy coming back. The vocabulary "
+                "arrives on `kind_vocabulary` from /api/state." % named)
+
+    def test_the_served_vocabulary_is_the_implemented_one(self):
+        """`KINDS_BY_TYPE` and `KNOWN_KINDS` cover each other.
+
+        Constants against constants, deliberately — the WIRE is asserted
+        by `test_api_state_actually_serves_the_vocabulary` next door, and
+        the two must stay separate because they fail for different
+        reasons and have different repairs.
+        """
+        served = {t: set(ks)
+                  for t, ks in canvas.KINDS_BY_TYPE.items()}
+        self.assertEqual(
+            set(canvas.KNOWN_KINDS),
+            set().union(*served.values()),
+            "KINDS_BY_TYPE and KNOWN_KINDS disagree, so a kind the lint "
+            "accepts is one the selector cannot offer (or the reverse)")
+        for t, const in (("wireframe", "WIREFRAME_KINDS"),
+                         ("flow", "FLOW_ARM_KINDS"),
+                         ("sequence", "SEQUENCE_KINDS"),
+                         ("domain", "DOMAIN_KINDS")):
+            self.assertEqual(tuple(canvas.KINDS_BY_TYPE[t]),
+                             tuple(getattr(canvas, const)),
+                             "%s is served under a different order or "
+                             "content than the constant" % t)
+
+
+class TestTheVocabularyReachesTheClient(Base):
+    """`/api/state` really carries `kind_vocabulary`.
+
+    THE COPY WAS DELETED AND REPLACED BY A WIRE, AND THE FIRST VERSION OF
+    THIS WORK PINNED THE COPY AND NOT THE WIRE. Deleting the two-line
+    `"kind_vocabulary"` entry from `api_state` left the ENTIRE suite
+    green — 1900 tests, exit 0 — while reintroducing the defect the whole
+    branch is about, one turn worse: `state.kind_vocabulary` undefined
+    means `kindVocabulary` is `{}`, `kindsFor` returns `[]`, and every
+    kind selector on every artifact offers `— none —` alone, with one
+    touch writing `kind: null`. The sibling class compares
+    `KINDS_BY_TYPE` against the four constants and never calls
+    `api_state()`, so it could not have noticed.
+
+    It lives OUTSIDE that class because it needs a real project on disk
+    (`Base`), and because a guard that shares a fixture with the thing it
+    is covering for is easy to delete together with it.
+    """
+
+    def _state(self):
+        """`api_state()` off a real `ServerApp`, without leaking its log.
+
+        Returns:
+            The `/api/state` payload this project would serve.
+        """
+        app = canvas.ServerApp(self.project)
+        try:
+            return app.api_state()
+        finally:
+            # `ServerApp` holds `log_file` precisely so a short-lived app
+            # can close it; not doing so leaves a ResourceWarning per test.
+            if getattr(app, "log_file", None) is not None:
+                app.log_file.close()
+
+    def _vocab(self):
+        """The served vocabulary, with its absence reported as a failure.
+
+        Returns:
+            `api_state()["kind_vocabulary"]`.
+        """
+        state = self._state()
+        self.assertIn(
+            "kind_vocabulary", state,
+            "/api/state carries no `kind_vocabulary`. The client holds no "
+            "list of its own by design, so this key missing means every "
+            "kind selector on every artifact offers nothing but "
+            "`— none —`, and one touch writes `kind: null`")
+        return state["kind_vocabulary"]
+
+    def test_api_state_actually_serves_the_vocabulary(self):
+        vocab = self._vocab()
+        self.assertEqual(
+            vocab, {t: list(ks) for t, ks in canvas.KINDS_BY_TYPE.items()},
+            "the served vocabulary is not the implemented one")
+        # JSON-shaped, not Python-shaped: `json.dumps` refuses a set and
+        # reorders nothing, but a tuple would round-trip to a list and
+        # silently pass an equality written against tuples.
+        wire = json.loads(json.dumps(vocab))
+        self.assertEqual(
+            wire["wireframe"], list(canvas.WIREFRAME_KINDS),
+            "the wireframe arm does not survive JSON in reference order")
+        for arm in ("wireframe", "flow", "sequence", "domain"):
+            self.assertIsInstance(wire.get(arm), list,
+                                  "%s is not a JSON array" % arm)
+
+    def test_the_two_kinds_the_old_client_dropped_are_on_the_wire(self):
+        """`body` and `fold` specifically, by name.
+
+        A set-equality assertion goes green on any two vocabularies that
+        happen to match, including a future one that has quietly lost the
+        two kinds this branch exists for. These two are named so the
+        regression cannot come back under a passing count.
+        """
+        served = self._vocab()
+        # `.get(arm) or []` and not `served[arm]`: an arm dropped from the
+        # wire is the SAME user-visible defect as a kind dropped from an
+        # arm — the client falls through to `vocabulary.flow` — so it has
+        # to read as this test's failure, not as a KeyError from its
+        # scaffolding.
+        for arm, kind in (("wireframe", "body"), ("wireframe", "fold"),
+                          ("sequence", "actor")):
+            self.assertIn(
+                kind, served.get(arm) or [],
+                "the %s arm does not carry %r on the wire. That kind is "
+                "either gone from the vocabulary or the whole arm is "
+                "missing from `kind_vocabulary`; either way the client "
+                "falls through to the flow list, which is the defect this "
+                "branch closed. Arms served: %s"
+                % (arm, kind, sorted(served) or "none"))
 
 
 if __name__ == "__main__":

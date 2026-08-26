@@ -7,10 +7,10 @@ file; `CLAUDE.md` points here. Read it before writing code.
 
 | Path | What | Language |
 | --- | --- | --- |
-| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~29.0k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
+| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~29.8k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
 | `skills/wysiwyg-grilling/` | The shipped Claude Code skill (`SKILL.md` + `references/`). | Markdown |
 | `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. <!-- live:frontend_src_lines -->~5.0k<!-- /live:frontend_src_lines --> lines. | TypeScript / React 18 |
-| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->1034<!-- /live:test_backend_cases --> tests — the most of any module in a `tests/` tree that also holds the mutation harness and the render tier. (Most *tests*, not most lines: `test_mutants.py` is the bigger file.) | Python |
+| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->1079<!-- /live:test_backend_cases --> tests — the most of any module in a `tests/` tree that also holds the mutation harness and the render tier. (Most *tests*, not most lines: `test_mutants.py` is the bigger file.) | Python |
 | `tests/fixtures/` | The frozen corpus every check is measured against: real drawings from past sessions, byte-exact. Across <!-- live:corpus_projects -->5<!-- /live:corpus_projects --> projects it currently lints to <!-- live:corpus_census -->artifacts=24 scopes=28 errors=0 warnings=54 notes=88<!-- /live:corpus_census -->. | Excalidraw JSON |
 
 The frontend builds *into* the skill (`vite.config.ts` → `scripts/web/`), so a
@@ -83,7 +83,11 @@ human is supposed to stop and read the change.
 ## Documentation standard
 
 Every **module, class, function, and method** carries a docstring — public and
-private alike. This is enforced (`ruff` rule set `D`, Google convention).
+private alike. `ruff` enforces this (rule set `D`, Google convention)
+everywhere except `canvas.py` and `tests/test_backend.py`, which hold standing
+`D`-rule exemptions in *Known debt* below. Those two files are where most of
+this repo's code is, so in them the standard is upheld by hand and not by the
+gate — do not read a green `ruff` run as evidence that a docstring is there.
 
 ### Python — Google style
 
@@ -210,8 +214,10 @@ python3 tests/livedoc.py refresh
 # Lint + docstrings + annotations
 uvx ruff check .
 
-# Type check
-uvx mypy skills/wysiwyg-grilling/scripts/canvas.py
+# Type check — canvas.py + tests/, ~1.2s, clean. Also a gate hook, so this
+# is for running it yourself. Scope and the five ignored rules live in
+# pyproject.toml `[tool.ty]`; the version is pinned in .pre-commit-config.yaml.
+uvx ty check
 
 # Frontend (requires: npm --prefix frontends/wysiwyg-grilling ci)
 npm --prefix frontends/wysiwyg-grilling run lint
@@ -221,10 +227,11 @@ npm --prefix frontends/wysiwyg-grilling run typecheck
 # NOBODY RUNS THIS FOR YOU. There is no CI in this repo.
 uvx pre-commit run --all-files
 
-# The line above is not "everything": <!-- live:gate_hooks_manual -->2<!-- /live:gate_hooks_manual --> hooks are manual-stage,
+# The line above is not "everything": <!-- live:gate_hooks_manual -->3<!-- /live:gate_hooks_manual --> hooks are manual-stage,
 # and `--all-files` leaves them out without saying so.
 uvx pre-commit run guard-mutants-sweep --hook-stage manual  # ~2m, rewrites guarded runtime files
 uvx pre-commit run e2e-tests --hook-stage manual            # Playwright
+uvx pre-commit run render-tier-evidence --hook-stage manual # needs a browser
 ```
 
 **That first comment said "Everything, as CI runs it" until 2026-08-20, and
@@ -237,10 +244,13 @@ halves fail differently. A wrong count is read and corrected; **a wrong claim
 about a safety net is never read at all** — it works by stopping the reader
 from looking, and it had been doing that for an unknown length of time.
 
-Both counts are live values, so "18" and "2" cannot drift out from under this
-paragraph the way "Everything" did. What CI would take to become true: a
-runner, a workflow file invoking both stages, and a status this file could
-point at. None exists. Until one does, the safety net is you.
+Both counts above are live values, so neither can drift out from under this
+paragraph the way "Everything" did. (This sentence named the two figures when
+it was written and was wrong inside a day — the manual stage grew a third hook
+— which is the same defect one line down from the one it was explaining. A
+paragraph about a live value does not get to hand-copy it.) What CI would take
+to become true: a runner, a workflow file invoking both stages, and a status
+this file could point at. None exists. Until one does, the safety net is you.
 
 ## Pre-commit
 
@@ -258,7 +268,7 @@ versions, `uvx pre-commit autoupdate`.
 Two ways a hook here passes without checking anything, both worth knowing
 because both print green. A `files:`-scoped hook whose pattern matches nothing
 prints `Skipped` and exits 0 — on a commit, that is correct behaviour and is
-why `mypy`, `backend-tests`, `frontend-deps`, `eslint` and `tsc` carry
+why `backend-tests`, `frontend-deps`, `eslint` and `tsc` carry
 patterns; under `--all-files` every pattern matches, so the gate is the run
 that closes it. A manual-stage hook is skipped by `--all-files` outright.
 Neither is a defect, and neither is visible to a reader who was told
@@ -315,19 +325,24 @@ trailing comments.
 
 ## Known debt
 
-Tracked in `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`, most
-lines annotated with a measured count (`D105` and `D401` carry none, and
-`ANN` is annotated by the comment block above it rather than in line). Delete
-a line once that code is clean — the ignore list is a burn-down chart, not a
-permanent exemption.
+Tracked in `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`. Each
+row names one rule suppressed for one file. Delete a row once that code is
+clean — the ignore list is a burn-down chart, not a permanent exemption.
 
-**Re-measure before you quote any of this, and use the command below, not
-`uvx ruff check --statistics`.** A bare `ruff check` is silent about every row
-in this table by construction: the per-file-ignores *are* the table, so the
-gate's own invocation prints nothing and exits 0. That is the correct
-behaviour for a gate and a useless one for a burn-down, and it is why the
-"re-measure rather than trusting these" instruction here sat broken while the
-numbers under it went stale. You have to switch the ignores off:
+**Those rows carry no counts, deliberately, and neither does this section.**
+They used to. The numbers went wrong faster than anyone corrected them — a
+sweep found most of them stale and several off by multiples — and nothing in
+the repo reads them, so nothing ever failed to say so. They are also a
+function of an *unpinned* external tool: a new `ruff` release that adds a rule
+moves every one of them with nothing in this repo having changed. A live
+marker would therefore rewrite them on somebody else's release schedule, and
+the frontend figures need `node_modules`, which the gate itself proves may be
+absent. So there is no table here to go stale: measure when you need a number.
+
+**Measure with the command below, not a bare `uvx ruff check --statistics`.**
+A bare run is silent about all of this by construction — the per-file-ignores
+*are* the debt, so the gate's own invocation prints nothing and exits 0. That
+is right for a gate and useless for a burn-down. Switch the ignores off:
 
 ```bash
 # Python — the ignore list is what is being measured, so clear it
@@ -338,45 +353,36 @@ uvx ruff check --config 'lint.per-file-ignores={}' --statistics \
 npm --prefix frontends/wysiwyg-grilling run lint
 ```
 
-Snapshot measured 2026-08-20. Every Python row moves with the tree, so treat
-these as a reading with a date on it, not as a fact:
-
-| Debt | Count | Where |
-| --- | --- | --- |
-| Missing docstrings (`D101`/`D102`/`D103`/`D107`) | 61 | `canvas.py` |
-| Docstrings not in Google shape (`D205`/`D209`/`D4xx`) | 75 | `canvas.py` |
-| Missing `Returns:` / `Raises:` (`DOC201`/`DOC501`) | 55 | `canvas.py` |
-| Missing annotations (`ANN`) | 1317 | `canvas.py` |
-| Code-quality findings (`SIM`/`PERF`/`B`/`UP`…) | 97 | `canvas.py`, tests |
-| Missing TSDoc (`jsdoc/require-*`) | 30 | `src/` |
-| `: any` in TypeScript | 205 | `src/` |
-| `react-hooks/exhaustive-deps` | 29 | `src/` |
-| `strict: false` in `tsconfig.json` | — | frontend |
+Where it lives: in `canvas.py`, missing docstrings, docstrings out of Google
+shape, missing `Returns:`/`Raises:` sections, and missing annotations — the
+last being the largest item by a wide margin. Assorted code-quality findings
+sit in `canvas.py` and the tests. On the frontend: missing TSDoc, `: any`,
+`react-hooks/exhaustive-deps`, and `strict: false` in `tsconfig.json`.
 
 Three of the code-quality findings are defect-shaped rather than stylistic and
 are worth reading before they are auto-fixed: `B023` (a closure capturing a
-loop variable), `SIM115` ×2 (a file opened without a context manager), and
-`E741` (an ambiguous `l`/`I`/`O` name). 34 of the 97 clear with
-`uvx ruff check --fix`.
+loop variable), `SIM115` (a file opened without a context manager), and `E741`
+(an ambiguous `l`/`I`/`O` name).
 
-**These nine stay literals by decision, not by omission** — along with the
-suite runtime and the `ruff format` blast radius above, which are the only
-other measured numbers here that a marker does not cover. Three reasons, each
-of which alone would be enough. They are a function of an *unpinned* external
-tool: a new `ruff`
-release that adds a rule moves them with nothing in this repo having changed,
-and `refresh` would rewrite the table on somebody else's release schedule —
-the same objection that keeps the suite runtime a literal. The frontend rows
-need `node_modules`, which the gate itself proves may be absent, so a
-calculator for them would fail `livedoc` on a clean clone and take the other
-eight live values down with it. And pinning `ruff` inside `tests/livedoc.py`
-would put the version in a second place, next to
-`.pre-commit-config.yaml`'s `rev:`, where the two can drift. So: dated
-literals with a working derivation printed above them, and no marker to imply
-otherwise.
+`ty` is **not** on this list: it is clean and it gates. Keeping it that way is
+a standing constraint, and **`[tool.ty.rules]` is not how you do it** — that
+retires the finding instead of the debt. Per-line suppressions exist and each
+carries its derivation beside it — `grep -rn 'ty: ignore\['` is the inventory,
+deliberately given as a command because a count here would go stale the first
+time one is added or paid. **Match the bracket**: the unbracketed spelling
+also finds this sentence, which is how an inventory returns one more than it
+should. They are the monkeypatch sites in `test_backend.py`, where the stub's
+shape is *not* the cause — ty declares a module-level `def` as that exact
+function, so any reassignment is rejected, an identical signature included.
+Everything else was paid by annotating, renaming or repairing — including the
+one finding that was argued down as unreachable first: the argument was wrong,
+the one-word rename was always the answer, and **a suppression carrying a
+proof is a bet that the proof is right.**
+Note also that the `ANN` rows above hide nothing from `ty`: unlike mypy it
+checks unannotated function bodies, so that debt never shielded a type error.
 
 Retrofit rule: **when you touch a function, bring it to standard** — full
 Google docstring and full annotations — even if the change was one line. That
-is how the counts above go down without a stop-the-world commit.
+is how this debt goes down without a stop-the-world commit.
 
 New code has no exemption. Write it to standard the first time.

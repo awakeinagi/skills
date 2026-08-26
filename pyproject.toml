@@ -36,8 +36,8 @@ select = [
     "DOC",       # pydoclint — Args/Returns/Raises completeness (preview)
 ]
 ignore = [
-    # The codebase deliberately uses %-formatting throughout; converting 224
-    # sites buys nothing and churns every line. f-strings are fine in new code.
+    # The codebase deliberately uses %-formatting throughout; converting every
+    # site buys nothing and churns every line. f-strings are fine in new code.
     "UP031",
     "D203",      # incompatible with D211 (ruff prefers D211)
     "D213",      # incompatible with D212 (Google puts summary on line 1)
@@ -66,89 +66,193 @@ mypy-init-return = true          # __init__ needs no -> None
 suppress-dummy-args = true       # _ and __ need no annotation
 
 # ---------------------------------------------------------------------------
-# DEBT BURN-DOWN. Each entry is a temporary exemption with a measured count,
-# not a permanent rule. When you touch a function, bring it to standard
-# (full Google docstring + full annotations). Delete a code from this list
-# once `uvx ruff check` is clean without it. New files get no exemption.
+# DEBT BURN-DOWN. Each entry is a temporary exemption, not a permanent rule.
+# When you touch a function, bring it to standard (full Google docstring +
+# full annotations). Delete a code from this list once `uvx ruff check` is
+# clean without it. New files get no exemption.
+#
+# These rows deliberately carry NO counts. They used to, and the counts went
+# wrong faster than anyone corrected them — a sweep found most of them stale,
+# several off by multiples, and nothing in the repo reads them. To size the
+# remaining debt, measure it:
+#   uvx ruff check --statistics <path>   # with the row removed from this list
 # ---------------------------------------------------------------------------
 [tool.ruff.lint.per-file-ignores]
 "skills/wysiwyg-grilling/scripts/canvas.py" = [
-    "D100",   #   1 module docstring not in Google shape
-    "D101",   #   7 undocumented public class
-    "D102",   #  26 undocumented public method
-    "D103",   #  29 undocumented public function
-    "D105",   #     undocumented magic method
-    "D107",   #   7 undocumented __init__
-    "D205",   #  41 missing blank line after summary
-    "D209",   #  40 closing quotes not on their own line
-    "D301",   #   1 backslash in docstring needs r"""
-    "D401",   #     summary not in imperative mood
-    "D403",   #   2 first word not capitalized
-    "D415",   #   2 summary missing terminal punctuation
-    "DOC201", #  49 docstring missing Returns section
-    "DOC501", #   4 docstring missing Raises section
-    # 1008 missing type annotations: 658 ANN001 args, 340 returns
-    # (ANN201/202/204/205), 10 ANN002/003 varargs. RE-MEASURED 2026-08-16
-    # (v0.9 Task 52) and the line said 474, which matches no subset of the
-    # real breakdown — it is stale by provenance nobody can now recover,
-    # so read it as "re-measure before you quote it". Task 52 is also the
-    # first change to MOVE it (1011 -> 1008): `from __future__ import
-    # annotations` went in at the top of canvas.py, which is what makes
-    # the burn-down payable one touched function at a time instead of in
-    # one 1000-line sweep.
+    "D100",   # module docstring not in Google shape
+    "D101",   # undocumented public class
+    "D102",   # undocumented public method
+    "D103",   # undocumented public function
+    "D105",   # undocumented magic method
+    "D107",   # undocumented __init__
+    "D205",   # missing blank line after summary
+    "D209",   # closing quotes not on their own line
+    "D301",   # backslash in docstring needs r"""
+    "D401",   # summary not in imperative mood
+    "D403",   # first word not capitalized
+    "D415",   # summary missing terminal punctuation
+    "DOC201", # docstring missing Returns section
+    "DOC501", # docstring missing Raises section
+    # Missing type annotations — args, returns and varargs. `from __future__
+    # import annotations` sits at the top of canvas.py, and that is what makes
+    # this burn-down payable one touched function at a time instead of in one
+    # thousand-line sweep.
     "ANN",
 
-    # Code-quality findings, all pre-existing. 17 clear with
+    # Code-quality findings, all pre-existing. Some clear with
     # `uvx ruff check --fix`; the rest need a human. Worth a look first —
     # B023, SIM115 and E741 are defect-shaped, not style.
-    "B023",    #  1 closure captures the loop variable
-    "SIM115",  #  2 file opened without a context manager
-    "E741",    #  1 ambiguous variable name (l/I/O)
-    "SIM105",  #  6 try/except/pass → contextlib.suppress
-    "PERF401", #  3 manual list comprehension
-    "PERF203", #  2 try/except inside a loop
-    "PERF102", #  1 .items() where only keys/values are used
-    "B007",    #  2 unused loop control variable
-    "SIM102",  #  1 collapsible if
-    "SIM103",  #  2 needless bool
-    "C420",    #  2 dict comprehension → dict.fromkeys
-    "RUF046",  #  1 unnecessary int() cast
-    "RUF100",  #  4 unused noqa directive
-    "E501",    #  1 line over 88 cols (the single 92-col line)
-    "E306",    #  2 missing blank line before nested def
-    "UP009",   #  1 redundant utf-8 coding declaration
-    "UP020",   #  5 io.open → open
-    "UP034",   #  2 extraneous parentheses
+    "B023",    # closure captures the loop variable
+    "SIM115",  # file opened without a context manager
+    "E741",    # ambiguous variable name (l/I/O)
+    "SIM105",  # try/except/pass → contextlib.suppress
+    "PERF401", # manual list comprehension
+    "PERF203", # try/except inside a loop
+    "PERF102", # .items() where only keys/values are used
+    "B007",    # unused loop control variable
+    "SIM102",  # collapsible if
+    "SIM103",  # needless bool
+    "C420",    # dict comprehension → dict.fromkeys
+    "RUF046",  # unnecessary int() cast
+    "RUF100",  # unused noqa directive
+    "E501",    # line over 88 cols
+    "E306",    # missing blank line before nested def
+    "UP009",   # redundant utf-8 coding declaration
+    "UP020",   # io.open → open
+    "UP034",   # extraneous parentheses
 ]
 "tests/test_backend.py" = [
     "ANN",    # unannotated helpers and test cases
     "D101", "D102", "D103", "D107",
     "D205", "D209", "D415",
     "DOC201", "DOC501",
-    "F841",    #  1 assigned-but-unused local
-    "RUF059",  #  1 unused unpacked variable
-    "RUF100",  #  1 unused noqa directive
-    "B007",    #  1 unused loop control variable
-    "PERF401", #  3 manual list comprehension
-    "SIM300",  #  1 Yoda condition
+    "F841",    # assigned-but-unused local
+    "RUF059",  # unused unpacked variable
+    "RUF100",  # unused noqa directive
+    "B007",    # unused loop control variable
+    "PERF401", # manual list comprehension
+    "SIM300",  # Yoda condition
 ]
 
 # ---------------------------------------------------------------------------
-# mypy — strengthens automatically as annotations land: unannotated function
-# bodies are skipped by default, so every function you annotate becomes
-# type-checked without changing this config.
+# ty — the type checker. Replaced mypy AND pyright on 2026-08-25; one checker,
+# same vendor as ruff and uv.
+#
+# THE VERSION PIN LIVES IN `.pre-commit-config.yaml`, not here. ty is 0.0.x and
+# its defaults move between releases, so it is invoked as `uvx ty@<rev>` the
+# way the ruff hook carries a `rev:`. To move the pin: bump that one string,
+# re-run `uvx pre-commit run --all-files`, and re-triage anything new before
+# committing. This file configures ty; it does not choose ty's version.
+#
+# WHY BOTH PREDECESSORS WENT. mypy's green was largely vacuous: it skips the
+# bodies of untyped functions by default and canvas.py carries the `ANN` debt
+# above, so `uvx mypy` printed "Success: no issues found" while
+# `uvx mypy --check-untyped-defs` printed pages of errors it had been silent
+# about. No figure here, and not merely because the count falls whenever
+# somebody annotates anything: the number this sentence used to quote was
+# read under `[tool.mypy]`, which this same branch deleted, so nobody can
+# reproduce it at head under any invocation. A measurement whose instrument
+# has been removed is not stale, it is unrepeatable. Run the two commands.
+# pyright was a `pyrightconfig.json` in no hook and in no document — a gate
+# by convention.
+#
+# ty CHECKS UNANNOTATED BODIES; mypy DID NOT — binary, not a matter of degree,
+# which is why this claim gets no number. Inject one type error into an
+# unannotated def (the probe used `_probe: int = "not an int"` in
+# `_mermaid_refusal`): mypy answers "Success: no issues found" and ty reports
+# it on the line it sits on. Two consequences. The swap is a COVERAGE GAIN,
+# with none of the `ANN` debt above retired first. And `[tool.mypy]`'s two
+# commented-out "target state" lines — `disallow_untyped_defs` and
+# `disallow_incomplete_defs`, kept "to flip once the ANN debt is retired" —
+# went out MOOT rather than merely obsolete: the state they were waiting for is
+# the state ty already ships. Do not re-add an equivalent here expecting it to
+# buy anything. (Nothing in this repo's prose should say that annotating a
+# function brings its body under the type checker. Under ty it was never out.)
 # ---------------------------------------------------------------------------
-[tool.mypy]
-python_version = "3.9"
-files = ["skills/wysiwyg-grilling/scripts/canvas.py"]
-ignore_missing_imports = true
-warn_unused_ignores = true
-warn_redundant_casts = true
-warn_unreachable = true
-no_implicit_optional = true
-# Target state — flip on once the ANN debt above is retired:
-# disallow_untyped_defs = true
-# disallow_incomplete_defs = true
+[tool.ty.environment]
+# Matches the 3.9 floor in `requires-python`. Stated rather than inferred so a
+# later floor bump is one deliberate edit in two places, not a silent move.
+python-version = "3.9"
+# `import canvas` from tests/, which is how every test in this repo reaches the
+# backend. This is pyright's `extraPaths` carried over verbatim: without it ty
+# reports 9 `unresolved-import` and then types every `canvas.*` access as
+# Unknown, which is a checker that has stopped checking.
+extra-paths = ["skills/wysiwyg-grilling/scripts", "tests"]
+
+[tool.ty.src]
+# THE WHOLE TRACKED PYTHON SURFACE — canvas.py plus the 16 modules in tests/.
+# `git ls-files '*.py'` outside tests/fixtures/ lists exactly these 17 files,
+# so this is pyright's effective scope (it set no `include`, so it walked the
+# project root minus its excludes) and is deliberately WIDER than mypy's
+# canvas.py-only `files`. Narrowing to canvas.py would have made a tool swap
+# into a silent coverage cut.
+include = ["skills/wysiwyg-grilling/scripts/canvas.py", "tests"]
+exclude = [
+    "tests/fixtures",                        # byte-exact scene fixtures, no code
+    "skills/wysiwyg-grilling/scripts/web",   # committed Vite build output
+]
+
+# ---------------------------------------------------------------------------
+# RULE POLICY. Five rules off, carried over from `pyrightconfig.json`'s seven
+# suppressions. That file is deleted, so this is now the only place the
+# decision is written down:
+#
+#   pyright                                        ty
+#   reportOptionalSubscript + reportIndexIssue  -> not-subscriptable
+#   reportOptionalMemberAccess                  -> unresolved-attribute
+#   reportOptionalIterable                      -> not-iterable
+#   reportOptionalOperand + reportOperatorIssue -> unsupported-operator
+#   reportArgumentType                          -> invalid-argument-type
+#
+# THE MAPPING IS BY INTENT, NOT BY EQUIVALENCE. Checked once, 2026-08-25, by
+# running both checkers over canvas.py with every suppression off and
+# intersecting the LINE NUMBERS per pair: three pairs behaved like
+# translations, one shared almost nothing, and the two tools' surviving
+# findings did not overlap at all. Read the list as "the same five failure
+# shapes this repo had already ruled uninteresting", never as "the same
+# findings".
+#
+# THE PER-ROW COUNTS THAT SAT HERE ARE GONE, deliberately, and the reason is
+# the reading itself: annotating ONE dict later in the same branch moved most
+# of them. A figure a routine repair silently falsifies is worse than no
+# figure, and this one shipped. Re-derive if you need it — clear each tool's
+# suppressions, run both over canvas.py, intersect the line numbers.
+#
+# All five describe one situation on this codebase: an Excalidraw element is
+# loose JSON, AGENTS.md § Type hints rules that `dict[str, Any]` is the correct
+# and honest annotation for one, and a checker reading such a dict infers
+# `str | int | list | None` from whichever keys a literal happened to set, then
+# objects when the next line legitimately writes or reads a wider value. That
+# is a fact about the annotation, not about the code.
+#
+# ONE FINDING WAS LOST WITH pyright AND IS RECORDED RATHER THAN ABSORBED.
+# Under its real config pyright had exactly one thing to say about canvas.py,
+# at base and still at this branch's head, and it is real:
+# `mermaid_dropped_roles` returns `list(MERMAID_DROP_ROLES)`, and because
+# `list` is invariant that is `list[Literal[...]]` against a declared
+# `-> list[str]` (`reportReturnType`, canvas.py:26033). ty is silent on it and
+# so is mypy, so it is a genuine coverage loss from the swap rather than the
+# same finding re-spelled — worth a look on its own merits. This sentence
+# once reported three, two of them t-string noise; that pair came from a
+# `pythonVersion` the probe set and `pyrightconfig.json` never did.
+#
+# THESE ARE OFF BECAUSE THE MODEL IS LOOSE, NOT BECAUSE THE FINDINGS ARE
+# UNINTERESTING, and the list is a burn-down like the ruff one above rather
+# than a permanent exemption. Two one-line changes in this branch — the
+# `BASE_DEFAULTS` annotation and the `artifact_meta` cast — between them
+# retired the large majority of what these five were hiding in canvas.py, in
+# comparable shares; neither did it alone. The same move on the remaining
+# unannotated dicts is what pays the rest. Measure before you argue about it —
+# clear a rule from this table and run `uvx ty check`. No count here: the
+# sentence that used to carry one described a tree from before that
+# annotation landed, in the present tense, in a file that ships.
+# ---------------------------------------------------------------------------
+[tool.ty.rules]
+not-subscriptable = "ignore"
+unresolved-attribute = "ignore"
+not-iterable = "ignore"
+unsupported-operator = "ignore"
+invalid-argument-type = "ignore"
 
 # ---------------------------------------------------------------------------
 # Dev/test dependencies — AGENTS.md constraint 5: stdlib-only binds ONLY the

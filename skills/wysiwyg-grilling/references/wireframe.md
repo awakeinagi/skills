@@ -28,6 +28,8 @@ the same screen**, not styling on one.
 | Screen | `frame` (its `label`/name is the screen name) | one screen |
 | Nav/header | `rectangle`, `kind: nav`, real label, light fill `#e9e5da` | chrome |
 | Button | `rectangle`, `kind: button`, real label (dark fill `#1e1e1e` for primary) | action |
+| Link | `rectangle`, `kind: link`, real label — the words that are clickable | inline navigation. NOT `links_to`, which is the *canvas* jump this element performs; `kind: link` is what the drawing claims the screen shows |
+| Tab | `rectangle`, `kind: tab`, real label, one per tab in the bar | one tab of a tab set — the canonical 2.5.8 offender, which is why its targets are measured |
 | Input | `rectangle`, `kind: input`, label = field name | form field |
 | Content block | `rectangle`, `kind: block`, label = what it holds | region |
 | Image | `rectangle` with `kind: image` — the X-box strokes compose automatically | picture slot |
@@ -43,6 +45,39 @@ the same screen**, not styling on one.
 | Help | `rectangle`, `kind: help`, small, real label | where help lives (3.2.6 lint watches its slot) |
 | Sticky bar | `rectangle`, `kind: sticky-bar`, flush with a frame edge | pinned chrome — floats OVER content; declaring it arms the 2.4.11 focus question |
 | Feedback | `rectangle`, `kind: feedback`, label = the message | post-action confirmation (banner/toast) — the constructive answer to "what tells them it worked?" |
+
+**The vocabulary is closed.** This table plus `fold`, which is declared
+under *Output mode* rather than here, is every wireframe `kind` the
+backend implements — a kind outside it is stored and drawn as an
+unadorned shape, and every kind-driven check reads past it, so it draws a
+LAYOUT_NOTE naming what you asked for and what you got. Reach for
+`block` plus an annotation before inventing a word: a made-up one like
+`modal` looks like a claim and is not one. `canvas.py` holds that same set
+once, as `WIREFRAME_KINDS`, and the suite compares the two both ways: add
+a kind in both places or in neither, because either side moving alone
+fails rather than drifts. Everything else reads the constant rather than
+repeating it — the list is served to the inspector's kind selector, so the
+menu cannot fall behind it, and the mermaid-export refusal enumerates it
+whole. That refusal used to type its list out by hand and named ten of
+these kinds, which told a reader the ones it skipped had a mermaid
+spelling. None of them does; no wireframe kind has one, which is the only
+reason that sentence exists.
+
+**ONE RULE IF YOU ARE EDITING THIS FILE, because the guard above reads
+your prose and not just the table.** A code span that opens with `kind:`
+and closes after the name — the form every row above uses, and the form
+the fold line uses under *Output mode* — is a DECLARATION that the name
+belongs to the WIREFRAME arm. `TestTheKindVocabularyHasOneOwner` in
+`tests/test_backend.py` collects every one of them in this file and
+compares the result with `WIREFRAME_KINDS`, both directions, so a span in
+that shape around anything else fails the suite. **There is no citation
+form.** Naming a kind in passing is fine; wrapping it in that spelling is
+not. To mention a kind belonging to another arm, name the arm and drop
+the prefix — "the flow `source` kind" — which is what every real failure
+of this guard so far has been repaired into. It reads the whole file
+rather than only `|` rows on purpose: `fold` is declared in prose, and so
+are kinds in the sibling references, so a table-only reader would go
+silent on the ones that live outside a table.
 
 KPI, checkbox, toggle, and slider are composed kinds: the label stays the
 semantic name (renames fire `label_renamed`; the value never pollutes the

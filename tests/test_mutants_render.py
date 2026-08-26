@@ -57,6 +57,7 @@ the app bundle as well — the same purge clears both.
 from __future__ import annotations
 
 import contextlib
+import datetime
 import functools
 import hashlib
 import http.server
@@ -84,6 +85,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
 import canvas
+import pngdiff
 import test_mutants as tm
 from pngdiff import components, read_png_gray, tolerant_diff, tolerant_diff_mask
 from tests_helpers import el, ink_box
@@ -125,6 +127,10 @@ _BAND = 4
 _SLACK = 1
 
 _SVG_TAG = re.compile(r"^<svg [^>]*>")
+
+# A class the render gate turns on, read off its decorator. See
+# `TestRenderTierEvidence` for why the decorator and not the skip marker.
+_GATED_CLASS = re.compile(r"^@unittest\.skipUnless\(RENDER\s*,")
 
 
 def _browser() -> str:
@@ -7198,6 +7204,46 @@ def _wrapped_body_text(auto_resize: bool) -> list[dict]:
                strokeColor="#1e1e1e")]
 
 
+def _wrapped_line_height() -> float:
+    """The multiplier `paint` steps this fixture's baselines by.
+
+    ASKED OF THE ELEMENT, not written down, and it is the one number in
+    this scene's arithmetic that has to be. The three constants above are
+    literals on purpose — a scene that derives its own regime from the
+    code under test cannot notice when that code moves it out of the
+    regime — but this is not a fact about the scene, it is a
+    transcription of `paint`'s own `line_height_of(e)`, and a
+    transcription goes stale on its own.
+
+    It did. Both figures below were written `* 1.25` while the shipped
+    reader resolved 1.35 for an element carrying neither a stored
+    `lineHeight` nor a `fontFamily`: `render_svg` emits this fixture's
+    baselines at 13.6, 35.2, 56.8 and 78.4, an advance of 21.6px, and
+    the two figures claimed 73.6 and 80. Both feed LOWER bounds, so
+    under-stating the reach of the ink only loosened them and neither
+    ever failed — the sixth site in one day for the same 1.25-against-
+    1.35 error, and `line_height_of` exists so that number has exactly
+    one author. Pinned against the emitted markup by curator batch 46.
+
+    THE TEXT ELEMENT IS SELECTED AND NOT INDEXED, and the difference is
+    not tidiness. `line_height_of` answers for ANY element — a
+    non-text one gets its family's default, and the spare `n1` next to
+    this fixture's `t1` returns the same 1.35 today. So a positional
+    `[0]` would go on returning the right number if the scene were ever
+    reordered, and nothing anywhere would say. The unpacking below fails
+    loudly instead the moment the fixture stops carrying exactly one
+    text. What it does NOT buy, stated so nobody banks on it: while both
+    elements answer 1.35 a wrong selector is invisible by value, and no
+    assertion available here could see it. The gain is that the element
+    this wants is named rather than counted to.
+
+    Returns:
+        The line-height multiplier for the wrapped fixture's text.
+    """
+    text, = [e for e in _wrapped_body_text(False) if e.get("type") == "text"]
+    return canvas.line_height_of(text)
+
+
 # How much smaller than tier 1's own frame the instrument probe is measured
 # in. Big enough that the cut is far outside anti-aliasing and MIN_BLOB, small
 # enough that the probe keeps about half its ink (121372 px whole, 61380 px
@@ -7778,7 +7824,9 @@ class TestRenderParityRegime(unittest.TestCase):
         # this pin quietly, which is why all of them are written down.
         # The other two claims were re-derived rather than assumed:
         # the greedy wrap still gives four lines (79/98/89/67px
-        # against the 100px bound) and the last baseline is 73.6.
+        # against the 100px bound) and the last baseline is 78.4 —
+        # 73.6 stood here, computed at a 1.25 this file no longer
+        # states, until curator batch 46 pinned it against the markup.
         self.assertEqual(canvas.text_dims(_WRAPPED_LABEL, 16), (339, 22),
                          "the font metrics moved: re-measure the wrapped "
                          "scene's regime, and the frame arithmetic in "
@@ -7791,10 +7839,14 @@ class TestRenderParityRegime(unittest.TestCase):
                          "the scene was built around: %r"
                          % (len(lines), _WRAPPED_LINES, lines))
         # `paint` puts line i's baseline at y + fs*0.85 + i*fs*lineHeight,
-        # so the fourth is at 73.6 — against the drawing y=60 a frame
+        # so the fourth is at 78.4 — against the drawing y=60 a frame
         # sized on the text's UNWRAPPED height plus the pad would end at,
-        # which is the frame this scene used to get.
-        last_baseline = 16 * 0.85 + (_WRAPPED_LINES - 1) * 16 * 1.25
+        # which is the frame this scene used to get. The multiplier is
+        # ASKED rather than written (`_wrapped_line_height`): stated as
+        # 1.25 this read 73.6, 4.8px short of where `paint` puts it, and
+        # short only loosens the `assertGreater` below.
+        last_baseline = (16 * 0.85 + (_WRAPPED_LINES - 1)
+                         * 16 * _wrapped_line_height())
         self.assertGreater(
             last_baseline, 20 + SVG_PAD,
             "the last line's baseline is at %g, inside the y=%d bottom a "
@@ -7824,39 +7876,46 @@ class TestRenderParityRegime(unittest.TestCase):
         46's review MINOR-1, 2026-08-15). The review is right that this
         test does not hold the line alone: under the family's own trap —
         revert the loop to the unwrapped string AND widen the pad to 100
-        — the bottom lands at 120 against an ink bottom of 80 and this
+        — the bottom lands at 122 against an ink bottom of 86.4 and this
         passes. The review's suggested repair was exact equality against
         `SVG_PAD`, matching the centered pin's style, with the
         over-specification worry (another element could come to set the
         bottom edge) noted as the reason not to insist.
 
-        Measured, and the repair does not work. Under that same cheat the
-        margin is 40.0 — EXACTLY `SVG_PAD` — so equality passes too, and
-        for a reason no assertion on this axis can escape: widening the
-        pad by 60 compensates precisely for the 60px of line height the
-        reverted loop fails to reserve, and the resulting frame is
-        numerically indistinguishable from the correct one. No function
-        of (bottom, ink_bottom) separates them.
+        Measured, and the repair still does not work — but the
+        arithmetic saying so has moved, so it was RE-DERIVED 2026-08-20
+        alongside curator batch 46's repair of `ink_bottom`. The honest
+        frame ends at 127 and the cheat's at 122, so the two margins are
+        40.6 and 35.6: no longer the indistinguishable 40.0 this note
+        recorded, a reading taken while `ink_bottom` said 80 and
+        `text_dims` still floored a line box. What kills the repair now
+        is the HONEST side. The loop reserves ceil(4 × 21.6) = 87 for the
+        wrapped block, so a correct frame clears the ink by 40.6 and
+        `assertEqual(bottom, ink_bottom + SVG_PAD)` is RED on a drawing
+        it approves of — which is not a tightening, it is a break.
 
         What separates them is the PAIR, exactly as the review said: the
         control pin next door asserts an honest scene's frame is
         unchanged, and the widened pad moves it. So the note rather than
         the change, and the note is worth more than the change would have
-        been — it records that a plausible tightening was tried against
-        the cheat it was proposed for and measured not to catch it. The
-        over-specification argument is secondary and also holds: `n1`
-        bottoms at y=20 against the text's 80 today, so the text does set
-        this edge, but that is a property of the scene and not of the
-        claim.
+        been — it records a plausible tightening tried against the cheat
+        it was proposed for, and re-tried the day the figure underneath
+        it was repaired. The over-specification argument is secondary and
+        also holds: `n1` bottoms at y=20 against the text's 86.4 today,
+        so the text does set this edge, but that is a property of the
+        scene and not of the claim.
         """
         svg, _w, _h = canvas.render_svg(_wrapped_body_text(False))
         dims = _SVG_DIMS.search(svg)
         self.assertIsNotNone(dims, "cannot parse the <svg> tag")
         bottom = float(dims.group(4)) + float(dims.group(6))
         # the scene puts the text at y=0, so the fourth line's baseline is
-        # at 73.6 and its descenders run under it to the bottom of the
-        # line box: y + fs*1.25*lines = 80.
-        ink_bottom = 16 * 1.25 * _WRAPPED_LINES
+        # at 78.4 and its descenders run under it to the bottom of the
+        # line box: y + fs*lineHeight*lines = 86.4. The multiplier is
+        # asked of the element for the reason `_wrapped_line_height`
+        # gives — stated as 1.25 this read 80, 6.4px short, and short
+        # only loosens the `assertGreaterEqual` below.
+        ink_bottom = 16 * _wrapped_line_height() * _WRAPPED_LINES
         self.assertGreaterEqual(
             bottom, ink_bottom,
             "the viewBox ends at %g but the wrapped text's last line runs "
@@ -8222,26 +8281,257 @@ class TestLegibilityFloorRegime(unittest.TestCase):
                                        want, places=2)
 
 
-class TestRenderTierEvidence(unittest.TestCase):
-    """The coverage table's render-tier evidence must name real tests.
+def resolve_evidence(dotted: str) -> tuple[Any, Any]:
+    """Walk a `RENDER_TIER` dotted name to its class and its test method.
 
-    Deliberately NOT gated: resolving a dotted name needs no browser, and
-    the rot this catches — renaming a test here and leaving `--coverage`
-    pointing at a ghost — happens in ordinary editing, where nobody has
-    `MUTANTS_RENDER=1` set. A gated check would notice months late.
+    Args:
+        dotted: A `module.Class.test_method` string.
+
+    Returns:
+        `(cls, method)`, either of which is None when the walk fell off
+        — the caller turns that into the assertion message, because only
+        it knows which check the string was standing for.
+    """
+    parts = dotted.split(".")
+    if len(parts) != 3:
+        return (None, None)
+    modname, clsname, methname = parts
+    mod = importlib.import_module(modname)
+    cls = getattr(mod, clsname, None)
+    return (cls, getattr(cls, methname, None) if cls is not None else None)
+
+
+def record_render_tier_evidence() -> int:
+    """Run the tests `RENDER_TIER` names and write down what happened.
+
+    The record is what lets an UNGATED gate assert those tests RAN,
+    rather than that their names resolve. It is deliberately a run of
+    exactly the named tests and nothing else: the point is evidence for
+    the three coverage rows, and a whole-tier run would take minutes and
+    couple the record to tests no row cites.
+
+    Returns:
+        0 when every named test passed and the record was written; 1
+        otherwise, in which case NOTHING is written — a failing run must
+        not leave behind a record saying the evidence is good.
+
+    Raises:
+        RuntimeError: If `MUTANTS_RENDER=1` is not set, since without it
+            every named test would be skipped and a record of skips
+            would be exactly the silence this file exists to kill.
+    """
+    if not RENDER:
+        raise RuntimeError(
+            "--record-evidence needs MUTANTS_RENDER=1: ungated, every "
+            "test it would record is skipped, and a record of skips is "
+            "the vacuous pass it exists to replace")
+    names = sorted(set(tm.RENDER_TIER.values()))
+    suite = unittest.TestLoader().loadTestsFromNames(names)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    bad = {str(t) for t, _ in result.failures + result.errors}
+    bad |= {str(t) for t, _ in result.skipped}
+    if bad or result.testsRun != len(names):
+        print("recorded nothing: %d of %d named tests did not pass"
+              % (len(bad) or len(names) - result.testsRun, len(names)))
+        return 1
+    tm.RENDER_RUN_RECORD.write_text(json.dumps(
+        {"recorded": datetime.date.today().isoformat(),
+         "canvas_sha256": tm.canvas_digest(),
+         "browser": Path(_browser()).name,
+         "passed": names}, indent=2) + "\n")
+    print("recorded %d passing render-tier evidence test(s) in %s"
+          % (len(names), tm.RENDER_RUN_RECORD.name))
+    return 0
+
+
+class TestRenderTierEvidence(unittest.TestCase):
+    """The coverage table's render-tier evidence must name tests that RAN.
+
+    Deliberately NOT gated: nothing here needs a browser, and the rot it
+    catches — renaming a test and leaving `--coverage` pointing at a
+    ghost, or adding a render-tier row nobody ever ran — happens in
+    ordinary editing, where nobody has `MUTANTS_RENDER=1` set. A gated
+    check would notice months late, if a gated run ever happened at all.
     """
 
-    def test_render_tier_evidence_resolves_to_real_tests(self) -> None:
-        """Every RENDER_TIER evidence string walks to a callable test."""
-        for check, dotted in tm.RENDER_TIER.items():
-            modname, *path = dotted.split(".")
-            obj: Any = importlib.import_module(modname)
-            for part in path:
-                obj = getattr(obj, part, None)
+    def test_render_tier_evidence_resolves_to_a_gated_test_method(self) -> None:
+        """Every RENDER_TIER string names a test the render tier runs.
+
+        `callable(obj)` was the old bar and it is nearly free: a CLASS is
+        callable, so `RENDER_TIER["parity_clipped"] =
+        "test_mutants_render.TestRenderParity"` passed while naming no
+        test at all. What the evidence column has to name is a test
+        METHOD, on a `TestCase`, in a class the `MUTANTS_RENDER` gate
+        actually turns on — a method parked on an ungated class is not
+        render-tier evidence, and one parked on a class gated by
+        something else would never run under the documented command.
+        """
+        for check, dotted in sorted(tm.RENDER_TIER.items()):
+            with self.subTest(check=check):
+                cls, method = resolve_evidence(dotted)
                 self.assertIsNotNone(
-                    obj, "RENDER_TIER[%r] names %s, but %r does not exist"
-                         % (check, dotted, part))
-            self.assertTrue(callable(obj), "%s is not callable" % dotted)
+                    cls, "RENDER_TIER[%r] = %r does not resolve to a class "
+                         "in this module" % (check, dotted))
+                self.assertTrue(
+                    isinstance(cls, type)
+                    and issubclass(cls, unittest.TestCase),
+                    "RENDER_TIER[%r] names %s, which is not a TestCase"
+                    % (check, cls))
+                self.assertIsNotNone(
+                    method, "RENDER_TIER[%r] = %r names no such method on %s"
+                            % (check, dotted, cls.__name__))
+                self.assertTrue(
+                    dotted.rsplit(".", 1)[-1].startswith("test"),
+                    "%s is not a test method, so the runner never calls it"
+                    % dotted)
+                # Read the DECORATOR and not `__unittest_skip__`, which
+                # `skipUnless` sets only on the ungated half of the coin:
+                # with MUTANTS_RENDER=1 the class carries no skip marker
+                # at all, so an attribute check would assert the gate
+                # exists exactly when nobody is running the tier.
+                self.assertTrue(
+                    _GATED_CLASS.match(inspect.getsource(cls)),
+                    "%s sits on %s, which is not decorated "
+                    "@unittest.skipUnless(RENDER, ...) — so it is either "
+                    "never run by the documented command, or it is "
+                    "ungated and belongs in the model tier"
+                    % (dotted, cls.__name__))
+
+    def test_every_render_tier_row_was_executed_under_the_gate(self) -> None:
+        """Each row's evidence passed in a recorded gated run.
+
+        This is the whole point of the file beside it, and the thing the
+        old `resolves` test could not say. `coverage_table` carves these
+        rows out of `test_every_detector_is_proven_or_named`; before the
+        record existed, what backed that carve-out was a string that no
+        run had ever exercised, because nothing in
+        `.pre-commit-config.yaml` sets `MUTANTS_RENDER` and there is no
+        CI. A row added here without a gated run now fails at once.
+        """
+        rec = tm.render_evidence_run()
+        state, detail = tm.render_evidence_currency()
+        self.assertNotEqual(state, "missing", detail)
+        passed = set(rec.get("passed") or ())
+        never_run = sorted(set(tm.RENDER_TIER.values()) - passed)
+        self.assertEqual(
+            never_run, [],
+            "these render-tier rows are counted as covered on evidence no "
+            "recorded run executed: %s. Run: MUTANTS_RENDER=1 python3 "
+            "tests/test_mutants_render.py --record-evidence" % never_run)
+
+    def test_the_run_record_holds_no_row_that_left_render_tier(self) -> None:
+        """The record may not outlive the rows it is evidence for.
+
+        The same discipline `RULE8_EXEMPT` and `ASPIRATIONAL` carry: a
+        record nobody prunes becomes a list of tests that stopped being
+        cited, and the next reader cannot tell which entries are live.
+        It also closes the rename in the direction the test above
+        cannot — a renamed row leaves its old name behind, and a stale
+        name in a "passed" list is how the next re-record gets skipped.
+        """
+        rec = tm.render_evidence_run()
+        ghosts = sorted(set(rec.get("passed") or ())
+                        - set(tm.RENDER_TIER.values()))
+        self.assertEqual(
+            ghosts, [],
+            "%s appears in %s but no RENDER_TIER row cites it any more — "
+            "re-record rather than editing the file by hand"
+            % (ghosts, tm.RENDER_RUN_RECORD.name))
+
+    def test_the_currency_report_can_say_stale(self) -> None:
+        """Currency is reported, so the report itself needs an instrument.
+
+        `render_evidence_currency` is the one channel that carries "this
+        evidence is older than the code it is about", and it is reported
+        rather than enforced — binding the commit to it would make every
+        `canvas.py` edit require a browser, which is the thing the gate
+        exists to avoid. A reported-only channel that cannot say the bad
+        word is a caveat, not an instrument, so all three of its states
+        are exercised here against fabricated records.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            with mock.patch.object(tm, "RENDER_RUN_RECORD", path):
+                self.assertEqual(tm.render_evidence_currency()[0], "missing")
+                path.write_text(json.dumps(
+                    {"recorded": "1999-01-01", "canvas_sha256": "deadbeef",
+                     "passed": []}))
+                self.assertEqual(tm.render_evidence_currency()[0], "stale")
+                path.write_text(json.dumps(
+                    {"recorded": "1999-01-01",
+                     "canvas_sha256": tm.canvas_digest(), "passed": []}))
+                self.assertEqual(tm.render_evidence_currency()[0], "current")
+
+
+class TestTheMirroredPngdiffDefaultsStillMatch(unittest.TestCase):
+    """`MIN_BLOB` and `INK_THRESHOLD` are hand-copies. Bind them.
+
+    THE DEFECT IS THAT NOTHING BOUND THEM. Two constants at the top of
+    this file carry comments claiming they mirror
+    `pngdiff.tolerant_diff`'s defaults, and every `tolerant_diff` /
+    `tolerant_diff_mask` call in this tier takes those defaults rather
+    than passing these values — then post-processes the result with
+    these copies (`_delta_components`'s `c["area"] < MIN_BLOB`, the
+    residual-blob filter, and every `p < INK_THRESHOLD` ink test).
+
+    So the two halves of one measurement were free to disagree. Move a
+    default in `pngdiff.py` and this tier diffs at the new floor and
+    filters at the old one, silently, with both comments still reading
+    as true — a mismatch that changes which blobs survive and therefore
+    which ablation findings are reported, not merely a stale number.
+
+    THE ROSTER IS DERIVED, NOT NAMED, and that is the point. Both
+    `tolerant_diff` and `tolerant_diff_mask` carry this pair, and the
+    ablation producers this tier's findings come from call the MASK
+    form. Pinning the one function the comments happen to name would
+    leave the one actually called free to drift — a second copy of the
+    subject making the absence of the first invisible. Asking the
+    module instead means a third function growing the same defaults is
+    covered on the day it appears.
+
+    Deliberately NOT gated, for the reason `TestRenderTierEvidence`
+    gives: reading a signature needs no browser, and a default is moved
+    in ordinary editing, where nobody has `MUTANTS_RENDER=1` set.
+    """
+
+    def mirrored(self) -> dict[str, int]:
+        """The tier's own copies, by the parameter each one mirrors.
+
+        Returns:
+            Parameter name mapped to this module's constant for it.
+        """
+        return {"ink_threshold": INK_THRESHOLD, "min_blob": MIN_BLOB}
+
+    def test_every_pngdiff_default_this_tier_copies_still_matches(
+            self) -> None:
+        """Each copied constant equals the default it claims to mirror."""
+        found = 0
+        for name, fn in sorted(vars(pngdiff).items()):
+            if getattr(fn, "__module__", None) != "pngdiff":
+                continue
+            params = inspect.signature(fn).parameters
+            for param, mine in self.mirrored().items():
+                default = params[param].default if param in params else None
+                if default is inspect.Parameter.empty or default is None:
+                    continue
+                found += 1
+                with self.subTest(function=name, parameter=param):
+                    self.assertEqual(
+                        default, mine,
+                        "pngdiff.%s's %s default is %r, but this tier "
+                        "post-processes its output at %r. Every call site "
+                        "here takes the default and then filters with the "
+                        "copy, so the diff and the filter are now running "
+                        "at different floors and the comment beside the "
+                        "constant is silently false"
+                        % (name, param, default, mine))
+        self.assertGreaterEqual(
+            found, 4,
+            "this pin found %d pngdiff default(s) to bind and expected at "
+            "least the four it was written for (`tolerant_diff` and "
+            "`tolerant_diff_mask`, each with `ink_threshold` and "
+            "`min_blob`). A signature that stops carrying them makes every "
+            "assertion above vacuous" % found)
 
 
 class TestRenderCache(unittest.TestCase):
@@ -9043,11 +9333,17 @@ def _face_advances() -> dict[str, float]:
             self.end_headers()
             self.wfile.write(b"ok")
 
-        def log_message(self, *a: Any) -> None:
+        def log_message(self, format: str, *args: Any) -> None:
             """Keep the access log out of the test output.
 
+            Parameter named `format` to match
+            `BaseHTTPRequestHandler.log_message`, which is what makes this
+            a substitutable override rather than a same-named different
+            method.
+
             Args:
-                *a: Ignored.
+                format: Ignored.
+                *args: Ignored.
             """
 
     probe = web / "_face_probe.html"
@@ -9176,3 +9472,9 @@ class TestTheAdvanceTableIsTheVendoredFaces(unittest.TestCase):
                          "U+2753 has an entry in NUNITO_ADVANCE, but the "
                          "vendored face has no such glyph: that number is "
                          "this machine's emoji font")
+
+
+if __name__ == "__main__":
+    if "--record-evidence" in sys.argv:
+        raise SystemExit(record_render_tier_evidence())
+    unittest.main()

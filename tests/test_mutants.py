@@ -26,6 +26,7 @@ import re
 import shutil
 import sys
 import tempfile
+import textwrap
 import unittest
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -47,8 +48,51 @@ from tests_helpers import el, ink_box, measured
 # were verified against canvas.py (lines 5083, 5097-5102, 5475, 5689).
 # ---------------------------------------------------------------------------
 
+# ONE SPELLING FOR THE CONNECTOR NOUN, because canvas.py has exactly one
+# too. `lint_layout` binds `arrows = [... type in ("arrow", "line") ...]`,
+# and every check walking that list opens its sentence with
+# `canvas.connector_noun(...)`, which answers "arrow", "line" or
+# "connector" (mixed pair). NO CALL-SITE COUNT IS WRITTEN HERE: this
+# comment carried "45 call sites", and an AST walk for `ast.Call` nodes
+# says 46 at the fold and 42 at this branch's own fork, so 45 matched
+# neither end and was never right rather than merely stale. `grep -c`
+# answers one higher than the AST at both, because it counts the `def`
+# line. Derive it if you need it. Nine detectors below opened
+# with the literal `arrow`, and MEASURED on 2026-08-20 by retyping every
+# arrow in each catalogue scene to a line: on eight of the nine the lint
+# still spoke the same sentence about the same elements and
+# `collect_findings` returned NOTHING. That is the vacuous pass this
+# harness exists to kill — a `Silence` on a detector that cannot read its
+# own check's sentence is indistinguishable from a `Silence` on a check
+# that is correctly quiet.
+#
+# Widened here rather than in canvas.py, which is the ruling
+# `_RUNS_INSIDE_RE` and `_ARRIVAL_SIDE_RE` already record for their own
+# second openings: the message is right and the regex has to reach it,
+# not the other way round. Not `.+?` — the noun is a CLOSED set that
+# `connector_noun` returns and `test_the_connector_alternation_matches_
+# every_noun_canvas_prints` pins against the function itself, so a fourth
+# word arriving reaches this constant instead of being swallowed.
+#
+# `_FALSE_BIDI_LINT_RE` is deliberately NOT widened and keeps its literal
+# `arrows`: `false_bidirectional` gates on `arrowhead_of(e, ...) is not
+# None` for BOTH members, and `arrowhead_of` returns None for anything
+# that is not an `arrow` — so its population is arrow-only by
+# construction and canvas.py hard-codes the plural at that one site.
+#
+# The reason NOT to widen it is that widening would be a NO-OP, not that
+# it would loosen anything — this comment said "loosening" and that was
+# measured false at the fold. canvas.py holds exactly ONE template
+# containing "end on the same", and it hard-codes the plural `arrows`,
+# so a widened pattern has nothing else to match: sweeping the widened
+# form over every scene-form changes findings on ZERO of 105. Leaving it
+# narrow is right; the sentence explaining why was not. A wrong
+# explanation and a right one look identical on the page, which is why
+# this is corrected rather than quietly dropped.
+_CONN = r"(?:arrow|line|connector)"
+
 _ENDPOINT_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) claims to bind .+ but its "
+    _CONN + r" (?P<element>[\w-]+) claims to bind .+ but its "
     r"(?:start|end) point ends (?P<mag>\d+)px "
     r"(?P<dir>away|inside the shape)")
 # Two openings, one check. v0.9 WP4 gave `runs_on_node` a second
@@ -57,10 +101,10 @@ _ENDPOINT_RE = re.compile(
 # never goes inside. Widened here rather than distorting the message to fit
 # the regex, which is what the fix's first round did (task 19 review, F6).
 _RUNS_INSIDE_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) (?:enters .+ and runs|runs) "
+    _CONN + r" (?P<element>[\w-]+) (?:enters .+ and runs|runs) "
     r"(?P<mag>\d+)px (?:inside|along .+ own border)")
 _PASSES_THROUGH_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) passes through .+, which is neither its "
+    _CONN + r" (?P<element>[\w-]+) passes through .+, which is neither its "
     r"source nor destination")
 # The one lint template that names TWO arrows and one node. `element` is the
 # NODE, not either arrow: the pair is symmetric, so naming one of the two
@@ -70,7 +114,8 @@ _PASSES_THROUGH_RE = re.compile(
 # fix has to change — and both arrow ids survive in `raw`. The trailing
 # `[\w-]+` stops before the ` ('Label')` suffix `canvas.name()` appends.
 _SHARED_ATTACH_RE = re.compile(
-    r"arrows [\w-]+ and [\w-]+ share an attach point on (?P<element>[\w-]+)")
+    _CONN + r"s [\w-]+ and [\w-]+ share an attach point on "
+    r"(?P<element>[\w-]+)")
 # WP4b's e1 (canvas.py), landed by task 24 and the second template naming
 # two arrows and one node — `element` is the NODE for the same reason as
 # above, and here it is also the thing the finding is ABOUT: the claim is
@@ -93,9 +138,9 @@ _SHARED_ATTACH_RE = re.compile(
 # "has arrow drawn over" is 0 by construction, and a template that
 # reported 80 in those words would be a message that lies.
 _PHANTOM_RE = re.compile(
-    r"arrows [\w-]+ and [\w-]+ read as one stroke through "
+    _CONN + r"s [\w-]+ and [\w-]+ read as one stroke through "
     r"(?P<element>[\w-]+).*?so (?P<mag>\d+)px of it "
-    r"(?:has arrow drawn over|is completed across)")
+    r"(?:has " + _CONN + r" drawn over|is completed across)")
 # The other symmetric-pair template, and the only one that names no third
 # party to blame: two labels, and the reader has to be told BOTH or the
 # finding says nothing actionable. So `element` is the quoted pair verbatim
@@ -125,7 +170,7 @@ _TEXT_ON_TEXT_RE = re.compile(
 # does. This is the entry curator batch 19 said `label_on_foreign_node`
 # was waiting on.
 _LABEL_ON_FOREIGN_RE = re.compile(
-    r"arrow label .+ lands on (?P<element>[\w-]+), which is neither end")
+    _CONN + r" label .+ lands on (?P<element>[\w-]+), which is neither end")
 # The composed-widget group note (canvas.py), registered by curator batch
 # 36 to drain the row TASK-PIN-BACKEND filed against itself. `element` is
 # the OWNER — the body the loose parts belong to and the thing a re-group
@@ -312,7 +357,7 @@ _MIN_CLEARANCE_RE = re.compile(
 # already gates, so a check reporting it as its headline would be
 # restating its own threshold.
 _SHARED_LANE_RE = re.compile(
-    r"arrows (?P<element>[\w-]+) and [\w-]+ run together for "
+    _CONN + r"s (?P<element>[\w-]+) and [\w-]+ run together for "
     r"(?P<mag>\d+)px, \d+px apart on the same "
     r"(?P<dir>horizontal|vertical) line")
 _FALSE_BIDI_LINT_RE = re.compile(
@@ -495,7 +540,7 @@ _UNREADABLE_COLOR_RE = re.compile(
 # the alternation buys is that the start-end half of the same check is
 # readable by the harness at all.
 _ARRIVAL_SIDE_RE = re.compile(
-    r"arrow (?P<element>[\w-]+) (?:arrives at|leaves) .+?'s "
+    _CONN + r" (?P<element>[\w-]+) (?:arrives at|leaves) .+?'s "
     r"(?P<dir>left|right|top|bottom) edge (?P<mag>\d+) degrees off square")
 
 
@@ -1361,6 +1406,66 @@ def strip_composed_parts(scene: list[dict], host_id: str) -> list[dict]:
 
 
 @_operator
+def double_composed_ink(scene: list[dict], host_id: str) -> list[dict]:
+    """Draw an untagged copy of every part one host owns, in place.
+
+    THE SIBLING OF `strip_composed_parts`, AT THE OTHER END OF THE SAME
+    AXIS. That one takes a host's parts away; this one leaves them and
+    draws the same ink over them again with the backlinks gone. Both
+    reach a stored shape a real gesture produced — this is what the
+    ungrouped-duplicate path used to manufacture, and what scenes
+    already on disk still hold: a host owning exactly the parts its
+    kind owes, with a second unowned set drawn on top. Nothing on the
+    canvas separates the two sets; a reader counts the ink and gets
+    double.
+
+    THE TAG IS THE ONLY THING REMOVED, and every other field is copied
+    byte for byte, `groupIds` included. A paste in place lands inside
+    the host's own group, and the geometry has to stay identical or the
+    scene stops being about one thing — an oversized copy trips the
+    grouped-decoration note, which is a different defect and a mutant
+    injects exactly one. `role: "decoration"` is kept because that is
+    what the ink IS once its `*_of` key is gone: the public schema's
+    standalone decoration, which is precisely why nothing counts it.
+
+    THE PREDICATE IS `strip_composed_parts`' OWN, spelled the same way
+    on purpose. The two operators must agree about what a part is, or
+    one could add ink the other could not take away and the pair would
+    stop being two ends of one axis.
+
+    Args:
+        scene: The scene copy to mutate.
+        host_id: The composed host whose ink is doubled.
+
+    Returns:
+        The scene with one untagged `<id>-ghost` copy appended per
+        tagged part. Ids are cosmetic — ownership is read from
+        `customData` backlinks and never from a name — so they are
+        spelled for a reader rather than after any real paste.
+
+    Raises:
+        EngineError: If the host owns no tagged parts, which would make
+            this a no-op wearing the name of a mutation.
+    """
+    ghosts = []
+    for e in scene:
+        if not any(k.endswith("_of") and v == host_id
+                   for k, v in (e.get("customData") or {}).items()):
+            continue
+        ghost = copy.deepcopy(e)
+        ghost["id"] = e["id"] + "-ghost"
+        ghost["customData"] = {"role": "decoration"}
+        ghost.pop("boundElements", None)
+        ghosts.append(ghost)
+    if not ghosts:
+        raise EngineError(
+            "double_composed_ink: %r owns no tagged parts, so there is "
+            "no ink to double — a scene that was never mutated is the "
+            "same silence in a new costume" % host_id)
+    return scene + ghosts
+
+
+@_operator
 def flip_direction(scene: list[dict], arrow_id: str) -> list[dict]:
     """Reverse an arrow's direction, swapping bindings and rebasing points.
 
@@ -1548,6 +1653,7 @@ OPERATORS: dict = {
     "merge_corridors": merge_corridors,
     "drop_edge": drop_edge,
     "strip_composed_parts": strip_composed_parts,
+    "double_composed_ink": double_composed_ink,
     "flip_direction": flip_direction,
     "rename_node": rename_node,
     "move_node_onto_rank": move_node_onto_rank,
@@ -1845,6 +1951,40 @@ class TestOperators(unittest.TestCase):
         self.assertEqual(
             (arr_b["x"] + arr_b["points"][-1][0],
              arr_b["y"] + arr_b["points"][-1][1]), (100, 0))
+
+    def test_double_composed_ink_adds_ink_that_owns_nobody(self) -> None:
+        """Each part gains an untagged twin; nothing else moves.
+
+        THE OPERATOR'S OWN INNOCENCE, and it is what the mutant beside
+        it cannot assert. `doubled_ink_reads_as_a_healthy_count` says
+        the check is silent about this scene, and a check is also silent
+        about a scene where nothing happened — so unless something
+        proves the ghosts arrived, drew where the parts draw, and own
+        nobody, the mutant's redness could as easily be an operator that
+        did nothing interesting.
+        """
+        out = OPERATORS["double_composed_ink"](_body_block(), host_id="b")
+        ghosts = [e for e in out if e["id"].endswith("-ghost")]
+        self.assertEqual(
+            len(ghosts), 4,
+            "the block owns four waves, so it gains four ghosts")
+        for ghost in ghosts:
+            twin = next(e for e in out
+                        if e["id"] == ghost["id"][:-len("-ghost")])
+            self.assertIsNone(
+                canvas.part_owner_id(ghost),
+                "a ghost that still names an owner is a part, and the "
+                "check would count it")
+            self.assertEqual(
+                (ghost["x"], ghost["y"], ghost["width"], ghost["height"]),
+                (twin["x"], twin["y"], twin["width"], twin["height"]),
+                "the ghost draws exactly where its twin draws, or the "
+                "scene is about a moved decoration instead")
+
+    def test_double_composed_ink_refuses_a_host_with_no_parts(self) -> None:
+        """Doubling nothing is a no-op wearing the name of a mutation."""
+        with self.assertRaises(EngineError):
+            OPERATORS["double_composed_ink"](_body_block(), host_id="nope")
 
     def test_unchanged_returns_equal_but_distinct_scene(self) -> None:
         """Unchanged returns an equal scene that is a distinct object.
@@ -2738,7 +2878,7 @@ def _void_pair(on_body: bool, grown: bool = False,
     Returns:
         The two-element scene: nodes `n1` and `n2`.
     """
-    cd = {"role": "node"}
+    cd: dict[str, Any] = {"role": "node"}
     if grown:
         cd["auto_grown"] = True
     sx, sy = (168, 168) if on_body else (0, 0)
@@ -5632,8 +5772,9 @@ class TestStoreIntegrity(unittest.TestCase):
         """
         for field in ("id", "fileId"):
             with self.subTest(field=field):
-                bad = {"id": "img", "type": "image", "x": 0, "y": 0,
-                       "width": 120, "height": 90, "fileId": "f1"}
+                bad: dict[str, Any] = {
+                    "id": "img", "type": "image", "x": 0, "y": 0,
+                    "width": 120, "height": 90, "fileId": "f1"}
                 bad[field] = {"x": 1}
                 body = json.dumps({"type": "excalidraw", "version": 2,
                                    "elements": [bad]})
@@ -16387,14 +16528,20 @@ def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
             split; the height-arm poles pass an even width instead, to
             keep that arm quiet while the other one is measured.
         height: The rhombus's height. 200 halves cleanly, so the
-            headroom carries none of the defect; 69 is `4k+1` and
+            headroom carries none of the defect; 73 is `4k+1` and
             splits it the same way the width does.
-        font_size: The label's size. 16 leaves the HEIGHT arm mute
-            whatever the text does — `text_dims` returns
-            `int(lines * fs * 1.25)`, which at 16 is `20 * lines` and
-            always even, while a visible one-pixel headroom gap needs an
-            odd height. That is why the height arm has never been seen,
-            and why its pole is set at 20.
+        font_size: The label's size. IT DOES NOT DECIDE WHETHER THE
+            HEIGHT ARM CAN FIRE — the line count does, and this line
+            said the opposite until 2026-08-20. `text_dims` reserves
+            `ceil(n * fs * lineHeight)`, and this label carries no
+            stored `lineHeight`, so `line_height_of` hands it Nunito's
+            own 1.35: at 16 the reserves run 22, 44, 65, 87, 108 and
+            130px for one to six lines. No per-line quantum, and odd at
+            three lines and at four — which is what the one-pixel
+            headroom gap needs. 16 reaches the arm; 400x149 with a
+            three-line label sits on the gap exactly, built rather than
+            argued. The pole is 20 because 20 reaches it on ONE line,
+            which keeps the wrap out of the measurement.
 
     Returns:
         The two-element scene: node `n1`, then its bound label `t1`.
@@ -17451,6 +17598,63 @@ def _body_block() -> list[dict]:
         for i in (1, 2, 3, 4)]
 
 
+def _body_block_with_a_fifth_wave() -> list[dict]:
+    """The same block drawing five waves where its height owes four.
+
+    THE SURPLUS ARM FIRING LEGITIMATELY, which is the pole
+    `doubled_ink_reads_as_a_healthy_count` needs beside it. That mutant
+    says the arm is blind to ink it does not own; this says the arm
+    SPEAKS, on the same host, the same kind and the same direction, when
+    the extra wave carries a backlink. Held together they locate the
+    blindness exactly: it is not the surplus arm that is missing, it is
+    the definition of "drawn" underneath it.
+
+    THE FIFTH WAVE SITS AT y=48 AND THAT IS THE MINIMIZATION, not an
+    arbitrary slot. At y=72 it hangs 10px below a 64px block and trips
+    the grouped-decoration note — a second, unrelated finding in a scene
+    that exists to carry one. Inside the block it is a duplicate of
+    wave 1 in every field but its id and its y, so the only thing this
+    scene says is that there is one part too many.
+
+    Returns:
+        The six-element scene: block `b`, waves `b-body1..4`, and the
+        surplus `b-body5`.
+    """
+    out = _body_block()
+    fifth = copy.deepcopy(next(e for e in out if e["id"] == "b-body1"))
+    fifth["id"], fifth["y"] = "b-body5", 48
+    return [*out, fifth]
+
+
+def _body_block_behind_an_authored_panel() -> list[dict]:
+    """The healthy block with a backdrop the agent drew on purpose.
+
+    THE FALSE-POSITIVE COST OF ANY DOUBLED-INK RULE, written down as an
+    assertion because it is the only pole that says what such a rule may
+    NOT do. `role: "decoration"` with no part tag is a first-class value
+    of the PUBLIC ops schema — `ops-reference.md` lists it among the four
+    an agent may set, and `layout.md` instructs the agent to author one
+    (the thick low-opacity backdrop behind parallel edges, the `reorder
+    index 0` panel). A rule that counts every unowned decoration standing
+    inside a host as ink it did not order bills the user for a drawing
+    they made deliberately.
+
+    MEASURED, NOT FEARED: the cheapest repair that clears the mutant —
+    add unowned decoration inside the host to `drawn` — reports this
+    scene at `1 surplus`. The panel is a 152x56 rectangle against waves
+    that are 144x3 lines, so it is not a copy of anything the host owns,
+    which is the difference a rule has to be able to see.
+
+    Returns:
+        The six-element scene: block `b`, waves `b-body1..4`, and the
+        authored `panel`.
+    """
+    return [*_body_block(),
+            el(id="panel", type="rectangle", x=4, y=4, width=152,
+               height=56, backgroundColor="#f5f2ea",
+               customData={"role": "decoration"})]
+
+
 def _entity_without_rows() -> list[dict]:
     """The legally part-less entity, beside a live finding to die with.
 
@@ -17489,6 +17693,695 @@ def _entity_without_rows() -> list[dict]:
                groupIds=["e-grp"],
                customData={"kind": "entity", "role": "node"}),
             *_composed_widget(grouped=False)]
+
+
+def _orphaned_widget_copy(with_ink: bool) -> list[dict]:
+    """A duplicated slider whose copy owns nothing, drawn or bare.
+
+    THE ONE DIFFERENCE BETWEEN THE POLES IS WHETHER THE INK IS THERE,
+    and that is the reader's whole distinction. `with_ink=True` is what
+    Ctrl+Shift+G, save, Ctrl+D, save really lands: `wc` renders as a
+    complete slider — a track across it and a thumb at its midpoint —
+    while no element names `wc` as its owner, because
+    `_rehost_duplicated_parts` drops the copy's backlinks and
+    `reconcile_composed`'s slider arm only RE-DERIVES parts that already
+    exist. `with_ink=False` is the same host with that ink gone: a truly
+    bare rectangle. A person shown the two tells them apart instantly.
+
+    HAND-BUILT, AND COPIED FROM A MEASURED SAVE. Every shape here is
+    what the real path emits for `{"kind": "slider", "width": 160,
+    "height": 48}` duplicated 300px right (measured 2026-08-25): track a
+    140-wide line at the host's y+34, thumb a 12x12 square at the
+    midpoint, both `role: decoration`, neither carrying `track_of` or
+    `thumb_of`. Moved to the origin and stripped of the router's
+    `routed` hash, which are the only edits — ownership is resolved by
+    `part_owner_id` from `customData` backlinks alone and never from an
+    id, so the ids are cosmetic and kept in the save's own spelling.
+
+    WHY SLIDER AND NOT `body`. Measured across all seven composed
+    scenes, this class splits exactly on which arm of
+    `reconcile_composed` a kind has: `body` (4 owned) and `kpi` (1
+    owned) MINT the copy fresh backlinked parts and are silent, while
+    `slider`, `toggle`, `image` (0 owned) and `checkbox` (0 unchecked, 1
+    checked) only re-derive and are reported. Slider is the smallest of
+    the four that are wrong — two parts, both drawn, none owned.
+
+    Args:
+        with_ink: Whether the copy's own track and thumb are drawn.
+
+    Returns:
+        The host `wc` alone, or `wc` with the two unowned decorations
+        that sit inside its box.
+    """
+    out = [el(id="wc", type="rectangle", x=0, y=0, width=160, height=48,
+              customData={"kind": "slider", "role": "node", "value": 50})]
+    if with_ink:
+        out += [el(id="w-trackc", type="line", x=10, y=34, width=140,
+                   height=0, points=[[0, 0], [140, 0]],
+                   strokeColor="#8d877a", strokeWidth=2,
+                   customData={"role": "decoration"}),
+                el(id="w-thumbc", type="rectangle", x=74, y=28, width=12,
+                   height=12, backgroundColor="#1e1e1e",
+                   customData={"role": "decoration"})]
+    return out
+
+
+def _lint_lines_about(els: list[dict], host: str) -> list[str]:
+    """Everything the lint's two loud tiers say about one host.
+
+    THE OUTCOME, NOT THE SENTENCE, and that is why this reads
+    `lint_layout` directly instead of `collect_findings`' parsed view.
+    `duplicated_widget_reported_as_bare` asserts that two pictures read
+    DIFFERENTLY, and the one thing it may not do is say how: a red
+    anchored on a phrase makes the locating regex as prescriptive as the
+    assertion, and every honest rewording then fails it for the wrong
+    reason. Three structurally different repairs were measured against
+    patched copies of `canvas.py` — split the tail clause, name the
+    orphaned ids in it, or leave the sentence alone and append a SECOND
+    error — and only ONE of the three keeps
+    `_COMPOSED_HOST_STRIPPED_RE`'s groups where the harness expects
+    them. All three change what comes back from here.
+
+    NOTES ARE EXCLUDED, and that is a bound rather than an oversight.
+    Both poles already carry an ink-blind note naming the host
+    (`unconnected node(s): wc`), so widening to that tier buys nothing
+    today and buys a FALSE GREEN the day any note merely counts
+    decorations — the two scenes differ by two decorations and by
+    nothing else. Errors and warnings are where a finding about a
+    composed host lands.
+
+    Args:
+        els: A scene.
+        host: The element id the returned lines must name.
+
+    Returns:
+        The error and warning lines mentioning `host`, in lint order.
+        Empty when the loud tiers say nothing about it at all.
+    """
+    lint = canvas.lint_layout(els, artifact_type="flow")
+    return [ln for ln in lint["errors"] + lint["warnings"] if host in ln]
+
+
+# ---------------------------------------------------------------------------
+# The remedy-fixpoint sweep. `duplicated_widget_reported_as_bare` and
+# `composed_host_remedy_reproduces_itself` each pin ONE instance with a
+# quadruple; this asks the same question of every composed kind through
+# every documented door, so the answer carries a denominator.
+# ---------------------------------------------------------------------------
+_COMPOSED_KINDS = ("body", "kpi", "input", "slider", "toggle", "checkbox",
+                   "image", "entity")
+# The settled state each kind's floor is a function of. `body` derives its
+# floor from height, `image` and `entity` from the kind alone, so those
+# three declare nothing here and that is not an omission.
+_KIND_STATE: dict[str, dict] = {
+    "input": {"value": "09:00"}, "kpi": {"value": "42"},
+    "slider": {"value": 40}, "checkbox": {"checked": True},
+    "toggle": {"checked": True}}
+_SWEEP_BOX = {"type": "rectangle", "id": "h", "label": "H", "x": 0, "y": 0,
+              "width": 200, "height": 64}
+
+
+# THE DOUBLED-INK SWEEP'S OWN STATE TABLE, and it is a copy of
+# `_KIND_STATE` rather than an edit to it. `entity` declares nothing
+# there because that sweep is about FLOORS and an entity has none; here
+# the question is whether a kind can reach a doubled-ink state at all,
+# and an entity with no attributes mints no rows, so it would answer
+# "cannot" for a reason about the fixture rather than about the kind.
+# Editing the shared table would have moved `sweep_remedy_fixpoints`'
+# denominator — 40 pairs, held across two folds and read as evidence
+# that its walk was still asking — so the two tables are kept apart.
+_DOUBLED_INK_STATE: dict[str, dict] = dict(
+    _KIND_STATE, entity={"attributes": ["id", "name", "status"]})
+
+
+def sweep_doubled_ink() -> dict[str, tuple[int, int, bool]]:
+    """Ask every composed kind whether doubled ink is reported.
+
+    THE DENOMINATOR THE SINGLE MUTANT CANNOT CARRY.
+    `doubled_ink_reads_as_a_healthy_count` pins one kind with a
+    magnitude and a direction; this asks the same question of all of
+    them, so the answer has a population behind it. Each kind is minted
+    through the documented top-level `add` door, then an untagged copy
+    of each tagged part is drawn in place — the state the
+    ungrouped-duplicate gesture used to manufacture and that scenes on
+    disk still hold.
+
+    WHAT `reported` MEANS HERE IS DELIBERATELY WIDE: any line the lint
+    did not already say about the healthy scene, in any tier, from any
+    check. Reading only `composed_host_gaps` would have made the answer
+    a tautology about the function under test; reading the DELTA lets an
+    unrelated check take the credit if it earns it, and four of them do
+    — a doubled text row trips `text_over_text`, a black thumb drawn on
+    a black thumb reads 1.00:1 to the contrast check. Neither is a
+    report of doubled ink; both are accidents of what the part happens
+    to be shaped like, which is why they are counted separately from
+    the composed-host answer rather than folded into it.
+
+    Returns:
+        `kind -> (tagged, ghosts, reported)`, where `reported` is True
+        when doubling the ink changed what the lint says. A kind that
+        mints no parts answers `(0, 0, False)` and is not part of the
+        population — the caller decides that by reading `ghosts`.
+    """
+    out: dict[str, tuple[int, int, bool]] = {}
+    for kind in _COMPOSED_KINDS:
+        errors: list[str] = []
+        els = canvas.apply_ops([], [{"op": "add", "element": dict(
+            _SWEEP_BOX, kind=kind,
+            **_DOUBLED_INK_STATE.get(kind, {}))}], errors)
+        tagged = [e for e in els
+                  if any(k.endswith("_of") and v == "h"
+                         for k, v in (e.get("customData") or {}).items())]
+        if errors or not tagged:
+            out[kind] = (len(tagged), 0, False)
+            continue
+        doubled = OPERATORS["double_composed_ink"](els, host_id="h")
+        before, after = _every_lint_line(els), _every_lint_line(doubled)
+        out[kind] = (len(tagged), len(doubled) - len(els),
+                     sorted(after) != sorted(before))
+    return out
+
+
+def _every_lint_line(els: list[dict]) -> list[str]:
+    """All three lint tiers as one list, for delta comparisons.
+
+    Args:
+        els: A scene.
+
+    Returns:
+        Errors, warnings and notes concatenated in tier order.
+    """
+    lint = canvas.lint_layout(els)
+    return lint["errors"] + lint["warnings"] + lint["notes"]
+
+
+def _hosts_reported_stripped(els: list[dict]) -> list[str]:
+    """Host ids the composed-host ERROR names in this scene.
+
+    Args:
+        els: A scene.
+
+    Returns:
+        Sorted ids, empty when the check said nothing.
+    """
+    lines = canvas.lint_layout(els)["errors"]
+    return sorted({e["id"] for e in els
+                   if any(ln.startswith(e["id"] + " ") and
+                          "is a composed" in ln for ln in lines)})
+
+
+def _reissue_from_stored_state(els: list[dict],
+                               hid: str) -> tuple[list[dict], list[str]]:
+    """Perform the repair a reader of the scene can perform.
+
+    Args:
+        els: The scene the finding fired on.
+        hid: The host the finding named.
+
+    Returns:
+        `(scene, op_errors)` after `del` + `add` of that host as stored.
+    """
+    stored = copy.deepcopy(next(e for e in els if e["id"] == hid))
+    for key in ("seed", "version", "versionNonce", "updated",
+                "boundElements", "index"):
+        stored.pop(key, None)
+    errors: list[str] = []
+    out = canvas.apply_ops(copy.deepcopy(els),
+                           [{"op": "del", "id": hid},
+                            {"op": "add", "element": stored}], errors)
+    return out, errors
+
+
+def _door_add_top(kind: str) -> tuple[list[dict], list[str]]:
+    """`add` with the kind and its settled state as top-level keys.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": dict(
+        _SWEEP_BOX, kind=kind, **_KIND_STATE.get(kind, {}))}], errors)
+    return els, errors
+
+
+def _door_add_custom(kind: str) -> tuple[list[dict], list[str]]:
+    """`add` with the kind and its state inside `customData`.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": dict(
+        _SWEEP_BOX,
+        customData=dict({"kind": kind}, **_KIND_STATE.get(kind, {})))}],
+        errors)
+    return els, errors
+
+
+def _door_mod_kind(kind: str) -> tuple[list[dict], list[str]]:
+    """`mod {"kind": K}` then the state, top-level, on a bare rectangle.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add",
+                                 "element": dict(_SWEEP_BOX)}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "h",
+                                  "attrs": {"kind": kind}}], errors)
+    if _KIND_STATE.get(kind):
+        els = canvas.apply_ops(els, [{"op": "mod", "id": "h",
+                                      "attrs": dict(_KIND_STATE[kind])}],
+                               errors)
+    return els, errors
+
+
+def _door_mod_custom(kind: str) -> tuple[list[dict], list[str]]:
+    """`mod {"customData": {...}}` on a bare rectangle.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add",
+                                 "element": dict(_SWEEP_BOX)}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "h", "attrs": {
+        "customData": dict({"kind": kind},
+                           **_KIND_STATE.get(kind, {}))}}], errors)
+    return els, errors
+
+
+def _door_duplicate(kind: str) -> tuple[list[dict], list[str]]:
+    """Ungroup, save, duplicate host and parts, save — no op at all.
+
+    THIS DOOR IS IN THE SWEEP BECAUSE IT MUST NOT BE ASSUMED. Measured
+    2026-08-25 it CLEARS for every kind, which is exactly why
+    `duplicated_widget_reported_as_bare` pins a different invariant. But
+    that is a fact about today's arms of `reconcile_composed`, not a
+    property, and the day one of them changes this door is where the
+    change shows up.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)` after the second commit.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-sweep-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": dict(
+                _SWEEP_BOX, kind=kind, **_KIND_STATE.get(kind, {}))}]})
+
+        def save(scene: list[dict]) -> list[dict]:
+            """Commit as the browser does.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                The stored scene after the commit.
+            """
+            store.commit(author="user", new_scenes={"f": list(scene)},
+                         base_revn=store.head_revn())
+            return [dict(e) for e in store.scenes["f"]]
+
+        ungrouped = save([dict(e, groupIds=[]) for e in store.scenes["f"]])
+        copied = list(ungrouped)
+        for src in [x for x in ungrouped
+                    if x["id"] == "h" or canvas.part_owner_id(x) == "h"]:
+            dup = copy.deepcopy(src)
+            dup["id"], dup["x"] = src["id"] + "c", src.get("x", 0) + 400
+            dup.pop("boundElements", None)
+            copied.append(dup)
+        return save(copied), []
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+# WHICH PAIRS ARE TRAPPED TODAY, transcribed so a reader can tell WITHOUT
+# re-running the sweep — a denominator that needs a re-run to interpret is
+# halfway to a count that goes stale. It cannot go stale here: the sweep's
+# UNGATED companion compares this set to the measurement and fails naming
+# the difference, so it costs one line per flip, which is the line the flip
+# already costs, and it did: this set was RE-DERIVED on `734f238` rather
+# than carried over, after the guard below named the difference for free.
+#
+# THE TWO `input` PAIRS CLEARED on that fold — the flip contract arriving,
+# and the reason the sweep's numerator dropped from 3 to 2 while its
+# denominator held at 40 and its fired count fell 16 -> 12.
+#
+#   checkbox / mod kind        — the pair that survived the fold.
+#   checkbox / mod customData  — the pair the fold UNCOVERED, and this
+#       entry is the prediction in this file's own history coming true:
+#       the sweep's docstring said in advance that patching the input
+#       paths "UNCOVERS a second checkbox door rather than closing one",
+#       measured against a patched copy before the repair was written.
+#
+# BOTH ARE THE SAME TRAP, and its shape CHANGED under the repair rather
+# than going away, which is the part a bare count would have hidden.
+# Each door reports `(2, 1) missing`; re-issuing the host from its own
+# stored state now returns `(2, 3) SURPLUS`. Before the repair the
+# remedy also silently unchecked the box — `make_element` read
+# `spec.get("checked", False)` over a stored `customData.checked` of
+# True — and `_composed_state` fixed exactly that, so `checked` now
+# survives. What it did not fix is the re-add minting a second `h-box`
+# and `h-chk` while the originals stand, which leaves the scene holding
+# TWO ELEMENTS SHARING THE ID `h-chk`. An id collision is a worse
+# outcome than the uncheck it replaced, and nothing but this sweep says
+# so.
+#
+# EMPTY on 2026-08-26, and BOTH checkbox doors cleared at once — the last
+# two of the three this sweep has ever held. `24f008e` is the cause, and
+# that is a MEASURED claim rather than an attribution read off a commit
+# message: reverting that one commit's `canvas.py` hunk against an
+# otherwise identical tree puts both pairs back, with the mask lifted and
+# the same assertion text, the same two pairs, and the same 12-of-40
+# denominator. Re-applying it clears them. The mechanism is the one the
+# paragraph above named in advance: `del` collected a host's parts by
+# `groupIds` and a `mod`-composed host has none, so the re-add minted a
+# second `h-box` and `h-chk` beside the originals; sweeping by backlink
+# collects them, so the re-issue replaces rather than duplicates.
+#
+# WHAT THE FLIP COST, said plainly because the numerator moving to zero is
+# the least informative part: the numerator fell 2 -> 0 while the
+# DENOMINATOR HELD at 40. That second half is the whole reading. A
+# denominator that moved would have meant the walk stopped asking, and
+# "0 trapped" would have been the sound of a broken instrument rather
+# than a repair.
+#
+# NO FIRED COUNT IS WRITTEN HERE, and the reason is that a previous
+# version of this paragraph wrote one. It said "the fired count held at
+# 12. Twelve pairs still file an ERROR" — true when written, false one
+# fold later, when `_rigid_copy_hosts` gave the ungrouped copy a second
+# witness and the four `duplicate + save` pairs stopped filing at all.
+# Nothing asserted the 12, so nothing went red; it would simply have sat
+# there being wrong, which is this file's most-repeated failure. The
+# claim that does not go stale is the one the sweep actually makes:
+# whatever fires must be escapable by the repair the finding prescribes,
+# and `looped` is the count of the ones that are not. Read the live
+# figures with `sweep_remedy_fixpoints()` rather than from this comment.
+_TRAPPED_PAIRS: set[tuple[str, str]] = set()
+
+_REMEDY_DOORS: dict[str, Callable[[str], tuple[list[dict], list[str]]]] = {
+    "add (top-level)": _door_add_top, "add (customData)": _door_add_custom,
+    "mod kind": _door_mod_kind, "mod customData": _door_mod_custom,
+    "duplicate + save": _door_duplicate}
+
+
+def sweep_remedy_fixpoints() -> dict[str, list]:
+    """Ask every kind through every door whether its ERROR is escapable.
+
+    Returns:
+        `{"asked", "fired", "looped", "refused"}`, each a sorted list of
+        `(kind, door)` pairs (`looped` carries the surviving host ids
+        too), so a caller reports what was found and the denominator it
+        was found in rather than a bare boolean.
+    """
+    out: dict[str, list] = {"asked": [], "fired": [], "looped": [],
+                            "refused": []}
+    for kind in _COMPOSED_KINDS:
+        for door, build in _REMEDY_DOORS.items():
+            els, errors = build(kind)
+            if errors:
+                # A refused batch is not a looping one; recorded rather
+                # than skipped, so the denominator never shrinks quietly.
+                out["refused"].append((kind, door, errors[0]))
+                continue
+            out["asked"].append((kind, door))
+            hosts = _hosts_reported_stripped(els)
+            if not hosts:
+                continue
+            out["fired"].append((kind, door))
+            survived = []
+            for host in hosts:
+                after, aerrors = _reissue_from_stored_state(els, host)
+                # A refused re-issue counts as surviving: the remedy has
+                # to be a thing the op layer accepts, or the host is
+                # trapped just as surely as by a looping one.
+                if aerrors or host in _hosts_reported_stripped(after):
+                    survived.append(host)
+            if survived:
+                out["looped"].append((kind, door, survived))
+    return out
+
+
+def _saved_twice_part_ink_count() -> int:
+    """Part-shaped ink standing at the copy after two real user saves.
+
+    THE ONLY THING IN EITHER POLE THAT TOUCHES THE SAVE PATH, and it is
+    here because the poles deliberately do not. `_orphaned_widget_copy`
+    is hand-built, so it cannot notice a "repair" that empties the
+    finding by discarding unowned decoration on commit — the sentence
+    would become true by the picture being destroyed, and a hand-built
+    scene is blind to that by construction. This drives the real
+    gestures instead: mint a slider, ungroup it, save, duplicate host
+    and parts, save. Two decorations stood at the copy on 2026-08-25,
+    which is the number the ERROR under test calls zero.
+
+    Returns:
+        How many `role: decoration` elements are drawn at the copy's x
+        after the second commit.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-dup-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "w", "kind": "slider",
+                "label": "W", "x": 0, "y": 0, "width": 160,
+                "height": 48}}]})
+
+        def save(scene: list[dict]) -> list[dict]:
+            """Commit as the browser does; return what landed.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                The stored scene after the commit.
+            """
+            store.commit(author="user", new_scenes={"f": list(scene)},
+                         base_revn=store.head_revn())
+            return [dict(e) for e in store.scenes["f"]]
+
+        ungrouped = save([dict(e, groupIds=[]) for e in store.scenes["f"]])
+        copied = list(ungrouped)
+        for src in [x for x in ungrouped
+                    if x["id"] == "w" or canvas.part_owner_id(x) == "w"]:
+            dup = copy.deepcopy(src)
+            dup["id"], dup["x"] = src["id"] + "c", src.get("x", 0) + 300
+            dup.pop("boundElements", None)
+            copied.append(dup)
+        return sum(1 for x in save(copied)
+                   if (x.get("customData") or {}).get("role") == "decoration"
+                   and x.get("x", 0) >= 250)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _settled_input_through_customdata() -> list[dict]:
+    """A bare input, then its value settled the way the reference says.
+
+    MINTED, NOT HAND-BUILT, and that inverts `_body_block`'s rule on
+    purpose. Every other builder here refuses the seeder because a
+    mutant should not depend on it to state its defect. Here the seeder
+    IS the defect: the claim is about what the OP LAYER hands the lint,
+    so a hand-built scene would assert nothing at all. Both ops are
+    documented and both return zero op errors — `ops-reference.md` says
+    `mod` takes `customData` "merged, not replaced", and this is that
+    sentence followed literally.
+
+    THE ONE MUTATION IS WHERE THE `value` KEY SITS. `mod {"value":
+    "09:00"}` composes the row and lints clean (measured 2026-08-25);
+    the identical value routed through `customData` does not, because
+    `make_element` gates the mint on the top-level `spec["value"]` while
+    `composed_part_floor` reads `cd["value"]`, and the post-`mod`
+    reconcile gate (`width`/`height`/`label`/`kind`) never names
+    `customData` at all. Two fields, one meaning, nothing holding them
+    together — and `input` is the only kind that can drift, since every
+    other mint block overwrites `custom[...]` from the spec.
+
+    Returns:
+        The three-element scene: host `inp1`, its bound label, and
+        whatever the op layer composed for it — which today is nothing.
+
+    Raises:
+        EngineError: If either op is refused. "Zero op errors" is half
+            of what makes this a defect rather than a malformed batch,
+            so it is asserted here and not left to the reader.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": {
+        "type": "rectangle", "id": "inp1", "kind": "input",
+        "label": "Run at", "x": 0, "y": 0, "width": 200,
+        "height": 40}}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "inp1", "attrs": {
+        "customData": {"value": "09:00"}}}], errors)
+    if errors:
+        raise EngineError("the documented batch this mutant is about must "
+                          "return zero op errors; got %r" % (errors,))
+    return els
+
+
+def _input_after_taking_its_own_prescribed_remedy() -> list[dict]:
+    """The scene the finding condemns, after its own remedy was taken.
+
+    THE PROPERTY, AND WHY IT IS A TWO-SCENE ONE. A finding that
+    prescribes a repair must not survive that repair being performed.
+    An ERROR whose remedy reproduces it verbatim is worse than silence:
+    silence leaves the agent looking, a looping remedy sends it round
+    the same corner forever, and `lint_layout`'s ERROR tier says
+    "repair in the same move, before narrating".
+
+    THE REPAIR PERFORMED HERE IS RE-ISSUING THE HOST FROM ITS OWN
+    STORED STATE — `del` then `add` the element exactly as the scene
+    holds it. That is not a transcription of today's sentence, which is
+    already scheduled to change. It is the only repair a reader of the
+    SCENE can perform: the lint is handed elements, never an op log, so
+    the sole description of the condemned element available to whoever
+    must repair it is the element itself. If re-issuing an element as
+    the scene stores it does not clear the finding, the scene holds no
+    self-description the op layer will accept, and no wording can make
+    that false.
+
+    THE REMEDY IS CONDITIONAL, because the property is. A repair that
+    was never prescribed cannot loop, so a fix that stops the finding
+    firing at all satisfies this pole vacuously and correctly — that is
+    what makes the pin flip under repairs of different blast radius
+    rather than prescribing one of them. Measured 2026-08-25 against
+    four patched copies of `canvas.py`, all four green: naming
+    `customData` in the post-`mod` reconcile gate (the `mod` composes,
+    so nothing is prescribed); gating the mint on `custom.get("value")`
+    (the `mod` stays broken, the re-issue starts working); making all
+    three input paths agree — `make_element`, `reconcile_composed` and
+    `composed_part_floor` currently read `spec["value"]`, nothing, and
+    `cd["value"]` respectively; and the first two together. Opposite
+    blast radii, none of them named in this builder.
+
+    WHAT THIS POLE CANNOT SEE ALONE, said out loud because it is the
+    hole a subtraction always leaves: deleting the `input` floor
+    outright also empties this scene's findings, and would read green
+    here while the check went blind. That is what the neighbour is for,
+    and it is why the neighbour is an INPUT and not the `body` block the
+    sibling mutant uses — a `body` pole survives an input-shaped
+    lobotomy without noticing.
+
+    THE POPULATION IS THE OP PATH, AND ONLY THE OP PATH. A browser save
+    HEALS this drift: `reconcile_composed`'s input arm mints the value
+    row through `_recompose_input_value` whether or not one was asked
+    for, so the same scene committed through `Store.commit(author=
+    "user")` lands on disk with `inp1-value` present and no gap at all
+    (measured 2026-08-25). The loop therefore lives strictly between
+    ops — which is exactly where it bites, since the ERROR tier says
+    "repair in the same move, before narrating" and the agent has no
+    way to know a later save it cannot make would have healed it. Do
+    not read this pin as covering the persisted class.
+
+    THE OTHER HALF OF THE CLASS IS NOT PINNED HERE, and the boundary is
+    a judgement rather than an omission. Ctrl+Shift+G, save, Ctrl+D,
+    save — two blessed gestures, no op anywhere — persists this same
+    ERROR for `slider`, `toggle`, `image` at (2, 0) and `checkbox` at
+    (2, 1) when checked, because `_rehost_duplicated_parts` drops the
+    copy's backlinks and those five arms of `reconcile_composed` only
+    re-derive parts that already exist. That population is wider, it is
+    on disk, and it is re-read every session. It is NOT this pin's
+    subject: measured across all five, re-issuing the copy from its own
+    stored state CLEARS the finding, so the looping-remedy invariant is
+    not what it violates. It is wrong a different way — the copy's
+    track and thumb are on the canvas at x=310 and x=394 under the
+    ERROR's claim that the host "renders as a bare rectangle" — and it
+    has a different root cause and a different fix. It deserves its own
+    pin and does not have one.
+
+    Returns:
+        The post-remedy scene: unchanged when the check said nothing,
+        else the same drawing with `inp1` re-issued from its own
+        stored form.
+
+    Raises:
+        EngineError: If the re-issue is itself refused. The remedy has
+            to be a thing the op layer accepts, or this pole would be
+            measuring a rejected batch instead of a looping one.
+    """
+    els = _settled_input_through_customdata()
+    if not [f for f in collect_findings(els)
+            if f["check"] == "composed_host_stripped"
+            and f["element"] == "inp1"]:
+        return els
+    stored = copy.deepcopy(next(e for e in els if e["id"] == "inp1"))
+    for key in ("seed", "version", "versionNonce", "updated",
+                "boundElements", "index"):
+        stored.pop(key, None)
+    errors: list[str] = []
+    out = canvas.apply_ops(els, [{"op": "del", "id": "inp1"},
+                                 {"op": "add", "element": stored}], errors)
+    if errors:
+        raise EngineError("re-issuing a host from its own stored state is "
+                          "the remedy under test and must not itself be "
+                          "refused; got %r" % (errors,))
+    return out
+
+
+def _input_slot_stripped() -> list[dict]:
+    """An input minted whole, then robbed of the row it really owes.
+
+    THE LIVE HALF, AND IT IS AN INPUT ON PURPOSE. The mutant beside it
+    expects silence, so this pole is the only thing standing between
+    that silence and a dead check — and the specific death it has to
+    survive is an `input`-shaped one, since the drift the mutant pins
+    is reachable on no other kind. `composed_host_stripped_is_invisible`
+    already proves the check speaks about a `body`; that firing is
+    untouched by deleting the `input` arm of `composed_part_floor`, so
+    it cannot stand in for this one.
+
+    The value goes in through the TOP-LEVEL key, which is the route
+    that composes: the host really does own a `inp1-value` row, and
+    removing it is real damage rather than a bookkeeping difference.
+    Floor 1, drawn 0 — the smallest gap the check can report, which is
+    also the one an off-by-one in either direction gets wrong.
+
+    Returns:
+        The host `inp1` and its bound label, with the composed value row
+        removed.
+
+    Raises:
+        EngineError: If the mint did not produce the value row this
+            pole exists to remove — a neighbour that strips nothing
+            proves nothing.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": {
+        "type": "rectangle", "id": "inp1", "kind": "input",
+        "label": "Run at", "x": 0, "y": 0, "width": 200, "height": 40,
+        "value": "09:00"}}], errors)
+    kept = [e for e in els if e["id"] != "inp1-value"]
+    if errors or len(kept) == len(els):
+        raise EngineError("the top-level `value` route must mint "
+                          "`inp1-value`; errors=%r ids=%r"
+                          % (errors, [e["id"] for e in els]))
+    return kept
 
 
 # ---------------------------------------------------------------------------
@@ -19150,10 +20043,15 @@ _register(Mutant(
 #     asserting one would assert nothing. `client_grown_extent`'s ellipse
 #     arm is irrational for the same reason.
 #   * the HEIGHT arm (`client_text_headroom`) disagrees on exactly the same
-#     495 values, and IS reachable — but only where `text_dims` returns an
-#     odd height, and at fontSize 16 it returns `20 * lines`, always even.
-#     That is why nobody has seen it. `rhombus_half_pixel_headroom` below
-#     is that arm, and it is the reason this pair is two mutants and not one.
+#     495 values, and IS reachable — wherever `text_dims` returns an ODD
+#     height, which it does at every size the frozen corpus carries, 16
+#     included. There is no per-line quantum to rule a size out with: the
+#     reserve is `ceil(n * fs * lineHeight)` at the label's own multiplier,
+#     which for this file's Nunito is 1.35, so at 16 one to six lines take
+#     22, 44, 65, 87, 108 and 130px — odd twice. This bullet said the
+#     opposite until 2026-08-20, and that sentence, not the code, is why
+#     nobody had looked. `rhombus_half_pixel_headroom` below is that arm,
+#     and it is the reason this pair is two mutants and not one.
 #
 # Origin: found during the bound-text padding investigation (curator, routed
 # by v0.9 WP4-AND-GUARDS), 2026-08-19 — the one defect left standing after
@@ -19198,20 +20096,52 @@ _register(Mutant(
 # counted rather than assumed. `client_text_headroom` carries the same
 # `round(h / 2)` and disagrees on the same 495 values — but a wrong CAP is
 # only a finding where something can land in the one-pixel gap, and `over_h`
-# is `th > room_h` where `th` is `text_dims`' quantized `int(lines * fs *
-# 1.25)`. Firing here needs `th == room_h + 1` exactly, which needs `th` ODD,
-# and at fontSize **16 it is always even** (`20 * lines`) for every line count
-# there is. So the arm is numerically wrong on 495 heights and MUTE on all of
-# them at the default size — which is the whole reason it has gone unseen,
-# and why "the height arm nobody has looked at" was worth a count instead of
-# a shrug.
+# is `th > room_h` where `th` is `text_dims(txt, fs, line_height_of(label))`.
+# On a `4k+1` height the client's headroom is one MORE than this file's, so
+# firing needs `th == room_h + 1` exactly, which needs `th` ODD.
 #
-# It is reachable: exhaustively, 19 (fontSize, line count) combinations
-# produce an odd `th`, and 10 of them use a size the frozen corpus actually
-# carries — the corpus runs 12, 14, 16, 20 and 24, of which 12, 14 and 20
-# reach it and 16 and 24 cannot. This scene takes the smallest honest one:
-# fontSize 20, one line, `th = 25`, in a rhombus 69px tall (`4k+1`), where
-# the client allows **25px** of headroom and this file allows **24**.
+# ODD IS A CONSTRUCTION AND NOT A LOTTERY, which is the sentence this entry
+# needed and did not have. Invert the arithmetic — `room_h` is
+# `round(h/2) - 10` — and every odd `th` names its own witnessing rhombus,
+# `h = 2 * th + 19`, which is `4k+1` for free. So the arm is reachable at
+# EVERY size and line count whose reserve comes out odd, with the scene
+# handed to you rather than searched for.
+#
+# WHICH REDUCES TO: IS THE RESERVE EVER ODD. There is no per-line quantum to
+# rule a size out with. `text_dims` reserves `ceil(n * fs * lineHeight)`,
+# floored at one line box, at the multiplier `line_height_of` reads off the
+# element — 1.35 for this file's Nunito, since a minted label stores none —
+# so at fontSize 16 one to six lines take 22, 44, 65, 87, 108 and 130px.
+# Odd at three lines and at four. THIS ENTRY SAID 16 COULD NOT REACH THE ARM
+# and that is now built and refuted: 400x149, three lines, `th = 65` against
+# 65px of client headroom and 64px of this file's, which is the gap
+# (2026-08-20).
+#
+# COUNTED OVER A NAMED POPULATION, because the figure that stood here — "19
+# (fontSize, line count) combinations, exhaustively" — named none, and a
+# count whose population is unstated cannot be checked, only re-guessed. It
+# is WITHDRAWN rather than corrected. Do not read that as "it was
+# unreproducible": swept over every contiguous font-size range in 6..60 at
+# one to six lines, 19 comes out at nine of them under the shipped
+# `ceil(n * fs * 1.35)` (9..13, 11..16, 12..17, 22..27, and five more) and
+# at none under either 1.25 rule. That is coincidence and not provenance —
+# nothing connects those ranges to this catalogue — and it is written down
+# so the next reader does not spend the sweep again and mistake a hit for a
+# recovered figure.
+#
+# THE REPLACEMENT NAMES ITS POPULATION. Over the five sizes the frozen
+# corpus carries and line counts one to six — thirty combinations — **16**
+# reserve an odd `th` and so witness the rounding: the corpus runs 12, 14,
+# 16, 20 and 24, of which all of them reach it. The old figure's SECOND
+# half does reproduce, and says where all of this came from: feed those
+# same thirty combinations the superseded `int(n * fs * 1.25)` and exactly
+# 10 come out odd, over exactly 12, 14 and 20 — the entry's own numbers,
+# and its own mute list.
+#
+# This scene takes a size that reaches the arm on a SINGLE line, which keeps
+# the wrap out of the measurement: fontSize 20, one line, `th = 27`, in a
+# rhombus 73px tall (`4k+1`, and `2 * 27 + 19`), where the client allows
+# **27px** of headroom and this file allows **26**.
 #
 # The width is 400 — EVEN, so the wrap cap halves cleanly and that arm carries
 # none of the defect. One arm at a time, or the message says `too wide and
@@ -21872,6 +22802,216 @@ _register(Mutant(
                         FindingSpec("widget_group_incomplete", element="w",
                                     magnitude=(3, 0.10)))))
 
+# Curator, leaf-1.1.5, 2026-08-26, handed over by the fixer who closed
+# the duplicate-backlink defect and VERIFIED here before it was encoded.
+# WHAT THE DRAWING GETS WRONG: a `body` block draws eight waves where its
+# own height owes four, and every check calls the scene healthy. Four of
+# the eight carry a backlink and four carry none, and
+# `composed_host_gaps` counts TAGGED parts against the floor — 4 == 4,
+# silence. The surplus arm cannot reach it either, for the same reason
+# and by its own docstring: untagged ink is not counted as a part.
+#
+# NOT MANUFACTURABLE ANY MORE, AND THAT IS NOT THE SAME AS GONE. The
+# repair that landed on this branch stopped the ungrouped-duplicate
+# gesture producing this state; scenes already persisted to disk still
+# hold it, and `catch_up()` re-reads them every session. A defect that
+# can no longer be created is still a defect that is still on disk.
+#
+# THE DENOMINATOR IS THE FINDING, and it is DERIVED rather than written
+# here — `sweep_doubled_ink()` measures it and
+# `test_every_composed_kind_can_reach_a_doubled_ink_state` asserts the
+# population against `_COMPOSED_KINDS`, so no count in this comment can
+# go stale by sitting still. What is worth stating is the SHAPE the
+# sweep found: `composed_host_gaps` reports none of them, and the cover
+# that does exist belongs to unrelated checks reading unrelated things —
+# a doubled text row trips `text_over_text`, a black thumb drawn on a
+# black thumb reads 1.00:1 to the contrast check. That cover is
+# offset-dependent: move the pasted ink 10px, the way a real paste does,
+# and the contrast catch dies for `slider` and `toggle` while a ghost X
+# stroke starts poking out of `image`. Kinds enter and leave the covered
+# set with the offset, which is what "covered by accident" looks like
+# when you measure it instead of counting it.
+#
+# WHY `body`, AND WHY THIS BASE SCENE. `_body_block` is
+# `composed_host_stripped_is_invisible`'s base, shared here on purpose
+# rather than copied: the two mutants are the two ends of one axis —
+# that one takes the host's parts away, this one leaves them and draws
+# the same ink over them again — and `strip_composed_parts` and
+# `double_composed_ink` ask the same predicate so they cannot drift
+# apart. `body` is also one of the two kinds bare at BOTH offsets, and
+# the one whose floor is recomputable from the stored host with no
+# history, which is what lets this assert a magnitude instead of an
+# existence.
+#
+# WHO FLIPS IT, AND THE ONE REPAIR THAT MUST NOT. Measured against
+# patched copies of `canvas.py`, not reasoned about. Adding unowned
+# decoration inside the host to `drawn` reports this scene at `4
+# surplus` AND SILENCES `wc` with its ink drawn — 2 == 2 — which is the
+# narrowing contract C12 forbids, and `duplicated_widget_reported_as_
+# bare`'s own `expect` fails on it. Splitting the arms (missing keeps
+# counting tagged parts, surplus counts the ink actually drawn) keeps
+# `wc` and clears this — and then bills the user `1 surplus` for the
+# authored backdrop panel the neighbour's second claim carries. Only the
+# third measured repair clears all three poles: count unowned decoration
+# CONGRUENT to a part the host already owns, which is what a pasted copy
+# is and what a 152x56 panel over 144x3 waves is not. Three poles, three
+# repairs, one survivor — the pair is not a trap, and that was measured
+# before it was filed.
+_register(Mutant(
+    "doubled_ink_reads_as_a_healthy_count",
+    build=_body_block,
+    op="double_composed_ink", args={"host_id": "b"},
+    expect=FindingSpec("composed_host_stripped", element="b",
+                       magnitude=(4, 0.0), direction="surplus"),
+    neighbour=Neighbour(_body_block_with_a_fifth_wave,
+                        FindingSpec("composed_host_stripped", element="b",
+                                    magnitude=(1, 0.0),
+                                    direction="surplus"))))
+
+# Curator batch 46, 2026-08-25, from a review of the branch that landed
+# `composed_host_stripped` itself. WHAT THE DRAWING GETS WRONG: an input
+# whose value was settled through `customData` — the merge
+# `ops-reference.md:271` documents — draws no value row, and is
+# correctly reported for it. WHAT MAKES IT A DEFECT rather than a true
+# reading is the REMEDY: the finding asks for the host to be re-issued,
+# and re-issuing it reproduces the finding verbatim, on a three-op batch
+# that returns zero op errors at every step. The escape is a top-level
+# `value` key that nothing in the message, the reference, or the scene
+# names.
+#
+# THIS IS THE FAMILY'S SECOND ARM, NOT A DUPLICATE OF THE FIRST.
+# `composed_host_stripped_is_invisible` proves the check SPEAKS, on a
+# `body`, at magnitude 4. This one proves its remedy is a way OUT, on an
+# `input`, at the floor's other gate — `composed_part_floor`'s only
+# stateful arm, and the only kind whose `customData` can drift, since
+# every other mint block overwrites `custom[...]` from the spec. The
+# coverage table calls this check `proven` either way; its own footer
+# says `proven` is per CHECK and not per ARM, and this is one of the
+# arms that footer is about.
+#
+# WHO FLIPS IT: the WP repairing the input paths. FOUR repairs of very
+# different blast radius all turn it green, measured against patched
+# copies of `canvas.py` rather than reasoned about — naming `customData`
+# in the post-`mod` reconcile gate (canvas.py:9372); gating the mint on
+# `custom.get("value")` (canvas.py:2695); making all three input paths
+# agree, which is the one most likely to land; and the first two
+# together. Three WRONG repairs each leave it red, and each is caught by
+# a different leg of the pair, which is the whole reason there are three
+# legs: deleting `composed_part_floor`'s `input` arm empties the mutant
+# scene but kills the NEIGHBOUR; having the mint discard a `customData`
+# value it did not mint for clears the finding but trips the VALUE
+# GUARD, re-opening the v0.5 silent-drop defect at canvas.py:2696; and
+# rewording the message to name the top-level key leaves the MUTANT red.
+# That last one is the pin's opinion and not an oversight — it documents
+# the trap without removing it, and the op layer still returns zero
+# errors for a three-op batch whose result the ERROR tier condemns.
+# Curator batch 46, 2026-08-25, subject two of the same review. WHAT THE
+# DRAWING GETS WRONG: nothing about the COUNT — `wc` really does own no
+# parts. What is wrong is that the ERROR's stated cause contradicts the
+# scene it fired on. The sentence says the host "renders as a bare
+# rectangle that says nothing about what it is" while the copy's track
+# and thumb are drawn inside its box, and on a product whose contract is
+# that the agent narrates its reading of the picture, an agent relaying
+# that tells the user their slider is an empty box while they are
+# looking at a slider.
+#
+# THE PAIR IS THE CONTRACT, AND IT NEEDS NO WORDING. Neither pole reads
+# the message. The mutant says the check must be quiet where the parts
+# are drawn; the neighbour says it must speak where they are not. Held
+# together, they assert the one thing a rewrite cannot supply: that this
+# check DISTINGUISHES the two pictures. It does not today — measured
+# 2026-08-25, the two scenes produce a byte-identical ERROR sentence,
+# which is why no honest rewording can be true of both.
+#
+# THE REPO ALREADY RULED THIS OUT OF SCOPE, which is why silence and not
+# a truer sentence is the right pole. `composed_host_gaps`' own
+# docstring carves the class out — "part-shaped decoration owned by
+# NOBODY ... That is a second instrument and it is not this one" — and
+# believed the carve-out automatic ("Floor against tagged parts reads
+# 5 == 5 and says nothing"). Measured, that holds for exactly the two
+# kinds whose `reconcile_composed` arm MINTS (`body` at 4 owned, `kpi`
+# at 1) and is FALSE for the four whose arms only re-derive: `slider`,
+# `toggle`, `image` at 0 owned with the ink drawn, and `checkbox` at 0
+# unchecked / 1 checked. The check fires on a class its author
+# documented as belonging to somebody else.
+#
+# WHO FLIPS IT: the WP that owns the paste gate, by making the
+# documented carve-out real — re-hosting the copy's backlinks in
+# `_rehost_duplicated_parts` so `wc` owns the ink drawn inside it, or
+# routing this class to the second instrument that docstring names. A
+# REWORDING DOES NOT FLIP IT, and that is the pin's opinion stated up
+# front rather than discovered later: a sentence hedged until it is true
+# of both pictures has not repaired the blindness, it has paid for the
+# lie with the information. If the owning WP disagrees, that is a
+# decision to take in the open.
+#
+# RE-JUDGED 2026-08-26 BY A USER RULING, and the two paragraphs above
+# are SUPERSEDED. They are left standing because the correction is the
+# record: this pin invited the owning WP to disagree in the open, the WP
+# measured the invitation and the user answered it, and deleting the
+# question would leave the answer looking unprompted. What was right in
+# them is the SUBJECT; what was wrong is the REMEDY.
+#
+# THE MEASUREMENT THAT CAME BACK. A fixer proved the `Silence` pole is
+# unreachable from the save path at all — the check reads
+# `[('wc', 2.0, 'missing')]` identically on the fixed tree and the
+# reverted one — so the only repair that could have flipped it was
+# narrowing `composed_host_gaps` to go quiet on a host with unowned
+# part-shaped ink drawn inside it.
+#
+# THE RULING: keep reporting, fix the wording. A widget whose ink is
+# visibly present but unlinked is DEAD — drag it and the parts stay
+# behind — so a finding there is CORRECT; what is wrong is calling it
+# "missing", which reads as "gone". Narrowing would make that class
+# reported by nothing at all, including in every scene already persisted
+# to disk and re-read by `catch_up()` each session, which is the cost
+# the paragraphs above never priced. `.unlazy/v09-close/PLAN.md` carries
+# it as contract C12.
+#
+# SO THE PIN INVERTS AND GOES GREEN, AND ITS RED MOVES HOUSE. `expect`
+# is no longer a Silence — it is the ruling's own half, asserted in
+# every commit: the check MUST fire here, on the picture where the ink
+# is drawn, at 2 missing. That leg is what now REFUSES the narrowing,
+# and it is measured rather than argued — against a patched `canvas.py`
+# that goes quiet on a host with unowned part-shaped ink inside it,
+# `_run`'s finding list is `[]` and this mutant FAILS. A ruled-against
+# repair now breaks a green test loudly instead of satisfying a red.
+#
+# WHY THE WORDING RED IS NOT IN THIS SLOT, and it is not a preference.
+# The remaining defect is a TWO-SCENE property — that these two
+# pictures must not read alike — and every expectation this engine has
+# is over ONE scene's findings. Worse, the normalized finding record
+# (`check`/`element`/`magnitude`/`direction`) is deliberately blind to
+# the tail clause where the distinction has to land: `canvas.py` names
+# the HEAD, direction word included, as the curator's template that may
+# not be reworded. Measured against three honest repairs, all three
+# leave this mutant's parsed finding byte-identical to today's. There
+# is therefore no `FindingSpec` that mismatches now and matches after a
+# fix, and `test_red_mutants_are_red_by_mismatch_not_by_error` is right
+# to refuse a red whose `expect` passes. The red is hand-authored
+# instead, in `TestTheStrippedHostFindingTellsDrawnFromGone` below,
+# which is what `HAND_AUTHORED_RED_CLASSES` exists for.
+_register(Mutant(
+    "duplicated_widget_reported_as_bare",
+    build=lambda: _orphaned_widget_copy(with_ink=True),
+    op="unchanged", args={},
+    expect=FindingSpec("composed_host_stripped", element="wc",
+                       magnitude=(2, 0.0), direction="missing"),
+    neighbour=Neighbour(lambda: _orphaned_widget_copy(with_ink=False),
+                        FindingSpec("composed_host_stripped", element="wc",
+                                    magnitude=(2, 0.0),
+                                    direction="missing"))))
+
+_register(Mutant(
+    "composed_host_remedy_reproduces_itself",
+    build=_input_after_taking_its_own_prescribed_remedy,
+    op="unchanged", args={},
+    expect=Silence("composed_host_stripped"),
+    neighbour=Neighbour(_input_slot_stripped,
+                        FindingSpec("composed_host_stripped", element="inp1",
+                                    magnitude=(1, 0.0),
+                                    direction="missing"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -22707,9 +23847,13 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same grey, spelled `#d3d3d3`, is measured and not reported."""
         self._run_neighbour("unreadable_stroke_is_reported_not_skipped")
 
-    @unittest.expectedFailure
     def test_mutant_composed_host_stripped_is_invisible(self) -> None:
         """A body block drawing 0 of the 4 waves its height owes."""
+        # FLIPPED 2026-08-25 by the WP that owns the composed-group-gaps
+        # lint. `composed_part_floor` + `composed_host_gaps` in canvas.py
+        # make the HOST the subject, which is what the walk next door
+        # structurally could not do. The assertion below is the
+        # curator's, unedited; only this decorator moved.
         self._run("composed_host_stripped_is_invisible")
 
     def test_neighbour_composed_host_stripped_is_invisible(self) -> None:
@@ -22733,6 +23877,202 @@ class TestMutantCatalogue(unittest.TestCase):
              and f["element"] == "e"], [],
             "an entity declared with no attributes has no rows to draw "
             "and must never be reported as stripped")
+
+    @unittest.expectedFailure
+    def test_mutant_doubled_ink_reads_as_a_healthy_count(self) -> None:
+        """Eight waves on a block that owes four, and 4 == 4 is healthy."""
+        # The check counts what is TAGGED, so the four unowned copies
+        # drawn over the four real ones are not ink to it. Its own
+        # surplus arm already carries the right sentence for this scene
+        # — "The extra parts are drawn over the widget's own ink" — and
+        # cannot reach it. The entry above carries the denominator and
+        # the three measured repairs.
+        self._run("doubled_ink_reads_as_a_healthy_count")
+
+    def test_neighbour_doubled_ink_reads_as_a_healthy_count(self) -> None:
+        """A fifth TAGGED wave is surplus the same arm reports, at 1."""
+        # TWO CLAIMS, and the second is the whole false-positive cost of
+        # whatever rule lands — the pole that says what the fix may NOT
+        # do, which no `FindingSpec` slot can hold. `role: "decoration"`
+        # with no part tag is a first-class value of the public ops
+        # schema and layout.md tells the agent to author one, so a rule
+        # that counts every unowned decoration standing inside a host
+        # bills the user for a backdrop they drew on purpose. It is
+        # written as an assertion rather than left to the rule's author
+        # because it is measured, not feared: the cheapest repair that
+        # clears the mutant reports this scene at `1 surplus`.
+        #
+        # Ungated and asserted in every commit, which is what makes it a
+        # control rather than a wish — and what makes the first claim
+        # one too. The mask over the mutant hides errors as readily as
+        # failures, so a `composed_host_gaps` that stopped speaking
+        # entirely would leave the red reading `expected failure`; this
+        # pole fails.
+        self._run_neighbour("doubled_ink_reads_as_a_healthy_count")
+        self.assertEqual(
+            [f["raw"] for f in
+             collect_findings(_body_block_behind_an_authored_panel())
+             if f["check"] == "composed_host_stripped"], [],
+            "a backdrop panel the agent was instructed to draw is not "
+            "ink the host failed to order; a doubled-ink rule that "
+            "cannot tell a pasted copy of a part from an authored "
+            "decoration has replaced a silence with a false alarm")
+
+    def test_every_composed_kind_can_reach_a_doubled_ink_state(self) -> None:
+        """The denominator behind the mutant above, and only that.
+
+        THE POPULATION, NOT THE VERDICT, and the split is the point. The
+        verdict — which kinds are reported — is what the red pins for one
+        kind and what a fix moves; asserting it here would make this go
+        red the day the fix lands, which is backwards for an ungated
+        pole. What must NOT move is the number of questions the sweep
+        asks. A kind that stopped minting parts would drop out of the
+        population silently and take its coverage question with it, and
+        the sweep would report a smaller, healthier-looking answer for a
+        reason that has nothing to do with the check.
+
+        Derived, never transcribed: the expected population is
+        `_COMPOSED_KINDS` itself, so there is no count here to go stale.
+        That is the same discipline `sweep_remedy_fixpoints`' companion
+        keeps for its own 40 pairs, and for the same reason — a
+        denominator that moved while the numerator fell would have made
+        a broken instrument read as a repair.
+        """
+        sweep = sweep_doubled_ink()
+        self.assertEqual(
+            sorted(sweep), sorted(_COMPOSED_KINDS),
+            "the doubled-ink sweep no longer walks every composed kind")
+        self.assertEqual(
+            sorted(k for k, (_, ghosts, _r) in sweep.items() if ghosts),
+            sorted(_COMPOSED_KINDS),
+            "every composed kind mints at least one tagged part in its "
+            "settled state, so every one of them can be doubled: %s "
+            "reached no doubled-ink state, which shrinks the coverage "
+            "question rather than answering it"
+            % sorted(k for k, (_, g, _r) in sweep.items() if not g))
+
+    def test_mutant_duplicated_widget_reported_as_bare(self) -> None:
+        """A dead widget is still reported dead where its ink is drawn."""
+        # RE-JUDGED AND FLIPPED 2026-08-26 by a user ruling, not by a
+        # repair: keep reporting, fix the wording. The entry above
+        # carries the record and the superseded reasoning. What changed
+        # here is the POLE — `expect` was `Silence`, asking the check to
+        # go quiet on a host whose part-shaped ink is drawn but linked
+        # to nothing, and the user ruled that such a widget is DEAD (a
+        # drag moves the host and the parts stay behind) so a finding
+        # there is correct. The wording defect this pin was really
+        # about now lives, undecorated-control and all, in
+        # `TestTheStrippedHostFindingTellsDrawnFromGone`.
+        #
+        # THIS METHOD IS NOW AN OBSERVATION POLE, which is the reason it
+        # is ungated rather than a consequence of the flip. The ruling's
+        # non-negotiable half — the check keeps speaking here — cannot
+        # be asserted inside the red that observes it: `expectedFailure`
+        # absorbs a failure as readily as it absorbs a pass, so a
+        # narrowing that silenced this class would leave the red reading
+        # `expected failure` and a mutation sweep reading SURVIVED over
+        # a pristine tree. Asserted here it fails out loud. Measured
+        # against a patched `canvas.py` that takes the narrowing: this
+        # line reports an empty finding list.
+        #
+        # TWO CLAIMS, and the second names the wrong repair this pole
+        # would otherwise sit green over. The cheapest way to make the
+        # old sentence true is to have the save path discard part-shaped
+        # decoration that names no owner — and this pin's own scene is
+        # hand-built, so it would never notice. That repair deletes a
+        # user's slider to settle an argument about a lint. So the
+        # second claim is measured through the real save path: the ink a
+        # duplicate lands with must still be there after another save.
+        # It is the same discipline the value-survival guard on
+        # `composed_host_remedy_reproduces_itself` carries, aimed at
+        # this subject's own nearest miss, and the ruling does not touch
+        # it.
+        self._run("duplicated_widget_reported_as_bare")
+        self.assertEqual(_saved_twice_part_ink_count(), 2,
+                         "the duplicate's own track and thumb must "
+                         "survive the save path; a repair that makes "
+                         "'renders as a bare rectangle' true by erasing "
+                         "the ink has destroyed the picture to vindicate "
+                         "the sentence")
+
+    def test_neighbour_duplicated_widget_reported_as_bare(self) -> None:
+        """The same host with the ink really gone is reported, at 2."""
+        # THE POLE THAT DID NOT MOVE when the mutant's did, and it is
+        # worth saying why it still counts as a control now that both
+        # slots carry the same expectation. The two scenes differ — ink
+        # drawn against ink gone — and the check answering them
+        # IDENTICALLY is the whole finding, so a pairing that read as
+        # duplication before the ruling reads as the statement of the
+        # defect after it. It remains a live pole in the only sense that
+        # matters: it DIES when the check goes blind. Measured against a
+        # patched `canvas.py` whose composed-host loop walks an empty
+        # list, this reports nothing and fails.
+        self._run_neighbour("duplicated_widget_reported_as_bare")
+
+    def test_mutant_composed_host_remedy_reproduces_itself(self) -> None:
+        """Doing what the ERROR asks brings the same ERROR back."""
+        # FLIPPED 2026-08-26 by `f87c34c`, "make the input paths agree,
+        # rather than documenting the trap" — candidate repair (iii) of
+        # the four this pin was measured green against, and NOT the
+        # message-only one it was measured still-red against. The
+        # decorator moved and nothing else; the assertions below are
+        # unedited.
+        #
+        # THE RED WAS WITNESSED, from an isolated tree with this
+        # module's own file copied beside the tree under test, so the
+        # only thing that varied is `canvas.py`:
+        #
+        #     PRE-FIX   38afe37 -> OK (expected failures=1)
+        #     POST-FIX  734f238 -> FAILED (unexpected successes=1)
+        #     CONTROL   the neighbour below passed on BOTH trees
+        #
+        # THE PRE-FIX SHA IS THIS BRANCH'S BASE AND NOT A POINT ON THE
+        # FOLDED LINEAGE, which is a fact about that lineage worth
+        # keeping rather than tidying away: it never held a state where
+        # this red was red AND its neighbour green. It went from no
+        # check at all (`b6caadc`, where the neighbour cannot pass
+        # because `composed_host_stripped` does not exist) straight to a
+        # window — `9a387da` and `e07384d` — where `composed_part_floor`
+        # gave `input` NO FLOOR. That window is exactly WRONG-1 from
+        # this pin's own fix-agnosticism matrix: the mutant reads green
+        # there because the check went blind, and the NEIGHBOUR FAILS,
+        # which is the whole reason the neighbour is an `input` and not
+        # the sibling's `body`. Measured on both shas. The tip settled
+        # on "ONE ROW, ALWAYS" instead, with all three readers brought
+        # to agree, and the neighbour passes again.
+        #
+        # So the flip is honest at the tip and the intermediate states
+        # were not, and only the pair could tell those apart.
+        # TWO CLAIMS, and the second is here because the first has a
+        # hole every subtraction has. `_run` asserts the property: the
+        # finding must not survive its own prescribed repair. A fix
+        # that stops the finding firing satisfies that — including the
+        # WRONG one, deleting `composed_part_floor`'s `input` arm,
+        # which empties this scene and reads green. The neighbour
+        # catches that death; what the neighbour cannot catch is the
+        # OTHER wrong fix, and it is the nearer of the two: making
+        # `make_element` drop a `customData` value it did not mint for.
+        # That clears the finding honestly-looking and silently
+        # re-opens the v0.5 defect named at canvas.py:2696, where an
+        # input was handed a value, dropped it, and drew "Run at" with
+        # no time in it while nothing complained. So the value the ops
+        # declared is asserted to still be READABLE off the scene —
+        # stored on the host or drawn as a part, this pin does not care
+        # which, because both are honest and the choice belongs to the
+        # WP that owns the fix.
+        self._run("composed_host_remedy_reproduces_itself")
+        els = _input_after_taking_its_own_prescribed_remedy()
+        self.assertTrue(
+            any("09:00" in str((e.get("customData") or {}).get("value") or "")
+                or "09:00" in str(e.get("text") or "") for e in els),
+            "the value these ops settled must survive somewhere in the "
+            "scene — stored on the host or drawn as its value row; a "
+            "repair that clears this finding by discarding the agent's "
+            "own datum is the v0.5 silent-drop defect returning")
+
+    def test_neighbour_composed_host_remedy_reproduces_itself(self) -> None:
+        """An input robbed of its real value row is still reported."""
+        self._run_neighbour("composed_host_remedy_reproduces_itself")
 
     def test_mutant_entity_name_dragged_onto_its_row(self) -> None:
         """A dragged name covers its own row by 1080px², and is named."""
@@ -23475,6 +24815,83 @@ RENDER_TIER = {
         "test_the_clip_instrument_still_sees_ink_leave_a_short_frame",
 }
 
+# The last recorded execution of the tests `RENDER_TIER` names.
+#
+# WHY THIS FILE EXISTS. The three rows above are reported "render-tier"
+# rather than UNCOVERED, so `test_every_detector_is_proven_or_named` — the
+# gate — passes over them. What backed that pass until 2026-08-20 was
+# `test_render_tier_evidence_resolves_to_real_tests`, which asserts the
+# dotted name RESOLVES and is `callable`. Neither says the test ever ran,
+# and it cannot: the render tier is gated behind `MUTANTS_RENDER=1`, no
+# hook in `.pre-commit-config.yaml` sets it, and there is no CI. Three
+# detectors were therefore counted as accounted-for on the strength of a
+# string that no run had ever exercised — and `callable` is a very low bar
+# besides, since a CLASS is callable, so an entry naming only
+# `TestRenderMutants` passed too.
+#
+# WHAT IT DOES NOT CLOSE, said here because a half-closed gap that reads
+# closed is worse than an open one. This proves each named test PASSED in
+# some recorded run, not that it passed against the tree you are reading.
+# Binding it to a hash of `canvas.py` and refusing the commit on a
+# mismatch was considered and rejected: every canvas.py edit would then
+# demand a browser, and the whole reason the tier is gated is that an
+# ordinary commit must not need one. So currency is REPORTED and not
+# enforced — `render_evidence_currency` computes it, `--coverage` prints
+# it, and `TestRenderTierEvidence` pins that the report can say "stale".
+# Re-record after touching `canvas.py`'s render path:
+#     MUTANTS_RENDER=1 python3 tests/test_mutants_render.py --record-evidence
+RENDER_RUN_RECORD = Path(__file__).parent / "mutants_render_run.json"
+
+
+def render_evidence_run() -> dict[str, Any]:
+    """Read the recorded render-tier evidence run.
+
+    Returns:
+        The record as written by `--record-evidence`, or `{}` when the
+        file is absent — absent is a state the gate reports, not one it
+        crashes on, so the message can name the command that fixes it.
+    """
+    if not RENDER_RUN_RECORD.exists():
+        return {}
+    return json.loads(RENDER_RUN_RECORD.read_text())
+
+
+def canvas_digest() -> str:
+    """Fingerprint the `canvas.py` the render tier would rasterize.
+
+    Returns:
+        The sha256 of `canvas.py`'s bytes, hex. This is the input the
+        recorded run's verdict is about; every other input the tier has
+        (the browser build, the system fonts) sits outside the repo and
+        is out of reach of any hash we could take here.
+    """
+    return hashlib.sha256(Path(canvas.__file__).read_bytes()).hexdigest()
+
+
+def render_evidence_currency() -> tuple[str, str]:
+    """Report whether the recorded render-tier run still describes this tree.
+
+    Returns:
+        `(state, detail)` where `state` is "missing" (no run recorded),
+        "stale" (recorded against a different `canvas.py`) or "current".
+        `detail` is a sentence naming the remedy or the run's date.
+    """
+    rec = render_evidence_run()
+    if not rec:
+        return ("missing",
+                "no render-tier run recorded — the three render-tier rows "
+                "rest on nothing. Run: MUTANTS_RENDER=1 python3 "
+                "tests/test_mutants_render.py --record-evidence")
+    if rec.get("canvas_sha256") != canvas_digest():
+        return ("stale",
+                "the recorded run (%s) is against a different canvas.py; "
+                "re-record with MUTANTS_RENDER=1 python3 "
+                "tests/test_mutants_render.py --record-evidence"
+                % rec.get("recorded", "undated"))
+    return ("current", "render-tier evidence last executed %s against this "
+                       "canvas.py" % rec.get("recorded", "undated"))
+
+
 # Check names a catalogue entry may name with no `DETECTORS` detector
 # behind them, mapped to why that is legitimate. Red-by-absence is a real
 # tactic — `phantom_passthrough_shared_attach` pinned a defect the lint
@@ -23603,6 +25020,24 @@ ASPIRATIONAL: dict[str, str] = {
 # hands that wrote the fix should not also write its acceptance test.
 
 UNCOVERED: dict[str, str] = {
+    # DRAINED 2026-08-25 by the lint it was waiting for —
+    # `composed_part_floor` + `composed_host_gaps` in canvas.py, filed
+    # as an ERROR from `lint_layout`, and `composed_host_stripped_is_
+    # invisible` flipped in the same change. The whole reason below is
+    # kept rather than deleted, the way `text_over_text`'s and
+    # `runs_on_node`'s were: it is the only written record of what the
+    # check had to satisfy, and a drained row whose reason went with it
+    # cannot be audited against the thing that drained it. TWO CLAIMS
+    # IN IT ARE NOW MEASUREMENTS RATHER THAN FORECASTS. The rule below
+    # was satisfiable: the shipped check names `b` at (4, "missing"),
+    # stays silent on the carve-out entity and on the unmutated base,
+    # and reaches (2, "surplus") through the same regex. And the gap
+    # the row names — part-shaped decoration owned by nobody — is still
+    # a gap: the shipped check counts TAGGED parts against a floor, so
+    # it reads 5 == 5 over the orphaned untagged strokes exactly as
+    # predicted. That second instrument is unwritten and is not this
+    # one.
+    #
     # `composed_host_stripped` — curator batch 45, 2026-08-20, and the
     # only row this dict has ever held for a check that does not EXIST.
     # `text_over_text` and `unreadable_color` each stood here as a
@@ -23661,13 +25096,6 @@ UNCOVERED: dict[str, str] = {
     # a SECOND instrument — "part-shaped decoration owned by nobody" —
     # and it is named here so the day this check lands nobody reads it
     # as covering the whole class.
-    "composed_host_stripped":
-        "registered 2026-08-20 with its mutant and no lint behind it — "
-        "the check is the owning WP's to write and the acceptance "
-        "mutant is the curator's. UNCOVERED for the ordinary reason: "
-        "the evidence would be an ungated FindingSpec on this check, "
-        "and a check that emits nothing cannot give one. Drains when "
-        "`composed_host_stripped_is_invisible` flips",
     # `text_over_text` stood here TWICE, and the second stay is the more
     # instructive one. It landed 2026-08-18 with the check itself
     # (TASK-ENTITY-LINEHEIGHT), the second row this dict ever held that
@@ -23827,6 +25255,39 @@ UNCOVERED: dict[str, str] = {
         "'only arrows connect shapes' ruling); no DETECTORS row and no "
         "CATALOGUE mutant — the pair is a curator's, and what it must "
         "assert is spelled out above this row",
+    # Added 2026-08-20 with the check itself (TASK-VOCAB) — the sixth
+    # template this file has taken NAMED as unproven from the hands that
+    # wrote it, for the standing reason. No `DETECTORS` row, so the name
+    # below is a ledger id and a `Silence` on it would pass vacuously;
+    # draining it needs a `DETECTORS` entry with a `lint_re` over the
+    # "declares kind ... which nothing implements" clause, then a pair.
+    # WHAT THE PAIR MUST ASSERT, so it can be drained without
+    # re-deriving it:
+    #   * the MUTANT — one rectangle carrying `customData.kind: "modal"`
+    #     driven through `apply_batch`, asserting the NOTE tier and the
+    #     wording. It must also assert that the note NAMES THE OFFERED
+    #     VOCABULARY, because the repair is unavailable without it: a
+    #     finding that says "modal is not a kind" and stops leaves a
+    #     headless agent guessing, and the whole confuser is that it
+    #     guesses `block` and narrates the modal anyway.
+    #   * NEAR-MISSES as subTests, not separate mutants — `"Button"`
+    #     (case) and `"sticky_bar"` (separator). Both fire today; a
+    #     repair that normalised case or punctuation before testing
+    #     membership would silence exactly the class most likely to be a
+    #     typo, and no whole-word mutant would notice.
+    #   * the NEIGHBOUR — a `Silence("unknown_kind")` that is TRUE
+    #     rather than merely absent, so it must be a scene carrying a
+    #     REAL kind rather than no kind at all: a kindless rectangle
+    #     stays silent under an implementation that reads `kind_of` (and
+    #     therefore reports every plain rectangle in the corpus) only
+    #     because that reading was rejected here. `kind: "block"` is the
+    #     pole. All 30 vocabulary members and all 24 frozen artifacts
+    #     (274 kinded elements) are silent today — measured, not assumed.
+    # NO MAGNITUDE is owed: the finding quotes no figure.
+    "unknown_kind":
+        "landed 2026-08-20 (TASK-VOCAB) with its template; no DETECTORS "
+        "row and no CATALOGUE mutant — the pair is a curator's, and what "
+        "it must assert is spelled out above this row",
     "half_unbound_endpoint":
         "enumerated 2026-08-12; no proving mutant yet — in lint_layout",
     "unbound_arrow":
@@ -24010,6 +25471,16 @@ def coverage_table() -> list[tuple[str, str, str]]:
     in `RENDER_TIER` are reported "render-tier" instead: their proving
     mutants live in a separate env-gated catalogue (Task 8) that this
     function does not read, so they are never reported UNCOVERED.
+
+    WHAT "render-tier" IS WORTH, since the word carves three rows out of
+    the gate. Until 2026-08-20 it was worth the existence of a string:
+    nothing set `MUTANTS_RENDER=1` on any commit, so those three rows
+    were accounted-for on evidence no run had touched. They now rest on
+    `RENDER_RUN_RECORD` — a committed record of the named tests having
+    PASSED under the gate, asserted ungated by `TestRenderTierEvidence`.
+    The residue is currency and not existence: read
+    `render_evidence_currency`, which `--coverage` prints, for whether
+    that run was against the `canvas.py` you are holding.
 
     A RED mutant's own `expect` is not evidence, and this is the one rule
     here that is not obvious. A `FindingSpec` on a mutant marked
@@ -24336,8 +25807,243 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # not the one the handover named; a note here that had transcribed the
 # named repair would have described a tree that does not exist. Read the
 # class, not the paragraph that commissioned it.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# EMPTY AGAIN on 2026-08-25, and the entry below called it: the class lost
+# its LINE and not a number, having exactly one red and one owning surface.
+# This value was READ OFF the guard rather than typed, on the 2026-08-20
+# precedent — the marker was dropped first,
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` was run, it
+# reported `measured {} against a declared
+# {'TestTheWireframeRefusalNamesTheWholeVocabulary': 1}`, and the measured
+# side was transcribed. The fix is `_mermaid_refusal`'s wireframe arm
+# interpolating `", ".join(WIREFRAME_KINDS)` instead of transcribing ten of
+# them, and the red reported UNEXPECTED SUCCESS against it while still
+# marked, which is the order the flip contract asks for and the only
+# evidence that the red and the fix were ever about the same sentence. The
+# class stays in the file at five green tests; only the colour moved.
+# TWO on 2026-08-20 (CURATOR BATCH 46), read off the guard the same way: the
+# class was written, this was run against an empty declaration, it reported
+# `measured {'TestTheRenderRegimeFiguresAreTheOnesPaintEmits': 2}`, and the
+# measured side was transcribed. NOT a product defect — nothing in
+# `canvas.py` is red. They are two arithmetic claims in
+# `tests/test_mutants_render.py` about where `paint` puts a wrapped text,
+# both written at 1.25 where the element resolves 1.35, both feeding LOWER
+# bounds so the wrong figure only loosens the assertion and neither has ever
+# failed. Two reds and not one because they are two expressions in two
+# methods; five honest repairs were written and each flips exactly one.
+#
+# EMPTY AGAIN on 2026-08-20, hours later, and READ OFF THE GUARD: the two
+# figures were repaired, both markers dropped,
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` was run, it
+# reported `measured {} against a declared {'TestTheRenderRegimeFiguresAre
+# TheOnesPaintEmits': 2}`, and the measured side was transcribed. A LINE and
+# not a number again, which the entry above did not expect: it recorded five
+# honest repairs each flipping exactly one red, so it left a reader watching
+# for 2 -> 1. The fix was a SIXTH repair, one none of the five named — a
+# module-scope helper asking `canvas.line_height_of` of the wrapped
+# fixture's own text element, which BOTH sites now call. Once the number has
+# one author the two reds cannot flip apart, and a separability measured
+# across five candidates said nothing about the candidate that landed. Read
+# the class, not the paragraph that commissioned it — again.
 
+
+# NOT EMPTY FOR LONG — TWO BACK on 2026-08-20 (CURATOR BATCH 42), the same
+# day, and the value was READ OFF the guard the same way: the two reds were
+# written, `test_the_hand_authored_red_classes_are_the_ones_that_exist` was
+# run against an empty declaration, it reported `measured
+# {'TestTheHalfPixelProseStatesTheSpacingItMeasures': 2}`, and the measured
+# side was transcribed.
+#
+# WHAT THEY ARE, because the fold that reads this dict has a release
+# decision to make and the entry above is where it will look. They are NOT
+# a product defect and nothing in `canvas.py` is red: the shipped code has
+# measured text at each element's own `lineHeight` since the line-height
+# stream landed. They are the HARNESS'S OWN PROSE — three blocks around the
+# half-pixel pair still describing the superseded 1.25 regime, one of which
+# is the recorded reason an arm of `text_overflow` was believed unreachable
+# at fontSize 16, which it is not. The repair is three sentences and a
+# re-derived count; it belongs to the owner of that pair, which is why this
+# curator filed them rather than fixing them. See the class for the flip
+# proof — both flip together under two independently worded repairs.
+#
+# FOUR, not two, after the batch's own review round the same day, and this
+# value was READ OFF the guard a second time. The two added are
+# `TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture` — a reviewer found
+# that `TestTheInkBandHelperMeasuresTheCheckItQuotes`' live pole writes `16`
+# in where the check reads the element and keeps a newline the check
+# flattens, so it agrees with the check only because the apex fixture is
+# fontSize 16 with no newline in it. Neither is a wrong answer today; both
+# are a pin that would go on passing over a check that had broken. Two reds
+# and not one because they are two inputs and a repair can close either
+# alone. Also a harness defect, also not `canvas.py`.
+#
+# EMPTY AGAIN THE SAME DAY, all four at once, and the value was READ OFF
+# the guard exactly as the three entries above were: the repairs were made,
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` was run, it
+# reported `measured {} against a declared
+# {'TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture': 2,
+# 'TestTheHalfPixelProseStatesTheSpacingItMeasures': 2}`, and the measured
+# side — the empty dict — was transcribed. BOTH classes lost a LINE and not
+# a number, which is the shape the entries above keep recording, and both
+# lost it the same DAY they joined rather than the day after. No ordinal is
+# claimed for either: the running count above was inherited, not re-derived.
+#
+# TWO CLASSES, TWO UNRELATED REPAIRS, ONE COMMIT, and that is worth saying
+# because the entry above warns about proximity beating ownership. It did
+# not here — both belong to the same owner. The half-pixel prose took three
+# rewritten blocks and a count re-derived over a population it now names;
+# the apex pair took two edits to
+# `test_the_check_itself_measures_at_the_labels_own_spacing` ITSELF, which
+# after the laundering round is the only place that could have flipped
+# anything: those reds read the method's syntax tree, so a change made
+# anywhere else — including to a copy of its arithmetic — moves nothing.
+# Measured separating cleanly: reverting the size edit alone re-reds its own
+# method and leaves the other green, and the reverse holds. Neither repair
+# touched `canvas.py`. All four were harness prose and harness instruments,
+# exactly as filed.
+#
+# BOTH CLASSES STAY IN THE FILE, green and armed: four tests each, every one
+# still reading the prose or the pin it was written about, so a fifth copy
+# of the 1.25 error or a pin drifting back onto a literal fails there rather
+# than shipping.
+# ONE ENTRY AGAIN on 2026-08-25 (curator batch 46), and this value was read
+# off the guard rather than typed, the way the paragraph above says to.
+# `TestNoErrorTrapsTheAgentBehindIt` holds the remedy-fixpoint SWEEP, which
+# is the generalisation of `composed_host_remedy_reproduces_itself` from one
+# instance to its class: every composed kind through every documented door,
+# asking whether the ERROR a batch produces can be escaped by the repair the
+# finding itself prescribes. It is hand-authored rather than a catalogue
+# entry because a sweep has no neighbour and asserts no magnitude — its
+# claim is a DENOMINATOR — and it sits outside `TestMutantCatalogue`
+# because every red in that class must map to a mutant id or the
+# red-by-assertion guard walks past it. Its second, UNGATED method does the
+# neighbour's job: a sweep that crashed or asked nothing satisfies
+# `looped == []` perfectly, so the companion asserts the walk reached every
+# pair, was refused by none, and heard the check speak.
+# WHY IT IS NOT A DUPLICATE OF THE MUTANT, measured rather than argued:
+# patching the three input paths into agreement clears both `input` pairs
+# and leaves this red on `checkbox`, whose remedy turns a `(2, 1) missing`
+# into a `(1, 2) surplus` and silently unchecks the box. The two do not
+# flip together, so neither subsumes the other.
+#
+# A SECOND ENTRY the same day, and it is the one the sweep above FOUND.
+# `TestADeclaredDatumSurvivesTheDoorItCameThrough` pins the half of the
+# `customData` split that no instrument can reach: `add` rewrites a datum
+# the caller declared — `kpi` value `'42'` to `''`, `slider` 40 to the
+# default 50.0, `checkbox` and `toggle` `checked: True` to False — AND
+# mints the parts matching the rewritten state, so the scene is internally
+# coherent, `composed_host_gaps` is empty and every registered check is
+# correctly silent. It is hand-authored for a sharper reason than the
+# sweep's: registering a check name for it would state a contract no
+# scene-level lint can meet, because the disagreement is between the store
+# and the REQUEST and no rule over elements can reach a request. Measured
+# identical at `3aa3839`, so it is red against the tree that landed the
+# input repair rather than waiting on it. Two opposite repairs turn it
+# green — mint from whichever door supplied the datum, or refuse the batch
+# out loud — which is what keeps it from prescribing either.
+#
+# BACK TO ONE on 2026-08-26, READ OFF THE GUARD the way the entries above
+# say to: the marker was dropped, `test_the_hand_authored_red_classes_are_
+# the_ones_that_exist` was run, it reported `measured
+# {'TestNoErrorTrapsTheAgentBehindIt': 1}`, and the measured side was
+# transcribed. `TestADeclaredDatumSurvivesTheDoorItCameThrough` lost a
+# LINE and not a number — the twelfth time that has been the shape here —
+# and it lost it to `3acf67d`, the user's ruling to HONOUR the datum,
+# which is one of the two opposite repairs it was measured against. The
+# class stays in the file at two green tests; only the colour moved.
+# THE SWEEP DID NOT FLIP AND SHOULD NOT HAVE: it is red on both checkbox
+# doors, one of which this fold UNCOVERED. That is the separation between
+# a pin and its generalisation arriving exactly as the sweep's own
+# docstring predicted it would.
+#
+# EMPTY AGAIN, hours later on 2026-08-26, and the entry directly above is
+# WRONG AS WRITTEN — it says the sweep "did not flip and should not have",
+# which was true on the branch it was written on and false on the tree it
+# landed in. That is the third failure shape this file keeps recording:
+# true when written, false where it shipped. It is left standing rather
+# than edited because the correction is the record.
+#
+# `TestNoErrorTrapsTheAgentBehindIt` FLIPPED on the fold, not on a repair
+# made here: `24f008e` had already closed both checkbox doors on the tip
+# while the sweep sat red on a branch forked 34 commits earlier, so the
+# fold is where the two met. WITNESSED rather than assumed, because a red
+# that arrives green is the shape that gets waved through: at the branch
+# head `66de974` the class runs `OK (expected failures=1)` with its
+# ungated companion `ok` as the live control, and with the mask lifted it
+# is `FAILED (failures=1)` on an ASSERTION naming both checkbox pairs —
+# not an error wearing the same word. On the fold result the same method
+# is an `unexpected success`. Cause proved by counterfactual, not by
+# reading `24f008e`'s message: reverting only its `canvas.py` hunk turns
+# it red again with the identical assertion text.
+#
+# THE VALUE BELOW WAS READ OFF THE GUARD, as every entry above says to:
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
+# `measured {}` against the declared `{'TestNoErrorTrapsTheAgentBehindIt':
+# 1}`, and the measured side was transcribed. The class stays in the file
+# at two green tests, both still asking the same 40 pairs; only the colour
+# moved — a class losing a LINE and not a number, the shape the entries
+# above keep recording. No ordinal is claimed: the running count in those
+# entries was inherited rather than re-derived, and incrementing an
+# inherited number is how a figure goes false without anyone editing it.
+#
+# ONE JOINED 2026-08-26 (curator, leaf-1.1.5), and it arrived by
+# RELOCATION rather than by discovery, which is a shape this dict has not
+# carried before. `TestTheStrippedHostFindingTellsDrawnFromGone` is the
+# surviving half of `duplicated_widget_reported_as_bare`: the user ruled
+# that the check must keep reporting a widget whose ink is drawn but
+# unlinked and must stop calling it "missing", which left the pin's
+# subject intact and its remedy void. The catalogue mutant took the
+# ruling's assertable half and went green in the same change; the half
+# left over is a TWO-SCENE property — these two pictures must not read
+# alike — and no expectation this engine has is over two scenes, so
+# `test_red_mutants_are_red_by_mismatch_not_by_error` would have
+# refused it as a catalogue red. `durable_red_counts` does not move: one
+# decorator left `TestMutantCatalogue` and one arrived here.
+#
+# A SECOND JOINED the same day, at TWO reds, and it is the first entry
+# here that arrived from a HANDOVER rather than from this file's own
+# instruments: a fixer measured it at `a871bee`, and it was re-measured
+# at this tree before being encoded, because the tip had moved twelve
+# commits and a report is not a reproduction.
+# `TestAnUngroupIsNotRevokedByTheNextSave` pins a gesture the product
+# honours for exactly one save and then silently takes back — the rule
+# is delta-based against the PREVIOUS SAVE, so once the base stops
+# carrying the group the widget reads as an unfinished assembly and is
+# closed again. It carries TWO reds and not one because two different
+# repairs clear two different halves: a fix that keeps re-grouping but
+# starts SAYING so clears the narration red and leaves the gesture red,
+# and the split is what stops a narration change reading as a repair.
+#
+# WHY NOT A CATALOGUE MUTANT, the same structural answer this dict keeps
+# giving: `collect_findings` runs over ONE scene and this is a relation
+# between two consecutive commits. The scene it lands on is internally
+# coherent — host and parts sharing a group is what healthy looks like —
+# so every scene-level check is correctly silent, `widget_group_
+# incomplete` included, which spoke about the ungrouped state and goes
+# quiet the moment the gesture is revoked.
+#
+# THE VALUE BELOW WAS READ OFF THE GUARD, as every entry above says to:
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
+# `measured {'TestTheStrippedHostFindingTellsDrawnFromGone': 1,
+# 'TestAnUngroupIsNotRevokedByTheNextSave': 2}`, and the measured side
+# was transcribed.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheStrippedHostFindingTellsDrawnFromGone": 1,
+    "TestAnUngroupIsNotRevokedByTheNextSave": 2}
+
+# ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
+# batch), and it re-opens this dict after it had emptied. It belongs to the
+# family the two entries below opened — one fact spelled twice, with nothing
+# binding the copies — and it is the TRANSCRIBED-INTO-PROSE case rather than
+# the duplicated-in-code one: `WIREFRAME_KINDS` owns the set, and the
+# wireframe mermaid refusal types ten of its seventeen names into a sentence.
+# What makes it worth a red rather than a note is the direction of the
+# wrongness: the sentence's own claim is that no wireframe kind has a
+# mermaid spelling, so naming a subset asserts the opposite about the rest.
+# It is expected to lose its LINE and not a number — the class has exactly
+# one red and one owning surface — which is the shape the entries below say
+# is usual, and unusually the fix was already in flight when the red landed.
+#
 # ONE LEFT on 2026-08-19 (v0.9 WP4-AND-GUARDS), one day after it joined:
 # `TestTheEmptySaveGuardIsCoupledToItsOwnWording` lost BOTH reds in one
 # fold, so the dict lost a LINE and not a number — the tenth time that has
@@ -24832,7 +26538,86 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"composed_host_stripped_is_invisible"}
+CATALOGUE_RED_IDS: set[str] = {"doubled_ink_reads_as_a_healthy_count"}
+# REFILLED the same day it emptied, 2026-08-26 (curator, leaf-1.1.5), by
+# a coverage hole the fixer who closed the duplicate-backlink defect
+# handed over and this leaf VERIFIED before encoding. A composed host can
+# draw its parts TWICE — once tagged, once not — and
+# `composed_host_gaps` counts tagged parts against the floor, reads
+# 4 == 4, and says nothing; its surplus arm cannot reach it either,
+# because untagged ink is not counted as a part. The repair on this
+# branch stopped the ungrouped-duplicate gesture MANUFACTURING that
+# state; it did not remove it from the scenes already on disk that
+# `catch_up()` re-reads every session, and a defect that can no longer
+# be created is still a defect that is still there. Its denominator is
+# derived by `sweep_doubled_ink()` rather than written down, and pinned
+# ungated by `test_every_composed_kind_can_reach_a_doubled_ink_state`.
+# THE VALUE WAS READ OFF THE GUARD: the decorator was added, the mask
+# lifted to confirm `FAILED (failures=1)` on an ASSERTION naming the
+# absent finding, and `test_the_catalogue_reds_are_the_ones_declared`
+# was run and its measured side transcribed.
+# EMPTY on 2026-08-26 (curator, leaf-1.1.5), and the reason is unlike
+# every drain below it: no repair landed. A USER RULING did.
+# `duplicated_widget_reported_as_bare` asked the check to go SILENT on a
+# host whose part-shaped ink is drawn but linked to nothing; the user
+# ruled that such a widget is DEAD — drag it and the parts stay behind —
+# so a finding there is correct and the narrowing would leave the class
+# reported by nothing, including in every scene already on disk. The pin
+# was right about the subject and wrong about the remedy, so it was
+# re-judged rather than deleted: its `expect` now asserts the ruling's
+# own half (the check FIRES on that picture, at 2 missing), which is
+# green today and is what REFUSES the narrowing — measured against a
+# patched `canvas.py` that takes it, `_run` reads an empty finding list.
+# THE DEFECT DID NOT LEAVE WITH THE ROW. What remains — that the two
+# pictures must not read alike — is a two-scene property no `expect`
+# slot can hold, so it moved to `TestTheStrippedHostFindingTellsDrawn
+# FromGone` and is counted by `HAND_AUTHORED_RED_CLASSES` instead. The
+# durable red count for this file is unchanged; only its address moved,
+# and reading this empty set as "nothing is red here" is the one wrong
+# conclusion available. THE VALUE WAS READ OFF THE GUARD: the decorator
+# was dropped first, `test_the_catalogue_reds_are_the_ones_declared` was
+# run, and it reported `measured []`.
+# DOWN TO ONE on 2026-08-26, and READ OFF THE GUARD rather than typed:
+# the decorator was dropped first, `test_the_catalogue_reds_are_the_ones_
+# declared` was run, and the measured side was transcribed.
+# `composed_host_remedy_reproduces_itself` left by the route its own entry
+# named — `f87c34c` made the three input paths agree, which was candidate
+# repair (iii) of the four it was measured green against, and not the
+# message-only one it was measured still-red against. Its row carries the
+# witnessing, including the finding that the folded lineage never held a
+# state where that red was red AND its neighbour green: it passed through
+# a window at `9a387da`/`e07384d` where `input` had no floor at all, which
+# is WRONG-1 from its own matrix, and the neighbour is what said so.
+# `duplicated_widget_reported_as_bare` stays: nothing in this fold touched
+# `_rehost_duplicated_parts`, and a slider whose track and thumb are drawn
+# is still reported as a bare rectangle that says nothing about what it is.
+# BOTH ARRIVED 2026-08-25 (curator batch 46), from one review of the branch
+# that landed `composed_host_stripped`, and they are two SUBJECTS and not a
+# pair — the boundary between them was measured, not assumed. The remedy one
+# is the op path: a finding whose prescribed repair reproduces it. The bare
+# one is the save path: a finding whose stated cause the picture refutes.
+# Re-issuing the host CLEARS the second and LOOPS on the first, which is the
+# measurement that says they are different defects with different fixes.
+# ARRIVED 2026-08-25 (curator batch 46), refilling this set the same day the
+# entry below emptied it, and against the very check that flip landed. It is
+# red for a reason no entry here has had before: the check FIRES, and what it
+# says is TRUE. What is wrong is the REMEDY — the finding asks for the host to
+# be re-issued, and re-issuing it reproduces the finding verbatim, on a
+# three-op batch that returns zero op errors at every step. So the pin is a
+# two-scene property (a prescribed repair must not be reproducible by
+# performing it) rather than a magnitude, which is why its `expect` is a
+# `Silence` over a scene the builder has already tried to repair. It flips
+# when the WP owning `input` makes `make_element`, `reconcile_composed` and
+# `composed_part_floor` read one field instead of three; four candidate
+# repairs of differing blast radius were measured green against patched
+# copies of `canvas.py` before it was filed, and three wrong ones measured
+# still-red, each caught by a different leg of the pair.
+# EMPTIED AGAIN 2026-08-25 by the lint the entry below was waiting for:
+# `composed_part_floor` + `composed_host_gaps` in canvas.py, filed as an
+# ERROR from `lint_layout`. The mutant, its `FindingSpec` and its
+# neighbour are the curator's and were not touched — only the decorator,
+# this set, the append-site pin and the `UNCOVERED` row moved, which is
+# the four-site flip the doctrine in the mutants skill §6 describes.
 # ARRIVED 2026-08-20 (curator batch 45), the first entry this set has held
 # since the half-pixel pair below emptied it, and the only one so far that
 # is red because its CHECK does not exist rather than because a known check
@@ -25411,6 +27196,190 @@ def handover_render_reds() -> set[str]:
         if n.startswith("test_")}
 
 
+# The handover's roster of non-catalogue red CLASSES, by the label its line
+# starts with. A label and not a table row, because this fact was prose for
+# its whole life and a reader arriving mid-paragraph should still be able to
+# find the one line that is checked.
+_HANDOVER_HAND_AUTHORED = "Non-catalog red classes:"
+# One entry: a backticked class name followed by its red count in parens.
+_HAND_AUTHORED_ENTRY = re.compile(r"`(Test[A-Za-z0-9_]*)`\s*\((\d+)\)")
+# Everything the grammar reads lives inside backticks, so a class name that
+# LOST its backticks is invisible to both patterns above and to the `*none*`
+# contradiction check. Blanking the backticked spans and looking at what is
+# left is what makes "no class is named here" mean it.
+_TICKED_SPAN = re.compile(r"`[^`]*`")
+_BARE_CLASS = re.compile(r"\bTest[A-Z]\w*")
+# The names `_HAND_AUTHORED_ENTRY` can express, as a whole-string match. The
+# guard's two halves must agree on this or no legal line can satisfy it; see
+# the `unspellable` assertion in the test.
+_HAND_AUTHORED_SPELLABLE = re.compile(r"Test[A-Za-z0-9_]*\Z")
+# The positive spelling of "empty", which is the whole reason this reader is
+# longer than its four siblings. See the docstring.
+_HAND_AUTHORED_NONE = "*none*"
+
+
+def handover_hand_authored_red_classes() -> dict[str, int]:
+    """The non-catalogue red classes SESSION-HANDOVER.md transcribes.
+
+    The SIXTH census guard's transcription half (v0.9, 2026-08-20). The
+    roster of hand-authored red classes had been prose since batch 16 put
+    a guard on the DICT and none on the paragraph describing it, and it
+    drifted nine recorded times — the ninth being the fold that emptied
+    `HAND_AUTHORED_RED_CLASSES` while the paragraph went on naming six
+    classes. Its own text carried the casualty list and the instruction
+    *"Read the dict, not this sentence"*, which is a pointer at a checked
+    fact and not a check: nothing failed, on any of the nine.
+
+    WHY THIS IS NOT A LIVEDOC VALUE, recorded here because the tool is
+    right there and reaching for it would be the obvious move.
+    `tests/livedoc.py`'s boundary section rules that a marker may carry a
+    TOTAL and may not carry a ROSTER, because `refresh` silently repairs
+    and a class arriving or leaving BY NAME is the event a human has to
+    open the paragraph for. This is a roster of class names, so it stays
+    a literal with a guard over it, and
+    `test_the_census_sentences_carry_only_the_two_live_totals` in
+    `tests/test_livedoc.py` enforces that mechanically — a marker added
+    here would fail it.
+
+    WHY AN EMPTY ROSTER NEEDS A WORD FOR ITSELF, which is the part that
+    generalizes past this sentence. The tree is at zero reds, so the
+    honest transcription enumerates nothing — and so does a line that has
+    been reworded, truncated, half-deleted or replaced with a sentence
+    about something else. A reader that returned `{}` for all of those
+    would be green over every one of them and would say the same thing
+    about a correct paragraph and a destroyed one. `*none*` is therefore
+    a POSITIVE assertion of emptiness and the only accepted spelling of
+    it; anything the grammar does not recognise raises rather than
+    parsing to nothing. That is also why a drift-repair tool could not
+    have held this line as a floor: its repair is to agree with what it
+    finds, and what it finds when the roster is gone is nothing.
+
+    THE HOLE THE FIRST DRAFT LEFT, kept because it is the same defect one
+    level in and it survived a review that this file's author passed.
+    Every check in the paragraph above reads what is INSIDE backticks —
+    `_HAND_AUTHORED_ENTRY` wants backticks plus a count, and the `*none*`
+    contradiction check wanted a backticked `Test...`. So a class name
+    that lost its backticks was read by NOTHING, and
+
+        Non-catalog red classes: *none* — TestBatchPathIntegrity (3)
+
+    parsed to `{}`, agreed with an empty tree and passed, with a human
+    reading a line that asserts emptiness while naming a class. That is
+    not a contrived shape: it is this line's own recorded history with
+    the backticks dropped, which one reflow or one paste from a
+    plain-text note produces. Thirteen of fifteen attack shapes raised;
+    these two did not. The fix blanks every backticked span and refuses
+    what is left if it looks like a class name — "no class is named
+    here" now means it, rather than meaning "no class is named here in
+    the one spelling I look at".
+
+    RESIDUAL, stated rather than papered over, and it is inherited.
+    `red_bearing_classes` scans THIS MODULE only, so this guard sees
+    exactly what `HAND_AUTHORED_RED_CLASSES` sees and no more — a red in
+    `tests/test_backend.py` or `tests/test_mutants_render.py` is outside
+    it. `TestSnapshotTierOne` was such a red and is the one this
+    paragraph had to be hand-edited for. The render file's names are
+    covered by `handover_render_reds`; `tests/test_backend.py`'s names
+    are covered by nothing, which the catalog-reds table's `other` row
+    now says in its own cell.
+
+    Returns:
+        Class name -> transcribed red count, empty for `*none*`.
+
+    Raises:
+        AssertionError: If the file is absent, if the labelled line is
+            absent, if it appears more than once, if the text after the
+            label matches neither the sentinel nor the entry grammar, if
+            `*none*` is contradicted by an entry or a backticked `Test`
+            name on the same line, if a backticked token sits outside a
+            well-formed entry (a name whose count was dropped), or if a
+            class is transcribed twice. Every one of these is a state in
+            which the roster cannot be read, and a census reader that
+            reports agreement while reading nothing is the defect every
+            guard beside this one was written to close.
+    """
+    if not HANDOVER.exists():
+        raise AssertionError(
+            "%s is not in this tree, so the non-catalogue red roster "
+            "cannot be checked. If this is an isolated mutation-proof "
+            "tree, copy the file in beside tests/ — the guard is not what "
+            "you are measuring and this failure is not a finding"
+            % HANDOVER)
+    lines = [line for line in HANDOVER.read_text(encoding="utf-8").splitlines()
+             if line.startswith(_HANDOVER_HAND_AUTHORED)]
+    if not lines:
+        raise AssertionError(
+            "no line starting %r in %s: the non-catalogue red roster has "
+            "been reworded or deleted. At zero reds that line enumerates "
+            "nothing, so its absence and its correctness look identical "
+            "to any reader that does not demand it — which is why this is "
+            "a failure. If the roster is gone on purpose, delete this "
+            "function and its test in the same change"
+            % (_HANDOVER_HAND_AUTHORED, HANDOVER.name))
+    if len(lines) > 1:
+        raise AssertionError(
+            "%d copies of the %r line in %s: %s. The roster is transcribed "
+            "ONCE and pointed at from everywhere else — a correct copy "
+            "above a stale original is the silent direction, because the "
+            "reader agrees with the copy and the human reads the original"
+            % (len(lines), _HANDOVER_HAND_AUTHORED, HANDOVER.name, lines))
+    rest = lines[0][len(_HANDOVER_HAND_AUTHORED):].strip()
+    entries = _HAND_AUTHORED_ENTRY.findall(rest)
+    ticked = re.findall(r"`(Test[A-Za-z0-9_]*)`", rest)
+    bare = _BARE_CLASS.findall(_TICKED_SPAN.sub(" ", rest))
+    if bare:
+        raise AssertionError(
+            "the roster line in %s names %s outside backticks. Every "
+            "check below reads only what is INSIDE backticks, so an "
+            "unbackticked class name is read by nothing: the line "
+            "'%s %s TestSomeClass (3)' would parse to an empty roster, "
+            "agree with an empty tree, and pass while a human read it "
+            "naming a class. One reflow or one paste from a plain-text "
+            "note is all it takes. Backtick the name, or delete it"
+            % (HANDOVER.name, sorted(set(bare)), _HANDOVER_HAND_AUTHORED,
+               _HAND_AUTHORED_NONE))
+    if rest.startswith(_HAND_AUTHORED_NONE):
+        if entries or ticked:
+            raise AssertionError(
+                "the roster line in %s says %s and then names %s. One of "
+                "the two is wrong and nothing here can tell which"
+                % (HANDOVER.name, _HAND_AUTHORED_NONE,
+                   sorted(set(ticked)) or [e[0] for e in entries]))
+        return {}
+    if not entries:
+        raise AssertionError(
+            "the roster line in %s reads %r, which matches neither %s nor "
+            "the `TestClassName` (N) grammar. An unreadable roster must "
+            "not parse to an empty one: at zero reds that would make this "
+            "guard say the same thing about this line and a correct one"
+            % (HANDOVER.name, rest, _HAND_AUTHORED_NONE))
+    if len(ticked) != len(entries):
+        raise AssertionError(
+            "the roster line in %s backticks %s but gives counts for only "
+            "%s. A class named without its count would be dropped "
+            "silently, and a dropped entry reads exactly like a drained "
+            "one" % (HANDOVER.name, sorted(ticked),
+                     sorted(e[0] for e in entries)))
+    names = [name for name, _count in entries]
+    if len(set(names)) != len(names):
+        raise AssertionError(
+            "the roster line in %s transcribes %s twice; a dict would keep "
+            "the last count and hide the other"
+            % (HANDOVER.name,
+               sorted({n for n in names if names.count(n) > 1})))
+    drained = sorted(n for n, c in entries if int(c) == 0)
+    if drained:
+        raise AssertionError(
+            "the roster line in %s transcribes %s at (0). "
+            "`red_bearing_classes` never emits a zero — a class whose last "
+            "red flips LEAVES the roster rather than dropping to 0, which "
+            "is the one thing this line's own paragraph tells you. The "
+            "comparison below would have failed anyway; this refuses the "
+            "shape here so the message names the rule instead of two "
+            "dicts" % (HANDOVER.name, drained))
+    return {name: int(count) for name, count in entries}
+
+
 def red_bearing_classes() -> dict[str, int]:
     """Every TestCase in this module carrying an `expectedFailure`, counted.
 
@@ -25589,6 +27558,121 @@ def rule_eight_rot(exempt: dict[str, str], catalogue: dict[str, Mutant],
                 "the same mutant's other slot, so the row excuses nothing "
                 "and is obsolete: delete it" % (key, here.check))
     return stale
+
+
+# The checks that ARE allowed to fall silent when their subject is drawn
+# as a `line`, each with the canvas.py or instruments.py gate that makes
+# it so. Two kinds sit here and the difference is worth reading, because
+# only one of them is a decision this repo has taken deliberately.
+#
+# CORRECTLY TYPE-SPECIFIC — the check's population is arrow-only where
+# the code makes the claim, and widening it would be loosening a check:
+# `false_bidirectional` and `activation_never_closes`.
+#
+# POPULATION-COUPLED, and FILED rather than blessed. The sentence that
+# stood here said "the three `tests/instruments` detectors all funnel
+# through `instruments._arrows`, which is `type == \"arrow\"`". It was
+# wrong TWICE, and both halves were found at the fold rather than by the
+# guard, which is a boundary worth naming below. `_arrows` is no longer
+# arrow-only — it selects arrows AND non-decorative lines, and is
+# role-aware — and `float_diamond` never funnelled through it at all,
+# which was already false when the sentence was written. Only
+# `float_diamond` remains, and it is here on its OWN gate.
+#
+# WHAT THIS TABLE'S GUARD DOES NOT CHECK, since the above is the proof:
+# `test_the_noun_scoped_exemptions_cannot_rot` asks whether a row's
+# CONCLUSION still holds — is this check still lost on some twin — and
+# never whether its stated REASON is still true. A row whose reason goes
+# false while its conclusion holds sits here silently, which is exactly
+# what the deleted rows' grouping sentence did. Not a hole in what the
+# guard claims; a boundary the prose has to carry.
+#
+# THE ONE THAT WAS NOT IN THIS TABLE AND WAS WORSE — now CLOSED, and
+# recorded rather than deleted because the shape recurs. `crossings_count`
+# read the same `_arrows` and emitted unconditionally, so it never went
+# silent: it reported a FALSE ZERO. Measured at this branch's fork, six
+# catalogue scenes dropped from 1, 2 or 4 crossings to 0 on their line
+# twins while the check spoke with every appearance of health. Re-measured
+# at the fold: ZERO of 34 move, and `_arrows`' own docstring names that
+# defect as closed by the same widening that made the two rows above
+# stale. So the instance is gone.
+#
+# THE DOCTRINE IS NOT, AND IS STILL UNGUARDED: a guard that watches for
+# SILENCE cannot see a check that speaks with a wrong value. Nothing in
+# this file watches for that. What would is a magnitude-comparing sibling
+# — run the twin, compare each check's magnitudes rather than its
+# presence — and it is still not written.
+NOUN_SCOPED: dict[str, str] = {
+    "false_bidirectional":
+        "arrow-only BY CONSTRUCTION: the pair check refuses any member "
+        "without a head (`if not all(arrowhead_of(e, True) is not None or "
+        "arrowhead_of(e, False) is not None ...)`), and `arrowhead_of` "
+        "returns None for anything whose type is not `arrow` — the "
+        "client's shape generator draws heads inside `if (e.type === "
+        "\"arrow\")`, so a line's stored `endArrowhead` paints nothing. "
+        "canvas.py hard-codes the plural `arrows` at that one site "
+        "accordingly, and `_FALSE_BIDI_LINT_RE` is the one connector "
+        "pattern deliberately left un-widened",
+    "activation_never_closes":
+        "arrow-only BY CONSTRUCTION and reasoned in canvas.py at the "
+        "narrowing: the sequence block re-filters the mixed list with "
+        "`msgs = [a for a in arrows if a.get(\"type\") == \"arrow\"]` "
+        "because a sequence message asserts a direction in time, which "
+        "is the arrowhead. Its sentences claim \"not a back-arrow\" and "
+        "\"travels UP the page\"; the population is narrowed there so "
+        "the wording is correct rather than lucky",
+    # `shared_corridor` and `false_bidi` STOOD HERE and were deleted at
+    # the fold, on this file's own guard's say-so.
+    # `test_the_noun_scoped_exemptions_cannot_rot` named them both: they
+    # described a narrowing `instruments._arrows` no longer performs.
+    # At this branch's fork `_arrows` was `[e for e in elements if
+    # e["type"] == "arrow"]`; 205 commits later it selects "arrows AND
+    # non-decorative lines" and is role-aware, so both instruments now
+    # see the line pairs these rows excused them from seeing. The rows
+    # outlived their reason and the anti-ratchet arm caught it — which is
+    # the single best piece of evidence for this table's design, and the
+    # reason it is recorded here rather than silently removed.
+    "float_diamond":
+        "population-coupled, FILED not blessed: `instruments.float_"
+        "diamond` opens `if e[\"type\"] != \"arrow\": continue` — its "
+        "OWN gate, not `_arrows`, which it never called even at this "
+        "row's fork. That is why it survived the deletion above: its "
+        "narrowing is its own line and nothing upstream has repaired "
+        "it. It has no live-lint sibling either, so unlike the deleted "
+        "rows there is no second surface still reading the scene — a "
+        "bound line floating off a diamond's outline is seen by nothing",
+}
+
+
+def _line_twin(scene: list[dict]) -> list[dict]:
+    """The same scene with every arrow retyped as a `line`.
+
+    The geometry, the ids, the bindings and the labels are untouched:
+    the ONLY difference is the word `canvas.connector_noun` will print
+    about them. That is what makes the comparison in
+    `test_no_detector_goes_quiet_when_its_subject_is_a_line` a
+    controlled one — any check that changes its answer changed it
+    because of the noun or because of a type gate, and nothing else.
+
+    Arrowheads are left exactly as stored rather than nulled out.
+    `canvas.arrowhead_of` already answers None for a non-arrow, so
+    clearing them would be a second variable buying nothing, and
+    leaving them keeps `false_bidirectional`'s gate honest: it goes
+    quiet here because of the TYPE, which is the fact the NOUN_SCOPED
+    row claims.
+
+    Args:
+        scene: The scene to twin; never mutated.
+
+    Returns:
+        A deep copy in which every `type: "arrow"` element is
+        `type: "line"`.
+    """
+    out = copy.deepcopy(scene)
+    for e in out:
+        if e.get("type") == "arrow":
+            e["type"] = "line"
+    return out
 
 
 class TestTheCurvedFinalsCrossRatherThanRun(unittest.TestCase):
@@ -27862,11 +29946,12 @@ def _fan_connector(eid: str, etype: str, dst: str,
         The element dict, ready to post in a user save. The foot is A's
         vertical centre, so two of these are drawn on one point.
     """
-    el = {"id": eid, "type": etype, "x": 100, "y": 140,
-          "points": [[0, 0], [200, 0]],
-          "startBinding": {"elementId": "A", "focus": 0, "gap": 4},
-          "endBinding": {"elementId": dst, "focus": 0, "gap": 4},
-          "customData": {}}
+    el: dict[str, Any] = {
+        "id": eid, "type": etype, "x": 100, "y": 140,
+        "points": [[0, 0], [200, 0]],
+        "startBinding": {"elementId": "A", "focus": 0, "gap": 4},
+        "endBinding": {"elementId": dst, "focus": 0, "gap": 4},
+        "customData": {}}
     if not bind_end:
         el["endBinding"] = None
     return el
@@ -32677,17 +34762,38 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
         make the helper agree would fail here rather than pass there —
         and it fails loudly, because `line_height_of` is the client's own
         runtime rule and a stored value always wins.
+
+        EVERY INPUT COMES OFF THE LABEL as of 2026-08-20, and none off
+        the fixture. This wrote `16` in twice — as the wrap size and as
+        the metric size — and passed `text` with its newlines intact,
+        where the check's own first move is `txt.replace(chr(10), ' ')`.
+        It agreed with the check only because the apex fixture is
+        fontSize 16 with no newline in it: "an agreement nothing
+        enforces", one class over from where that phrase was written.
+        Measured before the repair — at fontSize 20 the check's band is
+        75px deep and this computed 60, and a `Send`/newline/`for` label
+        painted two lines here against the check's one. The reds that filed it
+        (`TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture`) kept
+        the two axes apart because they are two edits and either could
+        have landed alone; both are below, in one line each.
         """
         scene = _apex_band_stage()
         lbl = scene[1]
         _, top, bottom = _check_band_probe(scene)
+        # THE CHECK'S OWN BINDINGS, transcribed and not approximated:
+        # `fs = t.get("fontSize") or 16` and `flat = txt.replace("\n",
+        # " ")`, then the wrapped block measured at `line_height_of(t)`.
+        # The `or 16` is the CHECK's default for a label carrying no
+        # size, not this stage's 16 written in again.
+        fs = lbl.get("fontSize") or 16
+        flat = (lbl.get("text") or "").replace("\n", " ")
         self.assertEqual(
             bottom - top,
             canvas.text_dims("\n".join(canvas.client_wrapped_lines(
-                lbl["text"], int(canvas.client_wrap_width(scene[0])), 16)),
-                16, canvas.line_height_of(lbl))[1],
+                flat, int(canvas.client_wrap_width(scene[0])), fs)),
+                fs, canvas.line_height_of(lbl))[1],
             "the check's band is %.1fpx deep, which is not the block the "
-            "client paints at this label's own lineHeight"
+            "client paints at this label's own size and lineHeight"
             % (bottom - top))
 
     def test_the_helper_reads_the_band_the_check_reads(self) -> None:
@@ -32717,6 +34823,3247 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
             % (helper_top, helper_bottom, top, bottom,
                abs(helper_bottom - bottom),
                scene[0]["y"] + scene[0]["height"]))
+
+
+# ---------------------------------------------------------------------------
+# ONE NAME, ONE MODULE-LEVEL SITE. Two streams that both hoist the same
+# constant leave two top-level assignments in one file, and git merges them
+# WITHOUT a conflict because the blocks land in different places. Python
+# keeps the last, so the tree still runs — against whichever copy sorted
+# second, with the dead one above it for the next editor to find first.
+# Witnessed on this base 2026-08-25: `git cherry-pick -n dd97f4e` auto-merged
+# canvas.py clean, no marker anywhere in the file, and left `WIREFRAME_KINDS`
+# assigned twice — 15 kinds, then 17.
+#
+# WHAT WAS ALREADY WATCHING, measured rather than assumed, because a guard
+# laid on top of a working one is the same lie as a missing one:
+#
+#   ruff 0.16.4 `--select F811` over that duplicated canvas.py said "All
+#   checks passed". So did the minimal control — a file holding exactly
+#   `A = (1, 2)` / `A = (3, 4)` / `print(A)` under `--select F`. Pyflakes
+#   does not model plain rebinding at all, so F811 was never going to bite
+#   and the repo's configured `ruff check` inherits that silence.
+#
+#   mypy 1.18.2 DOES fail that one injection, and only by accident:
+#   `tuple[str, …15]` and `tuple[str, …17]` are incompatible assignment
+#   types. Re-injected with the two copies the SAME length it is silent,
+#   and silent again on a duplicated dict, frozenset, int or float. A type
+#   accident is not a duplicate check.
+#
+#   Over a BYTE-IDENTICAL second `WIREFRAME_KINDS`, everything the gate runs
+#   was measured green: `ruff check`, mypy, `livedoc check`,
+#   `guard_mutants.py --check`, and both kind-vocabulary classes in
+#   test_backend.py — which read `canvas.WIREFRAME_KINDS`, i.e. the
+#   surviving copy, and agree with it.
+#
+# TWO GUARDS OF THIS SHAPE ALREADY EXIST AND BOTH ARE ONE CONSTANT WIDE:
+# `test_the_closed_status_set_is_defined_exactly_once` (test_backend.py, for
+# canvas.py's `CLOSED_PIN_STATUSES`, whose docstring states this hazard
+# exactly) and `test_the_font_floor_matches_the_tier_that_measured_it`
+# below, for `MIN_FONT_FLOOR` in the render tier. This generalises them to
+# every module-level name in both files and replaces neither: the font-floor
+# guard also asserts the two VALUES agree, which a census of sites cannot
+# see, and the pin-status one carries the fold ruling in its prose.
+#
+# GREEN THE DAY IT LANDED, which is the honest state and not a weakness.
+# Swept 2026-08-25 across all 17 tracked Python files: zero names carry a
+# second module-level site. The defect is REACHABLE, not present — so this
+# arrives as a relation with its live half beside it, not as a red.
+#
+# THE FAILURE MESSAGE POINTS AT A TRACKED FILE, and that is not a style
+# choice. It named `CONTINUATION.md`'s FOLD HAZARDS entry for one revision,
+# which is where the `CLOSED_PIN_STATUSES` ruling really is — and that file
+# is untracked: `git archive HEAD | tar -t | grep -c CONTINUATION` is 0, and
+# it is not even present in every worktree. The reader this guard exists for
+# is mid-merge on a clone, at the moment they most need the pointer to work,
+# and a bare filename resolving to nothing is the worst thing to hand them.
+# So it points at `test_the_closed_status_set_is_defined_exactly_once` in
+# tests/test_backend.py, which carries the same reasoning and IS in the
+# archive. Adding the full path would not have fixed it — a path into a
+# gitignored planning tree is still dangling. THE RULE, since it generalises
+# past this message: a pointer inside a tracked file must resolve in a fresh
+# clone. Every other pointer in this section was checked the same way (six
+# modules and references/wireframe.md, all present in `git archive HEAD`).
+# ---------------------------------------------------------------------------
+
+
+def module_level_sites(source: str) -> dict[str, list[int]]:
+    """Map every name bound at module level to the lines that bind it.
+
+    Walks the module body's DIRECT children only. A name rebound inside
+    an `if` or a `try` is a fallback, which is a design; two bare
+    top-level assignments are two definitions, which is the merge
+    accident this exists to see. Augmented assignments are not counted
+    for the same reason — `X += 1` edits a definition, it does not add a
+    second one.
+
+    Args:
+        source: Python source text. Parsed fresh every call so a caller
+            can hand in a deliberately damaged copy.
+
+    Returns:
+        Each bound name against the 1-based line of every assignment
+        binding it, in file order. A healthy module gives every name a
+        one-element list.
+    """
+    sites: dict[str, list[int]] = {}
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Assign):
+            targets: list[ast.expr] = list(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+        for target in targets:
+            leaves = (list(target.elts)
+                      if isinstance(target, (ast.Tuple, ast.List))
+                      else [target])
+            for leaf in leaves:
+                if isinstance(leaf, ast.Name):
+                    sites.setdefault(leaf.id, []).append(node.lineno)
+    return sites
+
+
+def with_a_second_assignment(source: str, name: str) -> str:
+    """Splice a value-identical second binding of `name` above the first.
+
+    The duplicate's VALUE is read off the live module instead of typed
+    here, so this stage cannot go stale against the constant it copies —
+    which is the very defect class it is staged inside. VALUE-identical
+    and not byte-identical: the splice is `repr()` on one line where the
+    original is three wrapped ones, and the census reads assignment
+    NODES, so the difference in source text is not a difference it can
+    see. Equal in value rather than drifted on purpose, because two
+    copies holding the same tuple are the case every tool in the gate
+    was measured silent on — mypy included — and so are the case the
+    census has to catch.
+
+    Args:
+        source: The module source to damage.
+        name: A module-level constant of `canvas` to duplicate.
+
+    Returns:
+        `source` carrying one extra top-level assignment of `name`.
+
+    Raises:
+        AssertionError: If `name` does not already have exactly one
+            module-level site, which would mean this stage is damaging a
+            file it no longer describes and is measuring nothing.
+    """
+    at = module_level_sites(source).get(name) or []
+    if len(at) != 1:
+        raise AssertionError(
+            "%s has %d module-level site(s) before this stage damages it, "
+            "expected exactly 1 — the anchor moved and the stage would be "
+            "measuring nothing" % (name, len(at)))
+    lines = source.splitlines(keepends=True)
+    lines.insert(at[0] - 1, "%s = %r\n" % (name, getattr(canvas, name)))
+    return "".join(lines)
+
+
+class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
+    """A duplicated constant is a silent merge, not an untidy one.
+
+    The header above carries the reproduction and the measurement of
+    what was already watching (nothing that survives a same-shaped
+    copy). What is asserted here is the RELATION — one module-level
+    definition per name — and never a snapshot of any file's constant
+    list, so a kind added to `WIREFRAME_KINDS` tomorrow moves nothing
+    here and a kind added TWICE fails.
+
+    THE SUBTRACTION HAS TO BE OVER SITES AND NOT OVER NAMES, and that
+    is the trap this class exists inside rather than beside: a guard
+    that collects `{name for name in module}` and compares it to
+    anything is green over the damaged file and the clean one alike,
+    because a set has already thrown the second site away. One of the
+    three tests below is that comparison, run on purpose.
+    """
+
+    #: The file every stage in this class damages, and the constant it
+    #: duplicates there. `canvas.py` because that is where the merge was
+    #: witnessed; `WIREFRAME_KINDS` because that is what it merged.
+    SUBJECT: ClassVar[tuple[Path, str]] = (
+        Path(canvas.__file__).resolve(), "WIREFRAME_KINDS")
+    #: Files whose named constant must still be found, so the census
+    #: cannot go quietly vacuous on the ones that matter most. NOT every
+    #: file: four of the seventeen legitimately hold zero module-level
+    #: assignments (`test_failure_paths`, `test_instruments`,
+    #: `test_pngdiff`, `tests_helpers`, measured 2026-08-25), so
+    #: per-file non-emptiness is not the rule and cannot be.
+    ANCHORS: ClassVar[dict[str, str]] = {
+        "canvas.py": "WIREFRAME_KINDS",
+        "test_mutants.py": "DETECTORS",
+        "test_mutants_render.py": "MIN_FONT_FLOOR"}
+    #: canvas.py is 29k lines and `ast.parse` of it costs the better part
+    #: of a second, so its source and its clean census are read once here
+    #: rather than per test. Three parses across the class, not ten.
+    SOURCE: ClassVar[str]
+    CLEAN: ClassVar[dict[str, list[int]]]
+    #: The damaged census, memoized by `_damaged`. Deliberately NOT built
+    #: in `setUpClass`; see that method for what it cost when it was.
+    DAMAGED: ClassVar[dict[str, list[int]] | None] = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Read canvas.py and census it clean; damage nothing here.
+
+        The damaged copy was built here for one revision and it was the
+        wrong place. Its stage refuses a file that already carries the
+        duplicate — correctly, since a stage that no-ops silently is the
+        disease — and a refusal raised from `setUpClass` takes the whole
+        class down as an ERROR before the guard has run. Injecting a
+        real second `WIREFRAME_KINDS` then produced the stage's
+        complaint about its anchor and NOT ONE WORD from the guard,
+        which is the one message a reader needs. So the stage moved to
+        `_damaged`, where its precondition reads as an ordinary failure
+        and the guard still runs beside it.
+
+        THE GENERAL RULE, because the next person writing a
+        damaged-tree stage will reach for `setUpClass` by reflex: a
+        fixture that refuses is a check whose reporting channel ate the
+        verdict, which is doctrine §1's disease wearing a different
+        coat. Nothing was wrong with the check — it could not get a word
+        out. Put the refusal where it fails as one test, never where it
+        fails as the class.
+        """
+        path, _ = cls.SUBJECT
+        cls.SOURCE = path.read_text(encoding="utf-8")
+        cls.CLEAN = module_level_sites(cls.SOURCE)
+
+    @staticmethod
+    def owned_modules() -> list[Path]:
+        """Every Python file this repo owns, in a stable order.
+
+        The shipped backend plus the whole `tests/` tree — seventeen
+        files, 0.89s to parse them all, which is why there is nothing
+        here to curate and no rule to get wrong.
+
+        Returns:
+            Paths, `canvas.py` first so the memoized census can serve it.
+        """
+        here = Path(__file__).resolve().parent
+        return [Path(canvas.__file__).resolve(),
+                *sorted(p for p in here.glob("*.py"))]
+
+    def _damaged(self) -> dict[str, list[int]]:
+        """Census canvas.py with one extra site for its constant spliced in.
+
+        Memoized on the class: two tests want it and the parse is the
+        expensive part.
+
+        Returns:
+            Each module-level name against the lines binding it, in a
+            copy of canvas.py carrying a second, value-identical
+            assignment of `SUBJECT`'s constant.
+        """
+        path, anchor = self.SUBJECT
+        self.assertEqual(
+            len(self.CLEAN.get(anchor) or []), 1,
+            "premise: %s must be assigned exactly once in %s before this "
+            "stage can damage a copy of it, and it is assigned at line(s) "
+            "%s. If that is two lines the duplicate is already in the "
+            "tree, and `test_each_module_level_name_is_assigned_exactly_"
+            "once` is the failure to read"
+            % (anchor, path.name, self.CLEAN.get(anchor)))
+        cls = type(self)
+        if cls.DAMAGED is None:
+            cls.DAMAGED = module_level_sites(
+                with_a_second_assignment(self.SOURCE, anchor))
+        return cls.DAMAGED
+
+    def test_the_census_sees_the_duplicate_a_clean_merge_would_leave(
+            self) -> None:
+        """THE LIVE HALF, ungated: the census still speaks when damaged.
+
+        Without this the guard below passes the day `ast` stops finding
+        assignments — a moved constant, a walk that lost its subject, a
+        `.body` that no longer holds what it used to — and nothing can
+        tell that from a clean file. Damaged with the shape nothing else
+        in the gate can see, and the census is required to name it and
+        to name nothing else.
+        """
+        path, anchor = self.SUBJECT
+        damaged = self._damaged()
+        self.assertEqual(
+            sorted(n for n, at in damaged.items() if len(at) > 1), [anchor],
+            "the site census cannot see a second module-level assignment "
+            "of %s spliced into %s, so the guard below is green over a "
+            "file it is no longer reading" % (anchor, path.name))
+        self.assertEqual(
+            len(damaged[anchor]), 2,
+            "the census counted %d site(s) for %s where two were spliced"
+            % (len(damaged[anchor]), anchor))
+
+    def test_a_census_of_names_is_blind_to_what_a_census_of_sites_sees(
+            self) -> None:
+        """The trap, executed rather than remembered.
+
+        Written as a standing green because the cheap version of this
+        guard is the one a later hand will reach for: gather the names a
+        module binds, subtract, assert empty. Over the same damaged
+        source the census above calls out, the two NAME sets are
+        identical — so that guard would ship, pass, and report nothing
+        for as long as the duplicate lived.
+
+        THE SECOND ASSERTION COMPARED WHOLE DICTS UNTIL REVIEW A2, and
+        that claimed more than it earned: the splice shifts every
+        following line number, so `CLEAN != DAMAGED` also holds over a
+        COMMENT-only splice that injects no duplicate at all. The
+        load-bearing half was always sound and the trap was never a
+        tautology, but a message saying "counting sites answers the
+        same" has to be backed by counting sites. So both halves now
+        compare the DOUBLED-NAME sets, which line numbers cannot move.
+        """
+        damaged = self._damaged()
+        self.assertEqual(
+            set(self.CLEAN), set(damaged),
+            "premise: this stage adds no NEW name, it adds a second site "
+            "for one that already exists — if that stopped being true the "
+            "trap below is not the trap")
+        self.assertEqual(
+            (sorted(n for n, at in self.CLEAN.items() if len(at) > 1),
+             sorted(n for n, at in damaged.items() if len(at) > 1)),
+            ([], [self.SUBJECT[1]]),
+            "counting sites answers the same as counting names over this "
+            "damaged file, so this guard has collapsed into the one it "
+            "exists to be different from")
+
+    def test_each_module_level_name_is_assigned_exactly_once(self) -> None:
+        """THE GUARD: one definition per name, in every file this repo owns.
+
+        Every name, not a list of load-bearing ones. A roster would have
+        to be maintained by the same hands the merge accident slips
+        past; the one name in the tree that is not upper-case
+        (`_unlabelled`, in canvas.py) is covered for free rather than
+        argued about.
+
+        AND EVERY FILE, which review A1 is the reason for. This read two
+        of the seventeen under a comment claiming to cover "the modules
+        whose module-level constants are read BY NAME from outside
+        them" — a rule that admits five more (`guard_mutants.GUARDS`,
+        four in `instruments`, `livedoc.CALCULATORS`,
+        `pngdiff.PNG_SIGNATURE`) and, pointedly, THIS FILE, which
+        `mutants_mortality.py` imports `DETECTORS` from, which holds 90
+        module-level names, and which is the hottest parallel-edit
+        target in the repo — the exact place a fold drops a duplicate.
+        Meanwhile `test_mutants_render.py` was IN scope and has no
+        constant read by name from anywhere: `MIN_FONT_FLOOR` is read
+        out of its source by regex. The sentence matched neither the
+        inclusions nor the exclusions, which is this repo's own named
+        defect class committed inside the pin against it.
+
+        Censusing all seventeen costs 0.89s, so the fix is to widen
+        rather than to reword. `ANCHORS` keeps the vacuity check on the
+        three files where a specific name is load-bearing; the other
+        fourteen are guarded by the relation alone, and four of them
+        hold no module-level assignment at all.
+        """
+        seen: set[str] = set()
+        for path in self.owned_modules():
+            with self.subTest(module=path.name):
+                self.assertTrue(path.is_file(), "%s is missing — moved, "
+                                "not cleaned: re-point this guard" % path)
+                seen.add(path.name)
+                sites = (self.CLEAN if path == self.SUBJECT[0]
+                         else module_level_sites(
+                             path.read_text(encoding="utf-8")))
+                anchor = self.ANCHORS.get(path.name)
+                if anchor is not None:
+                    self.assertIn(
+                        anchor, sites,
+                        "%s binds no module-level %s, so this census has "
+                        "lost its subject and passes for having read "
+                        "nothing" % (path.name, anchor))
+                doubled = {n: at for n, at in sites.items() if len(at) > 1}
+                self.assertEqual(
+                    doubled, {},
+                    "%s binds %d name(s) twice at module level: %s. git "
+                    "merges two such blocks with no conflict and Python "
+                    "keeps the LAST, so nothing fails and the file runs "
+                    "against whichever copy sorted second — ruff F811 and "
+                    "mypy were both measured silent on exactly this shape. "
+                    "Keep one site. `CLOSED_PIN_STATUSES` was merged this "
+                    "way once already, and the precedent plus the ruling "
+                    "on which copy survives is in tests/test_backend.py, "
+                    "`test_the_closed_status_set_is_defined_exactly_once`."
+                    % (path.name, len(doubled),
+                       "; ".join("%s at lines %s" % (n, at)
+                                 for n, at in sorted(doubled.items()))))
+        self.assertEqual(
+            sorted(set(self.ANCHORS) - seen), [],
+            "the walk never reached %s, so its anchor was never checked "
+            "and the vacuity guard on the file that matters most passed "
+            "for not having run. `owned_modules` discovers by glob; a "
+            "file that moved out of tests/ has to be re-pointed here"
+            % sorted(set(self.ANCHORS) - seen))
+
+
+# ---------------------------------------------------------------------------
+# THE SAME DISEASE ONE LAYER OUT: the wireframe refusal TRANSCRIBES the
+# vocabulary into prose instead of duplicating it in code, and the
+# transcription has drifted. `canvas.py export --format mermaid` on a
+# wireframe refuses by name and, to explain why, enumerates the kinds mermaid
+# cannot spell — a list typed into the string. Measured on fold-wp4 @ 2c544c5
+# on 2026-08-25: `WIREFRAME_KINDS` holds 17, the sentence names 10, and the
+# seven it omits are `link, tab, body, priority, help, sticky-bar, feedback`.
+#
+# AN OMISSION HERE IS NOT UNDER-INFORMING, IT IS A CLAIM. The sentence exists
+# to say that a wireframe's meaning IS its layout and no mermaid diagram
+# holds one — equally true of all seventeen, so no principle separates the
+# ten from the rest. Naming ten tells a user whose screen is a help panel, a
+# feedback banner and a sticky bar that mermaid has a spelling for those. By
+# silence, which is the form of wrongness nobody reads as wrong.
+#
+# NOTHING OWNED IT. `test_wireframe_refuses_by_name_and_points_at_the_svg`
+# (test_backend.py:11888) asks only that the refusal names the word
+# "wireframe" — green over any list, including the ten, including none.
+# `TestTheKindVocabularyHasOneOwner` binds the constant to
+# references/wireframe.md, to `KINDS_BY_TYPE`, to the wire and to the
+# client's selector: four surfaces, and this sentence is not one of them.
+# Grepped 2026-08-25: no test in the tree reads the refusal's kind list.
+#
+# THE READER IS TOKEN-BASED AND NOT A REGEX OVER `Its kinds (…)`, because
+# the red has to flip under ANY honest repair and not under the one shape
+# today's sentence happens to have. It asks whether each kind is NAMED
+# anywhere in the message and never how the list is punctuated or ordered.
+# Proved below against two independently-worded repairs — one of them the
+# expression `fix-refusal-vocab-acfa` actually lands — and against a third
+# that is wrong in the other direction.
+#
+# WHICH IS WHY THE SECOND POLE COUNTS ARMS AND NOT WORDS. Reading the whole
+# message is what makes pole one fix-agnostic, and it is exactly what makes
+# a naive pole two false-fire: ten of the thirteen kinds outside this arm
+# are ordinary English — `agent`, `context`, `source`, `control`, `store`,
+# `lane`, `entity`, `system`, `sink`, `actor`. Measured 2026-08-25 against a
+# CORRECTLY repaired sentence with one ordinary clause appended:
+#
+#   "Ask the agent that drew it for an SVG instead."      -> ['agent']
+#   "In this context the SVG is strictly more…"           -> ['context']
+#   "The layout is the source of the meaning here."       -> ['source']
+#   "Nothing in the drawing is a control mermaid knows…"  -> ['control']
+#
+# — four false reds, each telling its author the refusal "offers ['context']
+# as wireframe kinds", which is not what happened. `_names_kind`'s bias
+# toward reporting a kind UNNAMED is the safe direction for pole one and
+# INVERTS for pole two, where a false presence is a false red. So an arm is
+# only OFFERED when its whole vocabulary is named: seven flow kinds or five
+# sequence kinds in one sentence is an enumeration, not prose.
+# ---------------------------------------------------------------------------
+
+
+def _names_kind(message: str, kind: str) -> bool:
+    """Say whether `message` names `kind` as a whole token.
+
+    Hyphens are excluded on both sides as well as word characters, so
+    `nav` does not match inside `nav-bar` and `bar` does not match
+    inside `sticky-bar`. That errs toward reporting a kind UNNAMED,
+    which is the safe direction for a pin: a false absence is a red
+    somebody reads, a false presence is the silence being pinned.
+
+    Args:
+        message: The refusal text to read.
+        kind: A kind name, possibly hyphenated.
+
+    Returns:
+        True when the message names that kind on its own.
+    """
+    return re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(kind),
+                     message) is not None
+
+
+def kinds_the_refusal_names(message: str) -> tuple[list[str], list[str]]:
+    """Split the wireframe vocabulary by whether a message names each kind.
+
+    Args:
+        message: The sentence a wireframe mermaid export puts on screen.
+
+    Returns:
+        `(named, unnamed)`, each in `WIREFRAME_KINDS` order so a failure
+        message reads in the reference's order rather than sorted.
+    """
+    named: list[str] = []
+    unnamed: list[str] = []
+    for kind in canvas.WIREFRAME_KINDS:
+        (named if _names_kind(message, kind) else unnamed).append(kind)
+    return named, unnamed
+
+
+def arms_the_refusal_enumerates(message: str) -> list[str]:
+    """Name every non-wireframe arm whose WHOLE vocabulary a message lists.
+
+    Whole-arm and not per-kind, because per-kind cannot tell a foreign
+    kind being offered from the English word it happens to be — see this
+    section's header for the four measured false reds. Seven flow kinds
+    or five sequence kinds in one sentence is an enumeration; `context`
+    on its own is a preposition's object.
+
+    WHAT THIS CANNOT SEE, stated rather than left to be discovered. A
+    widening that adds SOME of a foreign arm and not all of it is
+    invisible. So is one that adds only `entity`: the domain arm has a
+    single member, that member is an ordinary word, and a one-word arm
+    admits no distinction between enumeration and prose at all — which
+    is why single-kind arms are skipped rather than silently trusted.
+    Both would close if the read were scoped to the parenthesised list,
+    and that would key the pin to today's punctuation, which is the
+    coupling pole one exists to avoid. The trade is deliberate.
+
+    AND WHAT MAKES IT FIRE, which is the half a limitations paragraph
+    usually leaves out and the half a later editor actually needs. This
+    reports an arm on ANY complete enumeration of it, wherever in the
+    message it sits and whatever it is there to say — including an
+    honest contrast. Measured 2026-08-25, all three of these appended to
+    a correctly repaired refusal return `['flow']`:
+
+        "Unlike a flow (source, transform, agent, control, sink, store,
+         lane), a screen has no steps."
+        "mermaid's flowchart handles a source, a transform, an agent, a
+         control, a sink, a store and a lane — a screen is none of those."
+        "For a flow use source/transform/agent/control/sink/store/lane
+         instead."
+
+    A refusal that explains what mermaid DOES cover is a plausible
+    future edit, and naming the flow arm to contrast against is the
+    natural way to write it. If you are that editor: this is a false
+    red, not a finding about your sentence. Drop one kind from the
+    contrast and it goes quiet — six of the seven flow kinds measures
+    clean, as does four of the five sequence ones — or name the arm
+    without listing it. The gap is far narrower than the word-level
+    version this replaced (a complete seven-name enumeration, not one
+    English word) and closing it needs the list-scoping rejected above,
+    so it is left open and written down instead.
+
+    Args:
+        message: The refusal text to read.
+
+    Returns:
+        Arm names from `KINDS_BY_TYPE`, sorted; empty when the message
+        enumerates no foreign arm.
+    """
+    return sorted(
+        arm for arm, kinds in canvas.KINDS_BY_TYPE.items()
+        if arm != "wireframe" and len(kinds) > 1
+        and all(_names_kind(message, k) for k in kinds))
+
+
+def _repair_by_interpolating_the_tuple(aid: str, kind: str) -> str | None:
+    """Candidate fix 1: the sentence keeps its shape, the tuple fills it.
+
+    Copied to its EXPRESSION and not to its prose from the repair
+    `fix-refusal-vocab-acfa` actually lands, so the fix-agnosticism
+    proof runs against a real candidate rather than a convenient one.
+
+    Args:
+        aid: Artifact id, for the message.
+        kind: Artifact type; only `wireframe` is answered here.
+
+    Returns:
+        The repaired refusal, or None for any other kind.
+    """
+    if kind != "wireframe":
+        return None
+    return ("ERROR=%r is a wireframe, and mermaid has no diagram whose "
+            "subject is a screen. Its kinds (%s) have no mermaid spelling."
+            % (aid, ", ".join(canvas.WIREFRAME_KINDS)))
+
+
+def _repair_by_listing_them_backticked(aid: str, kind: str) -> str | None:
+    """Candidate fix 2: the same fact, sharing no wording with fix 1.
+
+    Deliberately different on every axis a lazy pin could be keyed to:
+    the kinds arrive backticked, one per bullet, in alphabetical rather
+    than reference order, and the words "Its kinds" never appear. A pin
+    that flips under one of these and not the other is keyed to a fix's
+    prose instead of to the fact it exists to assert.
+
+    Args:
+        aid: Artifact id, for the message.
+        kind: Artifact type; only `wireframe` is answered here.
+
+    Returns:
+        The repaired refusal, or None for any other kind.
+    """
+    if kind != "wireframe":
+        return None
+    return ("ERROR=%r cannot go to mermaid: a screen's meaning is where "
+            "its parts sit, and mermaid can spell none of them.%s"
+            % (aid, "".join("\n  - `%s`" % k
+                            for k in sorted(canvas.WIREFRAME_KINDS))))
+
+
+def _repair_reaching_for_the_union(aid: str, kind: str) -> str | None:
+    """The WRONG repair, kept so the pin's second pole has a subject.
+
+    `KNOWN_KINDS` is the union of all four arms and it is defined six
+    lines below `WIREFRAME_KINDS` in canvas.py, so reaching for it is
+    the plausible slip — and it satisfies the first assertion
+    completely, because a superset omits nothing. A screen has no
+    `lane` and no `lifeline`; a sentence offering them as wireframe
+    kinds is wrong in the other direction and has to fail too.
+
+    It fails on the ARM rule rather than on any single word: this
+    message names all seven flow kinds and all five sequence ones, so
+    both arms read as enumerated. That is the distinction the
+    whole-arm rule buys — the same message minus six of those names
+    would be prose, and would correctly pass.
+
+    Args:
+        aid: Artifact id, for the message.
+        kind: Artifact type; only `wireframe` is answered here.
+
+    Returns:
+        The over-wide refusal, or None for any other kind.
+    """
+    if kind != "wireframe":
+        return None
+    return ("ERROR=%r is a wireframe. Its kinds (%s) have no mermaid "
+            "spelling." % (aid, ", ".join(sorted(canvas.KNOWN_KINDS))))
+
+
+class TestTheWireframeRefusalNamesTheWholeVocabulary(unittest.TestCase):
+    """One vocabulary, two spellings, and nothing binding them.
+
+    `WIREFRAME_KINDS` is the owner of the set — `api_state` serves those
+    same names to the inspector's selector precisely so the client holds
+    no list of its own — and the refusal a user reads when a wireframe
+    export is turned down types the list out again. The header above
+    carries the measurement and the survey of what already covers this
+    (nothing).
+
+    THE RELATION, NOT THE SEVENTEEN. Nothing here names a kind, a count
+    or an order: a kind added to the vocabulary tomorrow moves no
+    literal in this class, and a kind added to the vocabulary WITHOUT
+    reaching the sentence fails it. The seven omitted names appear only
+    inside failure messages, computed at the moment of failure.
+
+    WHO FLIPS THE RED: whoever owns `_mermaid_refusal`'s wireframe arm
+    in canvas.py. Named as a SURFACE and not as an agent, because the
+    surface is still there next week — the entry above
+    `HAND_AUTHORED_RED_CLASSES` records what naming an agent cost.
+    """
+
+    def _assert_it_names_the_arm_and_only_the_arm(self, message: str) -> None:
+        """The pin's whole claim, factored so a candidate fix can run it.
+
+        Both poles live here and not in the red, which is the point:
+        `test_two_independently_worded_repairs_both_satisfy_the_pin`
+        drives THIS method under monkeypatched repairs, so the proof
+        that the red flips is a proof about the red's own assertion
+        rather than about a paraphrase of it.
+
+        Args:
+            message: The refusal text a wireframe export would print.
+        """
+        named, unnamed = kinds_the_refusal_names(message)
+        self.assertEqual(
+            unnamed, [],
+            "the wireframe refusal names %d of the %d kinds a wireframe "
+            "may declare and omits %d: %s. Every wireframe kind is equally "
+            "unspellable in mermaid — that is the fact this sentence "
+            "exists to state — so naming a subset does not under-inform, "
+            "it tells a reader those %d have a mermaid spelling. The list "
+            "is transcribed into the string; WIREFRAME_KINDS is the one "
+            "owner of the set and the sentence should be built from it"
+            % (len(named), len(canvas.WIREFRAME_KINDS), len(unnamed),
+               unnamed, len(unnamed)))
+        offered = arms_the_refusal_enumerates(message)
+        self.assertEqual(
+            offered, [],
+            "the wireframe refusal lists the WHOLE vocabulary of another "
+            "arm beside this one: %s. A repair that reached for "
+            "KNOWN_KINDS — the union six lines below the tuple in "
+            "canvas.py — instead of WIREFRAME_KINDS is wrong in the other "
+            "direction, and telling a reader a screen has a `lane` and a "
+            "`lifeline` is as false as telling them its `help` panel has "
+            "a mermaid spelling"
+            % {arm: list(canvas.KINDS_BY_TYPE[arm]) for arm in offered})
+
+    def _pin_over(self, repair: Callable[[str, str], str | None]) -> None:
+        """Run the red's own assertion against a candidate repair.
+
+        Patches the function the red calls rather than passing a string
+        in, so what is proved is that the RED flips — its call site
+        included — and not merely that a predicate likes some text.
+
+        Args:
+            repair: A stand-in for `canvas._mermaid_refusal`, taking an
+                artifact id and an artifact type.
+        """
+        with mock.patch.object(canvas, "_mermaid_refusal", repair):
+            self._assert_it_names_the_arm_and_only_the_arm(
+                canvas._mermaid_refusal("wf", "wireframe"))
+
+    def test_a_wireframe_export_still_refuses_by_name(self) -> None:
+        """The premise, ungated: there is a sentence here to read at all.
+
+        The red below asks what a sentence SAYS. If the sentence moves —
+        `_mermaid_refusal` renamed, the wireframe arm answering None, the
+        list assembled up in `_export_mermaid` instead — the red would go
+        on failing for a reason with nothing to do with its subject, and
+        `expectedFailure` reports that identically to a real finding.
+        This is the test that says so out loud, so a relocation reads as
+        "re-point the pin" rather than as "the defect is still there".
+        """
+        message = canvas._mermaid_refusal("wf", "wireframe")
+        self.assertIsInstance(
+            message, str,
+            "`_mermaid_refusal('wf', 'wireframe')` returned %r, so the "
+            "refusal the red below reads is assembled somewhere else now "
+            "— re-point the pin at wherever a user's sentence is built"
+            % (message,))
+        for word in ("wireframe", "mermaid"):
+            self.assertIn(
+                word, message,
+                "the wireframe refusal no longer says %r, so this is not "
+                "the sentence the red is about" % word)
+        self.assertIsNone(
+            canvas._mermaid_refusal("wf", "flow"),
+            "premise: a flow exports rather than refusing, so this "
+            "function is still the refusal gate and not something else")
+
+    def test_the_reader_tells_a_whole_list_from_a_short_one(self) -> None:
+        """THE LIVE HALF, ungated: the reader discriminates, both ways.
+
+        Without it the red below could be failing because the reader
+        matches nothing at all — a regex that stopped compiling against
+        real names, a vocabulary that emptied — and a pin that reports
+        every kind missing over a perfect sentence is worth less than no
+        pin, because somebody will eventually "fix" the sentence to
+        satisfy it. Driven over synthetic messages, so this stays green
+        whatever canvas.py's own sentence says today or after the fix.
+        """
+        whole = "kinds: %s." % ", ".join(canvas.WIREFRAME_KINDS)
+        self.assertEqual(
+            kinds_the_refusal_names(whole)[1], [],
+            "the reader calls a kind unnamed in a message that lists the "
+            "whole vocabulary, so the red below would fail over a repaired "
+            "sentence and prescribe a repair nobody can make")
+        dropped = canvas.WIREFRAME_KINDS[-1]
+        short = "kinds: %s." % ", ".join(canvas.WIREFRAME_KINDS[:-1])
+        self.assertEqual(
+            kinds_the_refusal_names(short)[1], [dropped],
+            "the reader cannot see %r missing from a message that lists "
+            "every other kind, so it cannot see the omission the red is "
+            "about either" % dropped)
+
+    #: A correctly repaired sentence with one ordinary clause appended.
+    #: Each clause contains a kind belonging to another arm as an
+    #: ordinary English word; the last carries three at once. Kept as
+    #: data so a fifth is one line, because the class of sentence is
+    #: unbounded and the pin has to survive all of it.
+    INNOCENT_PROSE: ClassVar[tuple[str, ...]] = (
+        "Ask the agent that drew it for an SVG instead.",
+        "In this context the SVG is strictly more than mermaid could hold.",
+        "The layout is the source of the meaning here.",
+        "Nothing in the drawing is a control mermaid knows how to place.",
+        "Every entity, every store, every lane of it is a picture.")
+
+    def test_ordinary_prose_is_not_a_foreign_arm_being_offered(self) -> None:
+        """The false red pole two would otherwise carry, pinned shut.
+
+        Ten of the thirteen kinds outside the wireframe arm are ordinary
+        English words, and the first version of pole two fired on any of
+        them anywhere in the message. Over a CORRECTLY repaired sentence
+        that is a false red, and its wording — "offers ['agent'] as
+        wireframe kinds" — describes something that did not happen,
+        which is how a pin earns being deleted rather than fixed.
+
+        Latent, not live: the shipped sentence, the fixed one and all
+        three candidate repairs were clean. It would have gone live the
+        first time anybody edited that prose, which is the worst moment
+        for a pin to start lying. So the whole-arm rule is asserted
+        against the sentences that broke the word-level one.
+        """
+        for clause in self.INNOCENT_PROSE:
+            with self.subTest(clause=clause):
+                message = "%s %s" % (
+                    _repair_by_interpolating_the_tuple("wf", "wireframe"),
+                    clause)
+                self.assertEqual(
+                    arms_the_refusal_enumerates(message), [],
+                    "a repaired refusal followed by ordinary prose reads "
+                    "as offering another arm's vocabulary. The clause is "
+                    "%r; the pin is supposed to fire on an ENUMERATION of "
+                    "a foreign arm, not on the English words its kinds "
+                    "are spelled with" % clause)
+                self.assertEqual(
+                    kinds_the_refusal_names(message)[1], [],
+                    "appending prose to a repaired refusal made pole one "
+                    "report a wireframe kind missing, so the two poles "
+                    "are not independent the way this class assumes")
+
+    def test_two_independently_worded_repairs_both_satisfy_the_pin(
+            self) -> None:
+        """Fix-agnostic, proved rather than claimed.
+
+        A red that flips under exactly one repair has silently
+        PRESCRIBED that repair, and the prescription is invisible until
+        somebody makes the other honest choice and watches a green test
+        go red. So both candidates are run through the red's own
+        assertion, and so is a third that gets it wrong in the opposite
+        direction — otherwise the second pole would be decoration nobody
+        had ever seen bite.
+        """
+        for repair in (_repair_by_interpolating_the_tuple,
+                       _repair_by_listing_them_backticked):
+            with self.subTest(repair=repair.__name__):
+                self._pin_over(repair)
+        with self.assertRaises(
+                self.failureException,
+                msg="a refusal built from KNOWN_KINDS satisfies this pin, "
+                    "so its second pole asserts nothing and a repair may "
+                    "quietly tell a screen it has lanes"):
+            self._pin_over(_repair_reaching_for_the_union)
+
+    def test_the_refusal_names_every_kind_a_wireframe_may_declare(
+            self) -> None:
+        """THE RED: 10 of 17 named on fold-wp4 @ 2c544c5, 7 omitted.
+
+        Magnitude is the seven the sentence leaves out and direction is
+        that it UNDER-names — it never offers a kind a wireframe cannot
+        declare, which is the other pole and is asserted beside this one
+        so a repair cannot satisfy the pin by widening past the arm.
+
+        Flips when `_mermaid_refusal`'s wireframe arm builds its list
+        from `WIREFRAME_KINDS` instead of transcribing it. Proved
+        fix-agnostic by the test above, which runs this same assertion
+        under two independently-worded repairs.
+        """
+        self._assert_it_names_the_arm_and_only_the_arm(
+            canvas._mermaid_refusal("wf", "wireframe"))
+
+
+# CURATOR BATCH 46 — THE RENDER-TIER FIGURES (2026-08-20).
+#
+# TWO ARITHMETIC CLAIMS about how `paint` lays a wrapped text out, both
+# written at 1.25 where the shipped reader takes `line_height_of` and
+# resolves 1.35 for that element, both in `tests/test_mutants_render.py`:
+#
+#   * `last_baseline` read 73.6 where the fourth baseline is emitted at
+#     78.4;
+#   * `ink_bottom` read 80 where the fourth line box bottoms at 86.4.
+#
+# BOTH REPAIRED AND BOTH REDS FLIPPED THE SAME DAY. Neither site states a
+# multiplier now: they share `_wrapped_line_height`, a module-scope helper in
+# that file asking `canvas.line_height_of` of the wrapped fixture's own text
+# element, so the seventh copy of the number was never written. The two pins
+# below stay — what they assert is EQUALITY against the emitted markup, which
+# is what a lower bound cannot say and what keeps these two from rotting back.
+#
+# Same family as curator batch 42's emitter comment, and the fifth and sixth
+# sites that hunt turned up. Found there, filed here because they are a
+# different tier, a different owner, and folding them into that batch would
+# have mixed two subjects.
+#
+# WHY THEY MATTER DESPITE PASSING. Both feed `assertGreater` /
+# `assertGreaterEqual` — LOWER BOUNDS — so a figure that is too SMALL only
+# loosens them, and both still pass against the real 127px frame. Nothing
+# failed when they went wrong and nothing would fail if they rotted further.
+# That is exactly the condition batch 42 was opened for, and repairing them
+# without pinning them re-creates it.
+#
+# THE GATE PREMISE DOES NOT APPLY TO THESE TWO, and it was worth checking
+# rather than inheriting: they were routed here as render-tier work behind
+# `MUTANTS_RENDER=1`, which would have made them part of the never-run
+# problem the render-evidence record was built for. MEASURED:
+# `TestRenderParityRegime` carries NO class decorator, runs under plain
+# discovery with the variable unset, and its seven tests pass in 0.003s
+# without a browser. So these two claims have run on every commit all along
+# — they are not silent, they are WRONG-LOOSE, which is a different defect
+# and a worse-hidden one. This section therefore rides no run record and
+# blocks on no fold.
+#
+# THE PIN EVALUATES THE EXPRESSION, IT DOES NOT MATCH ITS SHAPE, which is
+# batch 42's own rule about anchors turned on this subject. The honest
+# repairs here are several — write 1.35, write `canvas.line_height_of(lbl)`,
+# write the derived number, hoist it to a helper — and a guard keyed to any
+# one wording would forbid the others. What is asserted is the VALUE the
+# assignment produces, against a value read out of the emitted markup.
+# ---------------------------------------------------------------------------
+
+_RENDER_FIGURES = "test_mutants_render"
+# Which assignment, in which test method. The method is named as well as the
+# variable so that a second `ink_bottom` somewhere else in the file cannot be
+# measured in place of this one.
+_RENDER_FIGURE_SITES = {
+    "last_baseline":
+        "test_the_body_text_still_wraps_to_more_lines_than_it_is_bound_for",
+    "ink_bottom":
+        "test_the_bounds_loop_frames_the_wrapped_text_it_used_to_clip",
+}
+
+
+def _render_baselines() -> list[float]:
+    """Every text baseline `render_svg` emits for the wrapped fixture.
+
+    READ OFF THE MARKUP, which is the whole point: both figures below are
+    claims about where `paint` puts lines, and the only unarguable answer
+    is where it put them. No multiplier is written here — the advance is
+    the difference between two emitted baselines, so a change to the
+    metrics moves this with the drawing instead of leaving it behind.
+
+    No browser. `render_svg` is stdlib Python, which is why this section
+    is ungated and why its subject can be too.
+
+    Returns:
+        The baseline `y` values in document order.
+
+    Raises:
+        AssertionError: If the fixture is gone, or emits fewer than two
+            baselines — one baseline cannot yield an advance, and a
+            figure derived from no advance would be a literal wearing a
+            derivation's clothes.
+    """
+    module = sys.modules.get(_RENDER_FIGURES) or importlib.import_module(
+        _RENDER_FIGURES)
+    scene = module._wrapped_body_text(False)
+    svg, _w, _h = canvas.render_svg(scene)
+    found = [float(y) for y in
+             re.findall(r"<(?:text|tspan)[^>]*?y='([-\d.]+)'", svg)]
+    if len(found) < 2:
+        raise AssertionError(
+            "the wrapped fixture emits %d baseline(s), so there is no "
+            "line advance to derive and neither figure below can be "
+            "checked against anything. This is a finding about the "
+            "fixture, not about the figures" % len(found))
+    return found
+
+
+def _render_truth() -> dict[str, float]:
+    """What the two figures ought to say, derived from the emitted markup.
+
+    Returns:
+        `last_baseline` — where the last line's baseline really is; and
+        `ink_bottom` — where its line box really ends, taken as the line
+        count times the measured advance rather than as any multiplier.
+    """
+    baselines = _render_baselines()
+    advance = baselines[1] - baselines[0]
+    return {"last_baseline": baselines[-1],
+            "ink_bottom": len(baselines) * advance}
+
+
+def _render_figure(name: str) -> float:
+    """Evaluate the value that assignment produces, in its own module.
+
+    THE VALUE AND NOT THE WORDING. Several honest repairs exist here —
+    write the other multiplier, call `line_height_of`, hoist a helper,
+    write the number — and a guard keyed to one of them would forbid the
+    rest, which is the trap curator batch 42 was caught in twice. So the
+    right-hand side is compiled and run rather than pattern-matched.
+
+    WHERE THIS REFUSES, stated because the derive range is the range that
+    can be laundered: it evaluates the expression against the module's
+    GLOBALS only. A repair that made the figure depend on a local of the
+    test method is not wrong, but it is beyond what this can reach, and
+    it raises rather than passing — see the message.
+
+    Args:
+        name: The assigned variable, a key of `_RENDER_FIGURE_SITES`.
+
+    Returns:
+        The number that assignment evaluates to today.
+
+    Raises:
+        AssertionError: If the method or the assignment is gone, if it
+            appears more than once, or if the expression cannot be
+            evaluated from module scope.
+    """
+    module = sys.modules.get(_RENDER_FIGURES) or importlib.import_module(
+        _RENDER_FIGURES)
+    method = _RENDER_FIGURE_SITES[name]
+    tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
+    found = [node.value
+             for cls in ast.walk(tree)
+             if isinstance(cls, ast.FunctionDef) and cls.name == method
+             for node in ast.walk(cls)
+             if isinstance(node, ast.Assign)
+             and isinstance(node.targets[0], ast.Name)
+             and node.targets[0].id == name]
+    if len(found) != 1:
+        raise AssertionError(
+            "%s.%s assigns %r %d times and this guard needs exactly one. "
+            "Zero means the figure has been deleted or moved — it is then "
+            "unwatched, which is the state this section was written to "
+            "end" % (_RENDER_FIGURES, method, name, len(found)))
+    try:
+        return float(eval(compile(ast.Expression(found[0]), "<figure>",
+                                  "eval"), vars(module)))
+    except NameError as exc:
+        raise AssertionError(
+            "%s's %r now depends on a name this guard cannot supply (%s). "
+            "It evaluates the expression against module globals, so a "
+            "figure derived from a local of the test method is outside "
+            "what it can reach — hoist the derivation to module scope, or "
+            "re-point this guard, but do not leave the figure unwatched"
+            % (method, name, exc)) from exc
+
+
+class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
+    """Two lower bounds in the render regime class, against the markup.
+
+    TWO REDS, BOTH FLIPPED 2026-08-20. Both figures were wrong, and both
+    wrong in the direction that hides it: they under-stated where the ink
+    reaches, and they are compared with `assertGreater` /
+    `assertGreaterEqual`, so the wrong number made the assertion LOOSER
+    and both still passed. A pin that merely re-asserted those bounds
+    would have passed over the rot exactly as the bounds themselves did —
+    so what is asserted here is EQUALITY against the emitted markup,
+    which is the only reading that fails in both directions, and which is
+    why these stay after the repair.
+
+    RE-DERIVED ON THIS BASE, not carried from the batch that found them.
+    `render_svg` emits baselines at 13.6, 35.2, 56.8 and 78.4 for the
+    wrapped fixture — an advance of 21.6px, which is `fontSize` times the
+    1.35 `line_height_of` resolves for an element carrying neither a
+    stored `lineHeight` nor a `fontFamily`. The figures read 73.6 and 80,
+    computed at 1.25; both now ask `line_height_of` through that file's
+    `_wrapped_line_height` and land on 78.4 and 86.4.
+
+    NOT A GATED-TIER PROBLEM, checked rather than assumed. These were
+    routed here as render-tier work, which would have put them among the
+    tests that have never run for want of `MUTANTS_RENDER=1`.
+    `TestRenderParityRegime` carries no decorator: its seven tests run
+    under plain discovery, with no browser, in 0.003s. They have run on
+    every commit and been wrong on every one of them.
+
+    WHERE THIS DISCRIMINATES, measured rather than claimed, because a pin
+    that speaks on every input and separates none is the shape this
+    curator shipped and withdrew one batch ago. Five honest repairs were
+    written and each flips exactly its own red: the other multiplier, a
+    call to `line_height_of`, and the bare derived number, on each of the
+    two figures. Four degradations: removing the assignment's name, and
+    duplicating it, and making it depend on a method local all FAIL
+    loudly; renaming the fixture builder away makes both greens ERROR.
+    Making a figure MORE wrong — zero, or a lying `_WRAPPED_LINES` —
+    leaves the reds red, which is the correct answer and is the boundary
+    worth knowing: these reds say "this figure is not the emitted one",
+    not "this figure is wrong by 4.8".
+
+    THE TRUTH SIDE READS NO CONSTANT OF THAT FILE'S, deliberately. The
+    advance is the gap between two emitted baselines and the line count is
+    how many were emitted, so `_WRAPPED_LINES` appears on the CLAIM side
+    only — set it to 1 and the figure it feeds moves while the truth does
+    not, which is what keeps a wrong constant from validating itself.
+
+    NOT REPAIRED HERE, and it was not: the two constants in that other
+    tier's file were closed by its owner, which is why the fix and the
+    acceptance test have different hands. The repair chosen was none of
+    the five the curator wrote — a module-scope helper asking
+    `canvas.line_height_of` of the fixture's own element — and it passed
+    unchanged, which is the anchor rule doing its job: the expression is
+    evaluated, never matched.
+    """
+
+    def test_the_two_figures_are_still_in_that_file_and_still_parse(
+            self) -> None:
+        """The subject exists, once each, and still evaluates to a number.
+
+        First, because both reds raise from `_render_figure` when their
+        assignment is gone, and a raise under `expectedFailure` reads as
+        a healthy red. This says plainly which figure went missing.
+        """
+        for name in sorted(_RENDER_FIGURE_SITES):
+            with self.subTest(figure=name):
+                self.assertIsInstance(_render_figure(name), float)
+
+    def test_the_fixture_still_wraps_to_more_than_one_line(self) -> None:
+        """The premise: a one-line fixture has no advance to be wrong about.
+
+        Both figures are about the SECOND and later lines. If the wrap,
+        the cap or the string ever collapsed this fixture to one line,
+        the advance would be underivable and the reds below would be
+        asserting nothing — so that fails here, where the message is
+        about the stage.
+        """
+        baselines = _render_baselines()
+        self.assertGreater(
+            len(baselines), 1,
+            "the wrapped fixture now paints %d line(s), so there is no "
+            "line-to-line advance and neither figure below has a subject"
+            % len(baselines))
+
+    def test_the_bounds_these_figures_feed_are_loose_in_the_hiding_direction(
+            self) -> None:
+        """GREEN: why a wrong figure here passes, asserted rather than said.
+
+        The live half, and the reason this class exists at all. Both
+        figures are compared as LOWER bounds, so under-stating them can
+        only make the assertion easier — and the real frame clears both
+        the written figure and the true one, which is why nothing has
+        ever failed. Asserted so that the day the frame tightens enough
+        for the difference to matter, that is news rather than a silent
+        flip.
+
+        It stays true after either repair, so it goes on recording WHY
+        the reds existed once they have flipped.
+        """
+        truth = _render_truth()
+        for name in sorted(_RENDER_FIGURE_SITES):
+            with self.subTest(figure=name):
+                self.assertLess(
+                    _render_figure(name), truth[name] + 1e-9,
+                    "%r now reads ABOVE what the markup emits (%g against "
+                    "%g). That is the other direction and it would fail "
+                    "its own assertion rather than hide — a different "
+                    "finding from the reds below"
+                    % (name, _render_figure(name), truth[name]))
+
+    def test_the_last_baseline_is_where_paint_puts_the_last_baseline(
+            self) -> None:
+        """FLIPPED 2026-08-20: 73.6 was written where 78.4 is emitted.
+
+        The invariant, not either number: whatever the metrics do next,
+        a figure claiming to be the last line's baseline has to be the
+        last line's baseline. Compared against the value read out of the
+        markup `render_svg` produced, so any repair landing on the right
+        number passes however it is written.
+
+        The repair taken was neither multiplier: the site now asks
+        `_wrapped_line_height`, a module-scope helper returning
+        `canvas.line_height_of` of the fixture's own text element, so
+        the transcription that went stale at six sites in one day has
+        one author here instead of a seventh copy. Green by evaluation
+        and not by wording — this class never read the expression.
+        """
+        truth = _render_truth()["last_baseline"]
+        got = _render_figure("last_baseline")
+        self.assertAlmostEqual(
+            got, truth, places=6,
+            msg="the regime test computes a last baseline of %g and "
+                "`paint` emits it at %g — %gpx short. It feeds an "
+                "`assertGreater`, so the short figure only loosens the "
+                "bound and nothing fails" % (got, truth, truth - got))
+
+    def test_the_ink_bottom_is_where_the_last_line_box_ends(self) -> None:
+        """FLIPPED 2026-08-20: 80 was written where 86.4 is emitted.
+
+        Filed separately from its sibling because it is a different
+        expression in a different method, and a repair can plausibly
+        close one and leave the other — which is what happened to the
+        two claims four lines apart in that same file that DO state 1.35
+        correctly.
+
+        The truth is the line count times the MEASURED advance, so no
+        multiplier is written on either side of the comparison.
+
+        Both closed together, by the repair its sibling names: the two
+        sites now share `_wrapped_line_height` rather than each carrying
+        a copy of the number, which is what stops the divergence this
+        docstring was written to expect.
+        """
+        truth = _render_truth()["ink_bottom"]
+        got = _render_figure("ink_bottom")
+        self.assertAlmostEqual(
+            got, truth, places=6,
+            msg="the regime test computes an ink bottom of %g and the "
+                "last line box ends at %g — %gpx short. It feeds an "
+                "`assertGreaterEqual` against a frame that clears both, "
+                "so the short figure has never failed"
+                % (got, truth, truth - got))
+
+
+# CURATOR BATCH 42 — THE PROSE THAT STATES A SPACING (2026-08-20).
+#
+# THE DEFECT IS ONE ARITHMETIC ERROR COMMITTED FIVE TIMES IN PROSE, and the
+# handback that started this batch is the fifth: measuring a text block at
+# `text_dims`' DEFAULT multiplier (`NUNITO_LINE_HEIGHT`, 1.35 — family 6)
+# when the reader in question passes `line_height_of(el)`, which is 1.25 for
+# a family-1 label. The block depths, and every chord and overhang derived
+# from them, come out wrong by `(1.35 - lh) * fontSize` per line. In one day
+# it was committed by a curator's script, by a controller's brief, by the
+# helper `_drawn_ink_band`, and by `lint_layout`'s own emitter comment — the
+# last of which an implementer corrected by hand and then reported that
+# NOTHING WOULD FAIL IF IT ROTTED AGAIN. That report is this section.
+#
+# THE INSTRUMENT IS A GUARD AND NOT A LIVEDOC MARKER, and the choice was
+# argued from `tests/livedoc.py` rather than preferred. Two reasons, either
+# sufficient:
+#
+#   * livedoc's scan surface is `git ls-files -- '*.md'`
+#     (`tracked_prose_files`). It cannot see a comment inside a `.py` file
+#     at all, so "use livedoc" here means widening that surface to source —
+#     which would put `refresh` in the business of rewriting `canvas.py`.
+#   * even if it could, this paragraph is on the CENSUS side of livedoc's
+#     own header boundary. A marker promises "you never have to think about
+#     this number"; the paragraph is an ARGUMENT — that the band's top edge
+#     collapses onto the label's `y`, so a label above the waist cannot
+#     witness a change to `drawn_h` — and its figures are the evidence for
+#     it. If they move, the argument may have stopped holding, and `refresh`
+#     would silently repair the one paragraph whose staleness should send a
+#     human to read it. That is the failure this class exists to prevent,
+#     and it is the failure a marker would automate.
+#
+# WHAT IS PINNED IS THE RELATION AND NEVER THE SCENE'S LITERALS. Every
+# figure on the right of every assertion below is derived by OBSERVING
+# `lint_layout` probe `shape_band_span` (`_check_band_probe`), on the very
+# scene the paragraph names, read out of the paragraph itself. There is no
+# 20, 40, 80, 100, 60, 72 or 112 anywhere in this section: a hardcoded-number
+# defect repaired by hardcoding the numbers into a test is the same defect
+# one level up, which is exactly how it reached `_drawn_ink_band`.
+#
+# THE HUNT FOUND MORE, and the second class below is the first-class half of
+# this batch: the SAME error, inverted, live in `tests/test_mutants.py` and
+# `tests/test_mutants_render.py` — prose stating 1.25 where the shipped
+# reader takes 1.35. See `TestTheHalfPixelProseStatesTheSpacingItMeasures`.
+# ---------------------------------------------------------------------------
+
+# The paragraph, anchored on a phrase that carries its ARGUMENT rather than
+# any of its numbers: a rewording that keeps the figures and loses the claim
+# should fail here as loudly as a rewording that keeps the claim and lets the
+# figures rot. Required to appear exactly once, so a copy-pasted second
+# emitter comment cannot let this guard measure whichever one it met first.
+_EMITTER_BAND_ANCHOR = "WHICH EDGE OF THE BAND DECIDES"
+
+# The scene, taken from the prose so the pin measures what the prose claims
+# to have measured. `rhombus` and the two `y`s are the only inputs; every
+# figure compared below is derived, never read.
+_EMITTER_SCENE = re.compile(
+    r"a (?P<w>\d+)x(?P<h>\d+) rhombus with its label at y=(?P<above>\d+)")
+_EMITTER_ABOVE = re.compile(
+    r"reads an (?P<chord>\d+)px chord whether the block is (?P<shallow>\d+)"
+    r"\s+or (?P<deep>\d+)px deep")
+# THE CHORDS AND THE OVERHANGS ARE TWO PATTERNS, and the split is a repair
+# rather than tidiness. One regex covering the whole sentence REQUIRED the
+# overhang clause — so the repair this batch recommends, dropping that clause
+# and keeping the chords, would have made the guard raise instead of pass. A
+# check whose anchor forbids the fix it is asking for is prescribing the
+# wording, which is the same trap the half-pixel enumeration was caught in
+# one round earlier. The chord half is MANDATORY, because it carries the
+# paragraph's argument; the overhang half was OPTIONAL, and the two methods
+# that read it skipped themselves — visibly, and with instructions to
+# delete them — when it went.
+#
+# IT WENT, 2026-08-20, and the optional half of this pattern is what is
+# left of it: the clause was dropped by the arm's owner and the two methods
+# were deleted as their own skip messages instructed. The `(?: and \d+px of
+# overhang)?` groups stay non-capturing and optional rather than being
+# removed, because a paragraph that grows the clause back should be matched
+# and not silently missed by an anchor that had narrowed to today's
+# sentence — the same argument that made the clause optional in the first
+# place, run the other way.
+_EMITTER_BELOW = re.compile(
+    r"at y=(?P<y>\d+):\s+(?P<chord_shallow>\d+)px chord"
+    r"(?: and \d+px of overhang)? at (?P<shallow>\d+)px\s+deep, "
+    r"(?P<chord_deep>\d+)px (?:and \d+px )?at (?P<deep>\d+)px\)")
+
+
+def _emitter_band_prose() -> str:
+    """The emitter paragraph in `lint_layout`, de-commented and unwrapped.
+
+    Refuses rather than returns empty when the anchor is missing or
+    doubled. A guard whose subject has been deleted must not report
+    "nothing has drifted" — that is the shape nineteen instruments in
+    this tree were caught in, and a guard over a COMMENT is the one most
+    able to hide in it, because deleting a comment breaks nothing else.
+
+    Returns:
+        The paragraph as one whitespace-collapsed line, from the anchor
+        to the end of the comment block that carries it.
+
+    Raises:
+        AssertionError: If `canvas.py` is not in this tree, or if the
+            anchor appears any number of times other than once.
+    """
+    if not _CANVAS_SRC.is_file():
+        raise AssertionError(
+            "%s is not in this tree, so the emitter's prose cannot be "
+            "compared against what the emitter measures. This is a "
+            "finding about the checkout, not about the paragraph"
+            % _CANVAS_SRC)
+    lines = _CANVAS_SRC.read_text(encoding="utf-8").splitlines()
+    at = [i for i, ln in enumerate(lines) if _EMITTER_BAND_ANCHOR in ln]
+    if len(at) != 1:
+        raise AssertionError(
+            "%r appears %d times in canvas.py and this guard needs "
+            "exactly one. Zero means the paragraph it watches has been "
+            "deleted or reworded past its anchor — the figures are then "
+            "unwatched, which is the state this class was written to end. "
+            "More than one means the guard would measure whichever copy "
+            "it met first" % (_EMITTER_BAND_ANCHOR, len(at)))
+    body: list[str] = []
+    for raw in lines[at[0]:]:
+        stripped = raw.strip()
+        if not stripped.startswith("#"):
+            break
+        body.append(stripped.lstrip("#").strip())
+    return " ".join(" ".join(body).split())
+
+
+def _emitter_figure(pattern: re.Pattern[str], what: str) -> dict[str, int]:
+    """Pull one of the paragraph's claims out, or say which one is gone.
+
+    Args:
+        pattern: A named-group regex over the collapsed paragraph.
+        what: How to name the claim in the failure, for a reader who has
+            to decide whether the sentence moved or the guard did.
+
+    Returns:
+        The named groups, as ints.
+
+    Raises:
+        AssertionError: If the claim does not appear exactly once. Same
+            reasoning as `_emitter_band_prose`: a claim that has been
+            reworded out of recognition is an UNWATCHED claim, and the
+            guard says so rather than passing over a paragraph it can no
+            longer parse.
+    """
+    found = pattern.findall(_emitter_band_prose())
+    if len(found) != 1:
+        raise AssertionError(
+            "the emitter paragraph states its %s %d times and this guard "
+            "needs exactly once. The sentence has been reworded past "
+            "%r, so its figures are no longer compared against anything "
+            "— restate it or re-point this pattern, but do not leave the "
+            "numbers behind unwatched" % (what, len(found), pattern.pattern))
+    return {k: int(v)
+            for k, v in pattern.search(_emitter_band_prose()).groupdict()
+            .items()}
+
+
+def _emitter_rhombus(y: int, text: str, width: int,
+                     height: int) -> list[dict]:
+    """The paragraph's own scene: a rhombus carrying one bound label.
+
+    FAMILY 1 AND NOT THIS FILE'S OWN FONT, which is the whole reason the
+    scene can witness anything. `text_dims` defaults to
+    `NUNITO_LINE_HEIGHT` (family 6, 1.35); a family-1 label lays out at
+    1.25, so the two readings of one block differ by `0.10 * fontSize`
+    per line and the paragraph's figures are only reproducible at one of
+    them. Mint this label in family 6 and the pin goes quietly inert —
+    which `test_the_scene_can_still_tell_the_two_spacings_apart` is
+    there to refuse.
+
+    Args:
+        y: The label's stored top. The paragraph names two, one above
+            the rhombus's waist and one below it, and the contrast
+            between them is its claim.
+        text: The label's content. One whitespace-free token, so
+            `wrap_label_text` emits it whole while `client_wrapped_lines`
+            chops it — which is how one scene yields both a one-line and
+            a two-line block without varying anything else.
+        width: The rhombus's width, read from the paragraph.
+        height: The rhombus's height, read from the paragraph.
+
+    Returns:
+        The two-element scene: the node `n1`, then its bound label `t1`.
+    """
+    return [el(id="n1", type="diamond", x=0, y=0, width=width,
+               height=height, customData={"role": "node"},
+               boundElements=[{"id": "t1", "type": "text"}]),
+            el(id="t1", type="text", x=45, y=y, width=110, height=20,
+               text=text, fontSize=16, fontFamily=1, textAlign="center",
+               verticalAlign="middle", containerId="n1",
+               originalText=text)]
+
+
+# One line under a 200-wide rhombus's 90px cap, and one token that fits
+# nowhere. Which token does not matter and no figure below depends on it —
+# what matters is that the client paints one line of the first and two of the
+# second, so the observed bands ARE the shallow and deep blocks the paragraph
+# names. `test_the_two_labels_really_paint_one_line_and_two` holds that.
+_EMITTER_ONE_LINE = "Ack"
+_EMITTER_TWO_LINE = "Acknowledged"
+
+
+def _emitter_band(y: int, text: str, width: int,
+                  height: int) -> tuple[float, float]:
+    """The band `lint_layout` really probes, on the paragraph's scene.
+
+    OBSERVED THROUGH THE CHECK, not re-derived beside it. A second
+    transcription of `lint_layout`'s two lines would drift from them in
+    exactly the way the paragraph drifted, and would then agree with a
+    rotted paragraph about a band nothing is drawn at. `_check_band_probe`
+    watches the call.
+
+    Args:
+        y: The label's stored top.
+        text: The label's content.
+        width: The rhombus's width.
+        height: The rhombus's height.
+
+    Returns:
+        `(band_top, band_bottom)` in scene coordinates.
+    """
+    return _check_band_probe(
+        _emitter_rhombus(y, text, width, height))[1:]
+
+
+def _emitter_chord(y: int, text: str, width: int, height: int) -> float:
+    """How wide the rhombus is across the band that label's block occupies.
+
+    Args:
+        y: The label's stored top.
+        text: The label's content.
+        width: The rhombus's width.
+        height: The rhombus's height.
+
+    Returns:
+        The narrowest chord's width in px.
+
+    Raises:
+        AssertionError: If the band misses the body, where there is no
+            chord to report and the paragraph's premise is gone.
+    """
+    scene = _emitter_rhombus(y, text, width, height)
+    span = canvas.shape_band_span(scene[0], *_emitter_band(y, text, width,
+                                                           height))
+    if span is None:
+        raise AssertionError(
+            "the band a %r label occupies at y=%d misses a %dx%d rhombus "
+            "altogether, so there is no chord for the paragraph to be "
+            "right or wrong about" % (text, y, width, height))
+    return span[1] - span[0]
+
+
+class TestTheEmitterProseMeasuresTheSpacingItDescribes(unittest.TestCase):
+    """`lint_layout`'s band paragraph, against what `lint_layout` measures.
+
+    GREEN ON ARRIVAL, and it is green because an implementer corrected
+    the paragraph by hand on 2026-08-20 (TASK-INKBAND-SPACING) — the
+    fourth commit of one arithmetic error and the first correction of it.
+    Nothing failed when they made that correction and nothing would have
+    failed if they had got it wrong, which is the whole reason this
+    class exists.
+
+    EVERY FIGURE WAS RE-DERIVED RATHER THAN ACCEPTED, because the error's
+    own history says a corrected number is not a checked one: the
+    handback's table was verified against the shipped code before this
+    was written, and all five figures reproduce — one line 20px, two
+    lines 40, an 80px chord above the waist under both, and 100 -> 60
+    below it.
+
+    THE OVERHANGS WERE CHALLENGED AND THE CHALLENGE WAS MEASURED, which
+    is the part of this class worth reading. A reviewer derived that the
+    pair solves to an ink of 172, identified 172 as `text_dims`'
+    RESERVED width for `'Send for second review'` — whose
+    `text_ink_width`, the number this arm actually reads, is 170 — and
+    concluded the pair should be 70 -> 110 and that no scene on this
+    rhombus pairs a shallow-or-deep block with 172px of ink anyway.
+    Both halves were checked here and both fail:
+
+      * `'Send for second review'` wraps to THREE lines under a 90px
+        cap on BOTH wraps, so it paints a 60px block and cannot produce
+        the shallow/deep contrast the sentence is about. The one string
+        that gives an ink of 170 is the one string that cannot be this
+        scene, so it cannot be the evidence that 172 was a `text_dims`
+        reading.
+      * 172 is reachable as an `text_ink_width` — a single over-wide
+        token of exactly that ink, left whole by `wrap_label_text` and
+        chopped to two lines by `client_wrapped_lines`, sits on the very
+        rhombus in question, where the check emits 112. 170 is equally
+        reachable and emits 110. Every integer ink from 91 to 179 is
+        reachable there.
+
+    So the paragraph was CORRECT AS WRITTEN if its label carried 172px
+    of ink and wrong if it carried 170, and it never said which — which
+    is the real defect and is not one a curator can settle.
+
+    THE CLAUSE WAS DROPPED on 2026-08-20 by the arm's owner, which is
+    one of the two repairs this class named and the one that leaves
+    nothing uncheckable behind. The two methods that read the pair went
+    with it, and their skip messages said to delete them rather than
+    leave them skipped. What was measured before dropping it, and is
+    kept because a deletion cannot be re-derived: the DEEP row is real
+    at either value, but the SHALLOW row is emitted by no label at all —
+    of 282 texts painting a 20px block on the centred arrangement, zero
+    produce any overhang, since a 20px block sits on the 100px chord and
+    nothing the client keeps on one line under a 90px cap is that wide.
+    Naming a label, the other repair, would have made the shallow figure
+    false out loud rather than merely unverifiable.
+
+    PROVEN GREEN FOR ITS OWN REASON, not merely observed green. Restore
+    `drawn_h = text_dims(drawn, fs)` in `lint_layout` — the default
+    multiplier, which is what produced the figures this paragraph
+    carried until 2026-08-20 — and the depth and chord methods below
+    fail with 22/44 against the prose's 20/40 and 96/52 against 100/60.
+    Delete the paragraph and every method errors on the anchor instead of
+    passing, which is the property a guard over a COMMENT most needs and
+    least often has.
+    """
+
+    def test_the_paragraph_is_where_this_guard_thinks_it_is(self) -> None:
+        """The subject exists, exactly once, and still parses.
+
+        First because it is the failure the other methods cannot make:
+        each of them raises from `_emitter_figure` when its sentence is
+        gone, and an error under a suite that also carries expected
+        failures is easy to read as noise. This one says plainly which
+        of the three claims went missing.
+        """
+        prose = _emitter_band_prose()
+        self.assertIn(
+            "px chord", prose,
+            "the emitter paragraph no longer states a chord in px, so "
+            "there is nothing here for the check's own reading to be "
+            "compared against: %r" % prose[:200])
+        for pattern, what in ((_EMITTER_SCENE, "scene"),
+                              (_EMITTER_ABOVE, "above-the-waist claim"),
+                              (_EMITTER_BELOW, "below-the-waist claim")):
+            with self.subTest(claim=what):
+                _emitter_figure(pattern, what)
+
+    def test_the_scene_can_still_tell_the_two_spacings_apart(self) -> None:
+        """The premise: this label's own spacing is not `text_dims`' default.
+
+        The paragraph's figures are only wrong at one multiplier and
+        right at another, so a scene where the two coincide would make
+        every assertion below pass without distinguishing them — the
+        inert-verification trap, which this repo has now met on both the
+        fix side and the pin side of the same defect. Asserted as the
+        INEQUALITY rather than as 1.25 against 1.35, so it keeps saying
+        "this scene can witness the error" if either constant moves.
+        """
+        scene = _emitter_rhombus(40, _EMITTER_ONE_LINE, 200, 200)
+        self.assertNotEqual(
+            canvas.line_height_of(scene[1]), canvas.NUNITO_LINE_HEIGHT,
+            "this label now lays out at `text_dims`' own default "
+            "(%g), so measuring it at the default and measuring it at "
+            "its own spacing give the same answer and nothing below can "
+            "tell a paragraph written at the wrong one from a paragraph "
+            "written at the right one"
+            % canvas.line_height_of(scene[1]))
+
+    def test_the_two_labels_really_paint_one_line_and_two(self) -> None:
+        """The other premise: the scene yields both depths it is asked for.
+
+        The paragraph contrasts a shallow block with a deep one, and
+        this class produces the pair by swapping the token rather than
+        by computing a second depth from the first. If a wider cap or a
+        chop-aware wrap ever made both tokens paint the same number of
+        lines, the two "different" depths would be one depth and the
+        contrast the paragraph draws would be untestable — so it fails
+        here, where the message is about the stage, rather than silently
+        below.
+        """
+        node = _emitter_rhombus(40, _EMITTER_ONE_LINE, 200, 200)[0]
+        cap = int(canvas.client_wrap_width(node))
+        painted = [len(canvas.client_wrapped_lines(text, cap, 16))
+                   for text in (_EMITTER_ONE_LINE, _EMITTER_TWO_LINE)]
+        self.assertEqual(
+            painted, [1, 2],
+            "the client paints %r lines of %r and %r, not one and two — "
+            "the stage no longer produces the shallow and deep blocks "
+            "the paragraph contrasts"
+            % (painted, _EMITTER_ONE_LINE, _EMITTER_TWO_LINE))
+
+    def test_the_block_depths_are_the_ones_the_check_measures(self) -> None:
+        """The paragraph's "20 or 40px deep", against the probed bands.
+
+        The two depths are read off the interval `lint_layout` hands
+        `shape_band_span`, so what is compared is the paragraph against
+        the check and not the paragraph against a second copy of the
+        check. This is the assertion that fails at 22 and 44 the moment
+        anything measures this label at `text_dims`' default again.
+        """
+        scene = _emitter_figure(_EMITTER_SCENE, "scene")
+        said = _emitter_figure(_EMITTER_ABOVE, "above-the-waist claim")
+        got = tuple(
+            round(bottom - top) for top, bottom in
+            (_emitter_band(scene["above"], text, scene["w"], scene["h"])
+             for text in (_EMITTER_ONE_LINE, _EMITTER_TWO_LINE)))
+        self.assertEqual(
+            got, (said["shallow"], said["deep"]),
+            "the paragraph says the block is %dpx or %dpx deep and the "
+            "check measures %dpx and %dpx — a %dpx and %dpx disagreement, "
+            "which is what measuring this label at %g instead of its own "
+            "%g costs per reading"
+            % (said["shallow"], said["deep"], got[0], got[1],
+               got[0] - said["shallow"], got[1] - said["deep"],
+               canvas.NUNITO_LINE_HEIGHT,
+               canvas.line_height_of(
+                   _emitter_rhombus(scene["above"], _EMITTER_ONE_LINE,
+                                    scene["w"], scene["h"])[1])))
+
+    def test_the_chord_above_the_waist_is_inert_and_is_quoted_right(
+            self) -> None:
+        """The claim ITSELF — one chord under both depths — and its value.
+
+        Two assertions and not one, because the paragraph makes two
+        claims here and only one of them is a number. The INERTNESS is
+        the argument ("a label above the waist keeps its chord however
+        the block deepens"), and it is asserted as the equality of the
+        two readings rather than as a figure, so it goes on meaning the
+        same thing if the metrics move. The FIGURE is then compared
+        against the shared reading. A paragraph that got the argument
+        right and the number wrong, or the number right and the argument
+        wrong, fails one of the two.
+        """
+        scene = _emitter_figure(_EMITTER_SCENE, "scene")
+        said = _emitter_figure(_EMITTER_ABOVE, "above-the-waist claim")
+        chords = [_emitter_chord(scene["above"], text, scene["w"],
+                                 scene["h"])
+                  for text in (_EMITTER_ONE_LINE, _EMITTER_TWO_LINE)]
+        self.assertEqual(
+            chords[0], chords[1],
+            "a label above the waist now reads a %gpx chord on the "
+            "shallow block and %gpx on the deep one, so the paragraph's "
+            "argument — that this edge cannot witness a change to "
+            "`drawn_h` — has stopped being true and its figures are the "
+            "smaller half of what is wrong" % (chords[0], chords[1]))
+        self.assertEqual(
+            round(chords[0]), said["chord"],
+            "the paragraph quotes a %dpx chord above the waist and the "
+            "check reads %gpx" % (said["chord"], chords[0]))
+
+    def test_the_chords_below_the_waist_are_the_ones_quoted(self) -> None:
+        """The paragraph's "100px chord ... 60px", against the probe.
+
+        The pair, asserted as a pair: the deep block's chord is the one
+        the paragraph names AND is not the shallow block's, because
+        either half alone passes in a world where the two collapse — and
+        a world where they collapse is a world where the paragraph's
+        whole point ("only a label at or BELOW the waist can witness a
+        change to `drawn_h`") is false.
+        """
+        scene = _emitter_figure(_EMITTER_SCENE, "scene")
+        said = _emitter_figure(_EMITTER_BELOW, "below-the-waist claim")
+        shallow, deep = (
+            _emitter_chord(said["y"], text, scene["w"], scene["h"])
+            for text in (_EMITTER_ONE_LINE, _EMITTER_TWO_LINE))
+        self.assertEqual(
+            (round(shallow), round(deep)),
+            (said["chord_shallow"], said["chord_deep"]),
+            "the paragraph says the chord runs %dpx -> %dpx as the block "
+            "deepens from %dpx to %dpx, and the check reads %gpx -> %gpx"
+            % (said["chord_shallow"], said["chord_deep"], said["shallow"],
+               said["deep"], shallow, deep))
+        self.assertGreater(
+            shallow, deep,
+            "the chord no longer NARROWS as the block deepens (%gpx -> "
+            "%gpx), so this label is not below the waist any more and "
+            "the paragraph is contrasting two readings of one edge"
+            % (shallow, deep))
+
+
+_APEX_PIN_OWNER = "TestTheInkBandHelperMeasuresTheCheckItQuotes"
+_APEX_PIN_METHOD = "test_the_check_itself_measures_at_the_labels_own_spacing"
+
+
+def _apex_pin_derivation() -> ast.FunctionDef:
+    """The subject method's own syntax tree, or a refusal.
+
+    READ FROM THE SUBJECT AND NOT COPIED BESIDE IT, which is the whole
+    correction this helper exists for. The first version of this class
+    transcribed the method's arithmetic into a local and compared
+    against the transcription — so repairing the SUBJECT left both reds
+    red, a red watching a copy of a defect rather than the defect. That
+    is the same class of fault the class reports, committed inside the
+    report of it, which is now three times for this family in one day.
+
+    Returns:
+        The `ast.FunctionDef` of the pinned method.
+
+    Raises:
+        AssertionError: If the owning class or the method is gone. A
+            red whose subject has been deleted must say so rather than
+            go on failing about a tree that no longer exists. Also if
+            the source no longer parses to a plain `def`, which is the
+            same refusal one step later: a decorator this helper cannot
+            see through, or a method replaced by an assignment, would
+            otherwise be read as though it were the pin.
+    """
+    owner = globals().get(_APEX_PIN_OWNER)
+    method = getattr(owner, _APEX_PIN_METHOD, None) if owner else None
+    if method is None:
+        raise AssertionError(
+            "%s.%s is not in this file. The pin this class watches has "
+            "been renamed or deleted — delete this class with it rather "
+            "than leaving reds about a method nobody has"
+            % (_APEX_PIN_OWNER, _APEX_PIN_METHOD))
+    tree = ast.parse(textwrap.dedent(inspect.getsource(method)))
+    node = tree.body[0]
+    if not isinstance(node, ast.FunctionDef):
+        raise AssertionError(
+            "%s.%s no longer parses as a plain `def` — it is a %s. This "
+            "helper reads the SUBJECT's syntax tree, so anything it "
+            "cannot recognise must refuse rather than be measured"
+            % (_APEX_PIN_OWNER, _APEX_PIN_METHOD, type(node).__name__))
+    return node
+
+
+def _apex_pin_calls(name: str,
+                    node: ast.FunctionDef | None = None) -> list[ast.Call]:
+    """Every call to `name` inside the subject method.
+
+    Args:
+        name: The attribute called on `canvas`, e.g. `text_dims`.
+        node: A function to read INSTEAD of the pinned method. Only the
+            guard's own proof cases below pass this, and they pass
+            known-bad repairs on purpose: a predicate that can never be
+            aimed at an input it should reject has no way to show it
+            bites, and this file's whole subject is checks that pass
+            without checking.
+
+    Returns:
+        The matching `ast.Call` nodes, in source order.
+    """
+    found = []
+    for sub in ast.walk(node if node is not None else _apex_pin_derivation()):
+        if not isinstance(sub, ast.Call):
+            continue
+        fn = sub.func
+        if isinstance(fn, ast.Attribute) and fn.attr == name:
+            found.append(sub)
+    return found
+
+
+_APEX_SIZE_PARAMS = ("fs", "font_size")
+_APEX_SIZE_CALLS = ("client_wrapped_lines", "text_dims")
+
+
+def _apex_size_parameter(name: str) -> int:
+    """Where `canvas.<name>` takes its font size, by position.
+
+    Resolved from the LIVE signature rather than written down beside
+    it. A parameter that moved would otherwise point the guard below at
+    some other argument silently — a size check that had drifted onto
+    the wrap width reads green over every input, which is this class's
+    own defect class committed inside the repair for it.
+
+    Args:
+        name: The `canvas` function called, e.g. `text_dims`.
+
+    Returns:
+        The zero-based index of its font-size parameter.
+
+    Raises:
+        AssertionError: If it has no font-size parameter or more than
+            one. Either way the guard cannot say which argument carries
+            the size, and a guard that cannot find its subject must
+            refuse rather than pass.
+    """
+    params = list(inspect.signature(getattr(canvas, name)).parameters)
+    found = [i for i, p in enumerate(params) if p in _APEX_SIZE_PARAMS]
+    if len(found) != 1:
+        raise AssertionError(
+            "canvas.%s takes %d parameters named %s, so the guard below "
+            "cannot tell which argument carries the font size: %s"
+            % (name, len(found), " or ".join(_APEX_SIZE_PARAMS), params))
+    return found[0]
+
+
+def _apex_size_arguments(
+        node: ast.FunctionDef) -> list[tuple[str, ast.expr]]:
+    """Every font-size argument handed to a wrap or metric call in `node`.
+
+    Keywords are read as well as positions, because the guard this
+    feeds replaced one that read `call.args` alone — and `text_dims(…,
+    font_size=16)` sailed past that one untouched.
+
+    Args:
+        node: The function whose body is being read.
+
+    Returns:
+        `(called name, the expression passed as its font size)`, one per
+        call, in call order.
+
+    Raises:
+        AssertionError: If a call passes a font size the guard cannot
+            locate — a splat, or too few positionals. Reporting nothing
+            about such a call would make the guard quietest exactly
+            where its subject is strangest.
+    """
+    out: list[tuple[str, ast.expr]] = []
+    for name in _APEX_SIZE_CALLS:
+        index = _apex_size_parameter(name)
+        for call in _apex_pin_calls(name, node):
+            passed = None
+            for kw in call.keywords:
+                if kw.arg in _APEX_SIZE_PARAMS:
+                    passed = kw.value
+            if passed is None and len(call.args) > index:
+                passed = call.args[index]
+            if passed is None:
+                raise AssertionError(
+                    "a call to canvas.%s in %s passes a font size this "
+                    "guard cannot find (%d positional argument(s), "
+                    "keywords %s) — read it rather than trusting a green "
+                    "that was never taken"
+                    % (name, _APEX_PIN_METHOD, len(call.args),
+                       [kw.arg for kw in call.keywords]))
+            out.append((name, passed))
+    return out
+
+
+def _apex_bindings(node: ast.FunctionDef) -> dict[str, list[ast.expr]]:
+    """Every local name in `node`, mapped to what it was bound from.
+
+    Args:
+        node: The function whose body is being read.
+
+    Returns:
+        Local name -> the expressions assigned to it, in source order.
+        A name bound twice keeps both, so the guard below cannot be
+        satisfied by one honest binding beside a fixture-sized one.
+    """
+    bound: dict[str, list[ast.expr]] = {}
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Assign):
+            targets: list[ast.expr] = list(sub.targets)
+        elif isinstance(sub, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+            targets = [sub.target]
+        else:
+            continue
+        if sub.value is None:
+            continue
+        for target in targets:
+            for leaf in ast.walk(target):
+                if isinstance(leaf, ast.Name):
+                    bound.setdefault(leaf.id, []).append(sub.value)
+    return bound
+
+
+def _apex_reads_a_font_size(expr: ast.expr,
+                            bound: dict[str, list[ast.expr]]) -> bool:
+    """Whether `expr`'s derivation reaches a `fontSize` read off an element.
+
+    The invariant the guard's NAME claims, walked backwards through the
+    method's own local bindings: a size is taken from the label when the
+    thing it was computed from is `el["fontSize"]` or
+    `el.get("fontSize")`. Following the bindings is the whole point —
+    the guard this replaced looked only at the call site, so a constant
+    bound one line above satisfied it.
+
+    Args:
+        expr: The expression passed as a font size.
+        bound: `_apex_bindings` for the enclosing function.
+
+    Returns:
+        True when some `fontSize` read is reachable backwards from
+        `expr`. False means the size came from somewhere that is not the
+        label.
+    """
+    stack: list[ast.AST] = [expr]
+    seen: set[str] = set()
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, ast.Subscript) and isinstance(
+                cur.slice, ast.Constant) and cur.slice.value == "fontSize":
+            return True
+        if (isinstance(cur, ast.Call) and isinstance(cur.func, ast.Attribute)
+                and cur.func.attr == "get" and cur.args
+                and isinstance(cur.args[0], ast.Constant)
+                and cur.args[0].value == "fontSize"):
+            return True
+        if isinstance(cur, ast.Name):
+            if cur.id not in seen:
+                seen.add(cur.id)
+                stack.extend(bound.get(cur.id, []))
+            continue
+        stack.extend(ast.iter_child_nodes(cur))
+    return False
+
+
+def _apex_sizes_not_read_from_the_label(node: ast.FunctionDef) -> list[str]:
+    """The wrap and metric calls in `node` taking a size off something else.
+
+    Args:
+        node: The function whose body is being read.
+
+    Returns:
+        One `'call <- source'` line per offending argument, empty when
+        every size is derived from a `fontSize` read. The binding is
+        quoted as well as the argument, because `fs` at a call site is
+        the shape of a repair and `fs = 16` is the defect.
+    """
+    bound = _apex_bindings(node)
+    blind = []
+    for name, expr in _apex_size_arguments(node):
+        if _apex_reads_a_font_size(expr, bound):
+            continue
+        quoted = ast.unparse(expr)
+        if isinstance(expr, ast.Name) and bound.get(expr.id):
+            quoted = "%s (bound from %s)" % (quoted, ", ".join(
+                ast.unparse(each) for each in bound[expr.id]))
+        blind.append("%s <- %s" % (name, quoted))
+    return blind
+
+
+def _apex_proof_tree(source: str) -> ast.FunctionDef:
+    """Parse a synthetic repair that the guard's proof cases aim at it.
+
+    Args:
+        source: A method body written to imitate one repair shape.
+
+    Returns:
+        The `ast.FunctionDef` the guard reads.
+
+    Raises:
+        AssertionError: If `source` is not a single function definition.
+    """
+    tree = ast.parse(textwrap.dedent(source).strip())
+    node = tree.body[0]
+    if not isinstance(node, ast.FunctionDef):
+        raise AssertionError(
+            "a proof case for the size guard is not a function "
+            "definition, so the guard is being fired at nothing: %r"
+            % source.strip()[:120])
+    return node
+
+
+# The repair shapes the size guard is aimed at, so that "it is green" and
+# "it checked something" stop being the same sentence. Every one of the
+# fixture-sized four passed the guard this file carried until 2026-08-25:
+# it collected integer literals out of `call.args`, which none of them puts
+# there. The size argument is spelled at a different site in each.
+_APEX_HONEST_REPAIRS = {
+    "the shipped repair, the check's own binding": """
+        def m(self) -> None:
+            fs = lbl.get("fontSize") or 16
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                             fs, canvas.line_height_of(lbl))
+    """,
+    "a plain subscript, no `get` anywhere": """
+        def m(self) -> None:
+            fs = lbl["fontSize"]
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                             fs, canvas.line_height_of(lbl))
+    """,
+}
+_APEX_FIXTURE_SIZED_REPAIRS = {
+    "a literal bound one line above": """
+        def m(self) -> None:
+            fs = 16
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                             fs, canvas.line_height_of(lbl))
+    """,
+    "a literal passed by keyword": """
+        def m(self) -> None:
+            canvas.text_dims(canvas.client_wrapped_lines(
+                flat, 100, fs=16), font_size=16,
+                line_height=canvas.line_height_of(lbl))
+    """,
+    "a literal written as a float": """
+        def m(self) -> None:
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, 16.0),
+                             16.0, canvas.line_height_of(lbl))
+    """,
+    "a size read off a module constant instead of the label": """
+        def m(self) -> None:
+            fs = canvas.MIN_FONT_FLOOR
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                             fs, canvas.line_height_of(lbl))
+    """,
+}
+# THE HOLE THE GUARD STILL HAS, kept under its own name because it is a
+# decision and not an oversight. See the case that pins it.
+_APEX_MENTIONS_WITHOUT_USING = """
+    def m(self) -> None:
+        fs = 16 if lbl.get("fontSize") else 16
+        canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                         fs, canvas.line_height_of(lbl))
+"""
+
+
+def _apex_divergence(**overrides: object) -> tuple[float, int]:
+    """What the check reads, and what a fixture-sized reading gives.
+
+    The MAGNITUDE evidence for the two reds, kept out of their
+    assertions on purpose. The reds assert on the subject's SOURCE, so
+    they flip when it is repaired; this supplies the px numbers that say
+    the defect is not cosmetic, and it stays true whichever way the
+    repair goes.
+
+    Args:
+        **overrides: Fields merged into the apex fixture's bound label.
+
+    Returns:
+        `(band_depth_the_check_measures, depth_a_literal_16_unflattened
+        _reading_gives)`.
+    """
+    scene = [dict(e) for e in _apex_band_stage()]
+    scene[1].update(overrides)
+    if "text" in overrides:
+        scene[1]["originalText"] = overrides["text"]
+    _body, top, bottom = _check_band_probe(scene)
+    blind = canvas.text_dims("\n".join(canvas.client_wrapped_lines(
+        scene[1]["text"], int(canvas.client_wrap_width(scene[0])), 16)),
+        16, canvas.line_height_of(scene[1]))[1]
+    return bottom - top, blind
+
+
+class TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture(
+        unittest.TestCase):
+    """`TestTheInkBandHelperMeasuresTheCheckItQuotes`' live pole, measured.
+
+    THE SAME SHAPE THIS BATCH EXISTS FOR, one class over, found by a
+    reviewer on 2026-08-20. That class's ungated green pins WHICH SIDE
+    of the ink-band disagreement is correct — so a repair dragging the
+    check onto `text_dims`' default would fail there rather than pass
+    quietly. It reproduces the check's block with two inputs the check
+    does not use: it writes `16` where the check reads the element's own
+    `fontSize`, twice, and it passes the label's text whole where the
+    check replaces newlines with spaces first.
+
+    It agrees today only because the apex fixture is fontSize 16 with no
+    newline in it. That is the "agreed by luck" the fix's own commit
+    named on the wrap axis, living inside the class that commit flipped.
+
+    THE REDS ASSERT ON THE SUBJECT'S SOURCE, and the reason is a defect
+    this class was caught in before it landed. They first compared the
+    check's band against a TRANSCRIPTION of the method's arithmetic kept
+    here — and a transcription is not the subject: repairing the real
+    method left both reds red, because nothing they read had changed.
+    They now walk the method's own syntax tree, so the repair flips them
+    and deleting the method makes them refuse instead of fail.
+
+    MEASURED, so neither red rests on inspection: move the fixture to
+    fontSize 20 and the check's band is 75px deep where a literal-16
+    reading gives 60. Neither is a wrong answer TODAY, because the
+    fixture is neither — the defect is a pin that would go on passing
+    over a check that had broken on either axis.
+
+    NOT REPAIRED HERE. The method belongs to the ink-band class and the
+    repair is two edits: read `lbl["fontSize"]`, and flatten as the
+    check does. A curator writing both the acceptance test and the fix
+    is the pattern this charter refuses.
+
+    REPAIRED THERE, SAME DAY, and both reds flipped in that commit —
+    both edits made in the METHOD, which after the laundering round is
+    the only place that could have flipped anything. The separation this
+    class filed them apart for held under measurement:
+
+        reverted to the original method   -> both reds return
+        size axis reverted only           -> the size red only
+        flatten axis reverted only        -> the flatten red only
+        method deleted                    -> 3 fail, presence green first
+
+    ONE BLIND SPOT, DISCLOSED 2026-08-20 AND CLOSED 2026-08-25. As
+    filed, the size red forbade an integer literal in the ARGUMENTS of
+    the wrap and metric calls — so binding `fs = 16` one line above and
+    passing it by name left all four methods green over a
+    fixture-derived size that never reads the label, wearing the
+    repair's shape. The landed repair did read the label, so the tree
+    was honest; what the handback recorded was that the RED did not
+    compel it. It was left as found ON PURPOSE, because an acceptance
+    test tightened by the hand it accepts is the pattern this class
+    exists inside — and the disclosure lived only in a commit message,
+    which is a place nobody reads a green from.
+
+    A reviewer's Minor moved it into the tree. Reproduced first, on the
+    shipped method, three shapes and not one: `fs = 16` bound above,
+    `font_size=16` passed by keyword (never in `args`), and `16.0`
+    (never an `int`). The size red now walks the argument backwards
+    through the method's own bindings and demands a `fontSize` read, so
+    all three fail it and the name is finally the assertion. Measured
+    the same way as the table above:
+
+        fs = 16 bound one line above  -> the size red only
+        the literal by keyword        -> the size red only
+        the literal as a float        -> the size red only
+        method deleted                -> 3 fail, unchanged
+
+    TWO CASES CAME WITH IT, because a widened predicate that nobody
+    aimed at a bad input is the same unproven claim in a larger costume:
+    one fires the guard at four fixture-sized repairs and two honest
+    ones, the other pins the single shape it still lets through and the
+    reason that is tolerable.
+
+    KEPT AFTER THE FLIP rather than deleted with the defect. Both reds
+    read the method's own syntax tree, so they go on refusing a pinned
+    method that drifts back onto a literal — which is the only thing
+    that made this findable in the first place.
+    """
+
+    def test_the_pin_this_class_watches_is_still_in_the_tree(self) -> None:
+        """The subject exists and still measures a block at all.
+
+        First, because both reds raise from `_apex_pin_derivation` when
+        the method is gone, and a raise under `expectedFailure` reads as
+        a healthy red. This says plainly that the subject went missing.
+        """
+        node = _apex_pin_derivation()
+        self.assertTrue(
+            _apex_pin_calls("client_wrapped_lines")
+            and _apex_pin_calls("text_dims"),
+            "%s no longer wraps and measures a block, so there is no "
+            "derivation here for the check to be reproduced by: %s"
+            % (_APEX_PIN_METHOD, ast.dump(node)[:200]))
+
+    def test_the_divergence_the_reds_describe_is_real_and_measured(
+            self) -> None:
+        """GREEN: at fontSize 20 the two readings are 75px and 60px apart.
+
+        The live half, ungated, and the magnitude the reds' names quote.
+        It stays true after the repair — it is a fact about `canvas`,
+        not about the pin — so it goes on recording WHY the reds existed
+        once they have flipped. It also proves the instrument: a
+        `_check_band_probe` that had stopped reaching the check would
+        fail here rather than hide under an expected failure.
+
+        The DIRECTION is asserted, not just the difference: the blind
+        reading is the SMALLER one, so a check that had drifted to a
+        shallower block than the client paints would satisfy the pin
+        that exists to catch exactly that.
+        """
+        deep, blind = _apex_divergence(fontSize=20)
+        self.assertGreater(
+            deep, blind,
+            "a literal-16 reading no longer under-measures this label at "
+            "fontSize 20 (check %.0fpx, blind reading %d) — the axis the "
+            "reds below are about has stopped existing, so re-derive "
+            "them rather than deleting them" % (deep, blind))
+        same, blind_same = _apex_divergence()
+        self.assertEqual(
+            same, blind_same,
+            "on the SHIPPED fixture the two readings disagree (%.0f "
+            "against %d), which would mean that pin is failing rather "
+            "than over-fitting — a bigger finding than the reds"
+            % (same, blind_same))
+
+    def test_the_pin_takes_its_font_size_from_the_label(self) -> None:
+        """GREEN since 2026-08-20. RED WAS: `16` written in twice.
+
+        The invariant, not the number: a pin claiming to reproduce the
+        check's block must take the font size from the label it is
+        handed. Asserted over the method's own syntax tree, so it flips
+        the moment the literal becomes an attribute read and cannot be
+        satisfied by anything else — which is why the repair had to be
+        made in the METHOD. It was: `fs = lbl.get("fontSize") or 16`,
+        transcribing the check's own binding, `or 16` included, so a
+        label carrying no size reaches the same default the check gives
+        it.
+
+        Every numeric literal in the wrap and metric calls is reported,
+        because the method passed two and a repair that fixed one would
+        otherwise have looked done. It also stays armed against the
+        reverse: put either literal back and this re-reds while the
+        flatten method below stays green, measured 2026-08-20.
+
+        WIDENED 2026-08-25 TO THE CLAIM ITS NAME MAKES, after a reviewer
+        measured that it did not make it. Until then this collected
+        integer literals out of `call.args` and required the list to be
+        empty — which forbids a literal AT THE CALL SITE and nothing
+        else. Bind `fs = 16` one line above, pass `fs` by name, and this
+        went green over the exact defect it was flipped for; so did
+        `font_size=16`, which is not in `args` at all, and so did `16.0`,
+        which is not an `int`. Three shapes, one guard, all green,
+        reproduced before this was touched. It now walks the size
+        argument BACKWARDS through the method's own local bindings and
+        requires the derivation to reach a `fontSize` read off an
+        element. That is the sentence in the name, so the two can no
+        longer come apart. The old literal check is kept underneath
+        rather than replaced: it is narrower and subsumed, and it costs
+        one line to keep the message that named the original defect.
+
+        THE GUARD IS ITSELF GUARDED, because a predicate nobody ever
+        aimed at a bad input is the thing this class is about.
+        `test_the_size_guard_rejects_every_fixture_sized_repair` fires it
+        at four, and `test_the_size_guard_reads_the_source_and_not_the
+        _value` pins the one shape it still lets through.
+        """
+        node = _apex_pin_derivation()
+        deep, blind = _apex_divergence(fontSize=20)
+        unrooted = _apex_sizes_not_read_from_the_label(node)
+        self.assertEqual(
+            unrooted, [],
+            "%s takes its font size from something that is not the "
+            "label: %s. On a fontSize-20 label the check's band is %.0fpx "
+            "deep and a fixture-sized reading gives %d — the pin would go "
+            "on passing over a check measuring the wrong block. The "
+            "repair is the check's own binding; a size bound from a "
+            "literal, from a module constant, or from anything else that "
+            "never reads the element does not satisfy this, whatever "
+            "shape it wears at the call site"
+            % (_APEX_PIN_METHOD, unrooted, deep, blind))
+        literals = [
+            arg.value
+            for name in _APEX_SIZE_CALLS
+            for call in _apex_pin_calls(name)
+            for arg in call.args
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, int)]
+        self.assertEqual(
+            literals, [],
+            "%s passes the font size as a literal %s where the check "
+            "reads the element. On a fontSize-20 label the check's band "
+            "is %.0fpx deep and this reading gives %d — the pin would go "
+            "on passing over a check measuring the wrong block"
+            % (_APEX_PIN_METHOD, literals, deep, blind))
+
+    def test_the_size_guard_rejects_every_fixture_sized_repair(self) -> None:
+        """GREEN: the guard above is fired at four repairs it must refuse.
+
+        THE REASON THIS CASE EXISTS is that the guard above was green
+        for five days over the defect it is named for, and nothing in
+        the tree said so. A green whose subject is honest proves the
+        SUBJECT and never the guard — so the guard gets its own inputs,
+        written to be wrong in four different ways, and has to reject
+        all four. This is the neighbour shape the mutation harness runs
+        on, one layer up: the live pole that stops a widened or dead
+        predicate from hiding inside a passing assertion.
+
+        All four are shapes the PREVIOUS guard passed, and each is wrong
+        on its own axis: a literal moved one line up out of `args`, a
+        literal moved out of `args` into `keywords`, a literal that is
+        not an `int`, and a size read off a module constant — a real
+        read of a real name that is still not the label.
+
+        The honest repairs are asserted too, and not as decoration: a
+        guard that rejected everything would satisfy every rejection
+        above and be exactly as useless. The subscript one earns its
+        place by using no `get` at all, so a predicate that had quietly
+        narrowed to `.get("fontSize")` fails here rather than waiting for
+        a repair that spells it the other way.
+        """
+        for label, source in sorted(_APEX_HONEST_REPAIRS.items()):
+            self.assertEqual(
+                _apex_sizes_not_read_from_the_label(
+                    _apex_proof_tree(source)), [],
+                "the size guard REJECTS %s, so it has narrowed past the "
+                "invariant it states and an honest repair can no longer "
+                "satisfy it: %s" % (label, source.strip()))
+        for label, source in sorted(_APEX_FIXTURE_SIZED_REPAIRS.items()):
+            blind = _apex_sizes_not_read_from_the_label(
+                _apex_proof_tree(source))
+            self.assertEqual(
+                len(blind), len(_APEX_SIZE_CALLS),
+                "the size guard ACCEPTS %s, or reports only some of its "
+                "calls (%s). Every one of these takes a size the label "
+                "never supplied, and each must name both the wrap and the "
+                "metric call, because a repair that fixed one and not the "
+                "other is how this family drifts: %s"
+                % (label, blind, source.strip()))
+
+    def test_the_size_guard_reads_the_source_and_not_the_value(self) -> None:
+        """THE KNOWN LIMIT, pinned so nobody reads the guard as total.
+
+        The guard above reads SYNTAX. It proves a `fontSize` read is
+        reachable backwards from the size argument; it does not prove
+        the value flows. `fs = 16 if lbl.get("fontSize") else 16`
+        mentions the label, derives nothing from it, and is accepted.
+        That is the hole, and it is left open on purpose: closing it
+        needs value-flow analysis of a method the guard is only reading,
+        and this class's own history is that a pin which reproduced its
+        subject instead of reading it watched a copy for a whole batch.
+
+        IF THIS CASE GOES RED, THE LIMIT CLOSED. That is good news and
+        not a regression: retire this case and the matching paragraph in
+        `test_the_pin_takes_its_font_size_from_the_label` in the same
+        change, and write down what the value-flow arm costs in false
+        positives — a helper call like `fs = size_of(lbl)` is the shape
+        it will have to go on accepting.
+
+        THE LAST ASSERTION PINS WHY THE LIMIT IS TOLERABLE, so it
+        expires on the day the reason does. A syntactic guard is needed
+        here only because BEHAVIOUR cannot tell a literal 16 from a read
+        on this stage: the apex fixture is a fontSize-16 label, so the
+        two readings agree to the pixel and running the pinned method
+        distinguishes nothing. Move that stage off 16 and the pinned
+        method starts failing on its own over a fixture-sized size,
+        which is a stronger instrument than any tree walk — at which
+        point this whole family is arguing about a defect the suite
+        already catches.
+        """
+        self.assertEqual(
+            _apex_sizes_not_read_from_the_label(
+                _apex_proof_tree(_APEX_MENTIONS_WITHOUT_USING)), [],
+            "the size guard has grown a VALUE-FLOW arm: it now rejects a "
+            "size that mentions the label without deriving from it. If "
+            "that is deliberate, retire this case and the limit paragraph "
+            "in `%s` together, and record the false-positive surface — a "
+            "size routed through a helper reads the same way from here"
+            % _APEX_PIN_METHOD)
+        same, blind = _apex_divergence()
+        self.assertEqual(
+            same, blind,
+            "on the SHIPPED stage a fixture-sized reading now disagrees "
+            "with the check (%.0f against %d), so running the pinned "
+            "method would catch a literal by itself and the reason this "
+            "limit was left to a source walk has expired" % (same, blind))
+
+    def test_the_pin_flattens_the_text_the_way_the_check_does(self) -> None:
+        """GREEN since 2026-08-20. RED WAS: the text went in whole.
+
+        The second axis, filed separately because it is a different
+        input and a repair can plausibly close one and not the other —
+        reading the element's size and flattening the text are two
+        edits, and this class's own history is that a fix took the third
+        of three named candidates rather than the named one. The caution
+        was earned: reverting the size edit alone leaves this green and
+        re-reds only its own sibling, and the reverse holds too.
+
+        Asserted as the presence of a flattening call in the method,
+        which is what the check does before it measures anything. A
+        label whose stored newline survived into the pin's reading was
+        counted as an extra painted line the browser does not draw. The
+        repair is `flat = (lbl.get("text") or "").replace(chr(10), " ")`,
+        the check's own line, and it is what this now finds.
+        """
+        flattens = [
+            node for node in ast.walk(_apex_pin_derivation())
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "replace"]
+        deep, blind = _apex_divergence(text="Send\nfor")
+        self.assertTrue(
+            flattens,
+            "%s never flattens the label's text, where the check "
+            "replaces newlines with spaces before wrapping. On a label "
+            "split by a newline the check measures a %.0fpx block and "
+            "this reading gives %d"
+            % (_APEX_PIN_METHOD, deep, blind))
+
+
+# ---------------------------------------------------------------------------
+# BOTH REDS FLIPPED GREEN on 2026-08-20, same day, by the half-pixel pair's
+# owner — all three prose blocks rewritten to the spacing the label carries,
+# and the "19 combinations" figure withdrawn for a counted one over a named
+# population (16 of the corpus's 30 size/line-count pairs, all five sizes
+# reaching). Everything from here to the closing rule is kept in the tense it
+# was filed in, because the record of what was wrong is the thing a green
+# class cannot recover. `HAND_AUTHORED_RED_CLASSES` no longer names it.
+#
+# ONE CORRECTION TO THAT RECORD, and it is the kind this whole section is
+# about. The handover below says the "19" figure "reproduces at neither
+# spacing over any range tried here" — true of the ranges tried, and the
+# wrong thing to carry forward. Swept exhaustively over every contiguous
+# font-size range in 6..60 at one to six lines, 19 comes out at NINE ranges
+# under the shipped `ceil(n * fs * 1.35)` and at none under either 1.25 rule.
+# It is coincidence, nothing ties those ranges to this catalogue, and the
+# repair withdrew the figure for having no stated population rather than for
+# being unreproducible — which is the honest ground. A number is not rescued
+# by a sweep that happens to hit it.
+#
+# THE TWO RENDER-TIER SITES BELOW WERE LEFT ALONE ON PURPOSE and routed to
+# their own batch (2026-08-20). Both figures were re-derived and both are
+# wrong exactly as this section says — 73.6 where paint puts the last
+# baseline at 78.4, and 80 against 86.4, at 21.6px a line — but both are
+# LOWER bounds, so a corrected figure only tightens an assertion that
+# already passes, and nothing would fail if it rotted again. Repairing them
+# inside this commit would re-create the precise condition that opened this
+# batch: a figure corrected by hand with no instrument watching it. They get
+# a batch that pins them first.
+#
+# THE FOURTH SITE, AND THE FIFTH AND SIXTH. The batch that produced the class
+# above was also asked to hunt for another live instance of the same error,
+# and found three — all in the harness's own prose, all the same class
+# INVERTED: 1.25 written where the shipped reader takes 1.35.
+#
+# THE ONE PINNED HERE is the load-bearing one, because it is not merely a
+# stale figure — it is the recorded REASON an arm of a detector was believed
+# unreachable. Three blocks say it, and NONE of them is quoted verbatim
+# here: the reds below find their subjects by pattern, and a section comment
+# that reproduced the false sentences would be two more copies of the defect
+# for those patterns to find, keeping the reds alive after the owner had
+# repaired every real one. Read them at their own sites —
+# `_half_pixel_rhombus`'s `font_size` Arg docstring, the half-pixel pair's
+# section comment, and `rhombus_half_pixel_headroom`'s own entry. Each
+# states a per-line quantum at a font size, and the third also enumerates
+# which of the corpus's sizes can reach the arm at all.
+#
+# MEASURED ON THE SHIPPED TREE, at the spacing that fixture's own label
+# carries: at the size those blocks name, one to six lines reserve 22, 44,
+# 65, 87, 108 and 130px. That is not a fixed quantum per line, and it is NOT
+# always even — three lines is odd. Every one of the five sizes the third
+# block enumerates reaches the arm, including the two it says cannot. Feed
+# the same measurement 1.25 instead and the blocks' structure reproduces
+# exactly, down to which two sizes come out mute — which is how the figures
+# were got and is the same defect the class above describes.
+#
+# WHAT IT COSTS, said plainly rather than inflated. No mutant is broken:
+# `rhombus_half_pixel_headroom` still builds at fontSize 20 and still pins
+# the rounding. What is wrong is the CATALOGUE'S OWN ACCOUNT of why that
+# pole was chosen, and the `Args:` line that tells the next author of a
+# half-pixel scene that fontSize 16 cannot reach the height arm. A reader
+# who believes it will not look — which is the entire mechanism by which
+# this arm went unseen in the first place, now re-committed in the note
+# explaining it.
+#
+# NOT REPAIRED HERE. The curator charter is to encode a defect and never to
+# fix it, and these three blocks belong to the half-pixel pair's owner. The
+# reds below are the handover. The entry the fix must also re-derive is the
+# "19 (fontSize, line count) combinations" figure beside them: it is stated
+# over a range the prose never gives, reproduces at neither spacing over any
+# range tried here, and so is not pinned — named instead, because an
+# unreproducible number left unnamed is how the next reader inherits it.
+#
+# THE OTHER TWO SITES ARE NAMED AND LEFT, in `tests/test_mutants_render.py`,
+# which is a gated tier this section does not own: `last_baseline = 16 * 0.85
+# + (_WRAPPED_LINES - 1) * 16 * 1.25` reads 73.6 where `paint` — which lays
+# out at `fs * line_height_of(e)` and resolves 1.35 for that element — puts
+# it at 78.4, and `ink_bottom = 16 * 1.25 * _WRAPPED_LINES` reads 80 against
+# 86.4. Both are `assertGreater`/`assertGreaterEqual`, so the wrong figure
+# makes them LOOSER rather than failing; both still pass on the real frame
+# (127px), so they are weakened assertions and not live failures. Two other
+# claims in that same file state 1.35 correctly, four lines from the two that
+# do not.
+# ---------------------------------------------------------------------------
+
+# Which sizes the enumeration names, and which of them it says reach the
+# arm. Anchored on the enumeration's own words rather than on a count, so a
+# fourth size added to the corpus changes what this measures instead of
+# breaking the pattern.
+#
+# `all of them` IS AN ACCEPTED SPELLING and the reason is a flaw this pin
+# was caught in before it landed. The measured answer today is that EVERY
+# corpus size reaches the arm, so the honest repair has no mute list to
+# name and would naturally drop that clause — and the first version of this
+# pattern REQUIRED the clause, which meant the red could not flip under the
+# very repair it is asking for. A red that only flips under repairs whose
+# wording it dictates is prescribing the sentence rather than checking it.
+# So the mute clause is out of the anchor entirely and the mute set is
+# derived; a sentence naming an all-reaching corpus in either spelling
+# matches.
+_HALF_PIXEL_SIZES = re.compile(
+    r"the corpus runs (?P<all>[\d, ]+and \d+), of which "
+    r"(?P<reach>all of them|[\d, ]*(?:and )?\d+) reach it")
+# The quantum claims — `N * lines` beside the fontSize they are claimed at.
+# Two spellings today, one per block, and both are matched rather than
+# normalised: a guard that only found the wording it was written against
+# would go quiet on the block that was reworded.
+_HALF_PIXEL_QUANTUM = re.compile(
+    r"(?:at|fontSize) \*?\*?(?P<fs>\d+)\*?\*?[^.]{0,80}?`(?P<q>\d+) \* lines`")
+# How many lines to look over. Six is past every block the half-pixel scenes
+# build and past the point the parity settles either way; the claim under
+# test is "for every line count there is", so any counterexample is a
+# counterexample and the ceiling only bounds the search.
+_HALF_PIXEL_LINES = 6
+
+
+def _half_pixel_heights(font_size: int, lines: int) -> list[int]:
+    """What `text_dims` reserves for 1..`lines` lines at that size.
+
+    Measured at the spacing `_half_pixel_rhombus`'s own label carries,
+    read off the element rather than written down — which is the single
+    thing all three prose blocks got wrong, so a helper that wrote a
+    multiplier in would be committing the defect inside the guard for it.
+
+    Args:
+        font_size: The label's size in px.
+        lines: How many line counts to measure, starting at one.
+
+    Returns:
+        The reserved height for each line count, in order.
+    """
+    label = _half_pixel_rhombus("x", font_size=font_size)[1]
+    spacing = canvas.line_height_of(label)
+    return [canvas.text_dims("\n".join(["x"] * n), font_size, spacing)[1]
+            for n in range(1, lines + 1)]
+
+
+def _half_pixel_reaches(font_size: int) -> bool:
+    """Whether the height arm can fire at all at that font size.
+
+    `text_overflow`'s height arm is `th > room_h`, and the half-pixel
+    rounding moves `room_h` by exactly one — so the arm can only witness
+    the rounding where `th` is ODD. That is the claim the prose makes
+    about fontSize 16 and the claim measured here.
+
+    Args:
+        font_size: The label's size in px.
+
+    Returns:
+        True if some line count up to `_HALF_PIXEL_LINES` reserves an
+        odd height at that size.
+    """
+    return any(h % 2 for h in _half_pixel_heights(font_size,
+                                                  _HALF_PIXEL_LINES))
+
+
+def _harness_prose() -> str:
+    """This file's own text with comment markers gone and wrapping undone.
+
+    The enumeration below is a sentence that wraps across three comment
+    lines, and a pattern matched line by line would never see it whole —
+    which is how a guard ends up reporting "no claim found" about a
+    claim that is right there. Deliberately applied to the WHOLE file
+    rather than to a located block: the patterns run over it are
+    prose-shaped and match no code, and a locator would be a second
+    thing to keep pointed at the right place.
+
+    Returns:
+        The file as one whitespace-collapsed line.
+    """
+    text = Path(__file__).read_text(encoding="utf-8")
+    return " ".join(re.sub(r"\n\s*#", " ", text).split())
+
+
+def _half_pixel_claim() -> tuple[list[int], list[int]]:
+    """The enumeration's two lists: the corpus's sizes, and the reaching ones.
+
+    Returns:
+        `(corpus_sizes, said_to_reach)`, both sorted. `all of them`
+        resolves to the corpus list, which is what it means.
+
+    Raises:
+        AssertionError: If the sentence does not appear exactly once —
+            it has been reworded past its anchor, or copied, and the
+            sizes it names are then compared against nothing or against
+            whichever copy this met first.
+    """
+    found = list(_HALF_PIXEL_SIZES.finditer(_harness_prose()))
+    if len(found) != 1:
+        raise AssertionError(
+            "the half-pixel size enumeration appears %d time(s) in this "
+            "file and this guard needs exactly one. Zero means the "
+            "catalogue entry has been reworded past %r — restate which "
+            "sizes reach the height arm or drop the claim, but do not "
+            "leave a list of sizes behind with nothing measuring it"
+            % (len(found), _HALF_PIXEL_SIZES.pattern))
+    sizes = sorted(int(n) for n in re.findall(r"\d+", found[0]["all"]))
+    said = found[0]["reach"]
+    return (sizes, sizes if said == "all of them"
+            else sorted(int(n) for n in re.findall(r"\d+", said)))
+
+
+class TestTheHalfPixelProseStatesTheSpacingItMeasures(unittest.TestCase):
+    """The half-pixel pair's account of its own reachability, measured.
+
+    FOUR GREEN since 2026-08-20. It was TWO REDS AND TWO GREENS when
+    curator batch 42 wrote it, and the reds were its first-class finding
+    rather than a side note: the same one-multiplier error as the class
+    above, live, in the file that exists to catch errors like it, found
+    while hunting a fourth commit of the defect the emitter comment
+    carried. The three prose blocks were rewritten the same day and both
+    reds flipped in that commit.
+
+    THE LIVE HALF IS FIRST AND WAS NEVER GATED, for the reason every
+    mutant carries a neighbour: `expectedFailure` swallows errors as
+    well as failures, so a `text_dims` that raised — or a
+    `_half_pixel_rhombus` that stopped minting a label at all — would
+    have read as two healthy reds.
+    `test_the_height_arm_is_reachable_at_the_size_the_scene_defaults_to`
+    asserts the substantive fact positively and stays true under every
+    repair of the prose, including deleting the claim outright. It is
+    what this section still knows if all three sentences go away, and it
+    is the reason the flip below is a measurement and not a colour.
+
+    WHAT FLIPPED THESE. Correcting the three prose blocks to the spacing
+    the fixture's label actually carries, and replacing the "19
+    combinations" figure with one whose population is stated. Nothing in
+    `canvas.py` moved — the shipped code was right throughout and has
+    been since the line-height stream landed; it was the notes about it
+    that had gone three days stale.
+
+    STILL LOAD-BEARING AFTER THE FLIP, which is why it stays rather than
+    being deleted with the defect: both methods read the prose out of
+    this file every run, so the next author who writes a quantum or
+    re-narrows the reaching set fails here instead of shipping a fifth
+    copy. Green does not mean spent.
+    """
+
+    def test_the_height_arm_is_reachable_at_the_size_the_scene_defaults_to(
+            self) -> None:
+        """GREEN: at the default size some line count reserves odd height.
+
+        The positive fact all three prose blocks deny, asserted on its
+        own so that neither red below is the only thing keeping it in
+        the tree. It also proves the instrument: a `text_dims` that had
+        stopped varying with its spacing argument would make this fail
+        here rather than hide inside the reds.
+        """
+        size = inspect.signature(
+            _half_pixel_rhombus).parameters["font_size"].default
+        heights = _half_pixel_heights(size, _HALF_PIXEL_LINES)
+        odd = [(n, h) for n, h in enumerate(heights, 1) if h % 2]
+        self.assertTrue(
+            odd,
+            "no line count up to %d reserves an odd height at fontSize "
+            "%d (%r), so the height arm really is mute there and the "
+            "reds below have lost their subject — re-derive them rather "
+            "than deleting them" % (_HALF_PIXEL_LINES, size, heights))
+
+    def test_the_enumeration_is_still_in_this_file_and_still_parses(
+            self) -> None:
+        """The subject exists, appears once, and names sizes the corpus has.
+
+        Separated from the red below so that a DELETED sentence and a
+        WRONG sentence are two different failures. Under
+        `expectedFailure` they would be one, and "the claim was removed"
+        would read exactly like "the claim is still false".
+
+        The containment check is the second half: an entry naming a
+        reaching size the corpus does not carry is describing some other
+        population, and the red below would compare a list against a
+        list neither of them is about.
+        """
+        sizes, reach = _half_pixel_claim()
+        self.assertTrue(
+            set(reach) <= set(sizes),
+            "the enumeration says %r reach the height arm but names the "
+            "corpus as %r — %r is not a size the corpus carries, so the "
+            "two lists are about different populations"
+            % (reach, sizes, sorted(set(reach) - set(sizes))))
+
+    def test_the_sizes_said_to_reach_the_arm_are_the_ones_that_do(
+            self) -> None:
+        """GREEN since 2026-08-20: it said 16 and 24 cannot, and both do.
+
+        The invariant and not the list: whatever the corpus carries and
+        whatever the metrics do next, the sizes the entry says reach the
+        height arm must be the sizes that reach it, measured at the
+        label's own spacing. RED WAS: the entry named three of five while
+        all five reached it — the two it excluded were exactly the two
+        whose heights were `20 * lines` at 1.25 and are not at 1.35,
+        which was the whole diagnosis. The repair says `all of them`, one
+        of the two spellings this pattern accepts, and the mute set is
+        derived rather than dictated.
+
+        The DIRECTION mattered and is what the message prints: the error
+        was an UNDER-count of reachability, so it argued an arm was
+        unreachable when it is not. The opposite error would waste a
+        reader's time; that one told them not to look.
+        """
+        sizes, said = _half_pixel_claim()
+        measured_reach = [s for s in sizes if _half_pixel_reaches(s)]
+        self.assertEqual(
+            measured_reach, sorted(said),
+            "the entry says %r of the corpus's %r reach the height arm; "
+            "measured at each label's own spacing, %r do. The sizes it "
+            "wrongly calls mute are %r, and calling an arm unreachable "
+            "is the direction that stops anyone looking at it"
+            % (sorted(said), sizes, measured_reach,
+               sorted(set(measured_reach) - set(said))))
+
+    def test_no_quantum_claim_in_this_file_contradicts_text_dims(
+            self) -> None:
+        """GREEN since 2026-08-20: three quantum claims, now none.
+
+        One assertion over every block that states a per-line quantum,
+        rather than one per block, because the three sentences were three
+        copies of one arithmetic error and a fix correcting two of them
+        should still have been red. The quantum and the size are both
+        read out of the prose; only the heights are measured. RED WAS:
+        three matches, all `(16, 20)`, against reserves of 22, 44, 65,
+        87, 108, 130.
+
+        Zero matches is a legitimate green — it means the claim was
+        retracted rather than corrected, which is a real repair, and is
+        the repair that landed: `text_dims` produces no per-line quantum
+        at any size, so there was no true quantum sentence to write. It
+        is safe because
+        `test_the_height_arm_is_reachable_at_the_size_the_scene_defaults
+        _to` goes on asserting the fact positively either way, and it
+        stays armed: a fifth copy of the error would match and fail here.
+        """
+        wrong = []
+        for match in _HALF_PIXEL_QUANTUM.finditer(_harness_prose()):
+            size, quantum = int(match["fs"]), int(match["q"])
+            heights = _half_pixel_heights(size, _HALF_PIXEL_LINES)
+            want = [quantum * n for n in range(1, _HALF_PIXEL_LINES + 1)]
+            if heights != want:
+                wrong.append((size, quantum, want, heights))
+        self.assertEqual(
+            wrong, [],
+            "prose in this file claims a per-line quantum `text_dims` "
+            "does not produce: %s. Each entry is (fontSize, claimed "
+            "quantum, the heights that claim implies, the heights "
+            "measured at the label's own spacing)"
+            % "; ".join(repr(w) for w in wrong))
+
+
+_ABSENT = object()
+
+
+def declared_datum_after_add(kind: str, field: str, value: Any,
+                             through_custom_data: bool) -> tuple:
+    """`add` one composed host declaring `field`, and read it back.
+
+    THE INSTRUMENT IS THE STORE, NOT THE LINT, and it has to be: the
+    scenes this measures are internally CONSISTENT — the parts drawn
+    match the state as rewritten — so `composed_host_gaps` is empty and
+    every registered check is correctly quiet. Nothing scene-level can
+    see this, because nothing scene-level ever saw the request. The
+    evidence exists only in the relation between what was asked for and
+    what came back.
+
+    Args:
+        kind: The composed kind to declare.
+        field: The state key the kind's floor is a function of.
+        value: What the caller declares.
+        through_custom_data: Route it through `customData` rather than
+            as a top-level op key. Both doors are documented.
+
+    Returns:
+        `(stored, op_errors, gaps)` — the value read back off the host
+        (`_ABSENT` if the key is gone), the batch's op errors, and
+        `composed_host_gaps` on the result.
+    """
+    spec: dict[str, Any] = dict(_SWEEP_BOX)
+    if through_custom_data:
+        spec["customData"] = {"kind": kind, field: value}
+    else:
+        spec["kind"], spec[field] = kind, value
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": spec}], errors)
+    host = next(e for e in els if e["id"] == "h")
+    return ((host.get("customData") or {}).get(field, _ABSENT), errors,
+            canvas.composed_host_gaps(els))
+
+
+def sweep_declared_data(through_custom_data: bool) -> list[tuple]:
+    """Every kind whose declared datum comes back changed, and silently.
+
+    Args:
+        through_custom_data: Which of the two documented doors to use.
+
+    Returns:
+        Sorted `(kind, field, declared, stored)` for each kind where the
+        value came back different with no op error to say so. Value
+        equality, not string equality: `slider` legitimately widens an
+        int 40 to 40.0 and that is a coercion, not a discard.
+    """
+    out = []
+    for kind in sorted(_KIND_STATE):
+        for field, value in _KIND_STATE[kind].items():
+            stored, errors, _ = declared_datum_after_add(
+                kind, field, value, through_custom_data)
+            if errors:
+                continue          # refused out loud is an honest answer
+            if stored is _ABSENT or stored != value:
+                out.append((kind, field, value,
+                            "<absent>" if stored is _ABSENT else stored))
+    return out
+
+
+class TestTheStrippedHostFindingTellsDrawnFromGone(unittest.TestCase):
+    """One sentence for two pictures, so a reader cannot tell them apart.
+
+    THE OTHER HALF OF `duplicated_widget_reported_as_bare`, and it is
+    hand-authored for a structural reason rather than a preference. The
+    claim is a TWO-SCENE property — a slider whose track and thumb are
+    DRAWN inside it but linked to nothing, and the same host with that
+    ink genuinely gone, must not read alike — and every expectation the
+    catalogue engine has is over ONE scene's findings. The normalized
+    finding record is blind to it besides: `check`, `element`,
+    `magnitude` and `direction` are identical on both pictures under
+    every honest repair measured, because `canvas.py` names the message
+    HEAD (direction word included) as a template that may not be
+    reworded, so the distinction has to land in the tail the record
+    never reads. There is no `FindingSpec` that mismatches today and
+    matches after a fix, which is exactly why
+    `test_red_mutants_are_red_by_mismatch_not_by_error` refuses to hold
+    this red.
+
+    THE USER'S RULING IS THE SPEC, taken 2026-08-26 and recorded as
+    contract C12: keep reporting, fix the wording. A widget whose ink is
+    visibly present but unlinked is DEAD — drag it and the parts stay
+    behind — so a finding there is correct, and narrowing the check to
+    go quiet on it would leave the class reported by NOTHING, including
+    in every scene already persisted to disk and re-read by `catch_up()`
+    each session. What is wrong is calling it "missing", which reads as
+    "gone".
+
+    THE RED PRESCRIBES NO WORDING, which is the discipline this repo has
+    already paid for twice: a red anchored on a phrase makes the
+    locating regex as prescriptive as the assertion, and every honest
+    rewording then fails it for the wrong reason. So it asserts that the
+    two pictures are DISTINGUISHABLE and never how, and it reads
+    `lint_layout`'s own lines rather than the harness anchor — a repair
+    that moves the distinction into the direction word, or into a second
+    finding entirely, flips it without having to keep any regex
+    matching.
+
+    FLIPPED BY THE WP THAT OWNS THE WORDING (leaf-1.1.6). THREE repairs
+    of very different shape were measured green against patched copies
+    of `canvas.py` rather than reasoned about: splitting the tail clause
+    on whether unowned part-shaped ink stands inside the host; naming
+    the orphaned ids in that clause instead; and leaving the sentence
+    untouched while appending a SECOND error about the ink. THREE WRONG
+    ones stay red, each caught by a different leg — the narrowing the
+    user ruled against breaks the GREEN pole below and the catalogue
+    mutant's own `expect`; a rewording that does not distinguish
+    ("cannot tell which" to "cannot determine which") leaves the two
+    line lists equal; and a repair that makes the old sentence true by
+    discarding the copy's ink on commit trips the save-path guard on
+    `test_mutant_duplicated_widget_reported_as_bare`.
+    """
+
+    @unittest.expectedFailure
+    def test_the_two_pictures_do_not_read_alike(self) -> None:
+        """Ink drawn and ink gone are one repair apart and one sentence."""
+        drawn = _lint_lines_about(_orphaned_widget_copy(with_ink=True), "wc")
+        gone = _lint_lines_about(_orphaned_widget_copy(with_ink=False), "wc")
+        self.assertNotEqual(
+            drawn, gone,
+            "a slider whose own track and thumb are drawn inside its box "
+            "while nothing names it owner, and the same host with that "
+            "ink gone, are two different pictures needing two different "
+            "repairs — and the lint says the same thing about both: %r. "
+            "An agent relaying it tells the user their slider is empty "
+            "while they are looking at a slider" % (drawn,))
+
+    def test_both_pictures_are_still_reported(self) -> None:
+        """The live half: the ruling's floor, held outside the mask.
+
+        THE RED ABOVE CANNOT OBSERVE THIS, and that is the whole reason
+        it is a separate method. `expectedFailure` absorbs a failure as
+        readily as it absorbs an error, so a narrowing that silenced the
+        drawn-ink class would satisfy the difference the red measures —
+        one list empty, one not — and leave it reading `expected
+        failure` while a mutation sweep read SURVIVED over a pristine
+        tree. Measured, not reasoned: against a patched `canvas.py` that
+        skips a host with unowned part-shaped ink drawn inside it, the
+        red goes GREEN and this method fails.
+
+        It is also the control for the red's instrument. A
+        distinguishability claim is satisfied perfectly by a check that
+        has stopped speaking about one of the two scenes, and by one
+        that has stopped speaking at all — against a `canvas.py` whose
+        composed-host loop walks an empty list, both lists here are
+        empty and this fails while the red stays red.
+        """
+        for ink in (True, False):
+            with self.subTest(ink_drawn=ink):
+                self.assertTrue(
+                    _lint_lines_about(_orphaned_widget_copy(ink), "wc"),
+                    "the user ruled that a composed host short of the "
+                    "parts its own geometry owes stays reported whether "
+                    "its ink is drawn or gone; nothing in the loud tiers "
+                    "names `wc` with ink_drawn=%s" % ink)
+
+
+def _ungroup_then_save_again() -> dict[str, Any]:
+    """Drive Ctrl+Shift+G, save, then one more save that changes nothing.
+
+    THE WHOLE GESTURE THROUGH `Store.commit`, which is the path
+    `/api/save` uses, because the defect lives in the seam between two
+    saves and no single-scene fixture can hold it. `apply_ops` is a
+    layer above it and would not see this at all.
+
+    The second save posts the STORED SCENE BACK VERBATIM. That is the
+    load-bearing part of the fixture: there is no edit for a reconciler
+    to react to, no op, no gesture — the user saved for an unrelated
+    reason, or the client autosaved, and the only thing that happened is
+    that a save happened.
+
+    Returns:
+        `{"minted", "ungrouped", "after"}` — `id -> groupIds` after each
+        of the three states — plus `"ungroup_verbs"` and
+        `"second_verbs"`, the verb counts each of the two commits
+        reported for itself.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-ungroup-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "w", "kind": "slider",
+                "label": "W", "x": 0, "y": 0, "width": 160,
+                "height": 48}}]})
+
+        def groups(scene: list[dict]) -> dict[str, list[str]]:
+            """Read every element's group membership.
+
+            Args:
+                scene: A stored scene.
+
+            Returns:
+                `id -> groupIds`, copied so a later commit cannot
+                rewrite a reading already taken.
+            """
+            return {e["id"]: list(e.get("groupIds") or []) for e in scene}
+
+        def save(scene: list[dict]) -> tuple[dict[str, list[str]], dict]:
+            """Commit as the browser does.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                `(groups, verb_counts)` after the commit.
+            """
+            res = store.commit(author="user", new_scenes={"f": list(scene)},
+                               base_revn=store.head_revn())
+            return (groups(store.scenes["f"]),
+                    dict((res.get("summary") or {}).get("verb_counts") or {}))
+
+        minted = [dict(e) for e in store.scenes["f"]]
+        ungrouped, ungroup_verbs = save(
+            [dict(e, groupIds=[]) for e in minted])
+        stored = [dict(e) for e in store.scenes["f"]]
+        after, second_verbs = save(stored)
+        return {"minted": groups(minted), "ungrouped": ungrouped,
+                "after": after, "ungroup_verbs": ungroup_verbs,
+                "second_verbs": second_verbs}
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+class TestAnUngroupIsNotRevokedByTheNextSave(unittest.TestCase):
+    """Ctrl+Shift+G is honoured for one save and then taken back.
+
+    THE PRODUCT LAW IS ALREADY WRITTEN, in `_honour_ungroup`'s own
+    docstring, and it is unusually absolute: "silently re-grouping would
+    be the tool overruling the user's own hands, which is the one thing
+    this product may not do". That docstring also records this defect's
+    previous life — a user who ungrouped a domain entity on 2026-08-20
+    got it silently re-assembled AND was told `saved_no_changes` — so
+    what is pinned here is not a new class, it is the same class one
+    save further along, which is why it survived the fix that closed it.
+
+    THE MECHANISM, AND WHY IT IS INVISIBLE. The rule is DELTA-based on
+    purpose, and the docstring argues that correctly: a widget the user
+    pulled apart and a widget that was never assembled are
+    indistinguishable in the posted scene alone, so only the BASE scene
+    separates them. But the base is the PREVIOUS SAVE. On the save that
+    carries the ungroup the base still has the group and the gesture is
+    honoured; on the next save the base no longer has it, the two cases
+    become indistinguishable again, and the widget is read as an
+    unfinished assembly and closed. The gesture is not overridden by a
+    conflicting one — it is forgotten, by a rule that can only remember
+    one save back.
+
+    HANDED OVER RATHER THAN FOUND HERE, measured at `a871bee`, and
+    RE-MEASURED at this tree before being encoded: the tip had moved
+    twelve commits and a report is not a reproduction. It still
+    reproduces, on the same four elements.
+
+    NOT A CATALOGUE MUTANT, and for the reason the class two above it
+    gives: `collect_findings` runs over ONE scene, and this defect is a
+    relation between two consecutive commits. The resulting scene is
+    internally coherent — host and parts share a group, which is what a
+    healthy widget looks like — so every scene-level check is correctly
+    silent, including `widget_group_incomplete`, which spoke about the
+    ungrouped state and goes quiet again the moment the gesture is
+    revoked. A reader of the drawing cannot tell "the tool put it back"
+    from "the user changed their mind", which is the whole defect
+    restated as a picture.
+
+    WHAT FLIPS IT: the WP that owns `_interpret_user_composites`. TWO
+    repairs of different shape were measured green against patched
+    copies of `canvas.py` rather than reasoned about — persisting the
+    gesture on the host so a stamped widget is never re-closed, and
+    reading state rather than delta for a host that already existed in
+    the base. Two controls stay red or expose a vacuous pass: a
+    `canvas.py` that never honours the ungroup at all makes both reds
+    below pass VACUOUSLY (the group is there before and after, so
+    "unchanged" is true) and is caught only by the ungated pole, which
+    is why that pole is not optional; and a repair that merely narrates
+    the re-group instead of claiming no change clears the second red and
+    leaves the first one red, which is the split the two reds exist for.
+    """
+
+    @unittest.expectedFailure
+    def test_the_ungroup_survives_a_save_that_changes_nothing(self) -> None:
+        """The next save takes the gesture back, and it need not be a gesture."""
+        r = _ungroup_then_save_again()
+        moved = sorted(i for i, g in r["after"].items()
+                       if g != r["ungrouped"].get(i))
+        self.assertEqual(
+            moved, [],
+            "the user pulled this widget apart and the very next save "
+            "put it back together: %s came back carrying %s. Nothing "
+            "else changed in that save — the posted scene was the "
+            "stored one, verbatim — so the gesture was not overridden "
+            "by a later one, it was forgotten by a rule that remembers "
+            "exactly one save back"
+            % (moved, {i: r["after"][i] for i in moved}))
+
+    @unittest.expectedFailure
+    def test_a_save_that_narrates_no_change_changed_nothing(self) -> None:
+        """The second lie: it rewrote four elements and said it had not."""
+        # THE RELATION, NOT THE SENTENCE. This reads the verb COUNTS the
+        # commit published about itself, never its headline text, so a
+        # rewrite of the wording cannot satisfy it and cannot break it.
+        # It is the narrower of the two reds on purpose: a repair that
+        # keeps re-grouping but starts SAYING so clears this one and
+        # leaves the other red, which is the whole reason they are two.
+        r = _ungroup_then_save_again()
+        moved = sorted(i for i, g in r["after"].items()
+                       if g != r["ungrouped"].get(i))
+        self.assertFalse(
+            moved and "saved_no_changes" in r["second_verbs"],
+            "a commit reporting %s rewrote the group membership of %s. "
+            "The save before it had just told the user, in its own "
+            "headline, that their parts would not be put back together; "
+            "this one put them back and narrated nothing at all"
+            % (r["second_verbs"], moved))
+
+    def test_the_ungroup_is_honoured_on_the_save_that_carries_it(
+            self) -> None:
+        """The live half, and what stands between the reds and a vacuum.
+
+        Both reds are EQUALITY claims across two saves, and equality is
+        satisfied perfectly by a tree where nothing ever happens. A
+        `canvas.py` that never honours the ungroup at all leaves the
+        group on host and parts through both saves — so "the second save
+        changed nothing" is TRUE, both reds pass, and the masks report
+        two healthy expected failures over a product that has stopped
+        listening to the gesture entirely. Measured against exactly that
+        patch: both reds go to unexpected success and this method is
+        what fails.
+
+        So this asserts the ABSOLUTE numbers the reds deliberately do
+        not: the mint puts all four elements in one group, and the save
+        that carries the gesture takes every one of them out of it.
+        """
+        r = _ungroup_then_save_again()
+        self.assertEqual(
+            sorted(i for i, g in r["minted"].items() if g == ["w-grp"]),
+            sorted(r["minted"]),
+            "the mint no longer puts the whole widget in one group, so "
+            "there is no group left for a gesture to open: %s"
+            % r["minted"])
+        self.assertEqual(
+            {i: g for i, g in r["ungrouped"].items() if g}, {},
+            "Ctrl+Shift+G must be honoured on the save that carries it, "
+            "or the reds beside this one are comparing a widget that "
+            "was never ungrouped against itself and passing: %s"
+            % r["ungrouped"])
+        self.assertIn(
+            "widget_ungrouped", r["ungroup_verbs"],
+            "the ungroup is product law's LOUD half — the save that "
+            "carries it says so out loud — and a silent one would make "
+            "the revocation next door unremarkable: %s"
+            % r["ungroup_verbs"])
+
+
+class TestADeclaredDatumSurvivesTheDoorItCameThrough(unittest.TestCase):
+    """A datum the caller declared must not come back changed in silence.
+
+    THE SUBJECT HAS NO CHECK, AND CANNOT HAVE ONE OF THE USUAL SHAPE.
+    Found 2026-08-25 by `sweep_remedy_fixpoints` while it was hunting
+    something else, which is the argument for sweeps in one line. Every
+    other pin in this file hangs off a detector that speaks; here every
+    detector is correctly quiet, because the scene it is handed is
+    internally coherent — `add` rewrites the state AND mints the parts
+    that match the rewritten state, so floor equals drawn and the
+    picture agrees with the store. What disagrees is the store and the
+    REQUEST, and no scene-level rule can reach a request.
+
+    THAT IS WHY IT IS A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT.
+    Registering a check name for it — the `composed_host_stripped`
+    red-by-absence pattern — would state a contract no lint can meet
+    and quietly prescribe a rule that cannot exist. The remedy lives at
+    the op boundary, so the pin does too.
+    """
+
+    def test_a_customdata_datum_is_kept_or_refused_but_never_rewritten(
+            self) -> None:
+        """Four kinds discard the caller's own datum without a word.
+
+        FLIPPED 2026-08-26 by `3acf67d`, "a mint block may not clobber
+        the customData it is about to overwrite" — the user ruled
+        HONOUR IT and `_composed_state` now reads whichever door
+        supplied the datum, testing `is None` rather than truthiness so
+        a declared `0` or `False` survives too. That is candidate repair
+        (1) of the two this pin was measured against; the other, refusing
+        the batch out loud, would have flipped it equally, which is why
+        the pin never named either.
+
+        THE RED WAS WITNESSED BEFORE THE FLIP, and the observation is
+        recorded here because a born-green red with no recorded red
+        observation is indistinguishable from a vacuous test six months
+        from now. Both halves were run from an isolated tree — this
+        module's own file copied beside the tree under test — so the
+        only thing that varied is `canvas.py`. Per tree: `git archive
+        <sha> | tar -x -C <tree>`, then `cp tests/test_mutants.py
+        <tree>/tests/`, then from `<tree>/tests` run `python3 -m
+        unittest` naming this class and this method:
+
+            PRE-FIX   f87c34c -> OK (expected failures=1)
+            POST-FIX  734f238 -> FAILED (unexpected successes=1)
+
+        AND THE CONTROL IS WHAT MAKES THAT A FINDING, because a one-way
+        "green on the post-fix tree" proves nothing — a red can be green
+        for failing to run at all. The neighbour pole below,
+        `test_the_same_data_through_the_top_level_door_is_kept`, was run
+        on BOTH trees and passed on both: the reader was alive across
+        the flip, so the colour change is the subject moving and not the
+        instrument dying.
+
+        WHAT IT USED TO SAY, kept because the row is the record. Through
+        `customData`, with zero op errors and no finding anywhere: `kpi`
+        value `'42'` came back `''`, `slider` value `40` came back
+        `50.0` (the default, not the request), `checkbox` and `toggle`
+        `checked: True` came back `False`. `input` was the one kind that
+        kept it — before its own repair as an inconsistency the ERROR
+        tier reported, after it as a value row on the canvas.
+
+        THE PROPERTY IS NOT "HONOUR IT", which is what keeps this red
+        fix-agnostic and stops it prescribing the repair the implementer
+        is weighing. Three answers are honest — mint from whichever door
+        supplied it, refuse the batch and say why, or leave the caller's
+        `customData` alone — and only one is not: rewriting a stored
+        datum to a value nobody asked for while reporting success. A
+        refusal passes this test by construction, since an op error is
+        the batch saying so out loud.
+
+        THE THIRD ASSERTION IS THE NEAREST WRONG REPAIR. Honouring the
+        datum without minting the part it implies would clear this test
+        and open the one next door: a `checked` checkbox owing two parts
+        and drawing one. So the scene is required to stay internally
+        consistent under whatever repair lands, which is the half a
+        request/response contract cannot express on its own.
+        """
+        self.assertEqual(
+            sweep_declared_data(through_custom_data=True), [],
+            "a documented `add` rewrote a datum the caller declared in "
+            "`customData` and reported no error: %s. Honour it, or refuse "
+            "the batch and say why — but a stored value nobody asked for, "
+            "under a scene every check calls healthy, is the v0.5 "
+            "silent-drop defect on a second field"
+            % (sweep_declared_data(through_custom_data=True),))
+        for kind, state in sorted(_KIND_STATE.items()):
+            for field, value in state.items():
+                with self.subTest(kind=kind, field=field):
+                    _, _, gaps = declared_datum_after_add(
+                        kind, field, value, True)
+                    self.assertEqual(
+                        gaps, [],
+                        "%s: whatever repair lands must leave the parts "
+                        "agreeing with the state — honouring the datum "
+                        "and not minting what it owes trades this defect "
+                        "for the one composed_host_stripped reports"
+                        % kind)
+
+    def test_the_same_data_through_the_top_level_door_is_kept(self) -> None:
+        """The live half: the store read is real and the doors differ.
+
+        THE NEIGHBOUR'S JOB, for a pin with no detector. The red above
+        is an emptiness claim, and an emptiness claim is satisfied
+        perfectly by a broken instrument — a `declared_datum_after_add`
+        that stopped reading `customData`, or an `apply_ops` that
+        stopped building anything, would report "nothing rewritten" and
+        look like a fix. This asserts the same five declarations through
+        the OTHER documented door and requires every one to survive, so
+        the pair says something a single pole cannot: the datum is not
+        unstorable, and the difference the red measures is the door.
+
+        Ungated and asserted in every commit, for the reason every
+        neighbour is: the mask over the red hides errors as readily as
+        failures.
+        """
+        self.assertEqual(
+            sweep_declared_data(through_custom_data=False), [],
+            "the top-level door must keep every declared datum, or the "
+            "red beside this one is measuring a broken reader rather "
+            "than a difference between two doors: %s"
+            % (sweep_declared_data(through_custom_data=False),))
+
+
+class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
+    """The remedy-fixpoint property, swept across kinds and doors.
+
+    NOT IN `TestMutantCatalogue`, and the placement is the guard's
+    ruling rather than a preference: every `expectedFailure` in that
+    class must map to a catalogue mutant, or
+    `test_red_mutants_are_red_by_mismatch_not_by_error` walks past it
+    and reports health it never checked. This is a sweep, not a mutant,
+    so it lives beside its own companion instead — which does the job a
+    neighbour does, one class down.
+    """
+
+    def test_no_error_survives_its_own_prescribed_remedy(self) -> None:
+        """No composed kind is trapped behind an ERROR it cannot escape.
+
+        THE GENERALISATION OF ONE MUTANT TO ITS CLASS. Every ERROR-tier
+        finding a documented op batch can produce must clear when the
+        host it names is re-issued from its own stored state — the only
+        repair a reader of the SCENE can perform, since the lint is
+        handed elements and never an op log. A finding whose remedy
+        reproduces it is worse than silence: silence leaves the agent
+        looking, a looping remedy sends it round the same corner
+        forever, while the ERROR tier says "repair in the same move".
+
+        WHY THIS DOES NOT REPLACE `composed_host_remedy_reproduces_
+        itself`, which is the obvious objection and the reason both
+        exist. That mutant is the CONTRACT for one instance: a full
+        quadruple with a neighbour that dies if the check goes blind, a
+        magnitude-bearing pole, a value-survival guard for the nearest
+        wrong repair, and four candidate fixes proved to flip it. None
+        of that is expressible here — a sweep has no neighbour, asserts
+        no magnitude, and cannot tell a fix from a lobotomy. This is the
+        DENOMINATOR instead: how many doors were asked and how many came
+        back trapped. THEY DO NOT EVEN FLIP TOGETHER, which settles the
+        duplication question by measurement: patching the three input
+        paths into agreement clears both `input` pairs and leaves this
+        red on `checkbox`, where the remedy turns a `(2, 1) missing`
+        into a `(1, 2) surplus` and silently unchecks the box on the way
+        — because `make_element` reads `spec.get("checked", False)` over
+        a stored `customData.checked` that says True. Measured
+        2026-08-25, and that repair UNCOVERS a second checkbox door
+        rather than closing one.
+
+        IT REPORTS RATHER THAN EXPECTS, which is the second reason it is
+        shaped as a sweep. Nothing here encodes which pairs are supposed
+        to loop, so a kind that starts looping arrives named in the
+        failure text instead of passing under a stale allowance — and
+        the `duplicate + save` door is in the walk for exactly that
+        reason, measured rather than assumed to clear.
+
+        WHICH PAIRS ARE TRAPPED is deliberately not restated here.
+        `_TRAPPED_PAIRS` above carries them with a line each on why, and
+        the ungated companion below compares that transcription to the
+        measurement — so the list is readable without a run AND cannot
+        drift from one. Read the constant, not this paragraph.
+
+        WHAT IT DOES NOT REACH, so nobody reads the denominator as the
+        space: five doors and eight kinds is a sample of the documented
+        op surface, not a cover of it. Batches that combine doors, ops
+        other than `add`/`mod`, and every geometry other than one 200x64
+        box are outside it.
+        """
+        found = sweep_remedy_fixpoints()
+        self.assertEqual(
+            found["looped"], [],
+            "%d of the %d (kind, door) pairs asked file an ERROR, and %d "
+            "of those cannot be escaped by the repair the finding itself "
+            "prescribes: %s. Refused batches (not counted as asked): %s"
+            % (len(found["fired"]), len(found["asked"]),
+               len(found["looped"]), found["looped"],
+               [(k, d) for k, d, _ in found["refused"]]))
+
+    def test_the_sweep_reaches_every_door_and_hears_the_check(self) -> None:
+        """The companion: the walk above is neither crashed nor vacuous.
+
+        THIS IS THE NEIGHBOUR'S JOB, DONE FOR A SWEEP. The assertion
+        above sits under `expectedFailure`, which swallows errors as
+        well as failures, so a builder that started raising — or a door
+        that quietly stopped reaching the op layer — would read as the
+        same healthy red as a live defect. Worse, `looped == []` is
+        satisfied perfectly by a walk that asks nothing at all: delete
+        the ERROR and this sweep goes green while proving less than
+        nothing. So this half is ungated and asserted in every commit,
+        and it claims the three facts that make the red mean something:
+        every kind reached every door, no batch was refused, and the
+        check under test actually SPOKE somewhere in the walk.
+
+        The numbers are floors and not equalities on purpose. A door or
+        a kind added later must not fail this by existing; what must
+        fail it is a walk that shrank, went silent, or started being
+        turned away by the op layer.
+        """
+        found = sweep_remedy_fixpoints()
+        self.assertEqual(
+            len(found["asked"]),
+            len(_COMPOSED_KINDS) * len(_REMEDY_DOORS),
+            "the sweep did not reach every (kind, door) pair: asked %d of "
+            "%d, refused %s" % (len(found["asked"]),
+                                len(_COMPOSED_KINDS) * len(_REMEDY_DOORS),
+                                [(k, d) for k, d, _ in found["refused"]]))
+        self.assertEqual(
+            found["refused"], [],
+            "every door in this sweep is documented and must be accepted; "
+            "a refused batch measures the op layer's manners, not the "
+            "remedy property: %s" % (found["refused"],))
+        self.assertGreaterEqual(
+            len(found["fired"]), 1,
+            "no door in the whole walk produced the ERROR this sweep is "
+            "about, so `looped == []` above would pass over a check that "
+            "says nothing at all — a corpse, not a clean bill")
+        # AND THE TRANSCRIPTION, checked here rather than trusted. The
+        # red's own failure text names the trapped pairs, but only to
+        # somebody who ran it and lifted the mask; `_TRAPPED_PAIRS` is
+        # what a reader sees. Comparing the two is what stops that
+        # comment becoming the fifth hand copy in this repo to go quietly
+        # wrong — and it fails in BOTH directions, so a pair that clears
+        # forces the edit exactly as a pair that appears does.
+        self.assertEqual(
+            {(kind, door) for kind, door, _ in found["looped"]},
+            _TRAPPED_PAIRS,
+            "the trapped pairs have moved: measured %s against the "
+            "transcription in `_TRAPPED_PAIRS`, %s. Update that constant "
+            "and the paragraph above it — a pair that CLEARED is the "
+            "flip contract arriving, and a pair that APPEARED is a new "
+            "defect this sweep exists to name"
+            % (sorted((k, d) for k, d, _ in found["looped"]),
+               sorted(_TRAPPED_PAIRS)))
 
 
 class TestCoverage(unittest.TestCase):
@@ -32849,6 +38196,152 @@ class TestCoverage(unittest.TestCase):
                     any(want in line for line in said),
                     "a row that is %r drew %s — the guard is blind to one "
                     "of the four rots it names" % (want, said))
+
+    def test_no_detector_goes_quiet_when_its_subject_is_a_line(self) -> None:
+        """A detector must read its own check about a `line`, not just an arrow.
+
+        THE GUARD ASSERTS WHAT MUST NOT BE LOST, and it is deliberately
+        NOT a census of the regexes' spelling. A syntactic sweep for the
+        word `arrow` is coupled to spelling — the same class of defect it
+        would be deployed against — so it passes a widening that
+        over-matches and says nothing at all about a check written next
+        year with a noun nobody thought to grep for. This runs
+        `canvas.lint_layout` twice on one geometry and compares what came
+        out.
+
+        `lint_layout` binds `arrows = [... type in ("arrow", "line")
+        ...]` and opens those sentences with `connector_noun`, so the
+        same picture drawn with lines says "line e1 …" where it said
+        "arrow e1 …". A detector whose pattern only reads the second
+        matches NOTHING on the first — and a check that matches nothing
+        does not fail, it goes SILENT, which is how `Silence` becomes
+        indistinguishable from coverage and every positive case becomes
+        red-forever. Measured 2026-08-20 before the widening beside it:
+        eight of the nine `arrow`-opening detectors were lost this way,
+        with the lint still speaking the same sentence about the same
+        elements.
+
+        SCOPE, stated because the gate's silence about the rest is not
+        evidence about them: this walks `CATALOGUE` scenes, the same
+        population Rule 8 walks and for the same reason — they are the
+        scenes the harness owns and can rebuild. It says nothing about
+        the hand-authored silences in `test_backend.py` or the render
+        tier.
+        """
+        for mid in sorted(CATALOGUE):
+            mutant = CATALOGUE[mid]
+            scene = OPERATORS[mutant.op](mutant.build(), **mutant.args)
+            if not any(e.get("type") == "arrow" for e in scene):
+                continue
+            arrowed = {f["check"] for f in collect_findings(scene)}
+            lined = {f["check"] for f in collect_findings(_line_twin(scene))}
+            for check in sorted(arrowed - lined):
+                with self.subTest(mutant=mid, check=check):
+                    # `longMessage` off deliberately: with it on, unittest
+                    # prepends the whole NOUN_SCOPED dict — about 1200
+                    # characters — ahead of the sentence that says what to
+                    # do, so the actionable half arrives last. On a guard
+                    # whose whole premise is that an agent READS these
+                    # sentences and acts on them, burying the instruction
+                    # behind the container is the same defect one level up.
+                    self.longMessage = False
+                    self.assertIn(
+                        check, NOUN_SCOPED,
+                        "%s: check %r speaks about this scene's arrows and "
+                        "says NOTHING about the same geometry drawn as "
+                        "lines. If its pattern lost the noun, widen the "
+                        "pattern (`_CONN`); if the check is genuinely "
+                        "arrow-only, say so in NOUN_SCOPED with the "
+                        "canvas.py gate that makes it so" % (mid, check))
+
+    def test_the_noun_scoped_exemptions_cannot_rot(self) -> None:
+        """`NOUN_SCOPED` may not outlive the narrowings it records.
+
+        The discipline `ASPIRATIONAL` and `RULE8_EXEMPT` carry, for the
+        identical reason: an exception table nobody prunes becomes a list
+        of pins that stopped being read. THIS IS THE OTHER DIRECTION of
+        the guard above: the guard alone can be satisfied forever by
+        adding rows, so every row must still name a check that is lost on
+        some twin. The day one of these grows a line-reading sibling the
+        row is obsolete and has to go. IT WORKS — at the fold it named
+        `shared_corridor` and `false_bidi`, whose narrowing
+        `instruments._arrows` had been repaired 205 commits upstream, and
+        both rows were deleted on its say-so.
+
+        WHAT THE PAIR IS NOT, and an earlier version of this docstring
+        claimed it was: a PROOF rather than a ratchet. It is not. Measured
+        at the fold — narrow a detector back to the literal `arrow` and
+        add a row declaring it arrow-only, and BOTH arms go green. The
+        pair accepts a false arrow-only claim, because this arm asks only
+        whether the check is still lost on some twin, which a narrowed
+        pattern makes true by construction. The word "genuinely" above
+        was doing work no assertion does.
+
+        WHAT WOULD CLOSE IT, filed rather than built because this is a
+        fold: read the RAW lint output instead of doing pattern surgery.
+        If the twin's lint still emits the same sentence with the noun
+        swapped, the lint SPOKE and the detector missed it — a PATTERN
+        failure, not a type gate. If the sentence is gone, the check went
+        quiet upstream and the row is honest. That discriminator
+        classifies all three surviving rows as TYPE-GATE and catches the
+        narrow-and-declare repair as PATTERN.
+        """
+        for name, reason in sorted(NOUN_SCOPED.items()):
+            with self.subTest(exemption=name):
+                self.assertIn(name, DETECTORS,
+                              "NOUN_SCOPED names %r, which is not a "
+                              "detector" % name)
+                self.assertTrue(str(reason).strip(),
+                                "NOUN_SCOPED %s has no reason" % name)
+        still_lost = set()
+        for mid in sorted(CATALOGUE):
+            mutant = CATALOGUE[mid]
+            scene = OPERATORS[mutant.op](mutant.build(), **mutant.args)
+            if not any(e.get("type") == "arrow" for e in scene):
+                continue
+            still_lost |= ({f["check"] for f in collect_findings(scene)}
+                           - {f["check"]
+                              for f in collect_findings(_line_twin(scene))})
+        stale = sorted(set(NOUN_SCOPED) - still_lost)
+        self.assertEqual(stale, [],
+                         "NOUN_SCOPED names %s, which no catalogue scene "
+                         "loses on its line twin any more — the narrowing "
+                         "the row excused is gone; delete the row" % stale)
+
+    def test_the_connector_alternation_matches_every_noun_canvas_prints(
+            self) -> None:
+        """`_CONN` is a closed set, pinned against `connector_noun` itself.
+
+        The alternation is the one place the widened patterns are still
+        coupled to a spelling, so it is pinned to the FUNCTION that
+        chooses the word rather than to a list retyped here. Every
+        combination of the two types `lint_layout`'s `arrows` list can
+        hold — and a mixed pair, which is the case that produces
+        "connector" — must be a word the alternation matches, so a
+        fourth answer arriving lands on this assertion instead of
+        silently unmatching eight detectors.
+
+        A NEW TYPE IS IN THE INPUT SET, and it is the path that matters.
+        `connector_noun`'s body cannot return a fourth word today, so a
+        fourth word requires an edit — and the edit that produces one is
+        a new branch for a NEW connector type, which a pin built only
+        from `arrow` and `line` would never reach. Reviewed at the fold
+        with exactly that hole: patching the function to answer a fourth
+        noun for a `line` was caught, and patching it to answer one for
+        an unseen type was NOT. `elbow` and the empty dict are here to
+        close it, and they cost nothing while the answer stays three.
+        """
+        kinds = ({"type": "arrow"}, {"type": "line"},
+                 {"type": "elbow"}, {})
+        words = {canvas.connector_noun(a) for a in kinds}
+        words |= {canvas.connector_noun(a, b) for a in kinds for b in kinds}
+        for word in sorted(words):
+            with self.subTest(noun=word):
+                self.assertIsNotNone(
+                    re.compile(_CONN + "$").match(word),
+                    "connector_noun can print %r and the detector patterns "
+                    "cannot read it — every check that opens with _CONN "
+                    "goes silent on that noun" % word)
 
     def test_every_detector_is_proven_or_named(self) -> None:
         """Every DETECTORS entry is either proven or carries an UNCOVERED reason."""
@@ -33279,6 +38772,74 @@ class TestCoverage(unittest.TestCase):
                sorted(stated - live) or "none", sorted(live - stated)
                or "none"))
 
+    def test_the_handover_transcribes_the_hand_authored_red_classes(
+            self) -> None:
+        """The sixth census guard: v0.9, 2026-08-20.
+
+        `test_the_hand_authored_red_classes_are_the_ones_that_exist` has
+        compared the DICT to the decorators since batch 16 and has never
+        been wrong. The paragraph in SESSION-HANDOVER.md that transcribes
+        that dict drifted nine times underneath it, and the reason is the
+        same one batch 23 wrote down for the catalogue table: a guard
+        proves the property it evaluates and no part of the property its
+        author had in mind. That sibling never opens the file.
+
+        WHAT MAKES THIS THE WORST OF THE SIX, and the reason it is worth a
+        docstring rather than a line. The paragraph did not merely go
+        stale — it RECORDED its own stalenesses, eight of them, and
+        instructed the reader *"Read the dict, not this sentence."* It
+        knew its failure mode, published it, and had no mechanism, which
+        is the strongest available argument that documenting a hazard is
+        not the same as closing it.
+
+        ASSERTED IN BOTH DIRECTIONS AND WITH COUNTS, because the two
+        failures need different repairs: a class in the prose that carries
+        no decorator is a flip nobody transcribed, a decorated class
+        missing from the prose is a red nobody disclosed, and a class in
+        both at different counts is the drain-by-one this dict's own
+        comments say is rarer here than losing a whole line.
+
+        NOT MUTE AT ZERO. The tree is at zero reds, so both sides are
+        empty and a naive comparison would be `{} == {}` — true of a
+        correct paragraph, a deleted one and a garbled one alike. The
+        reading half is what carries the discrimination: `*none*` is a
+        positive spelling of empty and every other shape of that line
+        raises. See `handover_hand_authored_red_classes` for the grammar
+        and for why a livedoc marker was rejected here.
+        """
+        transcribed = handover_hand_authored_red_classes()
+        live = {k: v for k, v in red_bearing_classes().items()
+                if k != CATALOGUE_RED_CLASS}
+        unspellable = sorted(k for k in live
+                             if not _HAND_AUTHORED_SPELLABLE.match(k))
+        self.assertEqual(
+            unspellable, [],
+            "these red-bearing classes cannot be written in the roster's "
+            "grammar: %s. `red_bearing_classes` collects EVERY TestCase "
+            "subclass carrying a red and applies no name filter, while "
+            "`_HAND_AUTHORED_ENTRY` accepts only `Test...`, so the two "
+            "halves of this guard disagree about what a class name is — "
+            "and the disagreement makes it UNFIXABLY red, because no "
+            "accepted spelling of the line can satisfy it. Rename the "
+            "class, or widen both patterns in the same change. This is "
+            "checked before the comparison so the message says which of "
+            "the two problems you have" % (unspellable,))
+        self.assertEqual(
+            transcribed, live,
+            "SESSION-HANDOVER.md's non-catalogue red roster says %s while "
+            "the live decorators in this file say %s. Listed but drained: "
+            "%s. Red but undisclosed: %s. Transcribed at the wrong count: "
+            "%s. Edit the roster line — and note that a class whose LAST "
+            "red flips leaves the line entirely rather than dropping to 0, "
+            "and that an empty roster is written %s and never as a blank"
+            % (dict(sorted(transcribed.items())) or "nothing",
+               dict(sorted(live.items())) or "nothing",
+               sorted(set(transcribed) - set(live)) or "none",
+               sorted(set(live) - set(transcribed)) or "none",
+               sorted(k for k in set(live) & set(transcribed)
+                      if live[k] != transcribed[k]) or "none",
+               _HAND_AUTHORED_NONE))
+
     def test_uncovered_entries_all_carry_reasons(self) -> None:
         """No UNCOVERED entry has a blank or whitespace-only reason."""
         empty = [k for k, v in UNCOVERED.items() if not str(v).strip()]
@@ -33670,13 +39231,87 @@ class TestCoverage(unittest.TestCase):
         one: the op path minted exactly this element until the ruling
         landed, which is why the proving scene has to be built in flight
         through `apply_batch` plus a real user `commit`.
+        71 -> 72 on 2026-08-20 (TASK-VOCAB): `unknown_kind`, the note for
+        a `customData.kind` no code implements. It takes the
+        `bound_line_connector` shape — an `UNCOVERED` row and no
+        `DETECTORS` entry — for that row's reason, and the row spells the
+        pair out.
+
+        A NEW CHECK, not a widened population, and it is the first in
+        this function whose subject is the element's own DECLARATION
+        rather than its geometry or its bindings. Every other template
+        here reads pixels or topology; this one reads a word against a
+        vocabulary, and it quotes no figure at all — which is why the row
+        forbids pinning a magnitude.
+
+        ONE SITE PER ELEMENT, which is 49 -> 50's judgement: a kind is
+        wrong once however many checks then read past it, and the repair
+        is a single edit.
+
+        THE CORPUS CANNOT EXERCISE IT, re-derived rather than inherited:
+        across the 24 frozen artifacts and 976 elements, 274 carry a
+        `customData.kind` and every one of them is in the vocabulary, so
+        this site adds ZERO findings to every shipped drawing. That zero
+        is an EMPTY population and not an unreachable one — the op path
+        copies `kind` out of a spec with no whitelist anywhere on it, so
+        the proving scene builds in flight through `apply_batch`.
+
+        THE POPULATION IS 274 AND NOT 976, and the distinction is the
+        check's whole shape. `kind_of` falls back to the element TYPE, so
+        an implementation reading it would report every plain rectangle
+        in the corpus; this one reads `customData` directly. A neighbour
+        built on a KINDLESS element would be silent under both and prove
+        nothing, which is why the row above requires `kind: "block"`.
+
+        72 -> 73 on 2026-08-25: `composed_host_stripped`, the composed
+        host whose parts are not on the canvas. It DRAINS an `UNCOVERED`
+        row rather than adding one — the reverse of every arrival above
+        — because the registered name and its proving mutant had been
+        waiting five days for a lint to exist, and this is that lint.
+
+        A SECOND WALK, not a widened population, and the distinction is
+        the whole reason the site is new. The composed-group note twelve
+        lines up walks PARTS and resolves each one's owner, so a host
+        with no parts yields nothing to walk: there is no comparison in
+        that loop to widen and nothing to return early from. Making the
+        HOST the subject is a different traversal with a different
+        remedy — that one asks "did you ungroup this deliberately?" and
+        offers a waive, this one says the widget is not drawn.
+
+        ONE SITE FOR A TWO-ENDED FAULT, which is 49 -> 50's judgement:
+        `missing` and `surplus` are one finding about one host with one
+        magnitude, and the direction picks the tail.
+
+        THE CORPUS CANNOT EXERCISE IT, measured rather than inherited:
+        across the 24 frozen artifacts there are 67 composed hosts, 27
+        of them entities and so carved out, and every one of the 40 that
+        carries a floor draws exactly what it owes. ZERO findings added
+        to every shipped drawing, so `corpus_census` does not move. That
+        zero is an EMPTY population and not an unreachable one —
+        Ctrl+Shift+G then Ctrl+D on a slider reaches it through
+        `_rehost_duplicated_parts`' NO-HOST drop branch. That function's
+        own docstring draws the distinction and an earlier version of
+        this paragraph got it backwards: `len(pick) == 1` fails on two
+        shapes, a group naming no host and a group naming two or more,
+        and Ctrl+Shift+G is the first — the parts carry no group at all,
+        so `owners` is empty. The claim the branch name supports was
+        reproduced either way; only the name was wrong, and it is the
+        kind of wrong that sends the next reader to the wrong arm.
+
+        THE DENOMINATOR IS THE ARTIFACTS, not the fixture tree, and the
+        first sweep of this got it wrong in the direction that looks
+        right: `saves/` holds DIFFS (`changes`, `facts`, `inverse`) and
+        not scenes, so globbing it reported the same zero while reading
+        no elements at all. A zero over an unread population is the
+        shape this repo keeps finding, so the number above is the
+        artifacts alone and says so.
         """
         src = inspect.getsource(canvas.lint_layout)
         sites = sum(src.count("%s.append" % chan)
                     for chan in ("errors", "warnings", "notes"))
-        self.assertEqual(sites, 71,
+        self.assertEqual(sites, 73,
                          "canvas.py lint_layout append-site count changed "
-                         "(71 -> %d): re-enumerate the UNCOVERED ledger "
+                         "(73 -> %d): re-enumerate the UNCOVERED ledger "
                          "(see plan Task 4 Step 1) and update this pin."
                          % sites)
 
@@ -34048,6 +39683,84 @@ SWEEP_BASES: tuple[tuple[str, Callable[[], list[dict]]], ...] = (
     ("opposed", lambda: _opposed_pair(rounded=False)),
 )
 
+# The cells `sweep_args` cannot build, pinned in sweep order — the sweep's
+# DENOMINATOR, written down.
+#
+# 7 of the 15 (3 bases x 5 operators) cells skip, so the sweep reports over
+# fewer than half of them, and until 2026-08-20 nothing asserted which half.
+# That is the silent-instrument shape one level up from the one
+# `sweep_cells` already guards: a cell that stops being COMPARABLE does not
+# fail, it leaves the denominator, and "8 cells run, 0 survivors" reads
+# exactly like "15 cells run, 0 survivors" to anyone not counting. A base
+# builder losing a binding — the thing `_diamond_stage` and `_opposed_pair`
+# are edited for — silently retires cells from the harness.
+#
+# PINNED RATHER THAN CEILINGED, because a ceiling ("no more than 7") passes
+# the one case worth catching: a cell going quiet while another becomes
+# buildable, which holds the count and moves the coverage. The triple
+# carries the REASON as well as the cell, since a cell that starts skipping
+# for a different reason is a different fact about the base.
+#
+# AND NOT REPAIRED BY RESHAPING THE BASES, which was the other candidate.
+# Every skip here is a property the base is FOR: `_opposed_pair`'s arrows
+# carry no bindings (that is the configuration it exists to draw), and
+# `_chain` carries no bound label.
+#
+# THE COST OF RESHAPING IS SMALL, and the sentence that stood here said it
+# was large: "a builder 31 call sites share, most of them catalogue mutants
+# with pinned expectations — a five-line coverage gain paid for by
+# re-deriving the catalogue". All three clauses were wrong. The 31 is a
+# SUBSTRING count that sweeps in two other builders — `grep -oE
+# '[A-Za-z0-9_]*_chain\('` answers `_attach_chain(` 15, `_chain(` 13,
+# `_stub_chain(` 3 — and a word-boundary grep answers 13, one of which is
+# the `def`. So TWELVE call sites, every one of them a method of
+# `TestOperators`, and NONE of them a catalogue mutant. A reviewer then
+# performed the rejected repair and ran every class that can see it: the
+# real cost is ONE LINE of `EXPECTED_SKIPS`, and nothing is re-derived.
+#
+# THE CONCLUSION STILL HOLDS on its other argument, which is why it is kept:
+# every skip here is a property its base is FOR, so reshaping a base to
+# unlock a cell destroys the configuration another cell depends on. Widen
+# the sweep by ADDING a base that has the missing property, and update this
+# pin in the same commit. But the argument now rests on the reason rather
+# than on a number that was 2.6x the truth and misnamed what it would break.
+EXPECTED_SKIPS: tuple[tuple[str, str, str], ...] = (
+    ("chain", "rename_node", "no node carries a bound text label"),
+    ("diamond", "move_node_onto_rank",
+     "no pass-through node (one bound arrow in, another out)"),
+    ("diamond", "swap_endpoints",
+     "fewer than two arrows carry an end binding"),
+    ("opposed", "flip_direction", "no arrow bound at both ends to reverse"),
+    ("opposed", "rename_node", "no node carries a bound text label"),
+    ("opposed", "move_node_onto_rank",
+     "no pass-through node (one bound arrow in, another out)"),
+    ("opposed", "swap_endpoints",
+     "fewer than two arrows carry an end binding"),
+)
+
+
+def skip_drift(skipped: list[tuple[str, str, str]]) -> list[str]:
+    """Report how a sweep's skipped cells differ from `EXPECTED_SKIPS`.
+
+    Both directions matter and they mean opposite things: a cell that
+    newly skips has left the sweep's denominator without telling anyone,
+    and a pinned cell that newly runs is coverage the pin is now
+    understating. Either way the pin is the thing to update, in the same
+    commit as whatever moved.
+
+    Args:
+        skipped: The `(base, op, reason)` triples `sweep_cells` returned.
+
+    Returns:
+        One human-readable line per difference, in sweep order; empty
+        when the live skips are exactly the pinned ones.
+    """
+    live, pinned = list(skipped), list(EXPECTED_SKIPS)
+    drift = ["NEWLY SKIPPED %s/%s: %s" % t for t in live if t not in pinned]
+    drift += ["NO LONGER SKIPPED %s/%s (was: %s)" % t
+              for t in pinned if t not in live]
+    return drift
+
 
 def sweep_args(op: str, scene: list[dict]) -> tuple[dict | None, str | None]:
     """Build one sweep cell's concrete operator arguments.
@@ -34194,20 +39907,32 @@ def run_sweep(write: bool = True) -> int:
             run's record.
 
     Returns:
-        The number of survivors carrying no `DISPOSITIONS` entry — 0
-        when the sweep is fully accounted for, which is also this
-        function's process exit code.
+        The number of facts this sweep could not account for: survivors
+        carrying no `DISPOSITIONS` entry, plus cells whose skip status
+        disagrees with `EXPECTED_SKIPS`. 0 when the sweep is fully
+        accounted for, which is also this function's process exit code.
+        Drift counts because the exit code is what a caller reads, and a
+        sweep whose denominator moved under it has not succeeded at
+        measuring anything, however few survivors it found.
     """
     survivors, skipped = sweep_cells()
     if write:
         SWEEP_RECORD.write_text(json.dumps(
             {"swept": datetime.date.today().isoformat(),
              "survivors": survivors}, indent=2) + "\n")
-    ran = len(SWEEP_BASES) * len(CORRESPONDENCE) - len(skipped)
-    print("sweep: %d cells run, %d skipped, %d survivor(s)"
-          % (ran, len(skipped), len(survivors)))
+    cells = len(SWEEP_BASES) * len(CORRESPONDENCE)
+    ran = cells - len(skipped)
+    print("sweep: %d of %d cells run, %d skipped, %d survivor(s)"
+          % (ran, cells, len(skipped), len(survivors)))
     for base, op, reason in skipped:
         print("  SKIP  %-10s %-20s %s" % (base, op, reason))
+    drift = skip_drift(skipped)
+    for line in drift:
+        print("  DRIFT %s" % line)
+    if drift:
+        print("%d cell(s) changed skip status: the sweep's denominator "
+              "moved. Update EXPECTED_SKIPS in the commit that moved it"
+              % len(drift))
     missing = []
     for s in survivors:
         kind, why = DISPOSITIONS.get(s["id"], ("UNDISPOSITIONED", ""))
@@ -34220,7 +39945,7 @@ def run_sweep(write: bool = True) -> int:
     if missing:
         print("%d undispositioned survivor(s): add each id to DISPOSITIONS "
               "as promote / allow / bug, with a reason" % len(missing))
-    return len(missing)
+    return len(missing) + len(drift)
 
 
 # Survivor verdicts. "promote": a real gap worth a curated mutant and a lint
@@ -34279,24 +40004,111 @@ DISPOSITIONS: dict[str, tuple[str, str]] = {
 
 
 class TestDiscovery(unittest.TestCase):
-    """Spec §5: a survivor may be new once, never undispositioned twice."""
+    """Spec §5: a survivor may be new once, never undispositioned twice.
+
+    THREE OF THESE SIX WERE VACUOUS. Every assertion below is over a
+    list that is EMPTY when all is well, so a harness that discovers
+    nothing at all is indistinguishable from a harness that discovers
+    nothing WRONG. Built against a real empty-input case — every
+    correspondence predicate silent, the record refreshed from that
+    sweep, `DISPOSITIONS` empty — all six ran and three passed on
+    `[] == []`.
+
+    THE FIX IS NOT "REFUSE ON EMPTY". An empty `DISPOSITIONS` is the
+    DESIRABLE end-state: it means every discovered gap has been settled
+    and none is outstanding, and a test that went red on it would be a
+    ratchet pointing the wrong way. So each case below instead asserts
+    the LIVE POPULATION it depends on — the cells the sweep really ran,
+    the operators and bases a recorded id really names — which is this
+    repo's established shape for the same problem
+    (`test_the_reader_finds_the_hooks_this_repo_declares`: a floor on
+    named ids rather than on a count, because a count goes stale the
+    next time a cell is added and would be repaired by editing the
+    number).
+    """
+
+    def _cell_of(self, sid: str) -> tuple[str, str]:
+        """Split a survivor id into the operator and base it names.
+
+        Args:
+            sid: A survivor id, `op:base:hash` as `sweep_cells` mints it.
+
+        Returns:
+            The `(op, base)` pair the id claims to have come from, or
+            `("", "")` when it does not have three colon-separated parts.
+        """
+        parts = sid.split(":")
+        return (parts[0], parts[1]) if len(parts) == 3 else ("", "")
+
+    def assertNamesALiveCell(self, sid: str, whence: str) -> None:
+        """Require an id to name an operator and a base that still exist.
+
+        A survivor id outlives the thing it was minted from. Rename an
+        operator or retire a base and the id keeps its old spelling: the
+        row is then unmatchable by any future sweep, so it can never be
+        re-discovered and its verdict silently protects nothing. The
+        container checks cannot see this — the entry is present and
+        well-formed, it just no longer refers to anything.
+
+        Fails the calling case when the id is malformed, or when it names
+        an operator or a base this module no longer declares.
+
+        Args:
+            sid: The survivor id to check.
+            whence: Where the id came from, for the failure message.
+        """
+        op, base = self._cell_of(sid)
+        self.assertTrue(
+            op, "%s carries %r, which is not an `op:base:hash` survivor "
+                "id — nothing can match it back to a sweep cell"
+                % (whence, sid))
+        self.assertIn(
+            op, CORRESPONDENCE,
+            "%s names operator %r, which `CORRESPONDENCE` no longer has: "
+            "no sweep can mint this id again, so the row is dead weight "
+            "that reads as coverage" % (whence, op))
+        self.assertIn(
+            base, [name for name, _ in SWEEP_BASES],
+            "%s names base %r, which `SWEEP_BASES` no longer has: the "
+            "drawing this verdict was reached over is gone" % (whence, base))
 
     def test_recorded_sweep_is_fully_dispositioned(self) -> None:
-        """Every survivor in the committed sweep record carries a verdict."""
-        rec = json.loads(
-            (Path(__file__).parent / "mutants_sweep.json").read_text())
+        """Every survivor in the committed sweep record carries a verdict.
+
+        READ THROUGH `SWEEP_RECORD`, not through a second hand-built
+        path. This case used to open
+        `Path(__file__).parent / "mutants_sweep.json"` while every other
+        reader — `run_sweep`'s writer included — used the module
+        constant. Move the record and the two disagree: the writer puts
+        it in its new home and this test goes on reading whatever is
+        left at the old one, PASSING over a file nothing updates any
+        more. One name, so there is one file.
+        """
+        rec = json.loads(SWEEP_RECORD.read_text())
         missing = [s["id"] for s in rec["survivors"]
                    if s["id"] not in DISPOSITIONS]
         self.assertEqual(missing, [],
                          "undispositioned survivors from the last sweep — "
                          "run: python3 tests/test_mutants.py --sweep")
+        for s in rec["survivors"]:
+            with self.subTest(survivor=s["id"]):
+                self.assertNamesALiveCell(s["id"], "the sweep record")
 
     def test_dispositions_carry_reasons(self) -> None:
-        """Every disposition is a known verdict with a non-blank reason."""
+        """Every disposition is a known verdict with a non-blank reason.
+
+        The verdict/reason check is silent on an empty table and that is
+        correct, so the live half here is the KEYS: each must still name
+        a sweep cell that exists. That is the assertion an emptied
+        `CORRESPONDENCE` cannot satisfy while this table holds rows.
+        """
         bad = [k for k, (kind, why) in DISPOSITIONS.items()
                if kind not in ("promote", "allow", "bug")
                or not why.strip()]
         self.assertEqual(bad, [])
+        for sid in DISPOSITIONS:
+            with self.subTest(disposition=sid):
+                self.assertNamesALiveCell(sid, "DISPOSITIONS")
 
     def test_no_op_operator_fails_the_sweep_cell(self) -> None:
         """An operator that mutates nothing raises, naming its cell.
@@ -34338,15 +40150,68 @@ class TestDiscovery(unittest.TestCase):
         self.assertIn("sweep cell chain/drop_edge", msg)
         self.assertIn("mutated nothing", msg)
 
+    def test_the_sweep_skips_exactly_the_pinned_cells(self) -> None:
+        """The sweep's denominator is the pinned one, cell for cell.
+
+        `sweep_cells` raises on a cell that mutated nothing, so the
+        cells it RUNS cannot go quiet unnoticed. The cells it does not
+        run had no such guard: `sweep_args` returning `(None, reason)`
+        prints a SKIP line and drops the cell out of the denominator,
+        and 7 of the 15 cells take that path today. A base builder
+        losing a binding — one edit to `_diamond_stage` or
+        `_opposed_pair`, both of which exist to carry particular
+        bindings — retires cells from the harness while the report goes
+        on saying "0 survivors" in a smaller voice.
+
+        Failing in BOTH directions is the point. A newly skipped cell is
+        coverage lost silently; a pinned cell that starts running is
+        coverage the pin understates, and leaving that unstated is how
+        a pin becomes a ceiling nobody re-derives.
+        """
+        _survivors, skipped = sweep_cells()
+        self.assertEqual(
+            skip_drift(skipped), [],
+            "the sweep's skipped cells are not EXPECTED_SKIPS. Run "
+            "`python3 tests/test_mutants.py --sweep` to see the cells, "
+            "then update EXPECTED_SKIPS — in the commit that moved them")
+
     def test_live_sweep_reproduces_the_record(self) -> None:
         """The committed record still describes what a sweep finds today.
 
         Without this the record is only a file: a detector that starts
         catching a recorded survivor — or stops catching something —
         would leave a stale json passing the currency test forever.
+
+        THE FLOOR COMES FIRST, and it is why this case is no longer
+        `[] == []`. The equality below is the whole test, and it is
+        satisfied by two sweeps that both found nothing — including a
+        sweep that found nothing because it RAN nothing. Every cell is
+        skippable by design (`sweep_args` returns a reason rather than
+        raising), so a base that loses its bindings or an operator whose
+        argument rule stops matching removes cells one at a time, in
+        silence, until the harness is an empty loop reporting a clean
+        drawing. The roster is named rather than counted: a count would
+        go stale the next time a cell becomes buildable and would be
+        repaired by editing the number, which teaches the reader to edit
+        numbers.
         """
+        survivors, skipped = sweep_cells()
+        ran = {"%s/%s" % (base, op)
+               for base, _ in SWEEP_BASES for op in CORRESPONDENCE} - {
+            "%s/%s" % (base, op) for base, op, _ in skipped}
+        for cell in ("chain/drop_edge", "chain/flip_direction",
+                     "chain/move_node_onto_rank", "chain/swap_endpoints",
+                     "diamond/drop_edge", "diamond/flip_direction",
+                     "diamond/rename_node", "opposed/drop_edge"):
+            with self.subTest(cell=cell):
+                self.assertIn(
+                    cell, ran,
+                    "the sweep no longer runs %r, so every correspondence "
+                    "it would have checked is unasked. A cell that stops "
+                    "being buildable is SKIPPED, not failed, so the sweep "
+                    "below reports a clean drawing for not having looked "
+                    "at one" % cell)
         rec = json.loads(SWEEP_RECORD.read_text())
-        survivors, _skipped = sweep_cells()
         self.assertEqual([s["id"] for s in survivors],
                          [s["id"] for s in rec["survivors"]],
                          "the recorded sweep is stale — "
@@ -34367,6 +40232,11 @@ if __name__ == "__main__":
               "firing, not every disjunct held. A check can lose an arm "
               "with this table byte-identical — see coverage_table's "
               "docstring for the measured case.")
+        # The render-tier rows' currency rides the surface for the same
+        # reason the caveat above does: the reader this misleads is the
+        # one who ran `--coverage` and did not open the file. Reported
+        # rather than asserted — `RENDER_RUN_RECORD`'s comment has why.
+        print("\nrender-tier evidence: %s — %s" % render_evidence_currency())
     elif "--sweep" in sys.argv:
         raise SystemExit(run_sweep())
     else:

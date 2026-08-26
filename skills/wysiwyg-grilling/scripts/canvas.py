@@ -1521,7 +1521,7 @@ def normalize_scene_doc(doc):
 ELEMENT_TYPES = {"rectangle", "ellipse", "diamond", "arrow", "line", "text",
                  "frame", "freedraw", "image"}
 
-BASE_DEFAULTS = {
+BASE_DEFAULTS: dict[str, Any] = {
     "fillStyle": "solid",
     "strokeWidth": 1,
     "strokeStyle": "solid",
@@ -2335,6 +2335,58 @@ def apply_strategic(el, value, errors, index_hint, explicit_bg=False):
         el["fillStyle"] = "solid"
 
 
+def _composed_state(spec, custom, key, default):
+    """A composite's state field: the op's word, then the stored one.
+
+    A MINT BLOCK MAY NOT READ `spec` OVER `customData` IT IS ABOUT TO
+    OVERWRITE, and this is that rule with one home instead of four. The
+    generic keys above (`role`, `kind`, `intent`, `parent`, `document`,
+    `annotates`, `tooltip`) already work this way — `custom` starts as a
+    copy of the spec's `customData` and each `if spec.get(k)` OVERRIDES
+    it. The four composite blocks departed from that and CLOBBERED:
+    `checked` was `bool(spec.get("checked", False))`, `value` was
+    `float(spec.get("value", 50))`, so a datum arriving through the
+    `customData` door was silently replaced by the default.
+
+    Measured 2026-08-25 over `add` with the datum in `customData` only:
+    checkbox True -> False, toggle True -> False, slider 80 -> 50, kpi
+    "$4.2M" -> "". Every one landed a CONSISTENT scene — the right part
+    count for the wrong state — so no check could see it and none did.
+    That is the v0.5 silent drop, which was found on `value` for an
+    `input` and fixed there, alive on four more fields.
+
+    IT IS THE PRESCRIBED REMEDY THAT MAKES THIS URGENT rather than
+    merely wrong. `lint_layout` tells a stripped `checkbox` to `del` and
+    re-add it; an agent re-adding from the element it just read back
+    hands the state through `customData`, and the checkbox came back
+    UNCHECKED with the finding flipped from missing to surplus. A repair
+    a check prescribes may not destroy the state it was protecting.
+
+    NOT TRUTHINESS, unlike the generic keys, and that is the one place
+    this differs from the pattern it restores: `checked: False` and
+    `value: 0` are real words. An `if spec.get(key)` here would ignore
+    an explicit uncheck and fall back to a stored `True`, which is the
+    same class of silent override in the other direction.
+
+    Args:
+        spec: The op's element spec — the agent's explicit word.
+        custom: The `customData` already assembled for this element,
+            which is the spec's own `customData` plus the generic keys.
+        key: The state field, e.g. `"checked"` or `"value"`.
+        default: Used only when NEITHER door supplies the field, so
+            every kind's documented default survives untouched.
+
+    Returns:
+        The raw value, uncoerced — each caller keeps the coercion it
+        had, so this changes where the number comes from and never what
+        it is turned into.
+    """
+    v = spec.get(key)
+    if v is None:
+        v = custom.get(key)
+    return default if v is None else v
+
+
 def make_element(spec, existing_ids, errors, index_hint=0):
     """Build a full Excalidraw element (and possibly a bound label element)
     from a terse spec. Returns a list of elements ([shape] or [shape, label]).
@@ -2676,7 +2728,8 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         if len(out) > 1 and out[1].get("containerId") == el_id:
             out[1]["verticalAlign"] = "bottom"
             recenter_label([el, out[1]], el)
-        custom["value"] = str(spec.get("value") or "")
+        custom["value"] = str(_composed_state(spec, custom, "value", None)
+                              or "")
         out.append(_compose_kpi_value(el, custom["value"], existing_ids))
     if custom.get("kind") in ("checkbox", "toggle") and \
             etype == "rectangle":
@@ -2686,18 +2739,47 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         el["groupIds"] = [*(el.get("groupIds") or []), gid]
         if el.get("height", 0) < 28:
             el["height"] = 28
-        custom["checked"] = bool(spec.get("checked", False))
+        custom["checked"] = bool(_composed_state(spec, custom, "checked",
+                                                 False))
         if len(out) > 1 and out[1].get("containerId") == el_id:
             out[1]["textAlign"] = "left"
         out.extend(_compose_control_glyph(el, custom["kind"],
                                           custom["checked"], existing_ids))
     if custom.get("kind") == "input" and etype == "rectangle" and \
-            spec.get("value") is not None:
+            _composed_state(spec, custom, "value", None) is not None:
         # a settled value belongs ON the control (v0.5). `value` used to
         # be read only by kpi and slider, so an input was handed one and
         # silently dropped it — the admin console's schedule field read
         # "Run at" with no time in it, and nothing complained
-        custom["value"] = str(spec["value"])
+        #
+        # STILL GATED ON HAVING A VALUE — `TestInputValue.test_add_
+        # without_value_stays_a_bare_field` is a standing decision that
+        # a valueless input is a bare field, and it is not this task's
+        # to overturn — but READING BOTH DOORS since 2026-08-25, because
+        # THREE READERS OF "when does an input owe a row" HAD PARTED and
+        # a lint cannot derive a floor from a disagreement. This gate
+        # was `spec.get("value") is not None` — the op's TOP-LEVEL key —
+        # while `reconcile_composed` mints through
+        # `_recompose_input_value`'s first-assembly branch
+        # unconditionally, and anything reading the stored element sees
+        # only `customData.value`. So `add {"kind": "input",
+        # "customData": {"value": "09:00"}}` stored the datum and drew
+        # no row for it, which is the v0.5 silent drop returning through
+        # the other door: `mod` documents `customData` as MERGED
+        # (references/ops-reference.md), so that shape is reachable and
+        # supported. `kpi` never had the split — its block is ungated
+        # and overwrites `custom["value"]` from the spec — and this now
+        # matches it.
+        #
+        # THE DATUM IS CARRIED, NEVER DISCARDED, which is the half a
+        # repair here is most likely to get wrong: clearing the finding
+        # by dropping a declared `customData` value would look honest
+        # and would re-open the exact v0.5 defect this block was written
+        # for. Whichever door supplied it wins, the top-level key first
+        # because it is the documented one; an input declared with no
+        # value at all draws the empty slot, which is what
+        # `_compose_input_value`'s docstring already says it is for.
+        custom["value"] = str(_composed_state(spec, custom, "value", ""))
         _compose_input_slot(out, el, custom["value"], existing_ids)
     if custom.get("kind") == "slider" and etype == "rectangle":
         # slider stand-in (v0.3): track + thumb; customData.value (0–100)
@@ -2710,7 +2792,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             out[1]["verticalAlign"] = "top"
             recenter_label([el, out[1]], el)
         try:
-            v = float(spec.get("value", 50))
+            v = float(_composed_state(spec, custom, "value", 50))
         except (TypeError, ValueError):
             errors.append("op %d: slider `value` must be a number 0–100"
                           % index_hint)
@@ -3288,6 +3370,114 @@ def _honour_ungroup(els, el, ungrouped_by_user):
     _close_widget_group([el, *parts])
 
 
+def _rigid_copy_hosts(new_els: list[dict[str, Any]],
+                      fresh: list[dict[str, Any]],
+                      old_ix: dict[str, dict[str, Any]]) -> dict[str, str]:
+    """Match each stale owner to the fresh host that is its rigid copy.
+
+    THE SECOND WITNESS, FOR THE COPY THAT HAS NO GROUP TO SPEAK FOR IT.
+    `_rehost_duplicated_parts` reads a duplicated part's new host off
+    the group the copy landed in, and that witness is silent for
+    exactly one gesture: `Ctrl+Shift+G`, save, `Ctrl+D`, save. The
+    ungroup takes the widget group off host and parts alike, so the
+    copy's parts carry no group at all, `owners` is empty, and the
+    backlink is dropped. Measured through `Store.commit` on 2026-08-26
+    — not through `apply_ops`, which is a layer above the seam — that
+    drop damaged 7 of the 8 composed kinds. `slider`, `toggle`,
+    `checkbox` and `image` came back DEAD: their arms of
+    `reconcile_composed` only re-derive parts that already exist, so
+    the copy owned none while its own track and thumb stood drawn
+    inside its box. `body`, `kpi` and `input` came back with DOUBLED
+    ink, their minting arms drawing a fresh set beside the orphaned one
+    (a body block's copy went from 3 decorations to 6).
+
+    IT IS NOT A GUESS FROM GEOMETRY, and that distinction is why this
+    is allowed to stand beside a docstring next door that rules
+    guessing out. Nothing here asks which host a part looks closest to,
+    or whose box it falls inside; either question would put a user's
+    ink somewhere they did not draw it. It asks an IDENTITY instead. A
+    duplicate is a rigid translation of a whole selection, so the
+    copy's parts stand at the same offsets inside the copy that the
+    original's parts stand at inside the original — every part, both
+    axes, exactly. The claim is made only when the copy's part count
+    equals the original's and exactly ONE fresh host answers it;
+    anything else falls through to the drop, unchanged.
+
+    KEYED ON THE STALE BACKLINK, so it must be read BEFORE the caller
+    rewrites `customData`. And bounded to owners that stand IN THE
+    BASE: a part naming a host this scene has never held is a pasted
+    stencil, which the group witness already resolves and which has no
+    original here to be a rigid copy of.
+
+    Args:
+        new_els: The incoming normalized user scene. Read, not mutated.
+        fresh: The tagged parts absent from the base — the candidates
+            the caller is re-pointing.
+        old_ix: id -> element for the base state.
+
+    Returns:
+        `{stale_owner_id: fresh_host_id}`, carrying an entry only where
+        the copy was identified without ambiguity. Empty when no fresh
+        part names a standing host.
+    """
+    def offsets(parts: list[dict[str, Any]],
+                host: dict[str, Any]) -> list[tuple]:
+        """Where these parts sit inside that host, sorted.
+
+        Args:
+            parts: The elements to place.
+            host: The element they are measured against.
+
+        Returns:
+            Sorted `(dx, dy, type)` triples. `x`/`y` is the anchor for
+            a point-strung part as much as for a box, and a rigid
+            translation moves the anchor and leaves `points` alone, so
+            no extent is needed or wanted here. Rounded to absorb the
+            float noise a round-trip through JSON leaves behind.
+        """
+        hx, hy = host.get("x", 0), host.get("y", 0)
+        return sorted((round(p.get("x", 0) - hx, 3),
+                       round(p.get("y", 0) - hy, 3), p.get("type") or "")
+                      for p in parts)
+
+    wanted: dict[str, list[dict[str, Any]]] = {}
+    for e in fresh:
+        oid = part_owner_id(e)
+        if oid in old_ix:
+            wanted.setdefault(oid, []).append(e)
+    if not wanted:
+        return {}
+    live: dict[str, dict[str, Any]] = {}
+    standing: dict[str, list[dict[str, Any]]] = {}
+    minted: list[dict[str, Any]] = []
+    for e in new_els:
+        if not isinstance(e, dict) or e.get("isDeleted"):
+            continue
+        live[e["id"]] = e
+        oid = part_owner_id(e)
+        if oid is None:
+            # A host, by the caller's own rule: never a tagged part and
+            # never a bound label, which answers with its `containerId`.
+            if e["id"] not in old_ix:
+                minted.append(e)
+        elif e["id"] in old_ix and _composed_part(e.get("customData") or {}):
+            standing.setdefault(oid, []).append(e)
+    out: dict[str, str] = {}
+    for hid, copies in wanted.items():
+        src = live.get(hid)
+        mine = standing.get(hid, [])
+        if src is None or len(mine) != len(copies):
+            continue
+        kind = (src.get("customData") or {}).get("kind")
+        want = offsets(mine, src)
+        hits = [h for h in minted
+                if (h.get("customData") or {}).get("kind") == kind
+                and offsets(copies, h) == want]
+        if len(hits) == 1:
+            out[hid] = hits[0]["id"]
+    return out
+
+
 def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
                              old_ix: dict[str, dict[str, Any]]) -> None:
     """Point a duplicated part's `*_of` backlink at its OWN host.
@@ -3352,18 +3542,25 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
     DROPPING IS THE FALLBACK FOR AMBIGUITY, NOT ONLY FOR ABSENCE, and
     it is a residual rather than a clean answer. `len(pick) == 1` fails
     on TWO shapes: a group naming no host (an ungrouped widget, whose
-    parts carry no group at all), and a group naming two or more. Both
-    then strip the backlink, and the cost is visible on
-    `Ctrl+Shift+G` then `Ctrl+D` — the copy's parts are untagged, so
-    the arms that remint draw the doubled ink this very paragraph
-    argues against (a 5-wave body copy drew 10 wave lines; a checkbox
-    copy drew two check strokes), and the arms that only re-derive
-    leave the copy a DEAD WIDGET whose parts no longer drag with it.
-    Kept anyway, deliberately: the base behaviour is worse — it DELETES
-    those parts outright — and the alternative to dropping is guessing
-    a host from geometry, which would put a user's ink somewhere they
-    did not draw it. A save may not delete what a user just drew, and
-    it may not invent an owner for it either.
+    parts carry no group at all), and a group naming two or more. What
+    that used to cost was visible on `Ctrl+Shift+G` then `Ctrl+D` — the
+    copy's parts came back untagged, so the arms that remint drew the
+    doubled ink this very paragraph argues against (a 5-wave body copy
+    drew 10 wave lines; a checkbox copy drew two check strokes), and
+    the arms that only re-derive left the copy a DEAD WIDGET whose
+    parts no longer drag with it. Measured 2026-08-26 through
+    `Store.commit`, that reached 7 of the 8 composed kinds.
+
+    `_rigid_copy_hosts` NOW ANSWERS THAT GESTURE, and the drop keeps
+    only what it cannot: it identifies the copy by an exact offset
+    match — the same arithmetic identity a rigid translation makes true
+    — never by proximity or containment. Where it cannot say which host
+    the ink belongs to, this still drops rather than guesses, because
+    the base behaviour is worse (it DELETES those parts outright) and
+    the alternative to dropping is guessing a host from geometry, which
+    would put a user's ink somewhere they did not draw it. A save may
+    not delete what a user just drew, and it may not invent an owner
+    for it either.
 
     Only parts ABSENT FROM THE BASE are touched. An existing part whose
     backlink looks odd is the blessed ungroup gesture, or a pin, and
@@ -3391,25 +3588,42 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
             continue        # a part, or a bound label — never a host
         for g in e.get("groupIds") or []:
             hosts.setdefault(g, []).append(e["id"])
+    # THE SECOND WITNESS, computed once and keyed on the STALE backlink
+    # — so it is built here, before the loop below rewrites any of them.
+    rigid = _rigid_copy_hosts(new_els, fresh, old_ix)
     for e in fresh:
         gids = e.get("groupIds") or []
         owners = hosts.get(gids[0], []) if gids else []
-        # A COPY BELONGS TO THE COPY — a belt this file has not yet
-        # proved it needs. Ctrl+D reaches the SINGULAR
-        # `duplicateElement(appState.editingGroupId, ...)`, and
-        # `getNewGroupIdsForDuplication` regenerates every id strictly
-        # BELOW the editing group's index, so the widget group is always
-        # freshly minted and names exactly one host: measured over the
-        # duplicate-inside-an-editing-group gesture, this tie-break is
-        # never reached. Kept because it costs one line and the arm it
-        # guards — two hosts under one group — otherwise degrades to
+        # A COPY BELONGS TO THE COPY, and this tie-break IS REACHED —
+        # the sentence that stood here said the opposite, and said it
+        # was "a belt this file has not yet proved it needs". It reads
+        # `getNewGroupIdsForDuplication` correctly and then draws the
+        # wrong conclusion from it. That function regenerates every id
+        # strictly BELOW the editing group's index, which mints a fresh
+        # widget group only while the editing group is an OUTER one.
+        # When the user is editing INSIDE the widget's own group, the
+        # widget group IS the editing group, `indexOf` answers 0,
+        # `endIndex` is 0, the loop maps nothing, and the group id
+        # survives verbatim onto the copy. Both hosts then answer
+        # `hosts[gids[0]]`, `owners` has length 2, and the line below is
+        # the only thing choosing the copy over the original.
+        #
+        # Proved by ablation rather than by reading: with `pick =
+        # owners`, `test_editing_group_duplicate_prefers_the_newly_
+        # minted_host` is the SOLE test in 1760 that goes red. The arm
+        # it guards — two hosts under one group — otherwise degrades to
         # dropping a user's backlink, which is the expensive answer.
         minted = [o for o in owners if o not in old_ix]
         pick = minted or owners
-        # Ambiguity degrades to DROP, never to a guess. Both `len == 0`
-        # and `len >= 2` land here; see the docstring for what that
-        # costs and why it is still the right trade.
+        # Ambiguity asks the SECOND witness, and only then degrades to
+        # DROP — never to a guess. Both `len == 0` and `len >= 2` land
+        # here; the group has stopped discriminating either way, and
+        # `_rigid_copy_hosts` answers on an identity rather than a
+        # resemblance. It is ORDERED SECOND deliberately: where the
+        # group speaks, nothing about this path changes at all.
         host = pick[0] if len(pick) == 1 else None
+        if host is None:
+            host = rigid.get(part_owner_id(e))
         cd = dict(e["customData"])
         changed = False
         for k in COMPOSED_PART_KEYS:
@@ -9368,8 +9582,26 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # `reconcile_composed` that MINT unconditionally; the other
             # five re-derive parts that must already exist, so they are
             # correctly unmoved by a bare `kind` write.
+            #
+            # `customData` IS THE FIFTH DOOR, added 2026-08-25, and it
+            # is the one that was writing composed STATE with nothing
+            # recomposing it. `mod` documents `customData` as MERGED
+            # (references/ops-reference.md), so `mod {"customData":
+            # {"value": "09:00"}}` settled an input's value, drew no row
+            # for it, and returned ZERO errors — and the composed-host
+            # lint then condemned the scene that batch had just been
+            # told was fine. The same door writes `{"kind": "body"}`
+            # without composing waves, which is `kind`'s own case
+            # arriving through the key rather than the shorthand.
+            #
+            # Scoped by the same argument as the four above rather than
+            # widened past them: this reconciles the element the `mod`
+            # named, exactly as a `label` or a `height` write already
+            # does, and `reconcile_composed` is idempotent on a host
+            # whose parts are already right — which is why adding a
+            # door costs nothing on the ops that were already correct.
             if ("width" in attrs or "height" in attrs or "label" in attrs
-                    or "kind" in attrs):
+                    or "kind" in attrs or "customData" in attrs):
                 reconcile_composed(els, index, existing, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
@@ -9520,6 +9752,72 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                             (other.get("customData") or {}).get("role") == \
                             "decoration":
                         doomed.add(other["id"])
+            # AND BY THE BACKLINK, NOT ONLY BY THE GROUP — the cascade
+            # above is `groupIds`-keyed, and a composed host is not
+            # guaranteed to have a group. `reconcile_composed` is
+            # already described in this file as "the one mover that
+            # finds its targets by the `*_of` BACKLINKS rather than by
+            # `groupIds`"; deletion is the second place that has to, and
+            # it did not, so `del` left a host's own parts standing as
+            # orphans whenever the host had no group to sweep by.
+            #
+            # WHO HAS NO GROUP: a widget the user pulled apart with
+            # Ctrl+Shift+G — the gesture this design explicitly blesses
+            # — and any host composed through `mod`, because the mint's
+            # `el["groupIds"] = [*…, gid]` runs only at `add` time while
+            # `reconcile_composed` never joins the host to the group it
+            # mints parts into. `composed_group_gaps` exists to report
+            # exactly this population, so its being non-empty is a
+            # designed state and not an edge case.
+            #
+            # WHAT IT COST, and the answer is a layer down from where
+            # it looks. `del` + `add` is the repair `lint_layout`
+            # PRESCRIBES for a stripped composed host, so this is the
+            # tool's own advice at work. In `apply_ops` the surviving
+            # `h-chk` met a freshly minted `h-chk` and the list held two
+            # elements with one id — but that CANNOT PERSIST:
+            # `normalize_scene_doc`'s ART-003 sweep drops a repeat id on
+            # the way to disk, so a reader who checks a saved scene
+            # finds no duplicate and would reasonably conclude this
+            # story is wrong.
+            #
+            # IT KEEPS THE FIRST OCCURRENCE, WHICH IS THE ORPHAN, and
+            # discards the freshly minted part — the stale one wins
+            # because it was already in the list. So what ships is not a
+            # collision, it is STRANDED INK. Re-adding a 200x44 checkbox
+            # host at (500, 300): the stroke belongs at (511, 321)
+            # (`x + 11`, `y + height/2 - 1`) and the scene comes back
+            # with the host at (500, 300) and its check mark still at
+            # (11, 21), 500px away, drawn over whatever is there.
+            #
+            # AND THE CHECK IS SILENT ON IT. The orphan still carries
+            # `chk_of`, so the host counts 2 parts against a floor of 2
+            # and `composed_host_gaps` returns nothing: the repair this
+            # check prescribed leaves the check satisfied and the
+            # picture wrong, which is the worst outcome available and
+            # the real argument for sweeping by backlink. The `(2, 3)
+            # surplus` reading that first named this is an `apply_ops`
+            # artifact and never reaches disk — a fact worth keeping
+            # because it is what a probe at the wrong layer sees.
+            #
+            # Masked until 2026-08-25 by a second defect: the re-add
+            # used to read `spec.get("checked", False)` over the stored
+            # state, so the box came back UNCHECKED, no check stroke was
+            # minted, and nothing collided. Fixing the uncheck did not
+            # cause this — it uncovered it.
+            #
+            # Matched on the owner id exactly, so a part belonging to a
+            # different host is never swept, and through `_composed_part`
+            # rather than `part_owner_id` alone: a bound label answers
+            # that call with its `containerId` and is already handled by
+            # the `boundElements` sweep above, which would otherwise
+            # reach it twice.
+            for other in els:
+                if other["id"] in doomed:
+                    continue
+                if _composed_part(other.get("customData") or {}) and \
+                        part_owner_id(other) == el["id"]:
+                    doomed.add(other["id"])
             # THE TOOL NEVER DELETES A PINNED ELEMENT, BY ANY DOOR. The
             # front door is gated above — `del` on a pinned element, or
             # on anything one hop from one, is refused and named. These
@@ -10244,6 +10542,196 @@ def composed_group_gaps(els):
         tagged = _composed_part(e.get("customData") or {})
         if tagged or theirs:
             out.append((e["id"], oid))
+    return sorted(out)
+
+
+def composed_part_floor(el: dict[str, Any]) -> int | None:
+    """How many parts this host's own stored geometry guarantees, if any.
+
+    DERIVE THE FLOOR, NEVER COUNT WHAT IS THERE, and that choice is the
+    whole rule rather than an implementation taste. "This host has 0
+    parts" reads 0 for a `body` block whose waves were eaten AND for an
+    `entity` a user declared with no attributes, which is legal — one
+    scalar, two meanings, and the carve-out would have to be bolted on
+    afterwards. A floor is recomputable from the stored element with no
+    history at all, so the two cases separate by construction: `entity`
+    is the one composed kind that has none, and it answers None here.
+
+    THE ENUMERATION IS `_interpret_user_composites`' EIGHT, in the same
+    order, and it is the third copy of that list in this file — the
+    other two are that gate and `reconcile_composed`'s arms. Nothing
+    stops the three drifting except
+    `TestComposedHostFloors.test_every_composed_kind_has_a_floor_ruling`,
+    which reads this function's source and the gate's tuple and fails on
+    a kind named in one and not the other. A kind added there with no
+    ruling here would arrive silently exempt, which is the failure mode
+    this check exists to end.
+
+    Args:
+        el: Any element. Only a `rectangle` carrying a composed `kind`
+            can have a floor — every composite block in `make_element`
+            gates on that type, so a `kind: "slider"` diamond never
+            minted a track and is not owed one.
+
+    Returns:
+        The part count the kind guarantees, or None when this element
+        is not a floored composed host — `entity` (the carve-out),
+        `input` with no settled value (its row is minted only when one
+        exists), and everything that is not a composed host at all.
+    """
+    if el.get("type") != "rectangle" or el.get("isDeleted"):
+        return None
+    cd = el.get("customData") or {}
+    kind = cd.get("kind")
+    if kind == "image":
+        return 2                      # the two X strokes (`x_of`)
+    if kind == "entity":
+        # THE CARVE-OUT. An entity's rows ARE the storage for its
+        # attribute list — the host keeps no `attributes` key of its
+        # own — so an entity declared with none is indistinguishable,
+        # from the stored element, in every way except that it is
+        # correct. `reconcile_composed` agrees by declining to rebuild
+        # rows it cannot find (`if rows:`).
+        return None
+    if kind == "kpi":
+        return 1                      # the big value row (`value_of`)
+    if kind == "checkbox":
+        # The box always; the check stroke only when the state says so,
+        # and `_interpret_user_composites` reads a deleted stroke as an
+        # uncheck — so a user clearing a tick lowers this floor rather
+        # than tripping it.
+        return 2 if cd.get("checked") else 1
+    if kind in ("toggle", "slider"):
+        return 2                      # pill/track plus thumb
+    if kind == "input":
+        # ONE ROW, ALWAYS, and this line is only allowed to say so
+        # because the other two readers were brought to agree with it in
+        # the same change. THREE READERS OF "when does an input owe a
+        # row" HAD PARTED — `make_element` gated the mint on the SPEC's
+        # top-level `value`, `reconcile_composed` minted unconditionally
+        # through `_recompose_input_value`'s first-assembly branch, and
+        # a lint can only ever see the STORED `customData.value`. A
+        # floor is a claim the stored element GUARANTEES; a
+        # disagreement is not one, and the version of this branch that
+        # returned 1 on a stored `value` was false in all three
+        # directions. It was not merely inert: `mod {"customData":
+        # {"value": …}}` is documented as a MERGE, it wrote a field the
+        # mint had never read, and the ERROR that produced named a
+        # repair — re-add it — that reproduced the finding verbatim.
+        #
+        # The alternative was to give `input` no floor at all. That
+        # silences the loop and leaves the split standing, which is a
+        # lint declining to look at a kind because the code under it is
+        # inconsistent — the inconsistency is the defect, so it is fixed
+        # rather than routed around. Zero corpus movement either way:
+        # all 5 frozen inputs carry a value AND a row (measured).
+        #
+        # WHY "HAS A VALUE" AND NOT "ALWAYS ONE ROW": the stronger rule
+        # was tried and it contradicts `TestInputValue.test_add_without_
+        # value_stays_a_bare_field`, a standing decision that a
+        # valueless input is a bare field. Overturning someone else's
+        # acceptance test to make a lint's arithmetic tidier is the
+        # exact move this repo keeps a split to prevent, so the floor
+        # bent to the product decision instead.
+        return None if cd.get("value") is None else 1
+    if kind == "body":
+        # Spelled out rather than calling `_compose_body_lines`, which
+        # would mint n throwaway elements per lint and needs an id set;
+        # the two are held together by
+        # `test_the_body_floor_is_the_count_the_seeder_mints`, which
+        # sweeps heights and compares this against `len()` of the real
+        # thing.
+        return max(2, int(max(el.get("height", 48), 16) // 16))
+    return None
+
+
+def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
+    """Composed hosts drawing a different number of parts than they owe.
+
+    THE BLINDNESS THIS CLOSES IS STRUCTURAL, NOT A SHORT-CIRCUIT.
+    `composed_group_gaps` next door walks PARTS and resolves each one's
+    owner, so a host with NO parts yields nothing to walk — there is no
+    comparison in that loop to reach and nothing to return early from —
+    and a part naming a host absent from the scene is dropped by its
+    `owner is None: continue`. Measured on a real pre-fix save, every
+    registered detector returned the same findings for the damaged
+    stored scene and the healthy one. A host is the subject here, and
+    that is why this is a second walk rather than a widening.
+
+    THE COUNT IS OF TAGGED PARTS, never of bound labels: a caption
+    carries no `*_of` key, belongs to hosts that are not composites at
+    all, and is not what a kind mints. `_composed_part` is the same
+    predicate `normalize_z_order` and `_close_widget_group` ask, so a
+    part that bands above its owner is a part counted here.
+
+    WHAT THIS DOES NOT SEE, measured through `Store.commit` rather than
+    assumed, and named so the check is not read as covering its whole
+    class: part-shaped decoration owned by NOBODY. Ctrl+Shift+G, save,
+    Ctrl+D, save — two blessed gestures, no ops — and the copy's parts
+    keep a backlink naming an id that is not the new host.
+
+    THE BLIND SET IS `body`, `kpi` AND `input`, and an earlier draft of
+    this paragraph named `body` and `checkbox`, which was wrong in both
+    halves. A CHECKED `checkbox` FIRES, at 1 of 2 — its arm mints the
+    check stroke and never the box; an UNCHECKED one fires at 0 of 1.
+    Those are two different scenes and this paragraph used to average
+    them. The real three are exactly the arms of `reconcile_composed`
+    that MINT UNCONDITIONALLY: the paste gate hands the copy a full
+    fresh set, so the floor is satisfied and the damage is the orphaned
+    untagged ink left beside it — 5 tagged waves and 5 untagged, 5 == 5,
+    silence. `slider`, `toggle` and `image` re-derive parts that must
+    already exist, so their copies own nothing and this check names them.
+
+    That one fact about those three arms has three faces, which is why
+    it is worth stating once here: they are the only kinds a bare
+    rectangle gains parts from on `mod {"kind": …}`, the only ones a
+    real geometry `mod` re-mints for (the repair `lint_layout` offers),
+    and the only ones blind here.
+
+    The surplus arm cannot see this class either, because untagged ink
+    is not counted as a part. That is a second instrument and it is not
+    this one.
+
+    Args:
+        els: An element list.
+
+    Returns:
+        `[(host_id, kind, floor, drawn)]` sorted by host id, empty when
+        every floored composed host draws exactly what its kind owes.
+        `drawn` differs from `floor` in both directions.
+    """
+    parts: dict[str, int] = {}
+    pinned: set[str] = set()
+    for e in els:
+        if e.get("isDeleted") or not _composed_part(e.get("customData")
+                                                   or {}):
+            continue
+        oid = part_owner_id(e)
+        if not oid:
+            continue
+        parts[oid] = parts.get(oid, 0) + 1
+        if pinned_to_canvas(e):
+            pinned.add(oid)
+    out = []
+    for e in els:
+        floor = composed_part_floor(e)
+        if floor is None:
+            continue
+        drawn = parts.get(e["id"], 0)
+        # A PINNED PART SUPPRESSES THE SURPLUS ARM AND ONLY THAT ARM,
+        # because this file's own reconciler produces the reading.
+        # `reconcile_composed`'s `body` branch deletes every wave and
+        # re-mints from the new height, skipping ids already standing —
+        # so pinning the LAST wave of a 64px block and shrinking it to
+        # 32px leaves three waves against a floor of two (measured
+        # 2026-08-25). That is a pin honoured, not damage. The missing
+        # arm needs no such guard: a pin can only keep a part alive,
+        # never remove one, so it cannot push a count below the floor.
+        if drawn > floor and e["id"] in pinned:
+            continue
+        if drawn != floor:
+            out.append((e["id"], (e.get("customData") or {}).get("kind"),
+                        floor, drawn))
     return sorted(out)
 
 
@@ -12675,17 +13163,36 @@ def client_wrap_width(container):
     were reading a rhombus's geometric band, which is a real quantity
     and is not the one that decides the wrap.
 
-    Predicted over the frozen corpus, and the verb matters: **15** of
-    the 291 shape- and frame-bound labels are ones THIS SERVER'S MODEL
-    says the client re-wraps on load, and in all 15 the server's own
-    estimate already exceeded this cap — so no improvement to
-    `text_dims` could have closed any of them. Re-derived 2026-08-20
-    (v0.9 WP4 review, M-8) at 15, where three comments carried 14 and
-    all three phrased it as what the CLIENT does. It is not: the
-    measurement is `client_wrapped_lines` against the stored line count,
-    which is this file predicting the browser, and the report that first
-    published it withdrew the client reading because the render tier
-    does not await webfonts. As a server-side prediction it is exact.
+    Predicted over the frozen corpus, and the verb matters — but TWO
+    predicates live here and conflating them is how this paragraph went
+    wrong twice. Over the 291 shape- and frame-bound labels:
+
+        A. the client re-wraps on load
+           (`client_wrapped_lines` != the stored line count)
+        B. the server's own estimate already exceeds this cap
+           (`text_dims`' width > `client_wrap_width`)
+
+    A is a STRICT SUBSET of B, and the two differ by exactly one
+    element: `wait-cutoff-label` in `edgar-late.excalidraw`, whose
+    stored text already carries the break the client would have made,
+    so B counts it and A does not. That single element is the whole
+    disagreement, and naming it is worth more than either count.
+
+    The sentence that stood here said 15 labels "are ones THIS SERVER'S
+    MODEL says the client re-wraps on load", which is B's number
+    attached to A's predicate. Its 2026-08-20 note (v0.9 WP4 review,
+    M-8) then dismissed three earlier comments carrying 14 as having
+    "phrased it as what the CLIENT does" — but 14 is the correct answer
+    to the question that sentence asks. The re-derivation corrected the
+    verb and broke the number.
+
+    What survives, and it is the load-bearing half: **no improvement to
+    `text_dims` could have closed any of them**, because A ⊆ B means
+    every label the client re-wraps is one the server had already
+    flagged as over-cap. That claim holds on the relation, not on
+    either literal, which is why it is now stated that way. To
+    re-derive: walk the corpus, count both predicates, and assert
+    A ⊆ B rather than transcribing a total.
 
     Args:
         container: The container element the label is bound to.
@@ -14945,6 +15452,47 @@ LANE_SPAN_TOL = 4.0
 INTERACTIVE_KINDS = {"button", "input", "checkbox", "toggle", "slider",
                      "nav", "link", "tab"}
 
+# THE KIND VOCABULARY (v0.9), per arm, in the order its reference
+# introduces it. Every set above answers "does this kind get THIS
+# behaviour?"; none of them answered "is this a kind at all?", and the
+# difference is the whole reason these exist. `kind` rides an op straight
+# into `customData` (see the `spec.get("kind")` copy in the element
+# builder) with no whitelist anywhere on the path, so `kind: "modal"`
+# stored, drew as an unadorned rectangle, and drew NOTHING out of the
+# lint — while the agent that asked for it narrated a modal. A vocabulary
+# that is only ever tested FOR is not a vocabulary; it is a pile of
+# coincidences, and an unrecognised value is indistinguishable from a
+# supported one at every surface a headless agent can read.
+#
+# These are tuples, not sets, because they are also what the inspector's
+# kind selector OFFERS: `api_state` serves them and the client holds no
+# list of its own. Until v0.9 it held a hand-written fourth copy, thirteen
+# long, missing `body` and `fold` — so selecting the fold line on the
+# tearsheet showed `— none —` and one touch of the control wrote
+# `kind: null` over it. Serialising a set would randomise the menu.
+WIREFRAME_KINDS = ("nav", "button", "link", "tab", "input", "block",
+                   "image", "body", "kpi", "checkbox", "toggle", "slider",
+                   "priority", "help", "sticky-bar", "feedback", "fold")
+# `lane` is a FRAME kind and deliberately not in `FLOW_KINDS`: that set
+# gates node-level checks (through-flow, illegal pairings) and a lane is
+# a container, not a step. It is a flow-arm kind all the same, so it
+# belongs in the offered vocabulary and in `KNOWN_KINDS`.
+FLOW_ARM_KINDS = ("source", "transform", "agent", "control", "sink",
+                  "store", "lane")
+SEQUENCE_KINDS = ("actor", "system", "context", "lifeline", "activation")
+DOMAIN_KINDS = ("entity",)
+# The four first-class arms. Extended types (er, class, dfd, …) have no
+# documented vocabulary of their own; the client falls back to the flow
+# arm for them, which is what it has always done.
+KINDS_BY_TYPE = {"wireframe": WIREFRAME_KINDS, "flow": FLOW_ARM_KINDS,
+                 "sequence": SEQUENCE_KINDS, "domain": DOMAIN_KINDS}
+# What "nothing implements this" is measured against. Deliberately the
+# UNION rather than the arm's own list: `lint_layout`'s `artifact_type` is
+# optional, and a check that goes quiet when one argument is absent is
+# the failure mode this one exists to end.
+KNOWN_KINDS = frozenset(WIREFRAME_KINDS + FLOW_ARM_KINDS + SEQUENCE_KINDS
+                        + DOMAIN_KINDS)
+
 # progress-indicator tells (v0.4 U5/Q25) — label evidence, plus the
 # status vocabulary the task-list archetype uses, which is exempt
 # A bare percentage is NOT a progress indicator: `VaR alert 2.5%` on a
@@ -15545,6 +16093,33 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
               and role_of(e) != "decoration"]
     nodes = [e for e in shapes if role_of(e) == "node" or
              (e.get("customData") or {}).get("kind")]
+    # A kind nothing implements (v0.9). Read straight off `customData`
+    # rather than through `kind_of`, which falls back to the element TYPE
+    # and would report every plain rectangle in the corpus.
+    #
+    # Why a NOTE and not an ERROR, given that the drawing plainly does not
+    # say what the agent meant: the ERROR contract is "repair it in the
+    # same move, cosmetic-class, never a second proposal" (SKILL.md), and
+    # deciding what a `modal` should have been is not cosmetic — it is a
+    # design question the user may own. Filed as an ERROR, this check
+    # would instruct the agent to silently substitute `block` and never
+    # mention it, which is a better-hidden version of the same lie. Filed
+    # as a NOTE it does the one thing that repairs the confuser: it makes
+    # the agent SAY that the modal drew as a rectangle. Notes print in
+    # full on every apply and ride LINT_DEBT's standing nag, so this is
+    # the quiet tier only in name.
+    for el in els:
+        kind = (el.get("customData") or {}).get("kind")
+        if not kind or kind in KNOWN_KINDS:
+            continue
+        offer = KINDS_BY_TYPE.get(artifact_type) or \
+            tuple(sorted(KNOWN_KINDS))
+        notes.append(
+            "%s declares kind %r, which nothing implements — it draws as "
+            "a plain %s and every kind-driven check reads straight past "
+            "it. Say so, or use one of: %s"
+            % (name(el.get("id", "?")), kind, el.get("type") or "element",
+               ", ".join(offer)))
     # decorations are exempt from budgets and connector routing — that
     # exemption is right, furniture is not a connector. But it swallowed
     # one thing worth knowing: a decoration that has drifted OFF the
@@ -18441,13 +19016,39 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # its label at y=40 reads an 80px chord whether the block is 20
         # or 40px deep — and only a label at or BELOW the waist can
         # witness a change to `drawn_h` at all (same rhombus at y=130:
-        # 100px chord and 72px of overhang at 20px deep, 60px and 112px
-        # at 40px).
+        # 100px chord at 20px deep, 60px at 40px).
+        #
+        # THE OVERHANG PAIR IS GONE, dropped 2026-08-20 rather than
+        # corrected, and the reason is worth more than the numbers were.
+        # It read "72px of overhang" against the shallow chord and
+        # "112px" against the deep one, and NEITHER is derivable from
+        # this paragraph: an overhang is `ink - chord`, the ink is
+        # whatever token the author used, and these sentences never say
+        # which label. A reviewer read 70 -> 110 out of them and a
+        # curator read 72 -> 112, both arithmetically right, because the
+        # sentence does not determine one. The chords need no label —
+        # they follow from the band and the shape — and they are what
+        # carries the point being made, so they stay and the pair goes.
+        #
+        # NAMING A LABEL WOULD NOT HAVE RESCUED IT, which is why this is
+        # a deletion and not a correction. Measured on this rhombus: the
+        # DEEP row is real at either value (a single token of 172px ink
+        # makes this arm emit 112, one of 170px emits 110, and every
+        # integer ink from 91 to 179 is reachable there), but the
+        # SHALLOW row is emitted by no label at all — of 282 texts that
+        # paint a 20px block on the centred arrangement, zero produce
+        # any overhang, because a 20px block sits on the 100px chord and
+        # nothing the client keeps on one line under an 90px cap is that
+        # wide. It is reachable only by moving the label off centre,
+        # where `over` stops being `ink - chord` — the one geometry
+        # found emitting 72 does it with 62px of ink — so the two rows
+        # would then be two different labels rather than one label's two
+        # readings.
         #
         # RE-DERIVED AT THE LABEL'S OWN SPACING 2026-08-20 (TASK-INKBAND-
-        # SPACING), because all four of those numbers were read at
-        # `text_dims`' default 1.35 and this check has passed
-        # `line_height_of(t)` since the line-height stream landed. A
+        # SPACING), because the numbers above were read at `text_dims`'
+        # default 1.35 and this check has passed `line_height_of(t)`
+        # since the line-height stream landed. A
         # family-1 label lays out at 1.25, so one line is 20px and not
         # 22, two are 40 and not 44, and the y=130 chords are 100 -> 60
         # rather than 96 -> 52. The old figures reproduce exactly if you
@@ -19437,6 +20038,142 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             "without it. Did you ungroup it deliberately? If so, %s"
             % (name(owner), len(parts), ", ".join(sorted(parts)[:4]),
                waive_hint(key)))
+    # ---- ERROR: a composed host whose parts are not on the canvas ------
+    # THE SECOND WALK, AND IT HAD TO BE ONE. The note above walks PARTS,
+    # so a host with none yields nothing to walk and the loop is silent
+    # by construction rather than by a guard — the shape the duplicate-
+    # backlink data loss left on disk, where every registered detector
+    # returned identical findings for the damaged scene and the healthy
+    # one. `composed_host_gaps` makes the HOST the subject and compares
+    # what its own geometry owes against what the scene draws.
+    #
+    # THE SENTENCE MAY NOT SAY WHAT THE PIXELS LOOK LIKE, and the first
+    # draft of it did. It read "renders as a bare rectangle that says
+    # nothing about what it is", which is FALSE for the only class two
+    # keystrokes reach: after Ctrl+Shift+G, save, Ctrl+D, save, the
+    # copy's `-track` and `-thumb` are on the canvas and drawn — 0 parts
+    # OWNED, 2 untagged decorations DRAWN (measured through
+    # `Store.commit`, the path `/api/save` uses). An agent relaying that
+    # sentence would have told a user their slider draws as an empty box
+    # while it draws as a slider, on a product whose whole contract is
+    # that the agent narrates its reading of the picture.
+    #
+    # So the finding states the OWNERSHIP fault, which is what this
+    # check actually measured, and says out loud that it cannot tell
+    # deleted ink from orphaned ink. It cannot: untagged strokes are not
+    # counted as parts, which is the same limit that makes the second
+    # instrument necessary. Naming the limit is cheaper than a guess
+    # that is wrong half the time, and both halves are damage anyway —
+    # a drag moves the host without them and the next re-derive draws a
+    # fresh set over whatever is left.
+    #
+    # ERROR, not a note, and the tier doctrine at the top of this
+    # function is what settles it: a `slider` whose track and thumb
+    # belong to nothing is not a legibility defect and not a style
+    # observation, it is a drawing that does not say what the agent
+    # meant. THE PRECEDENT THAT ARGUES OTHERWISE IS THE UNKNOWN-KIND
+    # CHECK, which chose NOTE for a reason that reaches this one: the
+    # ERROR contract is "repair it in the same move", and that check had
+    # no repair to offer at all. This one does, and the remedy below is
+    # measured rather than guessed — a real geometry `mod` re-mints for
+    # the kinds whose arms mint unconditionally, and `del` + `add` works
+    # for the rest. That second repair is expensive and the message says
+    # so instead of hiding it, which is the honest form of "repair in
+    # the same move" rather than an escape from it.
+    #
+    # NO WAIVE HINT, and the tier had already decided that before any
+    # argument about gestures was reached: all 15 `waive_hint` calls in
+    # this function sit on a warning or a note and NONE sits on an
+    # error, so an error is not waivable here. Worth stating the other
+    # reason anyway, because it is what makes the tier fit: the note
+    # above is waivable because Ctrl+Shift+G is a blessed gesture that
+    # produces its exact reading, so the honest answer there is a
+    # question. The scenes that look like THIS and are correct are
+    # carved out in `composed_part_floor` by having no floor at all —
+    # a silence nobody has to remember to ask for.
+    #
+    # REACHABLE THROUGH THE BARE-`kind` DOOR TOO, and the count is
+    # FOUR, not five: `mod {"kind": X}` on a plain rectangle composes
+    # parts for `body`, `kpi` and `input` and for nothing else, so
+    # `image`, `checkbox`, `toggle` and `slider` come out of that door
+    # as hosts owing parts they do not have. `entity` is the fifth kind
+    # that door leaves bare and it raises nothing, because it has no
+    # floor — which is why the number here is four.
+    #
+    # ZERO ON THE FROZEN CORPUS, measured 2026-08-25 rather than hoped:
+    # 67 composed hosts across the 24 frozen artifacts, 27 of them
+    # entities and so exempt, 40 carrying a floor, and every one of the
+    # 40 drawing exactly what it owes. The corpus census does not move.
+    # The denominator is the ARTIFACTS and not the whole fixture tree —
+    # `saves/` holds diffs (`changes`, `facts`, `inverse`), not scenes,
+    # so a sweep that globbed it would have reported the same zero while
+    # reading no elements at all. Worth one clause because it bounds the
+    # reading rather than decorating it: the corpus holds no `body` host
+    # at all, so the kind the acceptance mutant is built on is exercised
+    # by that mutant and by `TestComposedHostFloors`, never by a shipped
+    # drawing.
+    for hid, kind, floor, drawn in composed_host_gaps(els):
+        # THE REPAIR IS PER KIND BECAUSE THE CODE IS. `body`, `kpi` and
+        # `input` are the three arms of `reconcile_composed` that mint
+        # unconditionally, and that one fact has three faces: they are
+        # the only kinds a bare rectangle gains parts from on `mod
+        # {"kind": …}`, the only ones a real geometry `mod` re-mints for,
+        # and the only ones already invisible to this check in the
+        # duplicate class. For the other four nothing re-mints — their
+        # arms re-derive parts that must already exist — so the only
+        # repair is destructive, and `ops-reference.md` calls `del` +
+        # `add` the workaround that silently dropped mappings, pins and
+        # rename detection. Saying "re-add it" for all seven was wrong
+        # advice for three of them and incomplete for the rest.
+        #
+        # A NO-OP `mod` DOES NOT REPAIR, which is worth a clause because
+        # it is the obvious first thing to try: `mod {"height": <same>}`
+        # and `mod {"kind": <same>}` both reconcile and mint, and the
+        # batch discards the result. The value has to CHANGE.
+        #
+        # THE CONSEQUENCE SPLITS ON THE SAME LINE AS THE REPAIR, and an
+        # earlier draft gave every kind the re-minting one — "the next
+        # re-derive draws a fresh set over whatever is left", which is
+        # true of a `body` (a 5-wave copy drew 10 lines) and false of a
+        # `slider`, whose arm never mints and simply leaves the widget
+        # dead. `_rehost_duplicated_parts`' own docstring states both
+        # halves; this sentence may not average them.
+        #
+        # THE HEAD OF THIS SENTENCE IS THE CURATOR'S TEMPLATE and only
+        # the tail after the direction word is mine: `_COMPOSED_HOST_
+        # STRIPPED_RE` matches "…whose own geometry draws N part(s), and
+        # the scene has M — D missing|surplus", and rewording the head
+        # is how a check silently stops being the one its mutant proves.
+        remint = kind in ("body", "kpi", "input")
+        if drawn > floor:
+            said = "The extra parts are drawn over the widget's own ink."
+        else:
+            said = ("The parts it does not own are either gone from the "
+                    "scene or still drawn beside it with their backlink "
+                    "broken, and this check cannot tell which. Either "
+                    "way the widget is dead: a drag moves the host "
+                    "without them, and %s."
+                    % ("the next re-derive draws a FRESH set over "
+                       "whatever is left rather than adopting it"
+                       if remint else
+                       "nothing re-mints what is gone"))
+        if remint:
+            fix = ("Repair: `mod` this host's `width` or `height` to a "
+                   "DIFFERENT value — a %s re-derives its parts from "
+                   "the host, so any real geometry change mints them "
+                   "back (a no-op `mod` does not)." % kind)
+        else:
+            fix = ("Repair: `del` then `add` it. A `mod` re-derives a "
+                   "%s's parts from the host but does not re-mint the "
+                   "ones that are gone, so it comes back still short — "
+                   "and `del` + `add` costs this element's mappings, "
+                   "pins and rename detection, which is why this is "
+                   "reported and not done for you." % kind)
+        errors.append(
+            "%s is a composed %s whose own geometry draws %d part(s), "
+            "and the scene has %d — %d %s. %s %s"
+            % (name(hid), kind, floor, drawn, abs(floor - drawn),
+               "missing" if drawn < floor else "surplus", said, fix))
     bound_ids = set()
     for a in arrows:
         for key in ("startBinding", "endBinding"):
@@ -20882,7 +21619,7 @@ class Store:
                     # keeping its half-written registry is the exact
                     # failure this block exists to prevent.
                     self.registry = cast("dict[str, Any]", pre_registry)
-                    self.artifact_meta = pre_meta
+                    self.artifact_meta = cast("dict[str, Any]", pre_meta)
                     raise
                 # a registry op can change artifact META, and `meta` was
                 # snapshotted above — BEFORE these ran. A rename landing
@@ -21897,7 +22634,10 @@ class Store:
                 on a `pin` op or drawn as a pin-role `add` — spells a pin
                 id an element on the scene already owns, or carries ops
                 that are not objects at all or do not apply to the
-                current scene.
+                current scene. Also when EVERY op is held by a pin —
+                including a `resolve_pin` naming a ❓ pinned on another
+                artifact, which the gate reaches for because the sweep
+                that removes it does.
         """
         with self.lock:
             errors = []
@@ -22144,6 +22884,51 @@ class Store:
             # a batch the apply path refuses, and the banner would show
             # the user a revision that cannot land.
             pin_held, pin_why = pin_held_ops(base_els, ops)
+            # AND THE SAME GATE OVER EVERY SCENE THE RESOLVE WILL REACH.
+            # The call above is handed `base_els` — the batch artifact's
+            # scene and nothing else — while `apply_batch`'s resolve sweep
+            # is id-global by design: it walks every artifact and drops
+            # every ❓ carrying the id, under a role gate and no pin gate.
+            # The guarded set and the removed set were therefore computed
+            # over DIFFERENT scenes, so a ❓ pinned on `g` was invisible to
+            # a gate reading `f`, and a resolve sent from `f` took it while
+            # `del` aimed at `g` was refused in so many words. Same
+            # element, same removal, two verbs, opposite answers — and the
+            # shape is the product's own, since SKILL.md pairs "one batch =
+            # one artifact" with "the batch that executes an answer also
+            # carries its mirrored pin's resolve_pin".
+            #
+            # THE PREDICATE IS RE-ASKED, NOT RE-TYPED. The foreign scene is
+            # handed to `pin_held_ops` whole rather than having its ❓
+            # spliced into `base_els`, because a pin is closed over its
+            # kin: whether a ❓ is held may depend on the group, container,
+            # frame or binding it sits in, and those are facts about the
+            # scene it LIVES on. An element carried into this batch's scene
+            # would have every one of them read against a drawing that says
+            # nothing about it — a gate judging by a different definition
+            # than the mover it guards is the defect one level down.
+            #
+            # ASKED OF EXACTLY THE SCENES THE SWEEP TAKES FROM, role gate
+            # included. Ids are minted per scene, so the sweep leaves an
+            # ordinary element sharing a pin's id standing; a gate without
+            # that same role test would refuse a resolve over a namesake
+            # the op was never going to touch. This artifact is skipped
+            # because the call above already judged it.
+            for i, o in enumerate(ops):
+                if i in pin_held or not isinstance(o, dict) \
+                        or o.get("op") != "resolve_pin":
+                    continue
+                pid = o.get("id")
+                for aid2, els2 in self.scenes.items():
+                    if aid2 == aid or not any(
+                            e["id"] == pid and role_of(e) == "pin"
+                            for e in els2):
+                        continue
+                    held2, why2 = pin_held_ops(els2, [o])
+                    if 0 in held2:
+                        pin_held.add(i)
+                        pin_why[i] = why2[0]
+                        break
             # NOTHING SURVIVED means literally that — every op in the
             # batch was held. The first spelling of this counted only
             # add/mod/del/reorder, and adding `resolve_pin` to the judged
@@ -24605,7 +25390,18 @@ class ServerApp:
         """
         return any(not p["pin_only"] for p in self.pending)
 
-    def api_state(self):
+    def api_state(self) -> dict[str, Any]:
+        """The client's whole view of the session — `GET /api/state`.
+
+        `Store.public_state` is the persisted half; everything added here
+        belongs to the running server rather than to the project on disk,
+        which is why the CLI's `status` never has to carry it.
+
+        Returns:
+            The public state, plus the queue, the dirty flag, the event
+            cursor, the waiting screenshot/mermaid requests, and the kind
+            vocabulary the inspector's selector offers.
+        """
         st = self.store.public_state(queued=self.queued_turn())
         st.update({
             "pending": self.sanitize_pending(),
@@ -24620,6 +25416,15 @@ class ServerApp:
                 {"id": k, "definition": v["definition"]}
                 for k, v in self.mermaid_requests.items()
                 if v.get("status") == "waiting"],
+            # the kind vocabulary, served rather than transcribed (v0.9).
+            # The inspector's kind selector used to carry its own list and
+            # it went stale exactly the way `composed.ts` records its own
+            # hand-lists going stale: thirteen wireframe kinds, no `body`,
+            # no `fold`, and every non-wireframe artifact — sequences
+            # included — offered the FLOW vocabulary. Serving it means the
+            # client cannot drift, because it has nothing to drift from.
+            "kind_vocabulary": {t: list(ks)
+                                for t, ks in KINDS_BY_TYPE.items()},
         })
         return st
 
@@ -25231,8 +26036,8 @@ def make_handler(app):
         protocol_version = "HTTP/1.1"
         server_version = "wysiwyg-grilling/%d" % PROTOCOL_VERSION
 
-        def log_message(self, fmt, *args):
-            app.log("http: " + (fmt % args))
+        def log_message(self, format, *args):
+            app.log("http: " + (format % args))
 
         def _send_json(self, obj, status=200):
             data = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -25831,7 +26636,7 @@ def cmd_stop(args):
     return 0
 
 
-def _mermaid_refusal(aid, kind):
+def _mermaid_refusal(aid: str, kind: str | None) -> str | None:
     """The reason this artifact kind has no mermaid target, or None.
 
     Each refusal names the KIND rather than saying "unsupported",
@@ -25841,7 +26646,11 @@ def _mermaid_refusal(aid, kind):
 
     Args:
         aid: The artifact id, for the message.
-        kind: Its artifact type.
+        kind: Its artifact type. Optional because `Store.artifact_type`
+            defaults a MISSING key to `"flow"` but hands back a stored
+            `null` as-is, and meta arrives from disk; such an artifact
+            falls to the closing catch-all, which is the right answer —
+            an artifact with no type has no mermaid target either.
 
     Returns:
         A refusal message, or None when the kind exports.
@@ -25854,15 +26663,30 @@ def _mermaid_refusal(aid, kind):
         # absolute positioning and no frame nesting, and the vendored
         # converter cannot read it back either. A wireframe's subject
         # IS its layout, so a form that discards layout says nothing.
+        #
+        # THE KIND LIST IS DERIVED, NOT TRANSCRIBED. It was typed into
+        # this string on the day the sentence was written (4823855) and
+        # named ten kinds; `body`, `priority`, `help`, `sticky-bar` and
+        # `feedback` were already documented and left out, and `link`
+        # and `tab` joined the vocabulary later without anybody coming
+        # back here. No principle separates the ten from the rest —
+        # every wireframe kind is equally unspellable, which is the
+        # fact this refusal exists to state — so an omission does not
+        # merely under-inform: it reads as a distinction, telling a user
+        # whose screen is a help panel and a feedback banner that
+        # mermaid has a spelling for those. `WIREFRAME_KINDS` is the one
+        # owner of that set — `api_state` serves those same names to the
+        # inspector's selector rather than the client holding a list — so
+        # a kind added there arrives in this sentence with nobody
+        # retyping it, in the reference's own order.
         return ("ERROR=%r is a wireframe, and mermaid has no diagram whose "
                 "subject is a screen — a wireframe's meaning IS its layout, "
                 "and every mermaid diagram is a graph of named things that "
-                "an auto-layout then places. Its kinds (nav, block, kpi, "
-                "input, button, checkbox, slider, toggle, image, fold) have "
-                "no mermaid spelling. Use `canvas.py export --with-footnotes` "
+                "an auto-layout then places. Its kinds (%s) have no mermaid "
+                "spelling. Use `canvas.py export --with-footnotes` "
                 "— the SVG keeps the positions AND carries the tooltips as "
                 "numbered footnotes, which is strictly more than mermaid "
-                "could hold." % aid)
+                "could hold." % (aid, ", ".join(WIREFRAME_KINDS)))
     if kind == "sequence":
         # DEFERRED, not impossible — and the difference is stated so
         # nobody re-derives the design. `sequenceDiagram` is a good
@@ -25939,7 +26763,15 @@ def mermaid_dropped_roles(fmt: str) -> list[str]:
     Returns:
         Role tokens, all of them keys of `MERMAID_DROP_LABELS`.
     """
-    roles = list(MERMAID_DROP_ROLES)
+    # ANNOTATED, and the annotation is doing work. `list()` over a tuple
+    # of string literals infers `list[Literal["pin", …]]` under pyright,
+    # and `list` is invariant, so the widening this return type needs
+    # never happens and `-> list[str]` is refused at the `return`. mypy
+    # widens instead and says nothing, so the two disagree about the
+    # same line. Declaring the local is what makes them agree; widening
+    # the return to `Sequence[str]` would only move the complaint into
+    # `_mermaid_dropped_names`, which takes a `list[str]`.
+    roles: list[str] = list(MERMAID_DROP_ROLES)
     if fmt != "er":
         roles.extend(MERMAID_DROP_ROLES_NON_ER)
     return roles

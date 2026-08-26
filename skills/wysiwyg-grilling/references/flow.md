@@ -27,7 +27,10 @@ that mapping joins it to.
 ## Node kinds
 
 Steps carry a `kind` naming what the box *is*, because "an LLM writes this"
-and "everything freezes here" are different claims than "code runs":
+and "everything freezes here" are different claims than "code runs". The
+vocabulary is closed — `kind: source | transform | agent | control | sink |
+store`, plus the `lane` frame above — and a kind outside it draws as a bare
+box under a LAYOUT_NOTE saying so:
 
 `source` (data enters) · `transform` (deterministic work) · **`agent`**
 (nondeterministic — a model decides) · **`control`** (gate, cutoff,

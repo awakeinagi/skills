@@ -622,20 +622,36 @@ class TestTheRepoItself(LiveDocCase):
         an event is not a tripwire; it is a chore, and the neither-side
         disease this repo names elsewhere.
 
-        WHAT MAY NOT IS A ROSTER. The other three guarded subjects
-        (`handover_catalogue_reds`, `handover_render_reds`, and the
-        render-row derivation beside them) name INDIVIDUAL mutant ids and
-        test names. A red arriving or leaving by name is exactly the
+        WHAT MAY NOT IS A ROSTER. Every other guarded subject
+        (`handover_catalogue_reds`, `handover_render_reds`,
+        `handover_hand_authored_red_classes`, and the render-row
+        derivation beside them) names INDIVIDUAL mutant ids, test names or
+        test CLASS names. A red arriving or leaving by name is exactly the
         event a human must open the paragraph for, and `refresh` would
         repair the sentence they were meant to read the failure of.
 
-        Five guards in `tests/test_mutants.py` still read this file and
-        still require their subject to appear EXACTLY ONCE; two of them
-        now compare a marker's content to the function that wrote it and
-        are honest in their docstrings about the smaller thing that
-        proves. If a THIRD subject is ever made live, add it here in the
-        same change and record which of the two categories above it fell
-        into.
+        THE ROSTER SIDE GREW ON 2026-08-20 and the rule held under the
+        pressure, which is the only test of a rule. The handover's
+        non-catalogue red roster had drifted nine times as unguarded
+        prose; livedoc was the obvious instrument, sitting right there
+        with a `refresh` that would have made the sentence true in one
+        command. It was refused for the reason in the paragraph above,
+        and a finding measured the same day says why in general: a drift
+        check cannot serve as a FLOOR, because its prescribed repair is
+        to agree with whatever it finds. Truncate a roster and run the
+        repair and the published value agrees with the truncation, exit
+        0. So the roster got a sixth census guard instead, and a reader
+        that RAISES on a line it cannot parse rather than returning the
+        empty set the truncation would leave behind.
+
+        The `handover_*` guards in `tests/test_mutants.py` still read this
+        file and still require their subject to appear EXACTLY ONCE; two
+        of them now compare a marker's content to the function that wrote
+        it and are honest in their docstrings about the smaller thing that
+        proves. Their number is not written down here on purpose — this
+        docstring said "five" for two days and the sixth guard falsified
+        it. If a THIRD subject is ever made live, add it here in the same
+        change and record which of the two categories above it fell into.
         """
         handover = REPO / "SESSION-HANDOVER.md"
         if not handover.is_file():

@@ -1,0 +1,10 @@
+{
+  "recorded": "2026-08-26",
+  "canvas_sha256": "a1976b810e7c643939c7ef4f75f55eea739c5b3588fd1d3726f6c3a3edd2be1c",
+  "browser": "chrome",
+  "passed": [
+    "test_mutants_render.TestRenderMutants.test_ablation_existence_fires_on_a_real_shipped_class",
+    "test_mutants_render.TestRenderMutants.test_mutant_label_backdrop_severs_connector",
+    "test_mutants_render.TestRenderParity.test_the_clip_instrument_still_sees_ink_leave_a_short_frame"
+  ]
+}

@@ -17,7 +17,7 @@ with the pinned `@playwright/test`; regenerate with
 
 - **unittest** — routing, commit/replay, lints, registry, facts,
   reconciliation, composed-part invariants, metrics, mermaid mapping.
-  <!-- live:unittest_suite_cases -->1927<!-- /live:unittest_suite_cases -->
+  <!-- live:unittest_suite_cases -->2047<!-- /live:unittest_suite_cases -->
   tests, mutation harness and render tier included — a **live value**
   computed by `tests/livedoc.py` and held current by its pre-commit hook,
   because this exact number needed a commit of its own (`cb533ab`) to move
@@ -61,6 +61,7 @@ with the pinned `@playwright/test`; regenerate with
 | Stale-save 409 banner | e2e-dom (planned, run 6) | needs a second browser context — still unexercised after run 5 |
 | Branch fork/archive chips | unittest | **exercised in run 5**: user checkout + save forked `alt-0022`, agent restored `main` and archived it. Replay-pinned by `TestArgusR5Fixture.test_forked_branch_survives_replay_archived`; the *chips* still have no DOM test |
 | r5-2 round goes backwards on Apply | e2e-flow (planned, run 6) | pulled cadence → queue → Apply now → header round must not decrease and pin ages must not fall |
+| Does `autoResize: False` actually stop the client growing the box? | e2e-dom (planned, run 6) | **filed 2026-08-18 by v0.9 TASK-ENTITY-LINEHEIGHT, re-filed 2026-08-26 with its reason corrected and its scope narrowed; nothing tests it today.** The scene is the model tier's `_line_height_box(height=64, line_height=1.35)` — 3 lines of 16px in a 64px box, `autoResize` off. It settles what the OVERFLOW WARNING should SAY: "widen the box" versus "the app will widen it for you". It does NOT bear on whether the two readers of `lineHeight` agree; that half is closed (`TestOneLineHeightHasTwoReaders`, both poles green, and its docstring carries the question this row tracks). **The original row said this was "not decidable ... including the render tier, which never loads the app" — that clause is now FALSE**: `_client_session` renders through the real app in a real browser. The conclusion survives for a different reason, which is why the row is re-worded rather than restored: every client-tier helper returns `dict[str, bytes]`, so that tier can answer the PIXEL half (does the ink hang 4px below?) and cannot answer the STORED half (does the app grow the container?) — and the stored half is the one that settles the wording. The readback this needs already ships: `placement.spec.ts` reads `h: (e.height as number)` straight out of the live app. And there is now a stated expectation that has never been checked against a browser — `canvas.py` glosses `autoResize` as "keep the client wrapping inside this box", so the repo already asserts this scene must NOT grow. One spec, existing machinery, a bounded question |
 | r5-6 pulled drops ECHO/lint | unittest | apply the same batch under both cadences; the queued response must carry echo+lint computed from the staged scene |
 | r5-11 `--relayout` user-placement guard | unittest | drag a node as the user, relayout, assert the NOTE names it — the check currently filters an empty set |
 | r5-8 rejected batch mutates the registry | unittest | reject a batch containing a valid registry op; the registry must be unchanged on the server AND on disk |
