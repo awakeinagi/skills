@@ -9620,6 +9620,72 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                             (other.get("customData") or {}).get("role") == \
                             "decoration":
                         doomed.add(other["id"])
+            # AND BY THE BACKLINK, NOT ONLY BY THE GROUP — the cascade
+            # above is `groupIds`-keyed, and a composed host is not
+            # guaranteed to have a group. `reconcile_composed` is
+            # already described in this file as "the one mover that
+            # finds its targets by the `*_of` BACKLINKS rather than by
+            # `groupIds`"; deletion is the second place that has to, and
+            # it did not, so `del` left a host's own parts standing as
+            # orphans whenever the host had no group to sweep by.
+            #
+            # WHO HAS NO GROUP: a widget the user pulled apart with
+            # Ctrl+Shift+G — the gesture this design explicitly blesses
+            # — and any host composed through `mod`, because the mint's
+            # `el["groupIds"] = [*…, gid]` runs only at `add` time while
+            # `reconcile_composed` never joins the host to the group it
+            # mints parts into. `composed_group_gaps` exists to report
+            # exactly this population, so its being non-empty is a
+            # designed state and not an edge case.
+            #
+            # WHAT IT COST, and the answer is a layer down from where
+            # it looks. `del` + `add` is the repair `lint_layout`
+            # PRESCRIBES for a stripped composed host, so this is the
+            # tool's own advice at work. In `apply_ops` the surviving
+            # `h-chk` met a freshly minted `h-chk` and the list held two
+            # elements with one id — but that CANNOT PERSIST:
+            # `normalize_scene_doc`'s ART-003 sweep drops a repeat id on
+            # the way to disk, so a reader who checks a saved scene
+            # finds no duplicate and would reasonably conclude this
+            # story is wrong.
+            #
+            # IT KEEPS THE FIRST OCCURRENCE, WHICH IS THE ORPHAN, and
+            # discards the freshly minted part — the stale one wins
+            # because it was already in the list. So what ships is not a
+            # collision, it is STRANDED INK. Re-adding a 200x44 checkbox
+            # host at (500, 300): the stroke belongs at (511, 321)
+            # (`x + 11`, `y + height/2 - 1`) and the scene comes back
+            # with the host at (500, 300) and its check mark still at
+            # (11, 21), 500px away, drawn over whatever is there.
+            #
+            # AND THE CHECK IS SILENT ON IT. The orphan still carries
+            # `chk_of`, so the host counts 2 parts against a floor of 2
+            # and `composed_host_gaps` returns nothing: the repair this
+            # check prescribed leaves the check satisfied and the
+            # picture wrong, which is the worst outcome available and
+            # the real argument for sweeping by backlink. The `(2, 3)
+            # surplus` reading that first named this is an `apply_ops`
+            # artifact and never reaches disk — a fact worth keeping
+            # because it is what a probe at the wrong layer sees.
+            #
+            # Masked until 2026-08-25 by a second defect: the re-add
+            # used to read `spec.get("checked", False)` over the stored
+            # state, so the box came back UNCHECKED, no check stroke was
+            # minted, and nothing collided. Fixing the uncheck did not
+            # cause this — it uncovered it.
+            #
+            # Matched on the owner id exactly, so a part belonging to a
+            # different host is never swept, and through `_composed_part`
+            # rather than `part_owner_id` alone: a bound label answers
+            # that call with its `containerId` and is already handled by
+            # the `boundElements` sweep above, which would otherwise
+            # reach it twice.
+            for other in els:
+                if other["id"] in doomed:
+                    continue
+                if _composed_part(other.get("customData") or {}) and \
+                        part_owner_id(other) == el["id"]:
+                    doomed.add(other["id"])
             # THE TOOL NEVER DELETES A PINNED ELEMENT, BY ANY DOOR. The
             # front door is gated above — `del` on a pinned element, or
             # on anything one hop from one, is refused and named. These

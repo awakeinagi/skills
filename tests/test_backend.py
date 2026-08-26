@@ -25851,6 +25851,177 @@ class TestComposedHostFloors(Base):
                         "message is sending it to `del` + `add` when a "
                         "cheap repair exists" % spec["kind"])
 
+    def test_del_sweeps_a_hosts_parts_by_backlink_not_only_by_group(self):
+        """A host with no group still owns its parts when it is deleted.
+
+        THE CASCADE WAS `groupIds`-KEYED and a composed host is not
+        guaranteed to have a group. Two populations have none, and both
+        are designed states rather than edge cases: a widget the user
+        pulled apart with Ctrl+Shift+G, which this design explicitly
+        blesses, and any host composed through `mod`, because the mint's
+        `el["groupIds"] = [*…, gid]` runs only on `add` while
+        `reconcile_composed` never joins the host to the group it mints
+        parts into. `composed_group_gaps` exists to report exactly that
+        population.
+
+        For those, `del` left the parts standing as orphans — and since
+        `del` + `add` is the repair `lint_layout` PRESCRIBES for a
+        stripped host, the tool's own advice then met its own leftovers
+        and built a scene holding two elements with one id.
+
+        Asserted on both keys, because the group cascade must keep
+        working and a fix that replaced it rather than joining it would
+        pass a backlink-only test.
+        """
+        errors = []
+        els = canvas.apply_ops([], [{"op": "add", "element": {
+            "id": "h", "type": "rectangle", "x": 0, "y": 0, "width": 200,
+            "height": 44, "label": "H", "kind": "slider",
+            "value": 60}}], errors)
+        self.assertEqual(errors, [])
+        parts = [e["id"] for e in els if canvas.part_owner_id(e) == "h"
+                 and canvas._composed_part(e.get("customData") or {})]
+        self.assertTrue(parts, "no composed parts to sweep")
+        # the blessed ungroup: every group id gone, backlinks intact
+        loose = [dict(e, groupIds=[]) for e in els]
+        self.assertEqual(
+            [e["id"] for e in loose if canvas.part_owner_id(e) == "h"
+             and canvas._composed_part(e.get("customData") or {})],
+            parts, "the ungroup dropped the backlinks, so this scene "
+                   "cannot test the backlink cascade")
+        after = canvas.apply_ops(loose, [{"op": "del", "id": "h"}], errors)
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            [e["id"] for e in after
+             if canvas._composed_part(e.get("customData") or {})], [],
+            "`del` left an ungrouped host's parts standing as orphans")
+        # and a part of a DIFFERENT host is never swept
+        errors = []
+        two = canvas.apply_ops([], [
+            {"op": "add", "element": {"id": "a", "type": "rectangle",
+                                      "x": 0, "y": 0, "width": 200,
+                                      "height": 44, "kind": "slider",
+                                      "value": 60}},
+            {"op": "add", "element": {"id": "b", "type": "rectangle",
+                                      "x": 400, "y": 0, "width": 200,
+                                      "height": 44, "kind": "slider",
+                                      "value": 60}}], errors)
+        two = canvas.apply_ops(two, [{"op": "del", "id": "a"}], errors)
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            sorted(e["id"] for e in two
+                   if canvas._composed_part(e.get("customData") or {})),
+            ["b-thumb", "b-track"],
+            "deleting one host swept another host's parts")
+
+    def test_the_prescribed_repair_moves_the_parts_with_the_host(self):
+        """The outcome pole, at the layer that actually persists.
+
+        THE DUPLICATE NEVER REACHES DISK, so a pin on ids alone is a pin
+        at the wrong layer. `normalize_scene_doc`'s ART-003 sweep drops
+        a repeat id on the way out, keeping the FIRST occurrence — which
+        is the orphan, because it was already in the list — and
+        discarding the freshly minted part. What ships is therefore not
+        a collision but STRANDED INK: the host at its new position and
+        its check mark still at the old one.
+
+        And the check is SILENT on that scene: the orphan still carries
+        `chk_of`, so the host counts 2 parts against a floor of 2. The
+        repair this check prescribed left the check satisfied and the
+        drawing wrong, which is why the assertion here is about where
+        the ink LANDED and not about the finding or the id list. An
+        outcome assertion survives a layer change; a structural one does
+        not.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": "w", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "h", "type": "rectangle",
+                      "x": 0, "y": 0, "width": 200, "height": 44,
+                      "label": "H"}]})
+        for attrs in ({"kind": "checkbox"}, {"checked": True}):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "w",
+                 "ops": [{"op": "mod", "id": "h", "attrs": attrs}]})
+        old = [(e.get("x"), e.get("y")) for e in self.store.scenes["w"]
+               if e["id"] == "h-chk"]
+        self.assertEqual(len(old), 1, "no check stroke to strand")
+        stored = {k: v for k, v in
+                  next(e for e in self.store.scenes["w"]
+                       if e["id"] == "h").items()
+                  if k not in ("seed", "version", "versionNonce", "updated",
+                               "boundElements", "index")}
+        stored["x"], stored["y"] = 500, 300
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "w",
+             "ops": [{"op": "del", "id": "h"},
+                     {"op": "add", "element": stored}]})
+        els = self.store.scenes["w"]
+        host = next(e for e in els if e["id"] == "h")
+        chk = [e for e in els if e["id"] == "h-chk"]
+        self.assertEqual(len(chk), 1)
+        # `_check_stroke`'s own geometry, derived here rather than
+        # copied, so a change to the offsets moves both together
+        want = (host["x"] + 11,
+                host["y"] + host.get("height", 28) / 2.0 - 1)
+        self.assertEqual((chk[0]["x"], chk[0]["y"]), want,
+                         "the check stroke was left behind at %s while "
+                         "its host moved to %s — the repair stranded the "
+                         "widget's own ink"
+                         % (old[0], (host["x"], host["y"])))
+
+    def test_the_prescribed_repair_leaves_one_element_per_id(self):
+        """The repair this check prescribes may not corrupt the scene.
+
+        THE COLLISION WAS MASKED BY A SECOND DEFECT and became reachable
+        only when that one was fixed, which is why it is pinned by id
+        and not by state. Until 2026-08-25 the re-add read
+        `spec.get("checked", False)` over the stored `customData.checked`
+        of True, so the box came back UNCHECKED, no check stroke was
+        minted, and the surviving orphan met nothing. With the state
+        preserved, the fresh `h-chk` met the orphaned `h-chk` and the
+        scene came back holding both — an id collision, which is a worse
+        outcome than the uncheck it replaced, because every reader that
+        indexes by id then resolves it silently and differently.
+
+        Driven through `apply_ops` with `del` and `add` in ONE batch,
+        because that is the shape the message prescribes and the shape
+        an agent sends.
+        """
+        for attrs in ({"kind": "checkbox"},
+                      {"customData": {"kind": "checkbox"}}):
+            with self.subTest(door=sorted(attrs)[0]):
+                errors = []
+                els = canvas.apply_ops([], [{"op": "add", "element": {
+                    "id": "h", "type": "rectangle", "x": 0, "y": 0,
+                    "width": 200, "height": 44, "label": "H"}}], errors)
+                els = canvas.apply_ops(
+                    els, [{"op": "mod", "id": "h", "attrs": attrs}], errors)
+                els = canvas.apply_ops(
+                    els, [{"op": "mod", "id": "h",
+                           "attrs": {"checked": True}}], errors)
+                self.assertEqual(errors, [])
+                self.assertTrue(canvas.composed_host_gaps(els),
+                                "the host is not short of parts, so the "
+                                "prescribed remedy is not under test")
+                stored = {k: v for k, v in
+                          next(e for e in els if e["id"] == "h").items()
+                          if k not in ("seed", "version", "versionNonce",
+                                       "updated", "boundElements", "index")}
+                after = canvas.apply_ops(els, [{"op": "del", "id": "h"},
+                                               {"op": "add",
+                                                "element": stored}], errors)
+                self.assertEqual(errors, [])
+                ids = [e["id"] for e in after]
+                self.assertEqual(
+                    sorted(ids), sorted(set(ids)),
+                    "the prescribed repair left duplicate ids: %s"
+                    % sorted(i for i in set(ids) if ids.count(i) > 1))
+                self.assertIs(
+                    (next(e for e in after if e["id"] == "h")
+                     .get("customData") or {}).get("checked"), True)
+                self.assertEqual(canvas.composed_host_gaps(after), [])
+
     def test_the_prescribed_repair_preserves_the_state_it_protects(self):
         """`del` + `add` must not silently uncheck the user's checkbox.
 
