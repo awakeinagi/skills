@@ -38561,9 +38561,24 @@ class _GroupingBench:
     HOST = "w"
     GID = "w-grp"
     AID = "f"
+    # `slider` is the widget every existing pole in this file mints, so
+    # the doors below stay comparable with the class next door. `entity`
+    # is here for one measured reason and not for coverage: its
+    # `_compose_attribute_rows` writes the widget group id onto the HOST
+    # before the closer runs, so a rule that reads a live group as
+    # evidence sees the widget's own half-built state and welds a widget
+    # the user pulled apart. No other kind exposes that ordering.
+    SPECS: ClassVar[dict[str, dict[str, Any]]] = {
+        "slider": {"kind": "slider", "width": 160, "height": 48},
+        "entity": {"kind": "entity", "width": 200, "height": 120,
+                   "attributes": ["a", "b", "c"]}}
 
-    def __init__(self) -> None:
-        """Mint one grouped slider through the ops layer."""
+    def __init__(self, kind: str = "slider") -> None:
+        """Mint one grouped composed host through the ops layer.
+
+        Args:
+            kind: A key of `SPECS` — which widget this bench is about.
+        """
         self.root = Path(tempfile.mkdtemp(prefix="mutants-grouping-"))
         self.project = canvas.Project(self.root)
         self.project.ensure_tree()
@@ -38571,10 +38586,9 @@ class _GroupingBench:
         self.store.apply_batch({
             "base_revn": 0, "artifact": self.AID,
             "create": {"id": self.AID, "name": "F", "type": "wireframe"},
-            "ops": [{"op": "add", "element": {
-                "type": "rectangle", "id": self.HOST, "kind": "slider",
-                "label": "W", "x": 0, "y": 0, "width": 160,
-                "height": 48}}]})
+            "ops": [{"op": "add", "element": dict(
+                self.SPECS[kind], type="rectangle", id=self.HOST,
+                label="W", x=0, y=0)}]})
 
     def close(self) -> None:
         """Remove the scratch project."""
@@ -38661,25 +38675,42 @@ class _GroupingBench:
             els.append(e)
         return els
 
-    def reopen_from_disk(self, els: list[dict[str, Any]]) -> None:
+    def reopen_from_disk(self, els: list[dict[str, Any]],
+                         served: bool = True) -> None:
         """Write the artifact file and restart the store over it.
 
         THE ONLY DOOR THAT DOES NOT GO THROUGH A REQUEST. The desktop
         Excalidraw app owns the same file; a user who edits it with the
-        session down leaves a scene no handler ever saw, and `catch_up`
-        reconciles it by committing what is on disk. Modelled by
-        writing the file and constructing a NEW `Store`, because a
-        store that never reloaded would keep reading its own memory.
+        session down leaves a scene no handler ever saw. Modelled by
+        writing the file and constructing a NEW `Store`, because a store
+        that never reloaded would keep reading its own memory.
+
+        `served` IS A ROUTE AND NOT A FLAG, and the pin was blind to a
+        whole class of repair without it. `catch_up` has exactly ONE
+        caller and only `run_server` reaches it, so a door that always
+        calls it drives the served route only — while `cmd_apply` carries
+        an arm commented "degraded path: no server — apply directly
+        against the files" that constructs a `Store` and calls
+        `apply_batch` with no reconciliation in between, and eleven of
+        the twelve `Store(...)` sites are CLI commands like it. Measured
+        2026-08-26 against the shipped fix with its load-sited reconciler
+        spliced out: the served route SURVIVED and the offline route
+        REVERSED, and the shipped pin — which had only the served door —
+        reported `failures=0` over it.
 
         Args:
             els: The elements the desktop app left in the file.
+            served: Reconcile the way a running server would. False is
+                the agent working with no server, which is the route
+                that reaches the readers before anything reconciles.
         """
         path = self.project.artifacts_dir / (self.AID + ".excalidraw")
         doc = json.loads(path.read_text())
         doc["elements"] = els
         path.write_text(json.dumps(doc))
         self.store = canvas.Store(self.project)
-        self.store.catch_up()
+        if served:
+            self.store.catch_up()
 
 
 def grouping_through_the_unswept_doors() -> dict[str, tuple[str, str, str]]:
@@ -38688,10 +38719,19 @@ def grouping_through_the_unswept_doors() -> dict[str, tuple[str, str, str]]:
     WHY A GRID CANNOT REACH THESE. Every sweep of this area starts from
     an in-session ungrouped state, and the server never writes the one
     pair that matters — the ungroup remembered on the host WHILE the
-    widget's own group stands on it. Both doors here produce that pair
-    without forging it: one lets the desktop app put the group back
-    where no request could observe it, the other lets a client post the
-    scene without the `customData` that carries the memory.
+    widget's own group stands on it. No door here forges it: the desktop
+    app puts the group back where no request can observe it, and a
+    client posts the scene without the `customData` that carries the
+    memory.
+
+    FOUR DOORS AND THREE AXES, one variable at a time, because a door
+    that moves two says nothing about either. `desktop re-group` and
+    `desktop re-group, offline` differ in ROUTE alone — whether a server
+    is running. `entity left apart` differs from the first in KIND and
+    GESTURE, and it is here because that kind's compose block writes the
+    widget group id onto the host before the closer runs, which is the
+    only ordering in the file where "a live group means the memory is
+    stale" reads a half-built widget as a user's decision.
 
     Each door names what the user's last PHYSICAL act asked for. That
     expectation comes from the gesture this function performs, never
@@ -38703,17 +38743,17 @@ def grouping_through_the_unswept_doors() -> dict[str, tuple[str, str, str]]:
         each state one of `"grouped"`, `"apart"` or a `split(...)`
         reading.
     """
+    doors = (("desktop re-group", "slider", "grouped", True),
+             ("desktop re-group, offline", "slider", "grouped", False),
+             ("entity left apart", "entity", "apart", True),
+             ("client strips customData", "slider", "apart", True))
     out: dict[str, tuple[str, str, str]] = {}
-    for door in ("desktop re-group", "client strips customData"):
-        bench = _GroupingBench()
+    for door, kind, asked, served in doors:
+        bench = _GroupingBench(kind)
         try:
             bench.ungroup()
             bench.save()
-            if door == "desktop re-group":
-                asked = "grouped"
-                bench.reopen_from_disk(bench.regrouped_scene())
-            else:
-                asked = "apart"
+            if door == "client strips customData":
                 stripped = []
                 for e in bench.scene():
                     if e["id"] == bench.HOST:
@@ -38721,6 +38761,13 @@ def grouping_through_the_unswept_doors() -> dict[str, tuple[str, str, str]]:
                              if k != "customData"}
                     stripped.append(e)
                 bench.save(stripped)
+            else:
+                # The desktop app owns the same file. It either puts the
+                # widget back together or leaves it as the user left it;
+                # either way the scene reaches memory without a request.
+                bench.reopen_from_disk(
+                    bench.regrouped_scene() if asked == "grouped"
+                    else bench.scene(), served=served)
             settled = bench.grouping()
             bench.geometry_mod()
             out[door] = (asked, settled, bench.grouping())
@@ -38818,7 +38865,19 @@ class TestOnlyAGroupingGestureChangesGrouping(unittest.TestCase):
     host WHILE the widget's own group stands on it. `_interpret_user_
     composites` clears the memory the moment a scene arrives carrying
     the group, so no request can leave that pair behind. The world
-    leaves it anyway, and the two doors below are the routes.
+    leaves it anyway, and the doors below are the routes.
+
+    EVERY COLOUR IN THIS DOCSTRING NAMES A SHA, and that rule was paid
+    for by this docstring breaking it. It used to say the red failed on
+    a different door at "the ungroup fixer's tip", which is a moving
+    label: the tip moved, a reader measured it, got a different answer
+    from the one recorded here, and had to open a disagreement to find
+    out that both readings were right about different revisions. With
+    this pin held constant and only `canvas.py` varied it is RED at
+    `33b7e10` and `80f618e` and GREEN from `a6b1570` onward — and
+    `a6b1570` is byte-identical to its pre-rebase twin, so the rebase
+    is not the cause. A pin written to catch a moving target had put
+    one in its own prose.
 
     THE READING THIS ASSERTS, AND WHY IT IS NOT A PREFERENCE. Two
     products were on the table — the memory is authoritative and a
@@ -38839,23 +38898,48 @@ class TestOnlyAGroupingGestureChangesGrouping(unittest.TestCase):
     who ungrouped it should see, so every scene-level check is
     correctly silent about a picture that is nonetheless wrong.
 
-    WHO FLIPS IT, MEASURED AGAINST PATCHED COPIES rather than reasoned
-    about — three repairs at three different layers, each turning every
-    door below green with no other door moving: the out-of-session door
-    interpreting composites before it commits; the second reader
-    treating a live group as evidence the memory is stale; and the
-    loader normalizing the pair away as it reads the file. A pin that
-    only one repair can satisfy has prescribed that repair; this one
-    names a layer each and prefers none.
+    GREEN SINCE `74976c8`, AND WHAT IT GUARDS IS THE SEAM. The fold
+    reconciles the memory AT LOAD, so it reaches the routes that never
+    commit. Measured against that tree with the load-sited reconciler
+    spliced out and nothing else changed: the served route SURVIVES and
+    the offline route REVERSES. The pin now fails there.
 
-    TWO WRONG ANSWERS ARE CAUGHT, AND BY DIFFERENT LEGS. Reading the
-    memory off the POSTED host instead of the base one leaves the
-    desktop door red AND breaks the stripped-`customData` door, which
-    is the only thing in the suite that separates those two spellings —
-    82 composed tests and the whole module pass on both. And a product
-    that simply stops closing groups satisfies every equality here
-    vacuously; that one is caught by the ungated pole, which is why the
-    pole is not optional.
+    IT DID NOT, AND THAT WAS THE SECOND MOVING TARGET. Until the
+    offline door existed, every door here ended in `catch_up()` — which
+    has exactly one caller, reached only by `run_server`. So the pin
+    drove the served route alone, and a tree that silently undid a
+    user's desktop Ctrl+G whenever the agent ran with no server
+    satisfied it. That is not hypothetical: at `a6b1570` the reconciler
+    was bound to the commit, this pin read GREEN, and the offline arm
+    reversed — the exact defect `07ae0ea` then had to fix. With the
+    offline door in place the pin fails at `a6b1570`, which is the only
+    honest test of whether it would have caught the thing it exists for.
+
+    WHO KEEPS IT GREEN — TWO SHAPES, measured against patched copies
+    rather than reasoned about, each turning all four doors green with
+    nothing else moving: reconciling at LOAD (what `74976c8` does), and
+    binding the same reconciler to `apply_batch` instead. Two seams,
+    one outcome, so the pin asks for the outcome. What it will not
+    accept is a repair bound to one CALLER — eleven of the twelve
+    `Store(...)` sites are CLI commands, and fixing `cmd_apply` alone
+    leaves ten of them wrong. That is the pin's opinion, stated here
+    rather than discovered later.
+
+    THREE WRONG ANSWERS ARE CAUGHT, AND BY THREE DIFFERENT DOORS.
+    Reading the memory off the POSTED host instead of the base one
+    breaks the stripped-`customData` door, which is the only thing in
+    the suite that separates those two spellings — 82 composed tests
+    and the whole module pass on both. A product that simply stops
+    closing groups satisfies every equality here vacuously and is
+    caught only by the ungated pole, which is why that pole is not
+    optional. And the READER-SITED repair — treat a live group as
+    evidence the memory is stale — passes every other door and welds a
+    widget the user pulled apart: `_compose_attribute_rows` writes the
+    group id onto an ENTITY's host before the closer runs, so the rule
+    reads the widget's own half-built state as a decision. That is
+    round 2's `attributes: []` class returning through a repair this
+    pin used to bless; the entity door is what refuses it now, and it
+    is the reason a KIND axis exists here at all.
     """
 
     def test_neither_unswept_door_lets_a_mod_decide_the_grouping(
@@ -38879,6 +38963,12 @@ class TestOnlyAGroupingGestureChangesGrouping(unittest.TestCase):
         #     74976c8 (the fix)  failures=0 errors=0
         #     the two ungated poles below GREEN at both ends, which is
         #     what separates "repaired" from "gone quiet"
+        #
+        # AND IT STAYS ARMED, which is the half a flip usually drops.
+        # Two doors were added in the same change as the decorator came
+        # off, so the green is over four doors and not two: at `a6b1570`
+        # this fails on the offline route, and against a `74976c8` with
+        # its load-sited reconciler spliced out it fails there too.
         #
         # TWO HALVES OF ONE LAW, and the message names which one broke
         # because they have different owners. `settled` wrong means the
