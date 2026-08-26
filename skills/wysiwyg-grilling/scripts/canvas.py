@@ -3180,11 +3180,12 @@ def _compose_input_slot(els, el, value_text, existing_ids):
     # had already produced a miscount one review earlier. An AST census
     # of every site that puts a widget group id on an element —
     # assignments AND dict literals AND `groupIds=` keywords — finds
-    # eleven writes in five functions — COUNTING EVERY STATEMENT THAT
-    # ASSIGNS THE KEY, including `_close_widget_group`'s own strip, which
-    # removes rather than adds; a census that counts only additions says
-    # ten, and the difference is that convention and nothing else — and
-    # FOUR of the writes do not
+    # TEN ADDITIONS in five functions. State the convention with the
+    # number, because a previous version of this line said "eleven ...
+    # counting every statement that assigns the key" and eleven is
+    # neither convention: additions alone are ten, and counting the
+    # strips that REMOVE a gid as well gives twelve. Derive it rather
+    # than trust either — and FOUR of the additions do not
     # reach that function on their own:
     #
     #     `_compose_input_slot`     the owner's half, here
@@ -4132,7 +4133,12 @@ def _interpret_user_composites(new_els: list[dict[str, Any]],
         # the difference is the point: the sentence this replaces said
         # "with every writer gated, the only route left is the client",
         # which is the shape of claim that let the previous hole survive
-        # a review. What is actually known: over a 144-cell grid — 8
+        # a review. WHAT FOLLOWS CANNOT BE REBUILT FROM THIS TREE: the
+        # grid and its control cells were review-time probes under
+        # /tmp, and they are gone. By this file's own standard a number
+        # a reader cannot rebuild is one they must take on faith, so
+        # take these as a record of what was measured then, not as a
+        # claim you can check now. Over a 144-cell grid — 8
         # composed kinds x 9 agent `mod` ops x {ungrouped, welded} — no
         # agent op puts `<id>-grp` back on a marked host or any of its
         # parts, in the agent's own committed scene or after the next
@@ -21864,7 +21870,13 @@ class Store:
             # and makes every other reader's view of an impossible state
             # somebody else's problem. Normalizing at the load kills the
             # pair — mark present AND `<id>-grp` present — before any of
-            # the thirteen reader sites can see it.
+            # every reader can see it. NO COUNT HERE: this line said
+            # "the thirteen reader sites", and thirteen is the grep
+            # total for the constant — it counts the definition, the
+            # two writes and the four removals alongside the reads.
+            # The reads are six. A grep total wearing a semantic label
+            # is the defect this file has now recorded several times,
+            # and it sat in the comment justifying this very choice.
             _reconcile_ungroup_marks(self.scenes[aid], self.scenes[aid])
             self.artifact_meta[aid] = doc.get("wysiwyg", {})
             if doc.get("files"):
