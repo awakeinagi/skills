@@ -2335,6 +2335,58 @@ def apply_strategic(el, value, errors, index_hint, explicit_bg=False):
         el["fillStyle"] = "solid"
 
 
+def _composed_state(spec, custom, key, default):
+    """A composite's state field: the op's word, then the stored one.
+
+    A MINT BLOCK MAY NOT READ `spec` OVER `customData` IT IS ABOUT TO
+    OVERWRITE, and this is that rule with one home instead of four. The
+    generic keys above (`role`, `kind`, `intent`, `parent`, `document`,
+    `annotates`, `tooltip`) already work this way — `custom` starts as a
+    copy of the spec's `customData` and each `if spec.get(k)` OVERRIDES
+    it. The four composite blocks departed from that and CLOBBERED:
+    `checked` was `bool(spec.get("checked", False))`, `value` was
+    `float(spec.get("value", 50))`, so a datum arriving through the
+    `customData` door was silently replaced by the default.
+
+    Measured 2026-08-25 over `add` with the datum in `customData` only:
+    checkbox True -> False, toggle True -> False, slider 80 -> 50, kpi
+    "$4.2M" -> "". Every one landed a CONSISTENT scene — the right part
+    count for the wrong state — so no check could see it and none did.
+    That is the v0.5 silent drop, which was found on `value` for an
+    `input` and fixed there, alive on four more fields.
+
+    IT IS THE PRESCRIBED REMEDY THAT MAKES THIS URGENT rather than
+    merely wrong. `lint_layout` tells a stripped `checkbox` to `del` and
+    re-add it; an agent re-adding from the element it just read back
+    hands the state through `customData`, and the checkbox came back
+    UNCHECKED with the finding flipped from missing to surplus. A repair
+    a check prescribes may not destroy the state it was protecting.
+
+    NOT TRUTHINESS, unlike the generic keys, and that is the one place
+    this differs from the pattern it restores: `checked: False` and
+    `value: 0` are real words. An `if spec.get(key)` here would ignore
+    an explicit uncheck and fall back to a stored `True`, which is the
+    same class of silent override in the other direction.
+
+    Args:
+        spec: The op's element spec — the agent's explicit word.
+        custom: The `customData` already assembled for this element,
+            which is the spec's own `customData` plus the generic keys.
+        key: The state field, e.g. `"checked"` or `"value"`.
+        default: Used only when NEITHER door supplies the field, so
+            every kind's documented default survives untouched.
+
+    Returns:
+        The raw value, uncoerced — each caller keeps the coercion it
+        had, so this changes where the number comes from and never what
+        it is turned into.
+    """
+    v = spec.get(key)
+    if v is None:
+        v = custom.get(key)
+    return default if v is None else v
+
+
 def make_element(spec, existing_ids, errors, index_hint=0):
     """Build a full Excalidraw element (and possibly a bound label element)
     from a terse spec. Returns a list of elements ([shape] or [shape, label]).
@@ -2676,7 +2728,8 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         if len(out) > 1 and out[1].get("containerId") == el_id:
             out[1]["verticalAlign"] = "bottom"
             recenter_label([el, out[1]], el)
-        custom["value"] = str(spec.get("value") or "")
+        custom["value"] = str(_composed_state(spec, custom, "value", None)
+                              or "")
         out.append(_compose_kpi_value(el, custom["value"], existing_ids))
     if custom.get("kind") in ("checkbox", "toggle") and \
             etype == "rectangle":
@@ -2686,18 +2739,47 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         el["groupIds"] = [*(el.get("groupIds") or []), gid]
         if el.get("height", 0) < 28:
             el["height"] = 28
-        custom["checked"] = bool(spec.get("checked", False))
+        custom["checked"] = bool(_composed_state(spec, custom, "checked",
+                                                 False))
         if len(out) > 1 and out[1].get("containerId") == el_id:
             out[1]["textAlign"] = "left"
         out.extend(_compose_control_glyph(el, custom["kind"],
                                           custom["checked"], existing_ids))
     if custom.get("kind") == "input" and etype == "rectangle" and \
-            spec.get("value") is not None:
+            _composed_state(spec, custom, "value", None) is not None:
         # a settled value belongs ON the control (v0.5). `value` used to
         # be read only by kpi and slider, so an input was handed one and
         # silently dropped it — the admin console's schedule field read
         # "Run at" with no time in it, and nothing complained
-        custom["value"] = str(spec["value"])
+        #
+        # STILL GATED ON HAVING A VALUE — `TestInputValue.test_add_
+        # without_value_stays_a_bare_field` is a standing decision that
+        # a valueless input is a bare field, and it is not this task's
+        # to overturn — but READING BOTH DOORS since 2026-08-25, because
+        # THREE READERS OF "when does an input owe a row" HAD PARTED and
+        # a lint cannot derive a floor from a disagreement. This gate
+        # was `spec.get("value") is not None` — the op's TOP-LEVEL key —
+        # while `reconcile_composed` mints through
+        # `_recompose_input_value`'s first-assembly branch
+        # unconditionally, and anything reading the stored element sees
+        # only `customData.value`. So `add {"kind": "input",
+        # "customData": {"value": "09:00"}}` stored the datum and drew
+        # no row for it, which is the v0.5 silent drop returning through
+        # the other door: `mod` documents `customData` as MERGED
+        # (references/ops-reference.md), so that shape is reachable and
+        # supported. `kpi` never had the split — its block is ungated
+        # and overwrites `custom["value"]` from the spec — and this now
+        # matches it.
+        #
+        # THE DATUM IS CARRIED, NEVER DISCARDED, which is the half a
+        # repair here is most likely to get wrong: clearing the finding
+        # by dropping a declared `customData` value would look honest
+        # and would re-open the exact v0.5 defect this block was written
+        # for. Whichever door supplied it wins, the top-level key first
+        # because it is the documented one; an input declared with no
+        # value at all draws the empty slot, which is what
+        # `_compose_input_value`'s docstring already says it is for.
+        custom["value"] = str(_composed_state(spec, custom, "value", ""))
         _compose_input_slot(out, el, custom["value"], existing_ids)
     if custom.get("kind") == "slider" and etype == "rectangle":
         # slider stand-in (v0.3): track + thumb; customData.value (0–100)
@@ -2710,7 +2792,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             out[1]["verticalAlign"] = "top"
             recenter_label([el, out[1]], el)
         try:
-            v = float(spec.get("value", 50))
+            v = float(_composed_state(spec, custom, "value", 50))
         except (TypeError, ValueError):
             errors.append("op %d: slider `value` must be a number 0–100"
                           % index_hint)
@@ -9368,8 +9450,26 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # `reconcile_composed` that MINT unconditionally; the other
             # five re-derive parts that must already exist, so they are
             # correctly unmoved by a bare `kind` write.
+            #
+            # `customData` IS THE FIFTH DOOR, added 2026-08-25, and it
+            # is the one that was writing composed STATE with nothing
+            # recomposing it. `mod` documents `customData` as MERGED
+            # (references/ops-reference.md), so `mod {"customData":
+            # {"value": "09:00"}}` settled an input's value, drew no row
+            # for it, and returned ZERO errors — and the composed-host
+            # lint then condemned the scene that batch had just been
+            # told was fine. The same door writes `{"kind": "body"}`
+            # without composing waves, which is `kind`'s own case
+            # arriving through the key rather than the shorthand.
+            #
+            # Scoped by the same argument as the four above rather than
+            # widened past them: this reconciles the element the `mod`
+            # named, exactly as a `label` or a `height` write already
+            # does, and `reconcile_composed` is idempotent on a host
+            # whose parts are already right — which is why adding a
+            # door costs nothing on the ops that were already correct.
             if ("width" in attrs or "height" in attrs or "label" in attrs
-                    or "kind" in attrs):
+                    or "kind" in attrs or "customData" in attrs):
                 reconcile_composed(els, index, existing, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
@@ -10244,6 +10344,196 @@ def composed_group_gaps(els):
         tagged = _composed_part(e.get("customData") or {})
         if tagged or theirs:
             out.append((e["id"], oid))
+    return sorted(out)
+
+
+def composed_part_floor(el: dict[str, Any]) -> int | None:
+    """How many parts this host's own stored geometry guarantees, if any.
+
+    DERIVE THE FLOOR, NEVER COUNT WHAT IS THERE, and that choice is the
+    whole rule rather than an implementation taste. "This host has 0
+    parts" reads 0 for a `body` block whose waves were eaten AND for an
+    `entity` a user declared with no attributes, which is legal — one
+    scalar, two meanings, and the carve-out would have to be bolted on
+    afterwards. A floor is recomputable from the stored element with no
+    history at all, so the two cases separate by construction: `entity`
+    is the one composed kind that has none, and it answers None here.
+
+    THE ENUMERATION IS `_interpret_user_composites`' EIGHT, in the same
+    order, and it is the third copy of that list in this file — the
+    other two are that gate and `reconcile_composed`'s arms. Nothing
+    stops the three drifting except
+    `TestComposedHostFloors.test_every_composed_kind_has_a_floor_ruling`,
+    which reads this function's source and the gate's tuple and fails on
+    a kind named in one and not the other. A kind added there with no
+    ruling here would arrive silently exempt, which is the failure mode
+    this check exists to end.
+
+    Args:
+        el: Any element. Only a `rectangle` carrying a composed `kind`
+            can have a floor — every composite block in `make_element`
+            gates on that type, so a `kind: "slider"` diamond never
+            minted a track and is not owed one.
+
+    Returns:
+        The part count the kind guarantees, or None when this element
+        is not a floored composed host — `entity` (the carve-out),
+        `input` with no settled value (its row is minted only when one
+        exists), and everything that is not a composed host at all.
+    """
+    if el.get("type") != "rectangle" or el.get("isDeleted"):
+        return None
+    cd = el.get("customData") or {}
+    kind = cd.get("kind")
+    if kind == "image":
+        return 2                      # the two X strokes (`x_of`)
+    if kind == "entity":
+        # THE CARVE-OUT. An entity's rows ARE the storage for its
+        # attribute list — the host keeps no `attributes` key of its
+        # own — so an entity declared with none is indistinguishable,
+        # from the stored element, in every way except that it is
+        # correct. `reconcile_composed` agrees by declining to rebuild
+        # rows it cannot find (`if rows:`).
+        return None
+    if kind == "kpi":
+        return 1                      # the big value row (`value_of`)
+    if kind == "checkbox":
+        # The box always; the check stroke only when the state says so,
+        # and `_interpret_user_composites` reads a deleted stroke as an
+        # uncheck — so a user clearing a tick lowers this floor rather
+        # than tripping it.
+        return 2 if cd.get("checked") else 1
+    if kind in ("toggle", "slider"):
+        return 2                      # pill/track plus thumb
+    if kind == "input":
+        # ONE ROW, ALWAYS, and this line is only allowed to say so
+        # because the other two readers were brought to agree with it in
+        # the same change. THREE READERS OF "when does an input owe a
+        # row" HAD PARTED — `make_element` gated the mint on the SPEC's
+        # top-level `value`, `reconcile_composed` minted unconditionally
+        # through `_recompose_input_value`'s first-assembly branch, and
+        # a lint can only ever see the STORED `customData.value`. A
+        # floor is a claim the stored element GUARANTEES; a
+        # disagreement is not one, and the version of this branch that
+        # returned 1 on a stored `value` was false in all three
+        # directions. It was not merely inert: `mod {"customData":
+        # {"value": …}}` is documented as a MERGE, it wrote a field the
+        # mint had never read, and the ERROR that produced named a
+        # repair — re-add it — that reproduced the finding verbatim.
+        #
+        # The alternative was to give `input` no floor at all. That
+        # silences the loop and leaves the split standing, which is a
+        # lint declining to look at a kind because the code under it is
+        # inconsistent — the inconsistency is the defect, so it is fixed
+        # rather than routed around. Zero corpus movement either way:
+        # all 5 frozen inputs carry a value AND a row (measured).
+        #
+        # WHY "HAS A VALUE" AND NOT "ALWAYS ONE ROW": the stronger rule
+        # was tried and it contradicts `TestInputValue.test_add_without_
+        # value_stays_a_bare_field`, a standing decision that a
+        # valueless input is a bare field. Overturning someone else's
+        # acceptance test to make a lint's arithmetic tidier is the
+        # exact move this repo keeps a split to prevent, so the floor
+        # bent to the product decision instead.
+        return None if cd.get("value") is None else 1
+    if kind == "body":
+        # Spelled out rather than calling `_compose_body_lines`, which
+        # would mint n throwaway elements per lint and needs an id set;
+        # the two are held together by
+        # `test_the_body_floor_is_the_count_the_seeder_mints`, which
+        # sweeps heights and compares this against `len()` of the real
+        # thing.
+        return max(2, int(max(el.get("height", 48), 16) // 16))
+    return None
+
+
+def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
+    """Composed hosts drawing a different number of parts than they owe.
+
+    THE BLINDNESS THIS CLOSES IS STRUCTURAL, NOT A SHORT-CIRCUIT.
+    `composed_group_gaps` next door walks PARTS and resolves each one's
+    owner, so a host with NO parts yields nothing to walk — there is no
+    comparison in that loop to reach and nothing to return early from —
+    and a part naming a host absent from the scene is dropped by its
+    `owner is None: continue`. Measured on a real pre-fix save, every
+    registered detector returned the same findings for the damaged
+    stored scene and the healthy one. A host is the subject here, and
+    that is why this is a second walk rather than a widening.
+
+    THE COUNT IS OF TAGGED PARTS, never of bound labels: a caption
+    carries no `*_of` key, belongs to hosts that are not composites at
+    all, and is not what a kind mints. `_composed_part` is the same
+    predicate `normalize_z_order` and `_close_widget_group` ask, so a
+    part that bands above its owner is a part counted here.
+
+    WHAT THIS DOES NOT SEE, measured through `Store.commit` rather than
+    assumed, and named so the check is not read as covering its whole
+    class: part-shaped decoration owned by NOBODY. Ctrl+Shift+G, save,
+    Ctrl+D, save — two blessed gestures, no ops — and the copy's parts
+    keep a backlink naming an id that is not the new host.
+
+    THE BLIND SET IS `body`, `kpi` AND `input`, and an earlier draft of
+    this paragraph named `body` and `checkbox`, which was wrong in both
+    halves. A CHECKED `checkbox` FIRES, at 1 of 2 — its arm mints the
+    check stroke and never the box; an UNCHECKED one fires at 0 of 1.
+    Those are two different scenes and this paragraph used to average
+    them. The real three are exactly the arms of `reconcile_composed`
+    that MINT UNCONDITIONALLY: the paste gate hands the copy a full
+    fresh set, so the floor is satisfied and the damage is the orphaned
+    untagged ink left beside it — 5 tagged waves and 5 untagged, 5 == 5,
+    silence. `slider`, `toggle` and `image` re-derive parts that must
+    already exist, so their copies own nothing and this check names them.
+
+    That one fact about those three arms has three faces, which is why
+    it is worth stating once here: they are the only kinds a bare
+    rectangle gains parts from on `mod {"kind": …}`, the only ones a
+    real geometry `mod` re-mints for (the repair `lint_layout` offers),
+    and the only ones blind here.
+
+    The surplus arm cannot see this class either, because untagged ink
+    is not counted as a part. That is a second instrument and it is not
+    this one.
+
+    Args:
+        els: An element list.
+
+    Returns:
+        `[(host_id, kind, floor, drawn)]` sorted by host id, empty when
+        every floored composed host draws exactly what its kind owes.
+        `drawn` differs from `floor` in both directions.
+    """
+    parts: dict[str, int] = {}
+    pinned: set[str] = set()
+    for e in els:
+        if e.get("isDeleted") or not _composed_part(e.get("customData")
+                                                   or {}):
+            continue
+        oid = part_owner_id(e)
+        if not oid:
+            continue
+        parts[oid] = parts.get(oid, 0) + 1
+        if pinned_to_canvas(e):
+            pinned.add(oid)
+    out = []
+    for e in els:
+        floor = composed_part_floor(e)
+        if floor is None:
+            continue
+        drawn = parts.get(e["id"], 0)
+        # A PINNED PART SUPPRESSES THE SURPLUS ARM AND ONLY THAT ARM,
+        # because this file's own reconciler produces the reading.
+        # `reconcile_composed`'s `body` branch deletes every wave and
+        # re-mints from the new height, skipping ids already standing —
+        # so pinning the LAST wave of a 64px block and shrinking it to
+        # 32px leaves three waves against a floor of two (measured
+        # 2026-08-25). That is a pin honoured, not damage. The missing
+        # arm needs no such guard: a pin can only keep a part alive,
+        # never remove one, so it cannot push a count below the floor.
+        if drawn > floor and e["id"] in pinned:
+            continue
+        if drawn != floor:
+            out.append((e["id"], (e.get("customData") or {}).get("kind"),
+                        floor, drawn))
     return sorted(out)
 
 
@@ -19505,6 +19795,142 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             "without it. Did you ungroup it deliberately? If so, %s"
             % (name(owner), len(parts), ", ".join(sorted(parts)[:4]),
                waive_hint(key)))
+    # ---- ERROR: a composed host whose parts are not on the canvas ------
+    # THE SECOND WALK, AND IT HAD TO BE ONE. The note above walks PARTS,
+    # so a host with none yields nothing to walk and the loop is silent
+    # by construction rather than by a guard — the shape the duplicate-
+    # backlink data loss left on disk, where every registered detector
+    # returned identical findings for the damaged scene and the healthy
+    # one. `composed_host_gaps` makes the HOST the subject and compares
+    # what its own geometry owes against what the scene draws.
+    #
+    # THE SENTENCE MAY NOT SAY WHAT THE PIXELS LOOK LIKE, and the first
+    # draft of it did. It read "renders as a bare rectangle that says
+    # nothing about what it is", which is FALSE for the only class two
+    # keystrokes reach: after Ctrl+Shift+G, save, Ctrl+D, save, the
+    # copy's `-track` and `-thumb` are on the canvas and drawn — 0 parts
+    # OWNED, 2 untagged decorations DRAWN (measured through
+    # `Store.commit`, the path `/api/save` uses). An agent relaying that
+    # sentence would have told a user their slider draws as an empty box
+    # while it draws as a slider, on a product whose whole contract is
+    # that the agent narrates its reading of the picture.
+    #
+    # So the finding states the OWNERSHIP fault, which is what this
+    # check actually measured, and says out loud that it cannot tell
+    # deleted ink from orphaned ink. It cannot: untagged strokes are not
+    # counted as parts, which is the same limit that makes the second
+    # instrument necessary. Naming the limit is cheaper than a guess
+    # that is wrong half the time, and both halves are damage anyway —
+    # a drag moves the host without them and the next re-derive draws a
+    # fresh set over whatever is left.
+    #
+    # ERROR, not a note, and the tier doctrine at the top of this
+    # function is what settles it: a `slider` whose track and thumb
+    # belong to nothing is not a legibility defect and not a style
+    # observation, it is a drawing that does not say what the agent
+    # meant. THE PRECEDENT THAT ARGUES OTHERWISE IS THE UNKNOWN-KIND
+    # CHECK, which chose NOTE for a reason that reaches this one: the
+    # ERROR contract is "repair it in the same move", and that check had
+    # no repair to offer at all. This one does, and the remedy below is
+    # measured rather than guessed — a real geometry `mod` re-mints for
+    # the kinds whose arms mint unconditionally, and `del` + `add` works
+    # for the rest. That second repair is expensive and the message says
+    # so instead of hiding it, which is the honest form of "repair in
+    # the same move" rather than an escape from it.
+    #
+    # NO WAIVE HINT, and the tier had already decided that before any
+    # argument about gestures was reached: all 15 `waive_hint` calls in
+    # this function sit on a warning or a note and NONE sits on an
+    # error, so an error is not waivable here. Worth stating the other
+    # reason anyway, because it is what makes the tier fit: the note
+    # above is waivable because Ctrl+Shift+G is a blessed gesture that
+    # produces its exact reading, so the honest answer there is a
+    # question. The scenes that look like THIS and are correct are
+    # carved out in `composed_part_floor` by having no floor at all —
+    # a silence nobody has to remember to ask for.
+    #
+    # REACHABLE THROUGH THE BARE-`kind` DOOR TOO, and the count is
+    # FOUR, not five: `mod {"kind": X}` on a plain rectangle composes
+    # parts for `body`, `kpi` and `input` and for nothing else, so
+    # `image`, `checkbox`, `toggle` and `slider` come out of that door
+    # as hosts owing parts they do not have. `entity` is the fifth kind
+    # that door leaves bare and it raises nothing, because it has no
+    # floor — which is why the number here is four.
+    #
+    # ZERO ON THE FROZEN CORPUS, measured 2026-08-25 rather than hoped:
+    # 67 composed hosts across the 24 frozen artifacts, 27 of them
+    # entities and so exempt, 40 carrying a floor, and every one of the
+    # 40 drawing exactly what it owes. The corpus census does not move.
+    # The denominator is the ARTIFACTS and not the whole fixture tree —
+    # `saves/` holds diffs (`changes`, `facts`, `inverse`), not scenes,
+    # so a sweep that globbed it would have reported the same zero while
+    # reading no elements at all. Worth one clause because it bounds the
+    # reading rather than decorating it: the corpus holds no `body` host
+    # at all, so the kind the acceptance mutant is built on is exercised
+    # by that mutant and by `TestComposedHostFloors`, never by a shipped
+    # drawing.
+    for hid, kind, floor, drawn in composed_host_gaps(els):
+        # THE REPAIR IS PER KIND BECAUSE THE CODE IS. `body`, `kpi` and
+        # `input` are the three arms of `reconcile_composed` that mint
+        # unconditionally, and that one fact has three faces: they are
+        # the only kinds a bare rectangle gains parts from on `mod
+        # {"kind": …}`, the only ones a real geometry `mod` re-mints for,
+        # and the only ones already invisible to this check in the
+        # duplicate class. For the other four nothing re-mints — their
+        # arms re-derive parts that must already exist — so the only
+        # repair is destructive, and `ops-reference.md` calls `del` +
+        # `add` the workaround that silently dropped mappings, pins and
+        # rename detection. Saying "re-add it" for all seven was wrong
+        # advice for three of them and incomplete for the rest.
+        #
+        # A NO-OP `mod` DOES NOT REPAIR, which is worth a clause because
+        # it is the obvious first thing to try: `mod {"height": <same>}`
+        # and `mod {"kind": <same>}` both reconcile and mint, and the
+        # batch discards the result. The value has to CHANGE.
+        #
+        # THE CONSEQUENCE SPLITS ON THE SAME LINE AS THE REPAIR, and an
+        # earlier draft gave every kind the re-minting one — "the next
+        # re-derive draws a fresh set over whatever is left", which is
+        # true of a `body` (a 5-wave copy drew 10 lines) and false of a
+        # `slider`, whose arm never mints and simply leaves the widget
+        # dead. `_rehost_duplicated_parts`' own docstring states both
+        # halves; this sentence may not average them.
+        #
+        # THE HEAD OF THIS SENTENCE IS THE CURATOR'S TEMPLATE and only
+        # the tail after the direction word is mine: `_COMPOSED_HOST_
+        # STRIPPED_RE` matches "…whose own geometry draws N part(s), and
+        # the scene has M — D missing|surplus", and rewording the head
+        # is how a check silently stops being the one its mutant proves.
+        remint = kind in ("body", "kpi", "input")
+        if drawn > floor:
+            said = "The extra parts are drawn over the widget's own ink."
+        else:
+            said = ("The parts it does not own are either gone from the "
+                    "scene or still drawn beside it with their backlink "
+                    "broken, and this check cannot tell which. Either "
+                    "way the widget is dead: a drag moves the host "
+                    "without them, and %s."
+                    % ("the next re-derive draws a FRESH set over "
+                       "whatever is left rather than adopting it"
+                       if remint else
+                       "nothing re-mints what is gone"))
+        if remint:
+            fix = ("Repair: `mod` this host's `width` or `height` to a "
+                   "DIFFERENT value — a %s re-derives its parts from "
+                   "the host, so any real geometry change mints them "
+                   "back (a no-op `mod` does not)." % kind)
+        else:
+            fix = ("Repair: `del` then `add` it. A `mod` re-derives a "
+                   "%s's parts from the host but does not re-mint the "
+                   "ones that are gone, so it comes back still short — "
+                   "and `del` + `add` costs this element's mappings, "
+                   "pins and rename detection, which is why this is "
+                   "reported and not done for you." % kind)
+        errors.append(
+            "%s is a composed %s whose own geometry draws %d part(s), "
+            "and the scene has %d — %d %s. %s %s"
+            % (name(hid), kind, floor, drawn, abs(floor - drawn),
+               "missing" if drawn < floor else "surplus", said, fix))
     bound_ids = set()
     for a in arrows:
         for key in ("startBinding", "endBinding"):

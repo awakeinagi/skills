@@ -25437,6 +25437,603 @@ class TestComposedWidgetsAreRealGroups(Base):
         self.assertEqual(followers, {"b", "c"})
 
 
+class TestComposedHostFloors(Base):
+    """A composed host is measured against what its own kind owes.
+
+    The poles the acceptance mutant cannot reach. `composed_host_
+    stripped_is_invisible` asserts ONE scene — a 64px `body` stripped to
+    nothing — which is the right size for an acceptance test and says
+    nothing about the other seven kinds, about the carve-outs, or about
+    the direction the rule must NOT fire in. Those are here, because a
+    check proven on one arm is a check whose other arms are unheld.
+    """
+
+    # The mint specs, one per kind, with the floor each one's stored
+    # element guarantees AFTER `make_element`'s own clamps: `kpi` is
+    # lifted to 64px, `checkbox`/`toggle` to 28, `slider` to 44, and
+    # `body` is not clamped at all, so 60px gives it `60 // 16` = 3.
+    # `entity` is the one None — the whole false-positive cost of the
+    # rule, and it is here rather than trusted.
+    #
+    # THE THREE `input` ROWS ARE THREE DOORS, not one case written out
+    # three times, and they are the reason this class caught a looping
+    # ERROR. Every other spec authors through top-level op keys; for
+    # `input` that used to be the only door `make_element` read, while
+    # the lint read `customData.value` and `reconcile_composed` read
+    # neither. A pole built only the top-level way never exercises the
+    # field the check reads. All three must now agree on ONE row.
+    SPECS = (
+        ({"kind": "slider", "value": 60}, 2),
+        ({"kind": "checkbox", "checked": True}, 2),
+        ({"kind": "checkbox", "checked": False}, 1),
+        ({"kind": "toggle", "checked": True}, 2),
+        ({"kind": "kpi", "value": "$4.2M"}, 1),
+        ({"kind": "input", "value": "09:00"}, 1),
+        ({"kind": "input"}, None),
+        ({"kind": "input", "customData": {"value": "09:00"}}, 1),
+        ({"kind": "image"}, 2),
+        ({"kind": "entity", "attributes": ["id", "total"]}, None),
+        ({"kind": "body"}, 3),
+    )
+
+    def _mint(self, spec):
+        """Mint one composed widget the way the `add` path does.
+
+        Args:
+            spec: The op spec's kind-bearing fields.
+
+        Returns:
+            The minted element list, `out[0]` the host.
+        """
+        errors = []
+        out = canvas.make_element(
+            dict({"id": "w", "type": "rectangle", "x": 100, "y": 200,
+                  "width": 160, "height": 60, "label": "W"}, **spec),
+            set(), errors, 0)
+        self.assertEqual(errors, [])
+        return out
+
+    def test_every_composed_kind_has_a_floor_ruling(self):
+        """The three copies of the kind vocabulary are one list.
+
+        `_interpret_user_composites` carries the enumeration the `add`
+        path composes and says in its own comment that
+        `reconcile_composed`'s arms are the same list. `composed_part_
+        floor` is now the third, and a kind added to the gate with no
+        ruling here would arrive SILENTLY EXEMPT — the check would go
+        quiet on a whole kind and no test would fail, which is the
+        failure mode the check itself exists to end. Read out of the
+        source rather than restated, so this cannot be the fourth copy.
+        """
+        gate = inspect.getsource(canvas._interpret_user_composites)
+        kinds = re.search(
+            r'if kind in \((\s*"[a-z]+",?\s*)+\):', gate)
+        self.assertIsNotNone(
+            kinds, "the composed-kind tuple in `_interpret_user_"
+                   "composites` has been reshaped past this reader — "
+                   "re-point it, do not delete it")
+        named = set(re.findall(r'"([a-z]+)"', kinds.group(0)))
+        self.assertEqual(len(named), 8, sorted(named))
+        # CODE, NOT COMMENTS. The first version of this asserted the
+        # kind's spelling appeared anywhere in the source, so deleting
+        # the `if kind in ("toggle", "slider")` arm while leaving the
+        # word "toggle" in a comment above it left this GREEN — a pin
+        # whose docstring claimed three lists were one while it read a
+        # paragraph. Comment lines are stripped before the search, so
+        # the kind has to be named in something that runs.
+        floor_src = "\n".join(
+            line for line in
+            inspect.getsource(canvas.composed_part_floor).splitlines()
+            if not line.lstrip().startswith("#"))
+        body = floor_src.split('"""', 2)[-1]
+        missing = sorted(k for k in named if '"%s"' % k not in body)
+        self.assertEqual(
+            missing, [],
+            "these composed kinds are minted by the gate and have no "
+            "ruling in `composed_part_floor`'s CODE, so a host of one of "
+            "them drawing nothing is invisible: %s. Give each a floor, "
+            "or an explicit `return None` with the reason it has none — "
+            "naming it only in a comment does not count" % missing)
+
+    def test_the_body_floor_is_the_count_the_seeder_mints(self):
+        """The floor is the seeder's own n, swept, not a copy of it.
+
+        `composed_part_floor` spells `max(2, int(max(h, 16) // 16))`
+        rather than calling `_compose_body_lines`, which would mint n
+        throwaway elements on every lint. The arithmetic is therefore
+        duplicated, and this is what stops the two drifting: the
+        expectation comes from the OTHER function, never from the
+        subject, so a change to either side that the other did not make
+        fails here. The sweep crosses every band boundary in the range,
+        including the `max(2, ...)` and `max(h, 16)` floors, which is
+        where a rounding change would land.
+        """
+        for h in [0, 1, 15, 16, 17, 31, 32, 33, 47, 48, 63, 64, 65,
+                  100, 160, 257]:
+            with self.subTest(height=h):
+                host = mk_el(id="b", type="rectangle", x=0, y=0,
+                             width=160, height=h,
+                             customData={"kind": "body", "role": "node"})
+                self.assertEqual(
+                    canvas.composed_part_floor(host),
+                    len(canvas._compose_body_lines(host, set())),
+                    "the body floor and the count the seeder mints have "
+                    "parted at height %s" % h)
+
+    def test_every_minted_widget_draws_what_it_owes(self):
+        """The false-positive pole across the whole kind vocabulary.
+
+        A rule of this shape fires on every widget this skill mints if
+        it counts the wrong thing — bound labels, say, or parts by group
+        rather than by backlink. Every kind is minted whole here and the
+        check must be silent on all of them.
+        """
+        for spec, _floor in self.SPECS:
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                self.assertEqual(
+                    canvas.composed_host_gaps(out), [],
+                    "%r was minted whole and reported anyway" % (spec,))
+
+    def test_each_kind_owes_the_count_its_stored_element_implies(self):
+        """The floor per kind, and the two kinds that have none."""
+        for spec, floor in self.SPECS:
+            with self.subTest(spec=spec):
+                host = self._mint(spec)[0]
+                self.assertEqual(canvas.composed_part_floor(host), floor)
+
+    def test_a_stripped_host_of_every_floored_kind_is_named(self):
+        """Strip the parts and every floored kind speaks, with its count.
+
+        The mutant proves ONE kind at ONE magnitude. This is the same
+        claim over the vocabulary: a `slider` back from a duplicate with
+        0 of its 2 parts is the witnessed defect, and it must read as
+        `(2, missing)` for the same reason the body reads `(4, missing)`.
+        """
+        for spec, floor in self.SPECS:
+            if floor is None:
+                continue
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                kept = [e for e in out
+                        if not canvas._composed_part(
+                            e.get("customData") or {})]
+                self.assertEqual(
+                    canvas.composed_host_gaps(kept),
+                    [("w", spec["kind"], floor, 0)],
+                    "%r drew none of its parts and was not named" % (spec,))
+
+    def test_an_entity_with_no_rows_is_never_reported(self):
+        """The carve-out, at the level the neighbour cannot reach.
+
+        The mutant's neighbour asserts this for one scene through
+        `collect_findings`. The reason it holds is that `entity` has NO
+        FLOOR — its rows are the storage for its attribute list and the
+        host keeps no `attributes` key — so the silence is structural
+        and not a special case somebody has to remember. Asserted on the
+        floor itself, so a later hand that gives `entity` a floor and a
+        suppression somewhere downstream fails here rather than shipping
+        a rule with a hole in its reasoning.
+        """
+        bare = mk_el(id="e", type="rectangle", x=400, y=0, width=160,
+                     height=64,
+                     customData={"kind": "entity", "role": "node"})
+        self.assertIsNone(canvas.composed_part_floor(bare))
+        self.assertEqual(canvas.composed_host_gaps([bare]), [])
+
+    def test_an_input_owes_a_row_exactly_when_it_carries_a_value(self):
+        """The floor may only say 1 where the mint agrees it says 1.
+
+        THE DEFECT THIS CLOSES WAS A DISAGREEMENT, not a wrong number.
+        `composed_part_floor` returned 1 on a stored `customData.value`
+        and justified it as "gated the way the mint is". It was not:
+        `make_element` read only the SPEC's TOP-LEVEL `value`, so `add
+        {"kind": "input", "customData": {"value": "09:00"}}` — reachable
+        because `mod` documents `customData` as MERGED — stored the
+        datum, drew no row for it, and raised an ERROR whose remedy was
+        to re-add it, which reproduced the finding verbatim.
+
+        The rule they now share is "a value through EITHER door means a
+        row", which is the shape the product decision forced: making
+        every input owe a row was tried and contradicts
+        `TestInputValue.test_add_without_value_stays_a_bare_field`.
+
+        THE DATUM MUST SURVIVE and that is asserted, not assumed. The
+        cheap way to clear this finding is to drop the declared
+        `customData` value at mint time — the scene goes quiet, the
+        check goes quiet, and the v0.5 silent drop this whole block
+        exists for is back.
+        """
+        for spec, rows_want in (({"kind": "input"}, 0),
+                                ({"kind": "input", "value": "09:00"}, 1),
+                                ({"kind": "input",
+                                  "customData": {"value": "09:00"}}, 1)):
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                rows = [e for e in out
+                        if (e.get("customData") or {}).get("value_of") == "w"]
+                self.assertEqual(len(rows), rows_want,
+                                 "the mint drew %d value rows for %r"
+                                 % (len(rows), spec))
+                self.assertEqual(canvas.composed_host_gaps(out), [])
+                if rows_want:
+                    self.assertEqual(rows[0].get("text"), "09:00")
+                    self.assertEqual((out[0].get("customData") or {})
+                                     .get("value"), "09:00")
+
+    def test_the_customdata_door_settles_a_value_and_draws_it(self):
+        """`mod {"customData": …}` is a merge, and now it recomposes.
+
+        The op layer returned ZERO errors for this batch while the
+        composed-host ERROR condemned the scene it produced — a batch
+        told it was fine and then reported as damage, with a remedy that
+        reproduced itself. `customData` is the fifth door on the
+        post-`mod` reconcile gate for that reason.
+
+        Asserted on the PICTURE and not only on the finding: a repair
+        that quietened the lint by dropping the agent's datum would pass
+        a silence check and re-open the defect, so what is required is
+        that the value the op settled is both stored AND drawn.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": "w", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "inp", "type": "rectangle",
+                      "x": 0, "y": 0, "width": 160, "height": 40,
+                      "label": "Run at", "kind": "input"}]})
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "w",
+             "ops": [{"op": "mod", "id": "inp",
+                      "attrs": {"customData": {"value": "09:00"}}}]})
+        els = self.store.scenes["w"]
+        host = next(e for e in els if e["id"] == "inp")
+        rows = [e for e in els
+                if (e.get("customData") or {}).get("value_of") == "inp"]
+        self.assertEqual((host.get("customData") or {}).get("value"),
+                         "09:00", "the settled value was dropped")
+        self.assertEqual([r.get("text") for r in rows], ["09:00"],
+                         "the settled value is stored but not drawn")
+        self.assertEqual(canvas.composed_host_gaps(els), [])
+
+    def test_a_checkbox_floor_follows_the_state_it_stores(self):
+        """A cleared tick lowers the floor rather than tripping it.
+
+        `_interpret_user_composites` reads a deleted check stroke as an
+        uncheck, so the user gesture that removes a part also removes
+        the obligation. A floor that ignored `checked` would report
+        every unchecked box in the project.
+        """
+        on = self._mint({"kind": "checkbox", "checked": True})
+        off = [dict(e, customData=dict(e.get("customData") or {},
+                                       checked=False))
+               if e["id"] == "w" else e
+               for e in on
+               if (e.get("customData") or {}).get("chk_of") != "w"]
+        self.assertEqual(canvas.composed_part_floor(on[0]), 2)
+        self.assertEqual(canvas.composed_host_gaps(on), [])
+        self.assertEqual(canvas.composed_host_gaps(off), [])
+
+    def test_a_pinned_part_suppresses_only_the_surplus_arm(self):
+        """This file's own reconciler produces a legitimate surplus.
+
+        MEASURED, NOT IMAGINED. `reconcile_composed`'s `body` branch
+        deletes every wave and re-mints from the new height, skipping
+        ids already standing — so pinning the LAST wave of a 64px block
+        and shrinking it to 32px leaves three waves against a floor of
+        two. That is a pin honoured, not damage, and it is the one
+        reading of this shape the check must not report. The missing arm
+        is NOT suppressed by a pin, and that half matters just as much:
+        a pin can only keep a part alive, never remove one, so a
+        suppression there would be a hole with no case behind it.
+        """
+        els = self._mint({"kind": "body", "height": 64})
+        for e in els:
+            if (e.get("customData") or {}).get("body_of") == "w":
+                last = e
+        last["locked"] = True
+        els[0]["height"] = 32
+        canvas.reconcile_composed(els, None, None, els[0])
+        drawn = [e for e in els
+                 if (e.get("customData") or {}).get("body_of") == "w"]
+        self.assertEqual(len(drawn), 3, [e["id"] for e in drawn])
+        self.assertEqual(canvas.composed_part_floor(els[0]), 2)
+        self.assertEqual(
+            canvas.composed_host_gaps(els), [],
+            "a pin honoured by the reconciler was reported as surplus")
+        # and the missing arm still speaks with the same pin standing
+        stripped = [e for e in els
+                    if (e.get("customData") or {}).get("body_of") != "w"
+                    or e is last]
+        self.assertEqual(canvas.composed_host_gaps(stripped),
+                         [("w", "body", 2, 1)])
+
+    def test_a_bound_label_is_not_one_of_the_parts_counted(self):
+        """A caption is not what a kind mints.
+
+        `part_owner_id` answers a bound label's `containerId` and
+        `_composed_part` does not — the one class those two disagree on,
+        and the count here has to be on the second. A slider with its
+        track and thumb gone but its name still drawn is a dead widget,
+        and a count that took the label would read 1 of 2 and call it
+        half alive.
+        """
+        out = self._mint({"kind": "slider", "value": 60})
+        kept = [e for e in out
+                if not canvas._composed_part(e.get("customData") or {})]
+        self.assertTrue(any(e.get("containerId") == "w" for e in kept),
+                        "the bound label is not in this scene at all, so "
+                        "this test proves nothing")
+        self.assertEqual(canvas.composed_host_gaps(kept),
+                         [("w", "slider", 2, 0)])
+
+    def _damaged_on_disk(self, spec, h, aid="a"):
+        """Add a widget, strip its parts on disk, and reopen the project.
+
+        The damage has to reach the FILE. `Store.commit` runs
+        `_interpret_user_composites`, which recomposes what it can, so a
+        strip pushed through the user save path heals three kinds before
+        anything under test is reached — and stripping `Store.scenes` in
+        memory instead leaves the store's live id set holding ids the
+        scene no longer has, which makes `reconcile_composed` skip
+        re-minting them. Both are probe artifacts that read as findings.
+        Writing the file and reopening is the real case the ledger
+        names: a scene already on disk, re-read every session.
+
+        Args:
+            spec: The composed kind's mint spec.
+            h: The host's height before `make_element`'s clamps.
+            aid: Artifact id — one per case, since these share a store.
+
+        Returns:
+            A fresh `Store` over the damaged project.
+        """
+        op = dict({"op": "add", "id": "h", "type": "rectangle", "x": 0,
+                   "y": 0, "width": 160, "height": h, "label": "H"}, **spec)
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": aid, "name": "A", "type": "wireframe"},
+             "ops": [op]})
+        f = self.project.artifacts_dir / (aid + ".excalidraw")
+        doc = json.loads(f.read_text())
+        doc["elements"] = [e for e in doc["elements"]
+                           if not canvas._composed_part(
+                               e.get("customData") or {})]
+        f.write_text(json.dumps(doc))
+        return canvas.Store(self.project)
+
+    def test_the_repair_the_message_names_is_the_one_that_works(self):
+        """The remedy is applied and watched, not spell-checked.
+
+        THIS IS THE POLE THE WHOLE REVIEW WAS ABOUT. The first version
+        of this ERROR told every kind to "re-add it", and on the one
+        route that reaches an `input` the re-add reproduced the finding
+        verbatim — an ERROR whose contract is "repair it in the same
+        move" handing back a loop. A string assertion would have been
+        satisfied by that message and by the next broken one, so this
+        parses nothing: it applies the op the sentence names and asks
+        the check again.
+
+        The split is `reconcile_composed`'s, not a taste: `body` and
+        `kpi` mint unconditionally, so a real geometry change brings
+        their parts back; `slider`, `toggle` and `image` re-derive parts
+        that must already exist, so a `mod` leaves them short and the
+        message correctly sends those to `del` + `add`. Both directions
+        are asserted, because a message that named the destructive
+        repair for a kind with a cheap one is the other half of the
+        same defect.
+        """
+        for spec, h, remint in (({"kind": "body"}, 60, True),
+                                ({"kind": "kpi", "value": "$4.2M"}, 64, True),
+                                ({"kind": "slider", "value": 60}, 44, False),
+                                ({"kind": "toggle", "checked": True}, 28,
+                                 False),
+                                ({"kind": "image"}, 60, False)):
+            with self.subTest(kind=spec["kind"]):
+                aid = "a-" + spec["kind"]
+                st = self._damaged_on_disk(spec, h, aid)
+                self.assertTrue(canvas.composed_host_gaps(st.scenes[aid]),
+                                "the scene was not damaged, so this "
+                                "subtest measures nothing")
+                st.apply_batch({"base_revn": st.head_revn(),
+                                "artifact": aid,
+                                "ops": [{"op": "mod", "id": "h",
+                                         "attrs": {"width": 161}}]})
+                after = canvas.composed_host_gaps(st.scenes[aid])
+                if remint:
+                    self.assertEqual(
+                        after, [],
+                        "the message sends a %s to a geometry `mod` and "
+                        "the `mod` did not repair it" % spec["kind"])
+                else:
+                    self.assertTrue(
+                        after,
+                        "a geometry `mod` now repairs a %s, so the "
+                        "message is sending it to `del` + `add` when a "
+                        "cheap repair exists" % spec["kind"])
+
+    def test_the_prescribed_repair_preserves_the_state_it_protects(self):
+        """`del` + `add` must not silently uncheck the user's checkbox.
+
+        THE THIRD TRAPPED CASE, and the worst shape a check can have:
+        the remedy it prescribes destroying the thing it was protecting.
+        Measured before the mint fix, with zero op errors at every step —
+        `mod {"kind": "checkbox"}` reported (1, 0); `mod {"checked":
+        true}` reported (2, 1); and the prescribed `del` + re-add came
+        back (1, 2), flipping the finding from MISSING to SURPLUS while
+        turning `checked` from True to False. `make_element` read
+        `spec.get("checked", False)` over the stored `customData.checked`
+        an agent re-adding from the read-back element has no other way
+        to send.
+
+        Driven through the real op path rather than `make_element`,
+        because the loop this closes is an agent's: read the element
+        back, delete it, add it again with what it read.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": "w", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "h", "type": "rectangle",
+                      "x": 0, "y": 0, "width": 160, "height": 28,
+                      "label": "Enabled"}]})
+        for attrs in ({"kind": "checkbox"}, {"checked": True}):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "w",
+                 "ops": [{"op": "mod", "id": "h", "attrs": attrs}]})
+        self.assertTrue(canvas.composed_host_gaps(self.store.scenes["w"]),
+                        "the host is not short of parts, so the remedy "
+                        "under test is not the one being prescribed")
+        host = dict(next(e for e in self.store.scenes["w"]
+                         if e["id"] == "h"))
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "w",
+             "ops": [{"op": "del", "id": "h"},
+                     {"op": "add", "id": "h", "type": "rectangle",
+                      "x": host["x"], "y": host["y"],
+                      "width": host["width"], "height": host["height"],
+                      "label": "Enabled",
+                      "customData": dict(host["customData"])}]})
+        back = next(e for e in self.store.scenes["w"] if e["id"] == "h")
+        self.assertIs((back.get("customData") or {}).get("checked"), True,
+                      "the repair this check prescribes silently "
+                      "unchecked the user's checkbox")
+        self.assertEqual(canvas.composed_host_gaps(self.store.scenes["w"]),
+                         [], "the prescribed repair did not clear the "
+                             "finding it was prescribed for")
+
+    def test_a_no_op_mod_repairs_nothing_and_the_message_says_so(self):
+        """`mod {height: same}` reconciles, mints, and is discarded.
+
+        The obvious first thing an agent tries, and it looks like the
+        repair the message names without being it — which is why that
+        message spells out that the value has to CHANGE. Measured on the
+        kind where a real change DOES work, so the two differ in exactly
+        one thing.
+        """
+        st = self._damaged_on_disk({"kind": "body"}, 60)
+        st.apply_batch({"base_revn": st.head_revn(), "artifact": "a",
+                        "ops": [{"op": "mod", "id": "h",
+                                 "attrs": {"height": 60}}]})
+        self.assertEqual(canvas.composed_host_gaps(st.scenes["a"]),
+                         [("h", "body", 3, 0)],
+                         "a no-op `mod` repaired the host, so the "
+                         "message's warning about it is now wrong")
+
+    def test_a_soft_deleted_part_is_absent_ink_and_counts_as_gone(self):
+        """A tombstone is not drawn, so it does not satisfy a floor.
+
+        The picture judged here is the one on screen. Counting a
+        tombstone would make the check silent on exactly the scene a
+        client posts after deleting a widget's parts by hand.
+        """
+        out = self._mint({"kind": "slider", "value": 60})
+        ghosts = [dict(e, isDeleted=True)
+                  if canvas._composed_part(e.get("customData") or {}) else e
+                  for e in out]
+        self.assertEqual(canvas.composed_host_gaps(ghosts),
+                         [("w", "slider", 2, 0)])
+
+
+class TestCompositeStateSurvivesTheCustomDataDoor(Base):
+    """A mint block may not clobber `customData` it is about to overwrite.
+
+    `_composed_state`' rule, over every kind that has a state field.
+    `custom` starts as a copy of the spec's `customData` and the generic
+    keys — `role`, `kind`, `intent`, `parent` — OVERRIDE it only when
+    the spec supplies them. Four composite blocks departed from that and
+    clobbered instead, so a datum arriving through the `customData` door
+    was replaced by the kind's default: checkbox and toggle True ->
+    False, slider 80 -> 50, kpi "$4.2M" -> "".
+
+    WHY THIS SITS BESIDE THE COMPOSED-HOST CHECK. Each drop landed a
+    CONSISTENT scene — the right part count for the wrong state — so no
+    count-based check could see it and none did. What made it this
+    task's business is the REMEDY: `lint_layout` tells a stripped
+    checkbox to `del` and re-add it, an agent re-adding from the element
+    it just read back hands the state through `customData`, and the
+    checkbox came back unchecked with the finding flipped from missing
+    to surplus. A repair a check prescribes may not destroy the state it
+    was protecting.
+
+    NOT the silent-drop detector. That a scene can be damaged this way
+    with no check saying anything is a curator's red to write, and these
+    are unit poles on the mint, not a claim that anything reports it.
+    """
+
+    STATE = (("checkbox", "checked", True, False, 28),
+             ("toggle", "checked", True, False, 28),
+             ("slider", "value", 80.0, 50.0, 44),
+             ("kpi", "value", "$4.2M", "", 64),
+             ("input", "value", "09:00", None, 40))
+
+    def _mint(self, kind, h, **spec):
+        """Mint one composite, returning its element list.
+
+        Args:
+            kind: The composed kind.
+            h: Height before `make_element`'s clamps.
+            **spec: Extra spec keys merged over the defaults.
+
+        Returns:
+            The minted element list, `out[0]` the host.
+        """
+        errors = []
+        out = canvas.make_element(
+            dict({"id": "h", "type": "rectangle", "x": 0, "y": 0,
+                  "width": 160, "height": h, "label": "H", "kind": kind},
+                 **spec), set(), errors, 0)
+        self.assertEqual(errors, [])
+        return out
+
+    def test_a_datum_declared_in_customdata_reaches_the_element(self):
+        """The door the mint used not to read at all."""
+        for kind, field, declared, _default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h, customData={field: declared})
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 declared,
+                                 "%s dropped a %s declared in customData"
+                                 % (kind, field))
+
+    def test_the_top_level_key_still_wins_over_the_stored_one(self):
+        """The op's explicit word beats the element's memory.
+
+        The documented door has to stay the loud one, or a stale
+        `customData` riding along on a paste would outrank what the
+        agent just said.
+        """
+        for kind, field, declared, _default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h, customData={field: declared},
+                                 **{field: declared})
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 declared)
+
+    def test_an_explicit_false_or_zero_is_a_word_and_not_an_absence(self):
+        """Truthiness would have been the easy spelling and is wrong.
+
+        The generic keys use `if spec.get(k)`, so copying them verbatim
+        would ignore `checked: False` over a stored `True` and `value: 0`
+        over a stored 80 — the same silent override, pointing the other
+        way. `_composed_state` tests `is None` for that reason.
+        """
+        out = self._mint("checkbox", 28, customData={"checked": True},
+                         checked=False)
+        self.assertIs((out[0].get("customData") or {}).get("checked"), False,
+                      "an explicit uncheck was read as an absence")
+        out = self._mint("slider", 44, customData={"value": 80}, value=0)
+        self.assertEqual((out[0].get("customData") or {}).get("value"), 0.0,
+                         "an explicit 0 was read as an absence")
+
+    def test_every_documented_default_is_untouched(self):
+        """Neither door supplying still lands the kind's own default."""
+        for kind, field, _declared, default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h)
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 default,
+                                 "%s's default %s moved" % (kind, field))
+
+
 class TestPinnedAddSpec(Base):
     """`add` may mint a born-pinned element."""
 
