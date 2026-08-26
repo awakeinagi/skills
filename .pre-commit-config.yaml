@@ -56,30 +56,33 @@ repos:
   # whatever is new, then commit. `uvx pre-commit autoupdate` does NOT touch
   # this line — it only walks `rev:` on remote repos, and this is a local hook.
   #
-  # MANUAL STAGE, DELIBERATELY, AND THIS IS A GATE REGRESSION AGAINST mypy —
-  # recorded rather than glossed, because a checker quietly leaving the gate is
-  # the exact failure pyright shipped. Cost is not the reason: the whole
-  # 17-file surface checks in ~1.2s, which is affordable on every commit and
-  # cheaper than most hooks here. The reason is that ty currently reports 42
-  # diagnostics this repo has not yet paid down (AGENTS.md § Type check names
-  # them), so an automatic hook would refuse every commit. Flipping it back is
-  # deleting the two lines below once that count is zero — do that, do not
-  # widen the ignore list in pyproject.toml to get there.
+  # AUTOMATIC, AND NOT A LIKE-FOR-LIKE REPLACEMENT OF THE mypy HOOK IT TOOK
+  # OVER FROM — it checks more. mypy skips the bodies of untyped functions, and
+  # canvas.py carries the `ANN` debt, so `uvx mypy` printed "Success: no issues
+  # found" while `--check-untyped-defs` printed 109 errors. ty has no such
+  # mode: the same error injected into an unannotated def is reported, where
+  # mypy was silent. So the hook count did not change but the checked surface
+  # grew, and it grew before any of that annotation debt was paid.
   #
-  # mypy's departing green was worth less than it looked: it skips the bodies
-  # of untyped functions, and under canvas.py's ANN debt `uvx mypy` printed
-  # "Success: no issues found" while `--check-untyped-defs` printed 109 errors.
-  #     uvx pre-commit run ty --hook-stage manual
+  # `always_run`, not a `files:` pattern. A pattern would have to name
+  # canvas.py and tests/, and this hook's real input is `[tool.ty]` in
+  # pyproject.toml as well — a scope or rule edit with no .py staged has to
+  # re-check, and it is 1.2s for the whole 17-file surface.
+  #
+  # IT IS GREEN, AND THE WAY TO KEEP IT GREEN IS NOT `[tool.ty.rules]`. Every
+  # finding that stood between this hook and the automatic stage was paid by
+  # annotating, renaming or repairing; the four that could not be were
+  # suppressed one line at a time with the derivation written beside them.
+  # Widening the ignore list retires the finding instead of the debt.
   - repo: local
     hooks:
       - id: ty
-        name: ty (canvas.py + tests, manual stage)
+        name: ty (canvas.py + tests)
         entry: uvx ty@0.0.21 check
         language: system
         pass_filenames: false
         require_serial: true
         always_run: true
-        stages: [manual]
 
   # -------------------------------------------------------------- live values
   # The `<!-- live:NAME -->` values in tracked markdown, recomputed from

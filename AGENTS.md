@@ -214,25 +214,23 @@ python3 tests/livedoc.py refresh
 # Lint + docstrings + annotations
 uvx ruff check .
 
-# Type check — canvas.py + tests/, ~1.2s. Scope and the five ignored rules
-# live in pyproject.toml `[tool.ty]`; the version is pinned in
-# .pre-commit-config.yaml. BY HAND or manual-stage — NOT in the gate, because
-# it is not yet clean; § Known debt says what is left and why.
+# Type check — canvas.py + tests/, ~1.2s, clean. Also a gate hook, so this
+# is for running it yourself. Scope and the five ignored rules live in
+# pyproject.toml `[tool.ty]`; the version is pinned in .pre-commit-config.yaml.
 uvx ty check
 
 # Frontend (requires: npm --prefix frontends/wysiwyg-grilling ci)
 npm --prefix frontends/wysiwyg-grilling run lint
 npm --prefix frontends/wysiwyg-grilling run typecheck
 
-# The gate — the <!-- live:gate_hooks_automatic -->17<!-- /live:gate_hooks_automatic --> hooks that fire on a commit.
+# The gate — the <!-- live:gate_hooks_automatic -->18<!-- /live:gate_hooks_automatic --> hooks that fire on a commit.
 # NOBODY RUNS THIS FOR YOU. There is no CI in this repo.
 uvx pre-commit run --all-files
 
-# The line above is not "everything": <!-- live:gate_hooks_manual -->3<!-- /live:gate_hooks_manual --> hooks are manual-stage,
+# The line above is not "everything": <!-- live:gate_hooks_manual -->2<!-- /live:gate_hooks_manual --> hooks are manual-stage,
 # and `--all-files` leaves them out without saying so.
 uvx pre-commit run guard-mutants-sweep --hook-stage manual  # ~2m, rewrites guarded runtime files
 uvx pre-commit run e2e-tests --hook-stage manual            # Playwright
-uvx pre-commit run ty --hook-stage manual                   # ~1.2s, the type check above
 ```
 
 **That first comment said "Everything, as CI runs it" until 2026-08-20, and
@@ -362,19 +360,15 @@ are worth reading before they are auto-fixed: `B023` (a closure capturing a
 loop variable), `SIM115` (a file opened without a context manager), and `E741`
 (an ambiguous `l`/`I`/`O` name).
 
-`ty` is the other half of this burn-down, and it is out of the gate for the
-same reason the rows above exist: it is not clean yet. Measure with `uvx ty
-check`. Nearly all of what it reports traces to two annotation gaps rather
-than to defects — an unannotated dict literal whose inferred value union is
-narrower than the Excalidraw JSON it models, and tests that monkeypatch a
-module attribute with a stub of a different signature. Both are annotations
-somebody has to write, which is the retrofit rule's business. What will *not*
-help is retiring the `ANN` rows above first: unlike mypy, `ty` checks
-unannotated function bodies, so that debt is hiding no type error from it and
-never was. **Widening `[tool.ty.rules]` to reach zero is the one
-repair that is not allowed**, because it retires the finding instead of the
-debt, and a checker configured until it is silent is the arrangement `ty`
-replaced.
+`ty` is **not** on this list: it is clean and it gates. Keeping it that way is
+a standing constraint, and **`[tool.ty.rules]` is not how you do it** — that
+retires the finding instead of the debt. Four suppressions exist, each one
+line with its derivation beside it (five monkeypatch sites in
+`test_backend.py`, and `log_message` in `canvas.py`, recorded as an
+unreachable LSP violation rather than repaired). Everything else was paid by
+annotating, renaming or repairing. Note also that the `ANN` rows above hide
+nothing from it: unlike mypy, `ty` checks unannotated function bodies, so
+that debt was never shielding a type error.
 
 Retrofit rule: **when you touch a function, bring it to standard** — full
 Google docstring and full annotations — even if the change was one line. That
