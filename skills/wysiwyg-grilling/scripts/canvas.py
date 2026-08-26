@@ -3179,7 +3179,11 @@ def _compose_input_slot(els, el, value_text, existing_ids):
     # had already produced a miscount one review earlier. An AST census
     # of every site that puts a widget group id on an element —
     # assignments AND dict literals AND `groupIds=` keywords — finds
-    # eleven writes in five functions, and FOUR of the writes do not
+    # eleven writes in five functions — COUNTING EVERY STATEMENT THAT
+    # ASSIGNS THE KEY, including `_close_widget_group`'s own strip, which
+    # removes rather than adds; a census that counts only additions says
+    # ten, and the difference is that convention and nothing else — and
+    # FOUR of the writes do not
     # reach that function on their own:
     #
     #     `_compose_input_slot`     the owner's half, here
@@ -3903,6 +3907,79 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
             changed = True
         if changed:
             e["customData"] = cd
+
+
+def _reconcile_ungroup_marks(new_els: list[dict[str, Any]],
+                             old_els: list[dict[str, Any]]) -> None:
+    """Put `customData.ungrouped` back in agreement with the scene.
+
+    THE ASYMMETRY THIS EXISTS TO END. The mark used to be SET and CLEARED
+    on the user-save path only — inside `_interpret_user_composites` —
+    while being READ on every path, by the gate in `_close_widget_group`.
+    Every reader added to a rule whose writers cover one path makes one
+    more writer live, and that is not a hypothetical: it produced two
+    separate defects in two consecutive reviews. First a forged `mod`
+    became effective the moment `reconcile_composed` grew a grouping
+    post-condition. Then this, which is worse because it runs against
+    the user rather than for them.
+
+    THE DEFECT IT CLOSES, and it needs no adversary. A user pulls a
+    widget apart in session (mark set, honoured, correct), later opens
+    the same `.excalidraw` in the DESKTOP app, puts it back together
+    with Ctrl+G and saves. `catch_up` commits that scene verbatim under
+    `author="out-of-session"`, which never ran the clear edge — so the
+    store came to hold the one pair the server itself never creates,
+    MARK PRESENT AND `<id>-grp` PRESENT, and the gate believed a mark
+    the user had already taken back. The agent's next ordinary `mod`
+    pulled the widget apart again, silently, permanently, with no way
+    back but doing it again in the app. That is `semantic_facts`' "the
+    one thing this product may not do", in the other direction.
+
+    THE RULE IS THE SCENE WINS, and both directions of it run here:
+
+    * The group PRESENT in the incoming scene clears the mark. Whoever
+      assembled this widget — the user's own Ctrl+G, the desktop app,
+      an import — has spoken more recently than our memory of a gesture,
+      and a remembered ungroup may not outrank the drawing in front of
+      us.
+    * The group present in the BASE and gone from the incoming scene
+      sets it. That is the ungroup gesture, and reading it here rather
+      than only on the user path is what makes an ungroup performed in
+      the desktop app remembered exactly as one performed in session.
+
+    Left alone otherwise, which is the case that carries a live gesture
+    forward: absent from both scenes means nothing has happened to this
+    widget's grouping since we last decided, so the stored answer
+    stands.
+
+    IT IS NOT A SECOND OPINION ON `_honour_ungroup`. That function
+    decides what to DO about a gesture — strip the group, close it,
+    narrate it — and still owns the user path. This only keeps the
+    stored bit honest about the picture, on every path a scene can
+    arrive by: `commit` is the single funnel, and its three authors are
+    `user`, `agent` and `out-of-session`.
+
+    Args:
+        new_els: The incoming scene, mutated in place. Must be the RAW
+            list `commit` persists, not a normalized copy, or the mark
+            reaches the record without reaching the file.
+        old_els: The base-state elements to read the delta against.
+    """
+    old_ix = {e["id"]: e for e in old_els
+              if isinstance(e, dict) and e.get("id")}
+    for el in new_els:
+        if not isinstance(el, dict) or el.get("isDeleted") or not el.get("id"):
+            continue
+        cd = el.get("customData") or {}
+        marked = cd.get(UNGROUP_MARK) is True
+        gid = el["id"] + "-grp"
+        if gid in (el.get("groupIds") or []):
+            if marked:
+                el["customData"] = {k: v for k, v in cd.items()
+                                    if k != UNGROUP_MARK}
+        elif not marked and gid in (
+                (old_ix.get(el["id"]) or {}).get("groupIds") or []):
+            el["customData"] = dict(cd, **{UNGROUP_MARK: True})
 
 
 def _interpret_user_composites(new_els: list[dict[str, Any]],
@@ -22003,6 +22080,19 @@ class Store:
                     deduped.append(e)
                 if len(deduped) != len(els):
                     els[:] = deduped    # in place — new_scenes persists
+                # EVERY AUTHOR, and the `author == "user"` two lines down
+                # is exactly what this must not be gated by. The ungroup
+                # mark is READ on every path — `_close_widget_group`'s
+                # gate — so a writer that only runs for one author leaves
+                # the stored bit free to disagree with the scene on the
+                # other two. It did: an out-of-session commit records the
+                # disk scene verbatim, so a user who re-grouped a widget
+                # in the desktop app left MARK + GROUP sitting in the
+                # store together, and the next agent `mod` took their
+                # re-group apart again. `commit` is the one funnel every
+                # scene arrives through, which is why the rule lives here
+                # rather than beside any single caller.
+                _reconcile_ungroup_marks(els, old)
                 if author == "user":
                     # mutate the RAW scene list itself — _write_artifact
                     # persists new_scenes[aid], and a state change that
