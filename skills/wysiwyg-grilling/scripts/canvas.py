@@ -10306,10 +10306,33 @@ def composed_part_floor(el: dict[str, Any]) -> int | None:
     if kind in ("toggle", "slider"):
         return 2                      # pill/track plus thumb
     if kind == "input":
-        # Gated the way the mint is: `make_element` composes the value
-        # row only when the spec carried a value, so a bare input owes
-        # nothing until `mod value` gives it one.
-        return None if cd.get("value") is None else 1
+        # THE SECOND CARVE-OUT, and it is here because THREE READERS OF
+        # "when does an input owe a row" DISAGREE — measured 2026-08-25,
+        # not read off the page. `make_element` gates the mint on the
+        # SPEC's top-level `value`; `reconcile_composed` mints
+        # unconditionally through `_recompose_input_value`'s
+        # first-assembly branch, empty string and all; and a lint can
+        # only ever read the STORED `customData.value`. A floor is a
+        # claim the stored element GUARANTEES, and with the three
+        # parting there is no such claim to make.
+        #
+        # The earlier version of this branch said "gated the way the
+        # mint is" and returned 1 on a stored `value`. That was false in
+        # all three directions and it was not merely inert: `mod
+        # {"customData": {"value": …}}` is documented as a merge
+        # (ops-reference.md), it writes the field nothing recomposes,
+        # and the ERROR that produced named a repair — re-add it — that
+        # reproduced the finding verbatim. A rule whose remedy is a loop
+        # is worse than no rule.
+        #
+        # WHAT THIS COSTS is a false negative on a stripped input, and
+        # it is close to nothing real: `input` is one of the three kinds
+        # already invisible to this check in the only class two
+        # keystrokes reach, because its arm mints the copy a fresh row
+        # (see `composed_host_gaps`). The three readers should be made
+        # consistent — that is a change to `make_element`, not to a
+        # lint, and it is filed rather than taken here.
+        return None
     if kind == "body":
         # Spelled out rather than calling `_compose_body_lines`, which
         # would mint n throwaway elements per lint and needs an id set;
@@ -10340,15 +10363,32 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
     predicate `normalize_z_order` and `_close_widget_group` ask, so a
     part that bands above its owner is a part counted here.
 
-    WHAT THIS DOES NOT SEE, measured rather than assumed and named so
-    the check is not read as covering its whole class: part-shaped
-    decoration owned by NOBODY. Duplicate a `body` or a `checkbox` and
-    the paste gate composes the copy a full set of fresh parts, so the
-    damage is the orphaned UNTAGGED strokes left beside them — five
-    wave lines where five belong, plus five more carrying no backlink.
-    Floor against tagged parts reads 5 == 5 and says nothing, and the
-    surplus arm cannot see it either, because untagged ink is not a
-    part. That is a second instrument and it is not this one.
+    WHAT THIS DOES NOT SEE, measured through `Store.commit` rather than
+    assumed, and named so the check is not read as covering its whole
+    class: part-shaped decoration owned by NOBODY. Ctrl+Shift+G, save,
+    Ctrl+D, save — two blessed gestures, no ops — and the copy's parts
+    keep a backlink naming an id that is not the new host.
+
+    THE BLIND SET IS `body`, `kpi` AND `input`, and an earlier draft of
+    this paragraph named `body` and `checkbox`, which was wrong in both
+    halves. `checkbox` FIRES (it comes back owning 1 of 2). The real
+    three are exactly the arms of `reconcile_composed` that MINT
+    UNCONDITIONALLY: the paste gate hands the copy a full fresh set, so
+    the floor is satisfied and the damage is the orphaned untagged ink
+    left beside it — 5 tagged waves and 5 untagged, 5 == 5, silence.
+    `slider`, `toggle` and `image` re-derive parts that must already
+    exist, so their copies own nothing and this check names them.
+
+    That one fact about those three arms has three faces, which is why
+    it is worth stating once here: they are the only kinds a bare
+    rectangle gains parts from on `mod {"kind": …}`, the only ones a
+    real geometry `mod` re-mints for (the repair `lint_layout` offers),
+    and the only ones blind here. `input` is moot either way — it has
+    no floor at all, for the reason `composed_part_floor` gives.
+
+    The surplus arm cannot see this class either, because untagged ink
+    is not counted as a part. That is a second instrument and it is not
+    this one.
 
     Args:
         els: An element list.
@@ -19660,43 +19700,104 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # one. `composed_host_gaps` makes the HOST the subject and compares
     # what its own geometry owes against what the scene draws.
     #
-    # ERROR, not a note, and the tier doctrine at the top of this
-    # function is what settles it: a `slider` with no track and no thumb
-    # is not a legibility defect and not a style observation, it is a
-    # drawing that does not say what the agent meant — an empty
-    # rectangle claiming to be a control. Repair in the same move,
-    # before narrating.
+    # THE SENTENCE MAY NOT SAY WHAT THE PIXELS LOOK LIKE, and the first
+    # draft of it did. It read "renders as a bare rectangle that says
+    # nothing about what it is", which is FALSE for the only class two
+    # keystrokes reach: after Ctrl+Shift+G, save, Ctrl+D, save, the
+    # copy's `-track` and `-thumb` are on the canvas and drawn — 0 parts
+    # OWNED, 2 untagged decorations DRAWN (measured through
+    # `Store.commit`, the path `/api/save` uses). An agent relaying that
+    # sentence would have told a user their slider draws as an empty box
+    # while it draws as a slider, on a product whose whole contract is
+    # that the agent narrates its reading of the picture.
     #
-    # NO WAIVE HINT, unlike the note above, and for the reason that note
-    # HAS one: Ctrl+Shift+G is a blessed gesture that produces its exact
-    # reading, so the honest answer there is a question. There is no
-    # gesture that legitimately strips a host of the parts its kind
-    # mints. The one scene that looks like this and is correct — an
-    # entity declared with no attributes — is carved out in
-    # `composed_part_floor` by having no floor at all, which is a
-    # silence nobody has to remember to ask for.
+    # So the finding states the OWNERSHIP fault, which is what this
+    # check actually measured, and says out loud that it cannot tell
+    # deleted ink from orphaned ink. It cannot: untagged strokes are not
+    # counted as parts, which is the same limit that makes the second
+    # instrument necessary. Naming the limit is cheaper than a guess
+    # that is wrong half the time, and both halves are damage anyway —
+    # a drag moves the host without them and the next re-derive draws a
+    # fresh set over whatever is left.
+    #
+    # ERROR, not a note, and the tier doctrine at the top of this
+    # function is what settles it: a `slider` whose track and thumb
+    # belong to nothing is not a legibility defect and not a style
+    # observation, it is a drawing that does not say what the agent
+    # meant. THE PRECEDENT THAT ARGUES OTHERWISE IS THE UNKNOWN-KIND
+    # CHECK, which chose NOTE for a reason that reaches this one: the
+    # ERROR contract is "repair it in the same move", and that check had
+    # no repair to offer at all. This one does, and the remedy below is
+    # measured rather than guessed — a real geometry `mod` re-mints for
+    # the kinds whose arms mint unconditionally, and `del` + `add` works
+    # for the rest. That second repair is expensive and the message says
+    # so instead of hiding it, which is the honest form of "repair in
+    # the same move" rather than an escape from it.
+    #
+    # NO WAIVE HINT, and the tier had already decided that before any
+    # argument about gestures was reached: all 15 `waive_hint` calls in
+    # this function sit on a warning or a note and NONE sits on an
+    # error, so an error is not waivable here. Worth stating the other
+    # reason anyway, because it is what makes the tier fit: the note
+    # above is waivable because Ctrl+Shift+G is a blessed gesture that
+    # produces its exact reading, so the honest answer there is a
+    # question. The scenes that look like THIS and are correct are
+    # carved out in `composed_part_floor` by having no floor at all —
+    # a silence nobody has to remember to ask for.
     #
     # ZERO ON THE FROZEN CORPUS, measured 2026-08-25 rather than hoped:
     # 67 composed hosts across the 24 frozen artifacts, 27 of them
-    # entities and so exempt, 40 carrying a floor, and every one of the
-    # 40 draws exactly what it owes. The corpus census does not move.
-    # The denominator is the ARTIFACTS and not the whole fixture tree —
-    # `saves/` holds diffs (`changes`, `facts`, `inverse`), not scenes,
-    # so a sweep that globbed it would have reported the same zero while
-    # reading no elements at all.
+    # entities and so exempt, and every floored one draws what it owes.
+    # The corpus census does not move. The denominator is the ARTIFACTS
+    # and not the whole fixture tree — `saves/` holds diffs (`changes`,
+    # `facts`, `inverse`), not scenes, so a sweep that globbed it would
+    # have reported the same zero while reading no elements at all.
     for hid, kind, floor, drawn in composed_host_gaps(els):
+        # THE REPAIR IS PER KIND BECAUSE THE CODE IS. `body`, `kpi` and
+        # `input` are the three arms of `reconcile_composed` that mint
+        # unconditionally, and that one fact has three faces: they are
+        # the only kinds a bare rectangle gains parts from on `mod
+        # {"kind": …}`, the only ones a real geometry `mod` re-mints for,
+        # and the only ones already invisible to this check in the
+        # duplicate class. For the other four nothing re-mints — their
+        # arms re-derive parts that must already exist — so the only
+        # repair is destructive, and `ops-reference.md` calls `del` +
+        # `add` the workaround that silently dropped mappings, pins and
+        # rename detection. Saying "re-add it" for all seven was wrong
+        # advice for three of them and incomplete for the rest.
+        #
+        # A NO-OP `mod` DOES NOT REPAIR, which is worth a clause because
+        # it is the obvious first thing to try: `mod {"height": <same>}`
+        # and `mod {"kind": <same>}` both reconcile and mint, and the
+        # batch discards the result. The value has to CHANGE.
+        #
+        # THE HEAD OF THIS SENTENCE IS THE CURATOR'S TEMPLATE and only
+        # the tail after the direction word is mine: `_COMPOSED_HOST_
+        # STRIPPED_RE` matches "…whose own geometry draws N part(s), and
+        # the scene has M — D missing|surplus", and rewording the head
+        # is how a check silently stops being the one its mutant proves.
+        remint = kind in ("body", "kpi", "input")
         errors.append(
             "%s is a composed %s whose own geometry draws %d part(s), "
-            "and the scene has %d — %d %s. %s"
+            "and the scene has %d — %d %s. %s %s"
             % (name(hid), kind, floor, drawn, abs(floor - drawn),
                "missing" if drawn < floor else "surplus",
-               "A host short of its parts renders as a bare rectangle "
-               "that says nothing about what it is: re-add it so the "
-               "kind composes whole, because a `mod` re-derives a "
-               "body's waves and never re-mints a slider's track or a "
-               "checkbox's box" if drawn < floor else
-               "The extra parts are drawn over the widget's own ink: "
-               "delete the ones that do not belong, or re-add the host"))
+               "The parts it does not own are either gone from the scene "
+               "or still drawn beside it with their backlink broken, and "
+               "this check cannot tell which. Either way the widget is "
+               "dead: a drag moves the host without them, and the next "
+               "re-derive draws a fresh set over whatever is left."
+               if drawn < floor else
+               "The extra parts are drawn over the widget's own ink.",
+               ("Repair: `mod` this host's `width` or `height` to a "
+                "DIFFERENT value — a %s re-derives its parts from the "
+                "host, so any real geometry change mints them back (a "
+                "no-op `mod` does not)." % kind) if remint else
+               ("Repair: `del` then `add` it — a %s's parts are "
+                "re-derived and never re-minted, so no `mod` brings "
+                "them back. That costs this element's mappings, pins "
+                "and rename detection, which is why this is reported "
+                "and not repaired for you." % kind)))
     bound_ids = set()
     for a in arrows:
         for key in ("startBinding", "endBinding"):

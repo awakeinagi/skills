@@ -25452,17 +25452,24 @@ class TestComposedHostFloors(Base):
     # element guarantees AFTER `make_element`'s own clamps: `kpi` is
     # lifted to 64px, `checkbox`/`toggle` to 28, `slider` to 44, and
     # `body` is not clamped at all, so 60px gives it `60 // 16` = 3.
-    # `entity` and a valueless `input` are the two Nones — the whole
-    # false-positive cost of the rule, and both are here rather than
-    # trusted.
+    # `entity` and `input` are the two Nones — the whole false-positive
+    # cost of the rule, and both are here rather than trusted.
+    #
+    # THE LAST ROW IS THE customData ROUTE and it is not a duplicate of
+    # the one above it. Every other spec here authors through top-level
+    # op keys, which is the only door `make_element` reads for `input` —
+    # so a pole built only that way never exercises the field a LINT
+    # reads, and the false-positive sweep would have run past the case
+    # that produced a looping ERROR.
     SPECS = (
         ({"kind": "slider", "value": 60}, 2),
         ({"kind": "checkbox", "checked": True}, 2),
         ({"kind": "checkbox", "checked": False}, 1),
         ({"kind": "toggle", "checked": True}, 2),
         ({"kind": "kpi", "value": "$4.2M"}, 1),
-        ({"kind": "input", "value": "09:00"}, 1),
+        ({"kind": "input", "value": "09:00"}, None),
         ({"kind": "input"}, None),
+        ({"kind": "input", "customData": {"value": "09:00"}}, None),
         ({"kind": "image"}, 2),
         ({"kind": "entity", "attributes": ["id", "total"]}, None),
         ({"kind": "body"}, 3),
@@ -25506,15 +25513,26 @@ class TestComposedHostFloors(Base):
                    "re-point it, do not delete it")
         named = set(re.findall(r'"([a-z]+)"', kinds.group(0)))
         self.assertEqual(len(named), 8, sorted(named))
-        floor_src = inspect.getsource(canvas.composed_part_floor)
-        missing = sorted(k for k in named
-                         if '"%s"' % k not in floor_src)
+        # CODE, NOT COMMENTS. The first version of this asserted the
+        # kind's spelling appeared anywhere in the source, so deleting
+        # the `if kind in ("toggle", "slider")` arm while leaving the
+        # word "toggle" in a comment above it left this GREEN — a pin
+        # whose docstring claimed three lists were one while it read a
+        # paragraph. Comment lines are stripped before the search, so
+        # the kind has to be named in something that runs.
+        floor_src = "\n".join(
+            line for line in
+            inspect.getsource(canvas.composed_part_floor).splitlines()
+            if not line.lstrip().startswith("#"))
+        body = floor_src.split('"""', 2)[-1]
+        missing = sorted(k for k in named if '"%s"' % k not in body)
         self.assertEqual(
             missing, [],
             "these composed kinds are minted by the gate and have no "
-            "ruling in `composed_part_floor`, so a host of one of them "
-            "drawing nothing is invisible: %s. Give each a floor, or an "
-            "explicit `return None` with the reason it has none" % missing)
+            "ruling in `composed_part_floor`'s CODE, so a host of one of "
+            "them drawing nothing is invisible: %s. Give each a floor, "
+            "or an explicit `return None` with the reason it has none — "
+            "naming it only in a comment does not count" % missing)
 
     def test_the_body_floor_is_the_count_the_seeder_mints(self):
         """The floor is the seeder's own n, swept, not a copy of it.
@@ -25602,24 +25620,49 @@ class TestComposedHostFloors(Base):
         self.assertIsNone(canvas.composed_part_floor(bare))
         self.assertEqual(canvas.composed_host_gaps([bare]), [])
 
-    def test_a_bare_input_owes_nothing_until_it_has_a_value(self):
-        """The second carve-out, gated exactly as the mint is.
+    def test_an_input_has_no_floor_because_its_readers_disagree(self):
+        """The second carve-out, and the reason is a measured three-way split.
 
-        `make_element` composes an input's value row only when the spec
-        carried a value, so an input minted bare has no part and owes
-        none. The moment `mod value` settles one, the floor is 1 — and
-        `_recompose_input_value` treats a missing row as a FIRST
-        assembly, so the two move together.
+        An earlier version gave `input` a floor of 1 on a stored
+        `customData.value`, justified as "gated the way the mint is".
+        That was false in all three directions, and the three are
+        asserted here rather than described, because the justification
+        being wrong is what made the rule wrong:
+
+        * `make_element` gates the mint on the SPEC's top-level `value`
+        * `reconcile_composed` mints unconditionally, empty string too
+        * a lint can only read the STORED `customData.value`
+
+        A floor is a claim the stored element GUARANTEES. With those
+        three parting there is no such claim, so `input` has none — and
+        the documented `mod {"customData": …}` merge, which writes the
+        field nothing recomposes, stays silent instead of raising an
+        ERROR whose remedy reproduced it.
         """
         bare = self._mint({"kind": "input"})[0]
-        self.assertIsNone(canvas.composed_part_floor(bare))
         settled = dict(bare, customData=dict(bare["customData"],
                                              value="09:00"))
-        self.assertEqual(canvas.composed_part_floor(settled), 1)
-        self.assertEqual(
-            canvas.composed_host_gaps([settled]),
-            [("w", "input", 1, 0)],
-            "an input with a settled value and no row drew nothing")
+        for host in (bare, settled):
+            self.assertIsNone(canvas.composed_part_floor(host))
+            self.assertEqual(canvas.composed_host_gaps([host]), [])
+        # the split itself, so a later hand that "fixes" one reader sees
+        # the other two move under it
+        self.assertNotIn("value", self._mint({"kind": "input"})[0]
+                         .get("customData") or {},
+                         "the mint now stores a value for a bare input, so "
+                         "the three readers may have converged — re-derive "
+                         "the floor rather than deleting this")
+        with_row = self._mint({"kind": "input", "value": "09:00"})
+        self.assertTrue(any((e.get("customData") or {}).get("value_of") == "w"
+                            for e in with_row))
+        stripped = [e for e in with_row
+                    if not canvas._composed_part(e.get("customData") or {})]
+        canvas.reconcile_composed(stripped, None, None, stripped[0])
+        self.assertTrue(
+            any((e.get("customData") or {}).get("value_of") == "w"
+                for e in stripped),
+            "`reconcile_composed` no longer mints an input's row, so the "
+            "third reader has moved and the carve-out needs re-deriving")
 
     def test_a_checkbox_floor_follows_the_state_it_stores(self):
         """A cleared tick lowers the floor rather than tripping it.
