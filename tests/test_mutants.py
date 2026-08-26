@@ -23878,15 +23878,21 @@ class TestMutantCatalogue(unittest.TestCase):
             "an entity declared with no attributes has no rows to draw "
             "and must never be reported as stripped")
 
-    @unittest.expectedFailure
     def test_mutant_doubled_ink_reads_as_a_healthy_count(self) -> None:
-        """Eight waves on a block that owes four, and 4 == 4 is healthy."""
-        # The check counts what is TAGGED, so the four unowned copies
-        # drawn over the four real ones are not ink to it. Its own
-        # surplus arm already carries the right sentence for this scene
-        # — "The extra parts are drawn over the widget's own ink" — and
-        # cannot reach it. The entry above carries the denominator and
-        # the three measured repairs.
+        """Eight waves on a block that owes four, now read as 4 surplus."""
+        # FLIPPED 2026-08-26 (leaf-1.1.6) by BOTH of the last two
+        # repairs its entry measured, which the entry treated as
+        # alternatives and which turned out to be halves of one thing.
+        # `composed_host_gaps` splits its arms — the missing arm counts
+        # OWNED parts and nothing else, the surplus arm counts owned
+        # plus unowned ink CONGRUENT to a part the host already owns —
+        # so this block's four untagged copies are drawn ink and 8 != 4.
+        # THE SPLIT IS NOT COSMETIC: a first draft used one number,
+        # `owned + copies`, and an ownership count and an ink count then
+        # CANCEL — strip a backlink and `owned` falls while `copies`
+        # rises, which silenced a `body` at 1 and 2 stripped backlinks
+        # and an `image` at 1, found in review. The congruence gate
+        # keeps the surplus arm off the authored panel below.
         self._run("doubled_ink_reads_as_a_healthy_count")
 
     def test_neighbour_doubled_ink_reads_as_a_healthy_count(self) -> None:
@@ -26027,8 +26033,25 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # `measured {'TestTheStrippedHostFindingTellsDrawnFromGone': 1,
 # 'TestAnUngroupIsNotRevokedByTheNextSave': 2}`, and the measured side
 # was transcribed.
+#
+# ONE LEFT on 2026-08-26 (leaf-1.1.6, the fixer), one day after it
+# arrived, and it left the way the message above says a class does: its
+# only red flipped, so the dict lost a LINE rather than dropping to 0.
+# `TestTheStrippedHostFindingTellsDrawnFromGone` asked that a widget
+# whose ink is drawn-but-unlinked and one whose ink is gone stop reading
+# alike; `lint_layout`'s tail now splits on `unowned_ink_inside`, so the
+# first names the ink standing in the box and the second says the parts
+# are gone. THE PIN PRESCRIBED NO WORDING and none was owed to it: it
+# read `lint_layout`'s own lines rather than an anchor, which is why a
+# repair it never named flips it. Its GREEN sibling
+# `test_both_pictures_are_still_reported` did not move and is what still
+# refuses the narrowing — the head of both sentences is untouched, so
+# both pictures still parse at `2 missing`.
+# THE VALUE BELOW WAS READ OFF THE GUARD, as every entry here says to:
+# the decorator was dropped first, and
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
+# `measured {'TestAnUngroupIsNotRevokedByTheNextSave': 2}`.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheStrippedHostFindingTellsDrawnFromGone": 1,
     "TestAnUngroupIsNotRevokedByTheNextSave": 2}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
@@ -26538,7 +26561,39 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"doubled_ink_reads_as_a_healthy_count"}
+CATALOGUE_RED_IDS: set[str] = set()
+# EMPTY AGAIN on 2026-08-26 (leaf-1.1.6, the fixer), the day after it
+# refilled, and this time a REPAIR is what drained it — which is the
+# ordinary reason, and worth saying only because the drain directly
+# below was the unlike one. `doubled_ink_reads_as_a_healthy_count` left
+# by the last TWO of the three routes its own entry measured, taken
+# TOGETHER — the entry offered them as alternatives and they are halves
+# of one repair. `composed_host_gaps` splits its arms: the missing arm
+# counts OWNED parts and nothing else, the surplus arm counts owned plus
+# unowned ink CONGRUENT to a part the host already owns. So a `body`
+# block's four untagged copies are drawn ink and 8 != 4, while the
+# authored panel `_body_block_behind_an_authored_panel` carries matches
+# no owned shape and is not billed.
+# WHY BOTH HALVES, AND THE ENTRY DID NOT PREDICT THIS. A first draft
+# took congruence alone and kept ONE number, `owned + copies`. An
+# ownership count and an ink count then CANCEL: strip a backlink and
+# `owned` falls by one while `copies` rises by one, because the orphan
+# is congruent to its own surviving siblings. Measured through
+# `Store.commit` in review, that silenced `body` at 1 and at 2 stripped
+# backlinks and `image` at 1 — scenes where dragging the host leaves the
+# ink behind, which is the damage the user's ruling is about. `slider`,
+# `toggle` and `checkbox` escaped only because their parts differ in
+# shape from each other, so nothing was congruent to anything, which is
+# why every slider-shaped pole in this file was green over it.
+# THE SPLIT IS WHAT MAKES THE C12 NARROWING UNREACHABLE, and it is a
+# stronger guarantee than the one the first draft claimed: loose
+# decoration is not an INPUT to the missing arm, so no arrangement of it
+# can quiet that arm. Measured by brute force rather than argued — 7
+# kinds x every short-of-floor state x 5 loose-ink arrangements
+# (including a 30x congruent flood), 70 attempts, 0 quieted.
+# THE VALUE WAS READ OFF THE GUARD: the decorator was dropped first,
+# `test_the_catalogue_reds_are_the_ones_declared` was run, and it
+# reported `measured []`.
 # REFILLED the same day it emptied, 2026-08-26 (curator, leaf-1.1.5), by
 # a coverage hole the fixer who closed the duplicate-backlink defect
 # handed over and this leaf VERIFIED before encoding. A composed host can
@@ -37571,9 +37626,19 @@ class TestTheStrippedHostFindingTellsDrawnFromGone(unittest.TestCase):
     `test_mutant_duplicated_widget_reported_as_bare`.
     """
 
-    @unittest.expectedFailure
     def test_the_two_pictures_do_not_read_alike(self) -> None:
-        """Ink drawn and ink gone are one repair apart and one sentence."""
+        """Ink drawn and ink gone now read as two pictures, not one.
+
+        FLIPPED 2026-08-26 (leaf-1.1.6). `lint_layout`'s tail splits on
+        `unowned_ink_inside`: the drawn picture reads "Its box is NOT
+        empty: 2 unowned decoration(s) (w-thumbc, w-trackc) stand inside
+        it, drawn but linked to nothing", the gone one reads "Nothing
+        unowned is drawn inside its box either, so those parts are gone
+        from the scene". The HEAD is untouched, so
+        `_COMPOSED_HOST_STRIPPED_RE` still parses both at `2 missing` —
+        which is the ruling's other half and what
+        `test_both_pictures_are_still_reported` below goes on holding.
+        """
         drawn = _lint_lines_about(_orphaned_widget_copy(with_ink=True), "wc")
         gone = _lint_lines_about(_orphaned_widget_copy(with_ink=False), "wc")
         self.assertNotEqual(
