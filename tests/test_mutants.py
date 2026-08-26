@@ -33608,6 +33608,8 @@ class TestTheWireframeRefusalNamesTheWholeVocabulary(unittest.TestCase):
         """
         self._assert_it_names_the_arm_and_only_the_arm(
             canvas._mermaid_refusal("wf", "wireframe"))
+
+
 # CURATOR BATCH 46 — THE RENDER-TIER FIGURES (2026-08-20).
 #
 # TWO ARITHMETIC CLAIMS about how `paint` lays a wrapped text out, both
