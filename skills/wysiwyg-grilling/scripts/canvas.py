@@ -22457,7 +22457,10 @@ class Store:
                 on a `pin` op or drawn as a pin-role `add` — spells a pin
                 id an element on the scene already owns, or carries ops
                 that are not objects at all or do not apply to the
-                current scene.
+                current scene. Also when EVERY op is held by a pin —
+                including a `resolve_pin` naming a ❓ pinned on another
+                artifact, which the gate reaches for because the sweep
+                that removes it does.
         """
         with self.lock:
             errors = []
@@ -22704,6 +22707,51 @@ class Store:
             # a batch the apply path refuses, and the banner would show
             # the user a revision that cannot land.
             pin_held, pin_why = pin_held_ops(base_els, ops)
+            # AND THE SAME GATE OVER EVERY SCENE THE RESOLVE WILL REACH.
+            # The call above is handed `base_els` — the batch artifact's
+            # scene and nothing else — while `apply_batch`'s resolve sweep
+            # is id-global by design: it walks every artifact and drops
+            # every ❓ carrying the id, under a role gate and no pin gate.
+            # The guarded set and the removed set were therefore computed
+            # over DIFFERENT scenes, so a ❓ pinned on `g` was invisible to
+            # a gate reading `f`, and a resolve sent from `f` took it while
+            # `del` aimed at `g` was refused in so many words. Same
+            # element, same removal, two verbs, opposite answers — and the
+            # shape is the product's own, since SKILL.md pairs "one batch =
+            # one artifact" with "the batch that executes an answer also
+            # carries its mirrored pin's resolve_pin".
+            #
+            # THE PREDICATE IS RE-ASKED, NOT RE-TYPED. The foreign scene is
+            # handed to `pin_held_ops` whole rather than having its ❓
+            # spliced into `base_els`, because a pin is closed over its
+            # kin: whether a ❓ is held may depend on the group, container,
+            # frame or binding it sits in, and those are facts about the
+            # scene it LIVES on. An element carried into this batch's scene
+            # would have every one of them read against a drawing that says
+            # nothing about it — a gate judging by a different definition
+            # than the mover it guards is the defect one level down.
+            #
+            # ASKED OF EXACTLY THE SCENES THE SWEEP TAKES FROM, role gate
+            # included. Ids are minted per scene, so the sweep leaves an
+            # ordinary element sharing a pin's id standing; a gate without
+            # that same role test would refuse a resolve over a namesake
+            # the op was never going to touch. This artifact is skipped
+            # because the call above already judged it.
+            for i, o in enumerate(ops):
+                if i in pin_held or not isinstance(o, dict) \
+                        or o.get("op") != "resolve_pin":
+                    continue
+                pid = o.get("id")
+                for aid2, els2 in self.scenes.items():
+                    if aid2 == aid or not any(
+                            e["id"] == pid and role_of(e) == "pin"
+                            for e in els2):
+                        continue
+                    held2, why2 = pin_held_ops(els2, [o])
+                    if 0 in held2:
+                        pin_held.add(i)
+                        pin_why[i] = why2[0]
+                        break
             # NOTHING SURVIVED means literally that — every op in the
             # batch was held. The first spelling of this counted only
             # add/mod/del/reorder, and adding `resolve_pin` to the judged

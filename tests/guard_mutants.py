@@ -323,6 +323,18 @@ GUARDS: list[tuple[str, str, str, int, str]] = [
      '"mod", "del", "reorder"):', 1,
      "TestPinnedSurvivesTheBackDoors."
      "test_resolve_pin_cannot_take_down_a_pinned_glyph"),
+    # THE SITE THE SWEEP WAS STRUCTURALLY UNABLE TO WATCH. Every other
+    # entry here patches an EXISTING `pinned_to_canvas` call out of
+    # `canvas.py` — and the cross-artifact resolve region contained none,
+    # so a full sweep reporting every site observed said nothing at all
+    # about a door that was standing open. A mutation roster can only ask
+    # about guards that exist; the missing entry is the missing guard's
+    # shadow, and this one is registered in the same commit that adds it.
+    ("_validate_batch.cross_artifact_resolve",
+     "                    if 0 in held2:",
+     "                    if False:", 1,
+     "TestPinnedSurvivesTheBackDoors."
+     "test_a_resolve_from_another_artifact_is_held_by_the_pin"),
     ("pin_held_ops.midbatch_groups",
      "            if g in pin_groups and eid not in guarded:",
      "            if False:", 1,

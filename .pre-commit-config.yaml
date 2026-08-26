@@ -102,8 +102,11 @@ repos:
   # silent-instrument defect one level up, and half a second does not buy
   # one.
   #
-  # The SWEEP stays manual. It costs about 2 minutes (23 backend mutants plus
-  # one browser mutant and its pristine control) and, decisively, it REWRITES
+  # The SWEEP stays manual. It costs about 2 minutes (every backend mutant in
+  # the roster plus one browser mutant and its pristine control — the count is
+  # published once, by SKILL.md's `live:pin_guard_sites`, and a copy of it here
+  # would be a transcription this file has no way to keep honest; it said "23"
+  # on the day a twenty-fourth guard was registered) and, decisively, it REWRITES
   # guarded runtime files in place and restores them in a `finally` — a
   # pre-commit run interrupted at the wrong moment would
   # leave a mutation in the working tree. That risk is fine in a
