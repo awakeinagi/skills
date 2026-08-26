@@ -1362,6 +1362,66 @@ def strip_composed_parts(scene: list[dict], host_id: str) -> list[dict]:
 
 
 @_operator
+def double_composed_ink(scene: list[dict], host_id: str) -> list[dict]:
+    """Draw an untagged copy of every part one host owns, in place.
+
+    THE SIBLING OF `strip_composed_parts`, AT THE OTHER END OF THE SAME
+    AXIS. That one takes a host's parts away; this one leaves them and
+    draws the same ink over them again with the backlinks gone. Both
+    reach a stored shape a real gesture produced — this is what the
+    ungrouped-duplicate path used to manufacture, and what scenes
+    already on disk still hold: a host owning exactly the parts its
+    kind owes, with a second unowned set drawn on top. Nothing on the
+    canvas separates the two sets; a reader counts the ink and gets
+    double.
+
+    THE TAG IS THE ONLY THING REMOVED, and every other field is copied
+    byte for byte, `groupIds` included. A paste in place lands inside
+    the host's own group, and the geometry has to stay identical or the
+    scene stops being about one thing — an oversized copy trips the
+    grouped-decoration note, which is a different defect and a mutant
+    injects exactly one. `role: "decoration"` is kept because that is
+    what the ink IS once its `*_of` key is gone: the public schema's
+    standalone decoration, which is precisely why nothing counts it.
+
+    THE PREDICATE IS `strip_composed_parts`' OWN, spelled the same way
+    on purpose. The two operators must agree about what a part is, or
+    one could add ink the other could not take away and the pair would
+    stop being two ends of one axis.
+
+    Args:
+        scene: The scene copy to mutate.
+        host_id: The composed host whose ink is doubled.
+
+    Returns:
+        The scene with one untagged `<id>-ghost` copy appended per
+        tagged part. Ids are cosmetic — ownership is read from
+        `customData` backlinks and never from a name — so they are
+        spelled for a reader rather than after any real paste.
+
+    Raises:
+        EngineError: If the host owns no tagged parts, which would make
+            this a no-op wearing the name of a mutation.
+    """
+    ghosts = []
+    for e in scene:
+        if not any(k.endswith("_of") and v == host_id
+                   for k, v in (e.get("customData") or {}).items()):
+            continue
+        ghost = copy.deepcopy(e)
+        ghost["id"] = e["id"] + "-ghost"
+        ghost["customData"] = {"role": "decoration"}
+        ghost.pop("boundElements", None)
+        ghosts.append(ghost)
+    if not ghosts:
+        raise EngineError(
+            "double_composed_ink: %r owns no tagged parts, so there is "
+            "no ink to double — a scene that was never mutated is the "
+            "same silence in a new costume" % host_id)
+    return scene + ghosts
+
+
+@_operator
 def flip_direction(scene: list[dict], arrow_id: str) -> list[dict]:
     """Reverse an arrow's direction, swapping bindings and rebasing points.
 
@@ -1549,6 +1609,7 @@ OPERATORS: dict = {
     "merge_corridors": merge_corridors,
     "drop_edge": drop_edge,
     "strip_composed_parts": strip_composed_parts,
+    "double_composed_ink": double_composed_ink,
     "flip_direction": flip_direction,
     "rename_node": rename_node,
     "move_node_onto_rank": move_node_onto_rank,
@@ -1846,6 +1907,40 @@ class TestOperators(unittest.TestCase):
         self.assertEqual(
             (arr_b["x"] + arr_b["points"][-1][0],
              arr_b["y"] + arr_b["points"][-1][1]), (100, 0))
+
+    def test_double_composed_ink_adds_ink_that_owns_nobody(self) -> None:
+        """Each part gains an untagged twin; nothing else moves.
+
+        THE OPERATOR'S OWN INNOCENCE, and it is what the mutant beside
+        it cannot assert. `doubled_ink_reads_as_a_healthy_count` says
+        the check is silent about this scene, and a check is also silent
+        about a scene where nothing happened — so unless something
+        proves the ghosts arrived, drew where the parts draw, and own
+        nobody, the mutant's redness could as easily be an operator that
+        did nothing interesting.
+        """
+        out = OPERATORS["double_composed_ink"](_body_block(), host_id="b")
+        ghosts = [e for e in out if e["id"].endswith("-ghost")]
+        self.assertEqual(
+            len(ghosts), 4,
+            "the block owns four waves, so it gains four ghosts")
+        for ghost in ghosts:
+            twin = next(e for e in out
+                        if e["id"] == ghost["id"][:-len("-ghost")])
+            self.assertIsNone(
+                canvas.part_owner_id(ghost),
+                "a ghost that still names an owner is a part, and the "
+                "check would count it")
+            self.assertEqual(
+                (ghost["x"], ghost["y"], ghost["width"], ghost["height"]),
+                (twin["x"], twin["y"], twin["width"], twin["height"]),
+                "the ghost draws exactly where its twin draws, or the "
+                "scene is about a moved decoration instead")
+
+    def test_double_composed_ink_refuses_a_host_with_no_parts(self) -> None:
+        """Doubling nothing is a no-op wearing the name of a mutation."""
+        with self.assertRaises(EngineError):
+            OPERATORS["double_composed_ink"](_body_block(), host_id="nope")
 
     def test_unchanged_returns_equal_but_distinct_scene(self) -> None:
         """Unchanged returns an equal scene that is a distinct object.
@@ -17459,6 +17554,63 @@ def _body_block() -> list[dict]:
         for i in (1, 2, 3, 4)]
 
 
+def _body_block_with_a_fifth_wave() -> list[dict]:
+    """The same block drawing five waves where its height owes four.
+
+    THE SURPLUS ARM FIRING LEGITIMATELY, which is the pole
+    `doubled_ink_reads_as_a_healthy_count` needs beside it. That mutant
+    says the arm is blind to ink it does not own; this says the arm
+    SPEAKS, on the same host, the same kind and the same direction, when
+    the extra wave carries a backlink. Held together they locate the
+    blindness exactly: it is not the surplus arm that is missing, it is
+    the definition of "drawn" underneath it.
+
+    THE FIFTH WAVE SITS AT y=48 AND THAT IS THE MINIMIZATION, not an
+    arbitrary slot. At y=72 it hangs 10px below a 64px block and trips
+    the grouped-decoration note — a second, unrelated finding in a scene
+    that exists to carry one. Inside the block it is a duplicate of
+    wave 1 in every field but its id and its y, so the only thing this
+    scene says is that there is one part too many.
+
+    Returns:
+        The six-element scene: block `b`, waves `b-body1..4`, and the
+        surplus `b-body5`.
+    """
+    out = _body_block()
+    fifth = copy.deepcopy(next(e for e in out if e["id"] == "b-body1"))
+    fifth["id"], fifth["y"] = "b-body5", 48
+    return [*out, fifth]
+
+
+def _body_block_behind_an_authored_panel() -> list[dict]:
+    """The healthy block with a backdrop the agent drew on purpose.
+
+    THE FALSE-POSITIVE COST OF ANY DOUBLED-INK RULE, written down as an
+    assertion because it is the only pole that says what such a rule may
+    NOT do. `role: "decoration"` with no part tag is a first-class value
+    of the PUBLIC ops schema — `ops-reference.md` lists it among the four
+    an agent may set, and `layout.md` instructs the agent to author one
+    (the thick low-opacity backdrop behind parallel edges, the `reorder
+    index 0` panel). A rule that counts every unowned decoration standing
+    inside a host as ink it did not order bills the user for a drawing
+    they made deliberately.
+
+    MEASURED, NOT FEARED: the cheapest repair that clears the mutant —
+    add unowned decoration inside the host to `drawn` — reports this
+    scene at `1 surplus`. The panel is a 152x56 rectangle against waves
+    that are 144x3 lines, so it is not a copy of anything the host owns,
+    which is the difference a rule has to be able to see.
+
+    Returns:
+        The six-element scene: block `b`, waves `b-body1..4`, and the
+        authored `panel`.
+    """
+    return [*_body_block(),
+            el(id="panel", type="rectangle", x=4, y=4, width=152,
+               height=56, backgroundColor="#f5f2ea",
+               customData={"role": "decoration"})]
+
+
 def _entity_without_rows() -> list[dict]:
     """The legally part-less entity, beside a live finding to die with.
 
@@ -17603,6 +17755,80 @@ _KIND_STATE: dict[str, dict] = {
     "toggle": {"checked": True}}
 _SWEEP_BOX = {"type": "rectangle", "id": "h", "label": "H", "x": 0, "y": 0,
               "width": 200, "height": 64}
+
+
+# THE DOUBLED-INK SWEEP'S OWN STATE TABLE, and it is a copy of
+# `_KIND_STATE` rather than an edit to it. `entity` declares nothing
+# there because that sweep is about FLOORS and an entity has none; here
+# the question is whether a kind can reach a doubled-ink state at all,
+# and an entity with no attributes mints no rows, so it would answer
+# "cannot" for a reason about the fixture rather than about the kind.
+# Editing the shared table would have moved `sweep_remedy_fixpoints`'
+# denominator — 40 pairs, held across two folds and read as evidence
+# that its walk was still asking — so the two tables are kept apart.
+_DOUBLED_INK_STATE: dict[str, dict] = dict(
+    _KIND_STATE, entity={"attributes": ["id", "name", "status"]})
+
+
+def sweep_doubled_ink() -> dict[str, tuple[int, int, bool]]:
+    """Ask every composed kind whether doubled ink is reported.
+
+    THE DENOMINATOR THE SINGLE MUTANT CANNOT CARRY.
+    `doubled_ink_reads_as_a_healthy_count` pins one kind with a
+    magnitude and a direction; this asks the same question of all of
+    them, so the answer has a population behind it. Each kind is minted
+    through the documented top-level `add` door, then an untagged copy
+    of each tagged part is drawn in place — the state the
+    ungrouped-duplicate gesture used to manufacture and that scenes on
+    disk still hold.
+
+    WHAT `reported` MEANS HERE IS DELIBERATELY WIDE: any line the lint
+    did not already say about the healthy scene, in any tier, from any
+    check. Reading only `composed_host_gaps` would have made the answer
+    a tautology about the function under test; reading the DELTA lets an
+    unrelated check take the credit if it earns it, and four of them do
+    — a doubled text row trips `text_over_text`, a black thumb drawn on
+    a black thumb reads 1.00:1 to the contrast check. Neither is a
+    report of doubled ink; both are accidents of what the part happens
+    to be shaped like, which is why they are counted separately from
+    the composed-host answer rather than folded into it.
+
+    Returns:
+        `kind -> (tagged, ghosts, reported)`, where `reported` is True
+        when doubling the ink changed what the lint says. A kind that
+        mints no parts answers `(0, 0, False)` and is not part of the
+        population — the caller decides that by reading `ghosts`.
+    """
+    out: dict[str, tuple[int, int, bool]] = {}
+    for kind in _COMPOSED_KINDS:
+        errors: list[str] = []
+        els = canvas.apply_ops([], [{"op": "add", "element": dict(
+            _SWEEP_BOX, kind=kind,
+            **_DOUBLED_INK_STATE.get(kind, {}))}], errors)
+        tagged = [e for e in els
+                  if any(k.endswith("_of") and v == "h"
+                         for k, v in (e.get("customData") or {}).items())]
+        if errors or not tagged:
+            out[kind] = (len(tagged), 0, False)
+            continue
+        doubled = OPERATORS["double_composed_ink"](els, host_id="h")
+        before, after = _every_lint_line(els), _every_lint_line(doubled)
+        out[kind] = (len(tagged), len(doubled) - len(els),
+                     sorted(after) != sorted(before))
+    return out
+
+
+def _every_lint_line(els: list[dict]) -> list[str]:
+    """All three lint tiers as one list, for delta comparisons.
+
+    Args:
+        els: A scene.
+
+    Returns:
+        Errors, warnings and notes concatenated in tier order.
+    """
+    lint = canvas.lint_layout(els)
+    return lint["errors"] + lint["warnings"] + lint["notes"]
 
 
 def _hosts_reported_stripped(els: list[dict]) -> list[str]:
@@ -22532,6 +22758,72 @@ _register(Mutant(
                         FindingSpec("widget_group_incomplete", element="w",
                                     magnitude=(3, 0.10)))))
 
+# Curator, leaf-1.1.5, 2026-08-26, handed over by the fixer who closed
+# the duplicate-backlink defect and VERIFIED here before it was encoded.
+# WHAT THE DRAWING GETS WRONG: a `body` block draws eight waves where its
+# own height owes four, and every check calls the scene healthy. Four of
+# the eight carry a backlink and four carry none, and
+# `composed_host_gaps` counts TAGGED parts against the floor — 4 == 4,
+# silence. The surplus arm cannot reach it either, for the same reason
+# and by its own docstring: untagged ink is not counted as a part.
+#
+# NOT MANUFACTURABLE ANY MORE, AND THAT IS NOT THE SAME AS GONE. The
+# repair that landed on this branch stopped the ungrouped-duplicate
+# gesture producing this state; scenes already persisted to disk still
+# hold it, and `catch_up()` re-reads them every session. A defect that
+# can no longer be created is still a defect that is still on disk.
+#
+# THE DENOMINATOR IS THE FINDING, and it is DERIVED rather than written
+# here — `sweep_doubled_ink()` measures it and
+# `test_every_composed_kind_can_reach_a_doubled_ink_state` asserts the
+# population against `_COMPOSED_KINDS`, so no count in this comment can
+# go stale by sitting still. What is worth stating is the SHAPE the
+# sweep found: `composed_host_gaps` reports none of them, and the cover
+# that does exist belongs to unrelated checks reading unrelated things —
+# a doubled text row trips `text_over_text`, a black thumb drawn on a
+# black thumb reads 1.00:1 to the contrast check. That cover is
+# offset-dependent: move the pasted ink 10px, the way a real paste does,
+# and the contrast catch dies for `slider` and `toggle` while a ghost X
+# stroke starts poking out of `image`. Kinds enter and leave the covered
+# set with the offset, which is what "covered by accident" looks like
+# when you measure it instead of counting it.
+#
+# WHY `body`, AND WHY THIS BASE SCENE. `_body_block` is
+# `composed_host_stripped_is_invisible`'s base, shared here on purpose
+# rather than copied: the two mutants are the two ends of one axis —
+# that one takes the host's parts away, this one leaves them and draws
+# the same ink over them again — and `strip_composed_parts` and
+# `double_composed_ink` ask the same predicate so they cannot drift
+# apart. `body` is also one of the two kinds bare at BOTH offsets, and
+# the one whose floor is recomputable from the stored host with no
+# history, which is what lets this assert a magnitude instead of an
+# existence.
+#
+# WHO FLIPS IT, AND THE ONE REPAIR THAT MUST NOT. Measured against
+# patched copies of `canvas.py`, not reasoned about. Adding unowned
+# decoration inside the host to `drawn` reports this scene at `4
+# surplus` AND SILENCES `wc` with its ink drawn — 2 == 2 — which is the
+# narrowing contract C12 forbids, and `duplicated_widget_reported_as_
+# bare`'s own `expect` fails on it. Splitting the arms (missing keeps
+# counting tagged parts, surplus counts the ink actually drawn) keeps
+# `wc` and clears this — and then bills the user `1 surplus` for the
+# authored backdrop panel the neighbour's second claim carries. Only the
+# third measured repair clears all three poles: count unowned decoration
+# CONGRUENT to a part the host already owns, which is what a pasted copy
+# is and what a 152x56 panel over 144x3 waves is not. Three poles, three
+# repairs, one survivor — the pair is not a trap, and that was measured
+# before it was filed.
+_register(Mutant(
+    "doubled_ink_reads_as_a_healthy_count",
+    build=_body_block,
+    op="double_composed_ink", args={"host_id": "b"},
+    expect=FindingSpec("composed_host_stripped", element="b",
+                       magnitude=(4, 0.0), direction="surplus"),
+    neighbour=Neighbour(_body_block_with_a_fifth_wave,
+                        FindingSpec("composed_host_stripped", element="b",
+                                    magnitude=(1, 0.0),
+                                    direction="surplus"))))
+
 # Curator batch 46, 2026-08-25, from a review of the branch that landed
 # `composed_host_stripped` itself. WHAT THE DRAWING GETS WRONG: an input
 # whose value was settled through `customData` — the merge
@@ -23541,6 +23833,79 @@ class TestMutantCatalogue(unittest.TestCase):
              and f["element"] == "e"], [],
             "an entity declared with no attributes has no rows to draw "
             "and must never be reported as stripped")
+
+    @unittest.expectedFailure
+    def test_mutant_doubled_ink_reads_as_a_healthy_count(self) -> None:
+        """Eight waves on a block that owes four, and 4 == 4 is healthy."""
+        # The check counts what is TAGGED, so the four unowned copies
+        # drawn over the four real ones are not ink to it. Its own
+        # surplus arm already carries the right sentence for this scene
+        # — "The extra parts are drawn over the widget's own ink" — and
+        # cannot reach it. The entry above carries the denominator and
+        # the three measured repairs.
+        self._run("doubled_ink_reads_as_a_healthy_count")
+
+    def test_neighbour_doubled_ink_reads_as_a_healthy_count(self) -> None:
+        """A fifth TAGGED wave is surplus the same arm reports, at 1."""
+        # TWO CLAIMS, and the second is the whole false-positive cost of
+        # whatever rule lands — the pole that says what the fix may NOT
+        # do, which no `FindingSpec` slot can hold. `role: "decoration"`
+        # with no part tag is a first-class value of the public ops
+        # schema and layout.md tells the agent to author one, so a rule
+        # that counts every unowned decoration standing inside a host
+        # bills the user for a backdrop they drew on purpose. It is
+        # written as an assertion rather than left to the rule's author
+        # because it is measured, not feared: the cheapest repair that
+        # clears the mutant reports this scene at `1 surplus`.
+        #
+        # Ungated and asserted in every commit, which is what makes it a
+        # control rather than a wish — and what makes the first claim
+        # one too. The mask over the mutant hides errors as readily as
+        # failures, so a `composed_host_gaps` that stopped speaking
+        # entirely would leave the red reading `expected failure`; this
+        # pole fails.
+        self._run_neighbour("doubled_ink_reads_as_a_healthy_count")
+        self.assertEqual(
+            [f["raw"] for f in
+             collect_findings(_body_block_behind_an_authored_panel())
+             if f["check"] == "composed_host_stripped"], [],
+            "a backdrop panel the agent was instructed to draw is not "
+            "ink the host failed to order; a doubled-ink rule that "
+            "cannot tell a pasted copy of a part from an authored "
+            "decoration has replaced a silence with a false alarm")
+
+    def test_every_composed_kind_can_reach_a_doubled_ink_state(self) -> None:
+        """The denominator behind the mutant above, and only that.
+
+        THE POPULATION, NOT THE VERDICT, and the split is the point. The
+        verdict — which kinds are reported — is what the red pins for one
+        kind and what a fix moves; asserting it here would make this go
+        red the day the fix lands, which is backwards for an ungated
+        pole. What must NOT move is the number of questions the sweep
+        asks. A kind that stopped minting parts would drop out of the
+        population silently and take its coverage question with it, and
+        the sweep would report a smaller, healthier-looking answer for a
+        reason that has nothing to do with the check.
+
+        Derived, never transcribed: the expected population is
+        `_COMPOSED_KINDS` itself, so there is no count here to go stale.
+        That is the same discipline `sweep_remedy_fixpoints`' companion
+        keeps for its own 40 pairs, and for the same reason — a
+        denominator that moved while the numerator fell would have made
+        a broken instrument read as a repair.
+        """
+        sweep = sweep_doubled_ink()
+        self.assertEqual(
+            sorted(sweep), sorted(_COMPOSED_KINDS),
+            "the doubled-ink sweep no longer walks every composed kind")
+        self.assertEqual(
+            sorted(k for k, (_, ghosts, _r) in sweep.items() if ghosts),
+            sorted(_COMPOSED_KINDS),
+            "every composed kind mints at least one tagged part in its "
+            "settled state, so every one of them can be doubled: %s "
+            "reached no doubled-ink state, which shrinks the coverage "
+            "question rather than answering it"
+            % sorted(k for k, (_, g, _r) in sweep.items() if not g))
 
     def test_mutant_duplicated_widget_reported_as_bare(self) -> None:
         """A dead widget is still reported dead where its ink is drawn."""
@@ -26105,7 +26470,24 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"doubled_ink_reads_as_a_healthy_count"}
+# REFILLED the same day it emptied, 2026-08-26 (curator, leaf-1.1.5), by
+# a coverage hole the fixer who closed the duplicate-backlink defect
+# handed over and this leaf VERIFIED before encoding. A composed host can
+# draw its parts TWICE — once tagged, once not — and
+# `composed_host_gaps` counts tagged parts against the floor, reads
+# 4 == 4, and says nothing; its surplus arm cannot reach it either,
+# because untagged ink is not counted as a part. The repair on this
+# branch stopped the ungrouped-duplicate gesture MANUFACTURING that
+# state; it did not remove it from the scenes already on disk that
+# `catch_up()` re-reads every session, and a defect that can no longer
+# be created is still a defect that is still there. Its denominator is
+# derived by `sweep_doubled_ink()` rather than written down, and pinned
+# ungated by `test_every_composed_kind_can_reach_a_doubled_ink_state`.
+# THE VALUE WAS READ OFF THE GUARD: the decorator was added, the mask
+# lifted to confirm `FAILED (failures=1)` on an ASSERTION naming the
+# absent finding, and `test_the_catalogue_reds_are_the_ones_declared`
+# was run and its measured side transcribed.
 # EMPTY on 2026-08-26 (curator, leaf-1.1.5), and the reason is unlike
 # every drain below it: no repair landed. A USER RULING did.
 # `duplicated_widget_reported_as_bare` asked the check to go SILENT on a
