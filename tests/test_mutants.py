@@ -17491,6 +17491,149 @@ def _entity_without_rows() -> list[dict]:
             *_composed_widget(grouped=False)]
 
 
+def _settled_input_through_customdata() -> list[dict]:
+    """A bare input, then its value settled the way the reference says.
+
+    MINTED, NOT HAND-BUILT, and that inverts `_body_block`'s rule on
+    purpose. Every other builder here refuses the seeder because a
+    mutant should not depend on it to state its defect. Here the seeder
+    IS the defect: the claim is about what the OP LAYER hands the lint,
+    so a hand-built scene would assert nothing at all. Both ops are
+    documented and both return zero op errors — `ops-reference.md` says
+    `mod` takes `customData` "merged, not replaced", and this is that
+    sentence followed literally.
+
+    THE ONE MUTATION IS WHERE THE `value` KEY SITS. `mod {"value":
+    "09:00"}` composes the row and lints clean (measured 2026-08-25);
+    the identical value routed through `customData` does not, because
+    `make_element` gates the mint on the top-level `spec["value"]` while
+    `composed_part_floor` reads `cd["value"]`, and the post-`mod`
+    reconcile gate (`width`/`height`/`label`/`kind`) never names
+    `customData` at all. Two fields, one meaning, nothing holding them
+    together — and `input` is the only kind that can drift, since every
+    other mint block overwrites `custom[...]` from the spec.
+
+    Returns:
+        The three-element scene: host `inp1`, its bound label, and
+        whatever the op layer composed for it — which today is nothing.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": {
+        "type": "rectangle", "id": "inp1", "kind": "input",
+        "label": "Run at", "x": 0, "y": 0, "width": 200,
+        "height": 40}}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "inp1", "attrs": {
+        "customData": {"value": "09:00"}}}], errors)
+    if errors:
+        raise EngineError("the documented batch this mutant is about must "
+                          "return zero op errors; got %r" % (errors,))
+    return els
+
+
+def _input_after_taking_its_own_prescribed_remedy() -> list[dict]:
+    """The scene the finding condemns, after its own remedy was taken.
+
+    THE PROPERTY, AND WHY IT IS A TWO-SCENE ONE. A finding that
+    prescribes a repair must not survive that repair being performed.
+    An ERROR whose remedy reproduces it verbatim is worse than silence:
+    silence leaves the agent looking, a looping remedy sends it round
+    the same corner forever, and `lint_layout`'s ERROR tier says
+    "repair in the same move, before narrating".
+
+    THE REPAIR PERFORMED HERE IS RE-ISSUING THE HOST FROM ITS OWN
+    STORED STATE — `del` then `add` the element exactly as the scene
+    holds it. That is not a transcription of today's sentence, which is
+    already scheduled to change. It is the only repair a reader of the
+    SCENE can perform: the lint is handed elements, never an op log, so
+    the sole description of the condemned element available to whoever
+    must repair it is the element itself. If re-issuing an element as
+    the scene stores it does not clear the finding, the scene holds no
+    self-description the op layer will accept, and no wording can make
+    that false.
+
+    THE REMEDY IS CONDITIONAL, because the property is. A repair that
+    was never prescribed cannot loop, so a fix that stops the finding
+    firing at all satisfies this pole vacuously and correctly — that is
+    what makes the pin flip under repairs of different blast radius
+    rather than prescribing one of them. Measured 2026-08-25 against
+    patched copies of `canvas.py`: naming `customData` in the reconcile
+    gate makes the `mod` compose, so nothing is prescribed and nothing
+    loops; gating the mint on `custom.get("value")` leaves the `mod`
+    broken but makes the re-issue work. Opposite blast radii, both
+    green, neither one named in this builder.
+
+    WHAT THIS POLE CANNOT SEE ALONE, said out loud because it is the
+    hole a subtraction always leaves: deleting the `input` floor
+    outright also empties this scene's findings, and would read green
+    here while the check went blind. That is what the neighbour is for,
+    and it is why the neighbour is an INPUT and not the `body` block the
+    sibling mutant uses — a `body` pole survives an input-shaped
+    lobotomy without noticing.
+
+    Returns:
+        The post-remedy scene: unchanged when the check said nothing,
+        else the same drawing with `inp1` re-issued from its own
+        stored form.
+    """
+    els = _settled_input_through_customdata()
+    if not [f for f in collect_findings(els)
+            if f["check"] == "composed_host_stripped"
+            and f["element"] == "inp1"]:
+        return els
+    stored = copy.deepcopy(next(e for e in els if e["id"] == "inp1"))
+    for key in ("seed", "version", "versionNonce", "updated",
+                "boundElements", "index"):
+        stored.pop(key, None)
+    errors: list[str] = []
+    out = canvas.apply_ops(els, [{"op": "del", "id": "inp1"},
+                                 {"op": "add", "element": stored}], errors)
+    if errors:
+        raise EngineError("re-issuing a host from its own stored state is "
+                          "the remedy under test and must not itself be "
+                          "refused; got %r" % (errors,))
+    return out
+
+
+def _input_slot_stripped() -> list[dict]:
+    """An input minted whole, then robbed of the row it really owes.
+
+    THE LIVE HALF, AND IT IS AN INPUT ON PURPOSE. The mutant beside it
+    expects silence, so this pole is the only thing standing between
+    that silence and a dead check — and the specific death it has to
+    survive is an `input`-shaped one, since the drift the mutant pins
+    is reachable on no other kind. `composed_host_stripped_is_invisible`
+    already proves the check speaks about a `body`; that firing is
+    untouched by deleting the `input` arm of `composed_part_floor`, so
+    it cannot stand in for this one.
+
+    The value goes in through the TOP-LEVEL key, which is the route
+    that composes: the host really does own a `inp1-value` row, and
+    removing it is real damage rather than a bookkeeping difference.
+    Floor 1, drawn 0 — the smallest gap the check can report, which is
+    also the one an off-by-one in either direction gets wrong.
+
+    Returns:
+        The host `inp1` and its bound label, with the composed value row
+        removed.
+
+    Raises:
+        EngineError: If the mint did not produce the value row this
+            pole exists to remove — a neighbour that strips nothing
+            proves nothing.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": {
+        "type": "rectangle", "id": "inp1", "kind": "input",
+        "label": "Run at", "x": 0, "y": 0, "width": 200, "height": 40,
+        "value": "09:00"}}], errors)
+    kept = [e for e in els if e["id"] != "inp1-value"]
+    if errors or len(kept) == len(els):
+        raise EngineError("the top-level `value` route must mint "
+                          "`inp1-value`; errors=%r ids=%r"
+                          % (errors, [e["id"] for e in els]))
+    return kept
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -21872,6 +22015,46 @@ _register(Mutant(
                         FindingSpec("widget_group_incomplete", element="w",
                                     magnitude=(3, 0.10)))))
 
+# Curator batch 46, 2026-08-25, from a review of the branch that landed
+# `composed_host_stripped` itself. WHAT THE DRAWING GETS WRONG: an input
+# whose value was settled through `customData` — the merge
+# `ops-reference.md:271` documents — draws no value row, and is
+# correctly reported for it. WHAT MAKES IT A DEFECT rather than a true
+# reading is the REMEDY: the finding asks for the host to be re-issued,
+# and re-issuing it reproduces the finding verbatim, on a three-op batch
+# that returns zero op errors at every step. The escape is a top-level
+# `value` key that nothing in the message, the reference, or the scene
+# names.
+#
+# THIS IS THE FAMILY'S SECOND ARM, NOT A DUPLICATE OF THE FIRST.
+# `composed_host_stripped_is_invisible` proves the check SPEAKS, on a
+# `body`, at magnitude 4. This one proves its remedy is a way OUT, on an
+# `input`, at the floor's other gate — `composed_part_floor`'s only
+# stateful arm, and the only kind whose `customData` can drift, since
+# every other mint block overwrites `custom[...]` from the spec. The
+# coverage table calls this check `proven` either way; its own footer
+# says `proven` is per CHECK and not per ARM, and this is one of the
+# arms that footer is about.
+#
+# WHO FLIPS IT: the WP repairing the mint/floor split. Two repairs of
+# very different blast radius both turn it green, measured against
+# patched copies rather than reasoned about — naming `customData` in the
+# post-`mod` reconcile gate (canvas.py:9372), or gating the mint on
+# `custom.get("value")` (canvas.py:2695). A third candidate, rewording
+# the message to name the top-level key, leaves this red, and that is
+# the pin's opinion rather than an oversight: it documents the trap
+# without removing it, and the op layer still returns zero errors for a
+# batch whose result the ERROR tier condemns.
+_register(Mutant(
+    "composed_host_remedy_reproduces_itself",
+    build=_input_after_taking_its_own_prescribed_remedy,
+    op="unchanged", args={},
+    expect=Silence("composed_host_stripped"),
+    neighbour=Neighbour(_input_slot_stripped,
+                        FindingSpec("composed_host_stripped", element="inp1",
+                                    magnitude=(1, 0.0),
+                                    direction="missing"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -22737,6 +22920,40 @@ class TestMutantCatalogue(unittest.TestCase):
              and f["element"] == "e"], [],
             "an entity declared with no attributes has no rows to draw "
             "and must never be reported as stripped")
+
+    @unittest.expectedFailure
+    def test_mutant_composed_host_remedy_reproduces_itself(self) -> None:
+        """Doing what the ERROR asks brings the same ERROR back."""
+        # TWO CLAIMS, and the second is here because the first has a
+        # hole every subtraction has. `_run` asserts the property: the
+        # finding must not survive its own prescribed repair. A fix
+        # that stops the finding firing satisfies that — including the
+        # WRONG one, deleting `composed_part_floor`'s `input` arm,
+        # which empties this scene and reads green. The neighbour
+        # catches that death; what the neighbour cannot catch is the
+        # OTHER wrong fix, and it is the nearer of the two: making
+        # `make_element` drop a `customData` value it did not mint for.
+        # That clears the finding honestly-looking and silently
+        # re-opens the v0.5 defect named at canvas.py:2696, where an
+        # input was handed a value, dropped it, and drew "Run at" with
+        # no time in it while nothing complained. So the value the ops
+        # declared is asserted to still be READABLE off the scene —
+        # stored on the host or drawn as a part, this pin does not care
+        # which, because both are honest and the choice belongs to the
+        # WP that owns the fix.
+        self._run("composed_host_remedy_reproduces_itself")
+        els = _input_after_taking_its_own_prescribed_remedy()
+        self.assertTrue(
+            any("09:00" in str((e.get("customData") or {}).get("value") or "")
+                or "09:00" in str(e.get("text") or "") for e in els),
+            "the value these ops settled must survive somewhere in the "
+            "scene — stored on the host or drawn as its value row; a "
+            "repair that clears this finding by discarding the agent's "
+            "own datum is the v0.5 silent-drop defect returning")
+
+    def test_neighbour_composed_host_remedy_reproduces_itself(self) -> None:
+        """An input robbed of its real value row is still reported."""
+        self._run_neighbour("composed_host_remedy_reproduces_itself")
 
     def test_mutant_entity_name_dragged_onto_its_row(self) -> None:
         """A dragged name covers its own row by 1080px², and is named."""
