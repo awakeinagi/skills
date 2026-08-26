@@ -25956,12 +25956,36 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # refused it as a catalogue red. `durable_red_counts` does not move: one
 # decorator left `TestMutantCatalogue` and one arrived here.
 #
+# A SECOND JOINED the same day, at TWO reds, and it is the first entry
+# here that arrived from a HANDOVER rather than from this file's own
+# instruments: a fixer measured it at `a871bee`, and it was re-measured
+# at this tree before being encoded, because the tip had moved twelve
+# commits and a report is not a reproduction.
+# `TestAnUngroupIsNotRevokedByTheNextSave` pins a gesture the product
+# honours for exactly one save and then silently takes back — the rule
+# is delta-based against the PREVIOUS SAVE, so once the base stops
+# carrying the group the widget reads as an unfinished assembly and is
+# closed again. It carries TWO reds and not one because two different
+# repairs clear two different halves: a fix that keeps re-grouping but
+# starts SAYING so clears the narration red and leaves the gesture red,
+# and the split is what stops a narration change reading as a repair.
+#
+# WHY NOT A CATALOGUE MUTANT, the same structural answer this dict keeps
+# giving: `collect_findings` runs over ONE scene and this is a relation
+# between two consecutive commits. The scene it lands on is internally
+# coherent — host and parts sharing a group is what healthy looks like —
+# so every scene-level check is correctly silent, `widget_group_
+# incomplete` included, which spoke about the ungrouped state and goes
+# quiet the moment the gesture is revoked.
+#
 # THE VALUE BELOW WAS READ OFF THE GUARD, as every entry above says to:
 # `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
-# `measured {'TestTheStrippedHostFindingTellsDrawnFromGone': 1}` against
-# a declared `{}`, and the measured side was transcribed.
+# `measured {'TestTheStrippedHostFindingTellsDrawnFromGone': 1,
+# 'TestAnUngroupIsNotRevokedByTheNextSave': 2}`, and the measured side
+# was transcribed.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheStrippedHostFindingTellsDrawnFromGone": 1}
+    "TestTheStrippedHostFindingTellsDrawnFromGone": 1,
+    "TestAnUngroupIsNotRevokedByTheNextSave": 2}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -37428,6 +37452,206 @@ class TestTheStrippedHostFindingTellsDrawnFromGone(unittest.TestCase):
                     "parts its own geometry owes stays reported whether "
                     "its ink is drawn or gone; nothing in the loud tiers "
                     "names `wc` with ink_drawn=%s" % ink)
+
+
+def _ungroup_then_save_again() -> dict[str, Any]:
+    """Drive Ctrl+Shift+G, save, then one more save that changes nothing.
+
+    THE WHOLE GESTURE THROUGH `Store.commit`, which is the path
+    `/api/save` uses, because the defect lives in the seam between two
+    saves and no single-scene fixture can hold it. `apply_ops` is a
+    layer above it and would not see this at all.
+
+    The second save posts the STORED SCENE BACK VERBATIM. That is the
+    load-bearing part of the fixture: there is no edit for a reconciler
+    to react to, no op, no gesture — the user saved for an unrelated
+    reason, or the client autosaved, and the only thing that happened is
+    that a save happened.
+
+    Returns:
+        `{"minted", "ungrouped", "after"}` — `id -> groupIds` after each
+        of the three states — plus `"ungroup_verbs"` and
+        `"second_verbs"`, the verb counts each of the two commits
+        reported for itself.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-ungroup-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "w", "kind": "slider",
+                "label": "W", "x": 0, "y": 0, "width": 160,
+                "height": 48}}]})
+
+        def groups(scene: list[dict]) -> dict[str, list[str]]:
+            """Read every element's group membership.
+
+            Args:
+                scene: A stored scene.
+
+            Returns:
+                `id -> groupIds`, copied so a later commit cannot
+                rewrite a reading already taken.
+            """
+            return {e["id"]: list(e.get("groupIds") or []) for e in scene}
+
+        def save(scene: list[dict]) -> tuple[dict[str, list[str]], dict]:
+            """Commit as the browser does.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                `(groups, verb_counts)` after the commit.
+            """
+            res = store.commit(author="user", new_scenes={"f": list(scene)},
+                               base_revn=store.head_revn())
+            return (groups(store.scenes["f"]),
+                    dict((res.get("summary") or {}).get("verb_counts") or {}))
+
+        minted = [dict(e) for e in store.scenes["f"]]
+        ungrouped, ungroup_verbs = save(
+            [dict(e, groupIds=[]) for e in minted])
+        stored = [dict(e) for e in store.scenes["f"]]
+        after, second_verbs = save(stored)
+        return {"minted": groups(minted), "ungrouped": ungrouped,
+                "after": after, "ungroup_verbs": ungroup_verbs,
+                "second_verbs": second_verbs}
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+class TestAnUngroupIsNotRevokedByTheNextSave(unittest.TestCase):
+    """Ctrl+Shift+G is honoured for one save and then taken back.
+
+    THE PRODUCT LAW IS ALREADY WRITTEN, in `_honour_ungroup`'s own
+    docstring, and it is unusually absolute: "silently re-grouping would
+    be the tool overruling the user's own hands, which is the one thing
+    this product may not do". That docstring also records this defect's
+    previous life — a user who ungrouped a domain entity on 2026-08-20
+    got it silently re-assembled AND was told `saved_no_changes` — so
+    what is pinned here is not a new class, it is the same class one
+    save further along, which is why it survived the fix that closed it.
+
+    THE MECHANISM, AND WHY IT IS INVISIBLE. The rule is DELTA-based on
+    purpose, and the docstring argues that correctly: a widget the user
+    pulled apart and a widget that was never assembled are
+    indistinguishable in the posted scene alone, so only the BASE scene
+    separates them. But the base is the PREVIOUS SAVE. On the save that
+    carries the ungroup the base still has the group and the gesture is
+    honoured; on the next save the base no longer has it, the two cases
+    become indistinguishable again, and the widget is read as an
+    unfinished assembly and closed. The gesture is not overridden by a
+    conflicting one — it is forgotten, by a rule that can only remember
+    one save back.
+
+    HANDED OVER RATHER THAN FOUND HERE, measured at `a871bee`, and
+    RE-MEASURED at this tree before being encoded: the tip had moved
+    twelve commits and a report is not a reproduction. It still
+    reproduces, on the same four elements.
+
+    NOT A CATALOGUE MUTANT, and for the reason the class two above it
+    gives: `collect_findings` runs over ONE scene, and this defect is a
+    relation between two consecutive commits. The resulting scene is
+    internally coherent — host and parts share a group, which is what a
+    healthy widget looks like — so every scene-level check is correctly
+    silent, including `widget_group_incomplete`, which spoke about the
+    ungrouped state and goes quiet again the moment the gesture is
+    revoked. A reader of the drawing cannot tell "the tool put it back"
+    from "the user changed their mind", which is the whole defect
+    restated as a picture.
+
+    WHAT FLIPS IT: the WP that owns `_interpret_user_composites`. TWO
+    repairs of different shape were measured green against patched
+    copies of `canvas.py` rather than reasoned about — persisting the
+    gesture on the host so a stamped widget is never re-closed, and
+    reading state rather than delta for a host that already existed in
+    the base. Two controls stay red or expose a vacuous pass: a
+    `canvas.py` that never honours the ungroup at all makes both reds
+    below pass VACUOUSLY (the group is there before and after, so
+    "unchanged" is true) and is caught only by the ungated pole, which
+    is why that pole is not optional; and a repair that merely narrates
+    the re-group instead of claiming no change clears the second red and
+    leaves the first one red, which is the split the two reds exist for.
+    """
+
+    @unittest.expectedFailure
+    def test_the_ungroup_survives_a_save_that_changes_nothing(self) -> None:
+        """The next save takes the gesture back, and it need not be a gesture."""
+        r = _ungroup_then_save_again()
+        moved = sorted(i for i, g in r["after"].items()
+                       if g != r["ungrouped"].get(i))
+        self.assertEqual(
+            moved, [],
+            "the user pulled this widget apart and the very next save "
+            "put it back together: %s came back carrying %s. Nothing "
+            "else changed in that save — the posted scene was the "
+            "stored one, verbatim — so the gesture was not overridden "
+            "by a later one, it was forgotten by a rule that remembers "
+            "exactly one save back"
+            % (moved, {i: r["after"][i] for i in moved}))
+
+    @unittest.expectedFailure
+    def test_a_save_that_narrates_no_change_changed_nothing(self) -> None:
+        """The second lie: it rewrote four elements and said it had not."""
+        # THE RELATION, NOT THE SENTENCE. This reads the verb COUNTS the
+        # commit published about itself, never its headline text, so a
+        # rewrite of the wording cannot satisfy it and cannot break it.
+        # It is the narrower of the two reds on purpose: a repair that
+        # keeps re-grouping but starts SAYING so clears this one and
+        # leaves the other red, which is the whole reason they are two.
+        r = _ungroup_then_save_again()
+        moved = sorted(i for i, g in r["after"].items()
+                       if g != r["ungrouped"].get(i))
+        self.assertFalse(
+            moved and "saved_no_changes" in r["second_verbs"],
+            "a commit reporting %s rewrote the group membership of %s. "
+            "The save before it had just told the user, in its own "
+            "headline, that their parts would not be put back together; "
+            "this one put them back and narrated nothing at all"
+            % (r["second_verbs"], moved))
+
+    def test_the_ungroup_is_honoured_on_the_save_that_carries_it(
+            self) -> None:
+        """The live half, and what stands between the reds and a vacuum.
+
+        Both reds are EQUALITY claims across two saves, and equality is
+        satisfied perfectly by a tree where nothing ever happens. A
+        `canvas.py` that never honours the ungroup at all leaves the
+        group on host and parts through both saves — so "the second save
+        changed nothing" is TRUE, both reds pass, and the masks report
+        two healthy expected failures over a product that has stopped
+        listening to the gesture entirely. Measured against exactly that
+        patch: both reds go to unexpected success and this method is
+        what fails.
+
+        So this asserts the ABSOLUTE numbers the reds deliberately do
+        not: the mint puts all four elements in one group, and the save
+        that carries the gesture takes every one of them out of it.
+        """
+        r = _ungroup_then_save_again()
+        self.assertEqual(
+            sorted(i for i, g in r["minted"].items() if g == ["w-grp"]),
+            sorted(r["minted"]),
+            "the mint no longer puts the whole widget in one group, so "
+            "there is no group left for a gesture to open: %s"
+            % r["minted"])
+        self.assertEqual(
+            {i: g for i, g in r["ungrouped"].items() if g}, {},
+            "Ctrl+Shift+G must be honoured on the save that carries it, "
+            "or the reds beside this one are comparing a widget that "
+            "was never ungrouped against itself and passing: %s"
+            % r["ungrouped"])
+        self.assertIn(
+            "widget_ungrouped", r["ungroup_verbs"],
+            "the ungroup is product law's LOUD half — the save that "
+            "carries it says so out loud — and a silent one would make "
+            "the revocation next door unremarkable: %s"
+            % r["ungroup_verbs"])
 
 
 class TestADeclaredDatumSurvivesTheDoorItCameThrough(unittest.TestCase):

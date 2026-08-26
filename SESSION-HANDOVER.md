@@ -150,8 +150,23 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: `TestTheStrippedHostFindingTellsDrawnFromGone` (1)
-— refilled 2026-08-26 by a curator RELOCATION rather than by a discovery.
+Non-catalog red classes: `TestTheStrippedHostFindingTellsDrawnFromGone` (1), `TestAnUngroupIsNotRevokedByTheNextSave` (2)
+
+The roster is that one line and both entries sit ON it, because the guard
+reads a single line and a continuation is invisible to it — which it
+proved by passing over the second entry the first time it was written
+across two lines. The second arrived 2026-08-26 from a HANDOVER, measured at a871bee by
+the fixer who reported it and RE-MEASURED at this tree before it was
+encoded, because the tip had moved twelve commits and a report is not a
+reproduction. Ctrl+Shift+G is honoured for exactly one save and then
+silently revoked: `_interpret_user_composites` decides `ungrouped_by_user`
+against the PREVIOUS SAVE, so once the base stops carrying the group the
+widget reads as an unfinished assembly and is closed again — by any next
+save, including one that changes nothing else. It carries two reds because
+two different repairs clear two different halves, and a fix that keeps
+re-grouping while merely narrating it clears only the narrower one.
+The first was refilled the same day by a curator RELOCATION rather than by
+a discovery.
 The user ruled that a composed host whose part-shaped ink is drawn but
 linked to nothing is DEAD and must keep being reported, and that what is
 wrong is the finding calling it "missing". That left
@@ -412,7 +427,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**2 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**4 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
