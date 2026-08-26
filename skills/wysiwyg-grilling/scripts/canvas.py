@@ -3633,9 +3633,20 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
         # and it reports `(len(owners), len(minted)) == (2, 1)` twice.
         # Reached, and this line is what discriminates.
         #
-        # SO NOTHING IN THE TREE NOW SEPARATES `minted or owners` FROM
-        # `owners`, and that is a coverage gap rather than a dead belt.
-        # It wants a pin from a curator, not a deletion. The arm it
+        # SO NOTHING IN THE TREE SEPARATES `minted or owners` FROM
+        # `owners`, and that is now a MEASUREMENT rather than the
+        # extrapolation-from-ten it started as. The whole suite was run
+        # against a tree with this line neutered: 2047 tests, one
+        # failure, and that failure is present IDENTICALLY on an
+        # unmodified control — `test_the_real_checkout_has_a_surface_to_
+        # scan` calls `git ls-files`, which exits 128 in a `git archive`
+        # extraction that is not a repository. Nothing else moved. The
+        # first version of this sentence said "nothing in the tree" off
+        # a single ten-test class, which is the claim-exceeds-evidence
+        # shape the paragraph below is about, committed inside it.
+        #
+        # A coverage gap rather than a dead belt: it wants a pin from a
+        # curator, not a deletion. The arm it
         # guards — two hosts under one group — otherwise degrades to
         # dropping a user's backlink, which is the expensive answer.
         minted = [o for o in owners if o not in old_ix]

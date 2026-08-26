@@ -39721,8 +39721,8 @@ SWEEP_BASES: tuple[tuple[str, Callable[[], list[dict]]], ...] = (
 # `skills/silence-is-a-bug/SKILL.md` §8 reproduced in-tree. At that sha:
 # `_attach_chain(` 15, `_chain(` 13, `_stub_chain(` 3. Do not grep for
 # them at the tip; walk the AST, which answers TWELVE at both ends, every
-# one of them a method of
-# `TestOperators`, and NONE of them a catalogue mutant. A reviewer then
+# one of them a method of `TestOperators`, and NONE of them a catalogue
+# mutant. A reviewer then
 # performed the rejected repair and ran every class that can see it: the
 # real cost is ONE LINE of `EXPECTED_SKIPS`, and nothing is re-derived.
 #
