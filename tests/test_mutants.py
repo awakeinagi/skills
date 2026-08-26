@@ -1406,8 +1406,9 @@ def strip_composed_parts(scene: list[dict], host_id: str) -> list[dict]:
 
 
 @_operator
-def double_composed_ink(scene: list[dict], host_id: str) -> list[dict]:
-    """Draw an untagged copy of every part one host owns, in place.
+def double_composed_ink(scene: list[dict], host_id: str,
+                        offset: float = 0) -> list[dict]:
+    """Draw an untagged copy of every part one host owns.
 
     THE SIBLING OF `strip_composed_parts`, AT THE OTHER END OF THE SAME
     AXIS. That one takes a host's parts away; this one leaves them and
@@ -1433,9 +1434,22 @@ def double_composed_ink(scene: list[dict], host_id: str) -> list[dict]:
     one could add ink the other could not take away and the pair would
     stop being two ends of one axis.
 
+    `offset` IS THE GESTURE AND NOT A KNOB, which is why it defaults to
+    the paste-in-place the paragraphs above describe and why the one
+    other value used is 10 — the client's own duplicate offset, the
+    number a real Ctrl+D moves a copy by. The distinction is measured,
+    not cosmetic: at 0 the copy's box is its twin's box, so every
+    question about WHERE ink is read lands on identical coordinates and
+    is unanswerable. Move it 10px and the boxes separate, which is what
+    lets a scene say whether an instrument reads the ink a part draws
+    or the box it stores. `doubled_ink_reads_as_a_healthy_count` holds
+    the 0 end; `offset_paste_reads_as_one_copy_short` holds the 10.
+
     Args:
         scene: The scene copy to mutate.
         host_id: The composed host whose ink is doubled.
+        offset: Pixels right and down to move each copy, modelling the
+            client's duplicate offset. `0` pastes in place.
 
     Returns:
         The scene with one untagged `<id>-ghost` copy appended per
@@ -1455,6 +1469,8 @@ def double_composed_ink(scene: list[dict], host_id: str) -> list[dict]:
         ghost = copy.deepcopy(e)
         ghost["id"] = e["id"] + "-ghost"
         ghost["customData"] = {"role": "decoration"}
+        ghost["x"] = e.get("x", 0) + offset
+        ghost["y"] = e.get("y", 0) + offset
         ghost.pop("boundElements", None)
         ghosts.append(ghost)
     if not ghosts:
@@ -17762,6 +17778,76 @@ def _body_block_with_a_wave_gone() -> list[dict]:
     return [e for e in _body_block() if e["id"] != "b-body1"]
 
 
+def _body_block_with_a_tagged_paste() -> list[dict]:
+    """The same 10px paste, with every copy's backlink still intact.
+
+    THE POLE THAT HOLDS THE OWNERSHIP COUNT STILL while the ink
+    instrument is what moves. Both scenes are the same gesture on the
+    same block — four waves duplicated 10px right and down, the client's
+    own offset — and they differ in one field: whether the copies still
+    name `b`. Here they do, so the count is answered by OWNERSHIP alone
+    and comes back 8 against a floor of 4. In the mutant they do not, so
+    the same 8 has to be reached by READING THE INK, and every way of
+    reading it wrongly shows up as this pole's answer minus something.
+
+    THAT IS WHAT MAKES IT A CONTROL RATHER THAN A RESTATEMENT. Measured
+    2026-08-26 against patched copies of `canvas.py`: bounding
+    point-strung ink by its stored `width`/`height`, or spelling the
+    containment test with strict inequalities, each drop exactly one
+    copy from the mutant's reading and leave this pole at 4 surplus
+    untouched — so the pair localizes the break to the ink instrument
+    and away from the count. It also dies when the check goes blind,
+    which is the property a `Silence` pole would not have.
+
+    Returns:
+        The nine-element scene: block `b`, waves `b-body1..4`, and four
+        `b-body<n>-copy` waves 10px away that still name `b` as owner.
+    """
+    out = _body_block()
+    for src in [e for e in _body_block() if e["id"] != "b"]:
+        dup = copy.deepcopy(src)
+        dup["id"] = src["id"] + "-copy"
+        dup["x"], dup["y"] = src["x"] + 10, src["y"] + 10
+        out.append(dup)
+    return out
+
+
+def _image_tile() -> list[dict]:
+    """An `image` tile owning the two crossed strokes its kind owes.
+
+    THE STANDING POINT-STRUNG RULE AT THE SITE THAT PROVES IT. This
+    repo binds an arrow, line or freedraw by its `points` and never by
+    a stored `width`/`height`, and `image` is where the difference stops
+    being pedantic: `i-x2` is the ANTI-diagonal, so the seeder stores
+    its `y` at the tile's BOTTOM edge and runs the path upward with
+    negative offsets. Read by `points` its ink is the tile's own box;
+    read by `y + height` it is a whole tile-height BELOW the drawing,
+    outside the tile entirely. One element, two answers, 64px apart.
+
+    HAND-BUILT AND COPIED FROM A MEASURED SAVE, for the reason
+    `_body_block` gives — a pole should not depend on the seeder to
+    state its claim. Every field here is what the real path emits for
+    `{"kind": "image", "width": 160, "height": 64}` (measured
+    2026-08-26), less the router's `routed` hash, which names no
+    geometry.
+
+    Returns:
+        The three-element scene: tile `i`, then `i-x1` (the diagonal)
+        and `i-x2` (the anti-diagonal).
+    """
+    return [el(id="i", type="rectangle", x=0, y=0, width=160, height=64,
+               groupIds=["i-grp"],
+               customData={"kind": "image", "role": "node"}),
+            el(id="i-x1", type="line", x=0, y=0, width=160, height=64,
+               points=[[0, 0], [160, 64]], strokeColor="#8d877a",
+               groupIds=["i-grp"],
+               customData={"role": "decoration", "x_of": "i"}),
+            el(id="i-x2", type="line", x=0, y=64, width=160, height=64,
+               points=[[0, 0], [160, -64]], strokeColor="#8d877a",
+               groupIds=["i-grp"],
+               customData={"role": "decoration", "x_of": "i"})]
+
+
 def _body_block_beside_near_miss_decoration() -> list[dict]:
     """The healthy block with two authored decorations that ALMOST match.
 
@@ -23104,6 +23190,25 @@ _register(Mutant(
 # regression pin can take — the day it goes red, a candidate has taken
 # the class out of the check's reach and the failure is the message.
 #
+# THE REPAIR IT NOW GUARDS LANDED AT `b4e6bb6`, and this entry was
+# written the hour before it did. That fix SPLITS THE ARMS: the missing
+# arm counts owned parts and `continue`s before the ink instrument is
+# ever called, and the surplus arm is the only reader of loose ink. Its
+# own comment states the trap in prose — and prose is not a test, which
+# is what this pin is for. Measured against `/tmp/rev116/combined2`, the
+# refuted single-number shape applied to the fixed tree so the arm split
+# is the ONLY variable: of the ten composed-host poles this branch
+# carries, THIS ONE IS THE ONLY FAILURE. Anyone tidying the two arms
+# back into one number gets a red here and nowhere else.
+#
+# SO IT IS NOT AIMED AT THE CONGRUENCE GATE, and that is deliberate
+# rather than an oversight. A reviewer proved congruence holds only ONE
+# guarantee — not billing a user for a backdrop `layout.md` instructs
+# the agent to draw — by deleting it entirely and quieting nothing over
+# an 84-case matrix. Congruence is the surplus arm's manners; the arm
+# split is the guarantee. A pin aimed at the predicate would be aimed at
+# the wrong half.
+#
 # WHAT THE DRAWING GETS WRONG. A `body` block owns three of the four
 # waves its own height owes, and the fourth is still DRAWN across it
 # naming nobody. The picture is a complete paragraph; the model is a
@@ -23171,6 +23276,65 @@ _register(Mutant(
                         FindingSpec("composed_host_stripped", element="b",
                                     magnitude=(1, 0.0),
                                     direction="missing"))))
+
+# Curator, leaf-1.1.6 review, 2026-08-26, and GREEN BY INTENT like its
+# neighbour above. WHERE IT CAME FROM: a guard sweep over the landed arm
+# split found five mutations of the surplus arm's INK INSTRUMENT that
+# survived all 636 mutant tests and all 18 `TestComposedHostFloors`. Two
+# of them — a strict `<` where the file spells `<=`, and that spelling
+# combined with reading the stored box — had never been in anyone's
+# matrix. This scene is the one drawing that answers four of them.
+#
+# WHAT THE DRAWING GETS WRONG. A 64px `body` block owns its four waves
+# and a duplicate of all four is drawn 10px right and down — the client's
+# own Ctrl+D offset, not a number chosen here. Eight waves stand where
+# four belong and four of them name nobody. The check must say `4
+# surplus`, one per copy.
+#
+# THE OFFSET IS THE WHOLE INSTRUMENT, and offset 0 cannot substitute.
+# Measured 2026-08-26, `doubled_ink_reads_as_a_healthy_count`'s
+# paste-in-place scene reads `4 surplus` under every one of the five
+# mutations, because a copy sitting exactly on its twin gives every
+# question about WHERE ink is read the same coordinates to work from.
+# Move it 10px and the boxes separate. Then: bounding point-strung ink
+# by its stored `width`/`height` puts the last wave's copy below the
+# block and drops it (`3 surplus`); spelling containment with strict
+# inequalities drops the same copy, whose box lands exactly flush with
+# the block's bottom edge (`3 surplus`); both together drop it once
+# (`3 surplus`); and keying congruence on the far CORNER instead of the
+# drawn size makes no copy congruent to anything and the check goes
+# SILENT. Four mutations, four different wrong answers, one scene.
+#
+# THE FLUSH EDGE IS NOT A CONSTRUCTION. `_body_block`'s last wave is the
+# short one a paragraph ends with, 8px above the block's foot, and 10px
+# down puts its ink box exactly ON that foot. Swept across all eight
+# composed kinds and every part they mint, at every whole-pixel offset
+# from -260 to +260, the client's own +10/+10 produces exactly ONE
+# element anywhere in the population where `<=` and `<` disagree — this
+# one. That is why the pin is built here and why the strict spelling is
+# invisible everywhere else.
+#
+# WHAT IT DOES NOT COVER, said plainly rather than implied: congruence
+# on TYPE alone and congruence on SIZE alone both read this scene as `4
+# surplus` and are caught instead by the near-miss control on
+# `orphaned_wave_cancels_the_gap_it_left`'s neighbour. Between the two
+# entries the five have no survivor left.
+#
+# WHO KEEPS IT GREEN. Any ink instrument that answers where a part
+# DRAWS: bound by points, containment closed at the boundary, congruence
+# on the drawn SIZE. Those are three independent choices and the pin
+# names none of them as code — it asserts the count they produce, so a
+# rewrite that reaches `4` by another route passes.
+_register(Mutant(
+    "offset_paste_reads_as_one_copy_short",
+    build=_body_block,
+    op="double_composed_ink", args={"host_id": "b", "offset": 10},
+    expect=FindingSpec("composed_host_stripped", element="b",
+                       magnitude=(4, 0.0), direction="surplus"),
+    neighbour=Neighbour(_body_block_with_a_tagged_paste,
+                        FindingSpec("composed_host_stripped", element="b",
+                                    magnitude=(4, 0.0),
+                                    direction="surplus"))))
 
 # Curator batch 46, 2026-08-25, from a review of the branch that landed
 # `composed_host_stripped` itself. WHAT THE DRAWING GETS WRONG: an input
@@ -24402,6 +24566,57 @@ class TestMutantCatalogue(unittest.TestCase):
             "congruence rule that reads only the type, or only the "
             "size, calls one of them a pasted copy of a wave and bills "
             "the user for ink they asked for")
+
+    def test_mutant_offset_paste_reads_as_one_copy_short(self) -> None:
+        """Eight waves where four belong, and four of them own nobody.
+
+        GREEN BY INTENT, so a failure here reads the other way round
+        from a red: it means an ink instrument stopped answering where
+        a part DRAWS. The entry above carries the four mutations this
+        one scene separates and the sweep that says why the offset is
+        10 and not 0.
+        """
+        self._run("offset_paste_reads_as_one_copy_short")
+
+    def test_neighbour_offset_paste_reads_as_one_copy_short(self) -> None:
+        """The same paste with the copies' backlinks kept reads 4 too.
+
+        THE COUNT HELD STILL WHILE THE INSTRUMENT MOVES. Both poles are
+        one gesture on one block and differ in one field — whether the
+        copies still name `b` — so the neighbour reaches 8 by OWNERSHIP
+        and the mutant has to reach it by READING INK. Every measured
+        way of reading it wrongly shows up as the mutant's answer minus
+        something while this pole stays at 4, which is what localizes
+        the break. It dies when the check goes blind, ungated.
+        """
+        # TWO CLAIMS, and the second keeps this repo's point-strung rule
+        # witnessed at the site that proves it is not ceremony. An
+        # `image` tile's anti-diagonal stores its `y` at the tile's
+        # BOTTOM edge and runs upward, so `y + height` puts its box a
+        # whole tile-height BELOW the ink — 64px out, and outside the
+        # tile altogether. The block above catches a stored-box reading
+        # too, but only by 2px and only on one wave; this says the same
+        # thing where the error is a whole host tall and where the
+        # element is a LINE, which is the class the rule is about.
+        #
+        # ASSERTED AS AN OUTCOME, NOT AS A HELPER. It reads what the
+        # check says about a tile whose two strokes were pasted 10px
+        # away — both copies counted, `2 surplus`, never `1` — so a
+        # rewrite that renames or deletes whatever bounds the ink today
+        # passes on its answer rather than on its shape.
+        self._run_neighbour("offset_paste_reads_as_one_copy_short")
+        pasted = OPERATORS["double_composed_ink"](_image_tile(),
+                                                  host_id="i", offset=10)
+        self.assertEqual(
+            [(f["magnitude"], f["direction"])
+             for f in collect_findings(pasted)
+             if f["check"] == "composed_host_stripped"],
+            [(2.0, "surplus")],
+            "both of an image tile's pasted strokes are drawn on the "
+            "tile and neither is owned; an instrument bounding the "
+            "anti-diagonal by its stored width and height puts it a "
+            "whole tile-height below the drawing and reports one copy "
+            "where a reader sees two")
 
     def test_mutant_composed_host_remedy_reproduces_itself(self) -> None:
         """Doing what the ERROR asks brings the same ERROR back."""
