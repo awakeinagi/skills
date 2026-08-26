@@ -956,7 +956,9 @@ class TestArrivalSquareness(unittest.TestCase):
         Returns:
             A two-node scene with one elbow bound at both ends.
         """
-        pts = pts or [[0, 0], [260, 0], [260, 37]]
+        # Floats, not ints: `list` is invariant, so a `list[list[int]]`
+        # literal is not assignable to this `list[list[float]]` parameter.
+        pts = pts or [[0.0, 0.0], [260.0, 0.0], [260.0, 37.0]]
         return [_node("a", 60, 100), _node("b", 420, 200),
                 _edge("e", 100, 100, pts, roundness=roundness,
                       startBinding={"elementId": "a", "focus": 0, "gap": 1},

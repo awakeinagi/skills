@@ -17159,7 +17159,7 @@ class TestObliqueArrivals(Base):
     measure would have gone silent on the loudest fossils there are.
     """
 
-    def scene(self, x, y, points):
+    def _scene(self, x, y, points):
         """One node and one arrow bound to it at a chosen angle.
 
         Args:
@@ -17179,22 +17179,22 @@ class TestObliqueArrivals(Base):
     def test_a_square_arrival_is_not_counted(self):
         # foot on the right edge, leg leaving straight out along it
         self.assertEqual(canvas.oblique_arrivals(
-            self.scene(120, 30, [[0, 0], [90, 0]])), [])
+            self._scene(120, 30, [[0, 0], [90, 0]])), [])
 
     def test_a_leg_running_along_the_side_it_lands_on_is_counted(self):
         # the `along` class: foot on the TOP edge, leg horizontal — dead
         # cardinal, so `_arrival_lean` scores it 0.0 and sees nothing
-        scene = self.scene(60, 0, [[0, 0], [90, 0]])
+        scene = self._scene(60, 0, [[0, 0], [90, 0]])
         self.assertEqual(canvas._arrival_lean(scene[1]), 0.0)
         self.assertEqual(canvas.oblique_arrivals(scene),
                          [("a1", "start")])
 
     def test_an_oblique_arrival_is_counted(self):
         self.assertEqual(canvas.oblique_arrivals(
-            self.scene(120, 30, [[0, 0], [90, 60]])), [("a1", "start")])
+            self._scene(120, 30, [[0, 0], [90, 60]])), [("a1", "start")])
 
     def test_an_unbound_end_has_nothing_to_be_square_to(self):
-        scene = self.scene(120, 30, [[0, 0], [90, 60]])
+        scene = self._scene(120, 30, [[0, 0], [90, 60]])
         scene[1]["startBinding"] = None
         self.assertEqual(canvas.oblique_arrivals(scene), [])
 
@@ -17432,7 +17432,11 @@ class TestTheDeclineRunsOnePass(unittest.TestCase):
             seen["n"] += 1
             return real(els)
 
-        canvas.reroute_scene = wrapper
+        # ty: a counting stub is deliberately not the real signature, and
+        # the `finally` puts the real one back. Suppressed per-rule per-line
+        # rather than by switching `invalid-assignment` off, which would
+        # also silence the real subscript-on-None findings it catches.
+        canvas.reroute_scene = wrapper  # ty: ignore[invalid-assignment]
         try:
             yield seen
         finally:
@@ -19419,7 +19423,9 @@ class TestRouterTotalityAndSelfLoops(Base):
         def boom(*args, **kwargs):
             raise ValueError("boom")
 
-        canvas.route_arrow = boom
+        # ty: a raising stub, deliberately not the real signature; the
+        # `finally` below restores it. Per-line, not a rule switched off.
+        canvas.route_arrow = boom  # ty: ignore[invalid-assignment]
         try:
             with self.assertRaises(canvas.BatchError) as ctx:
                 self.store.apply_batch({
@@ -19454,7 +19460,9 @@ class TestRouterTotalityAndSelfLoops(Base):
         def boom(*args, **kwargs):
             raise ValueError("boom")
 
-        canvas.route_arrow = boom
+        # ty: a raising stub, deliberately not the real signature; the
+        # `finally` below restores it. Per-line, not a rule switched off.
+        canvas.route_arrow = boom  # ty: ignore[invalid-assignment]
         try:
             result = self.store.check_batch({
                 "base_revn": 1, "artifact": "f",
@@ -21545,7 +21553,9 @@ class TestGrazeSceneGuard(Base):
             els = canvas.normalize_scene_doc(doc)["elements"]
             shipped, _ = canvas.reroute_scene(copy.deepcopy(els))
             real = canvas._grazing_terminal_legs
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: the measure stubbed to a constant to isolate what it
+            # contributes; deliberately not the real signature, restored below.
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
             try:
                 plain, _ = canvas.reroute_scene(copy.deepcopy(els))
             finally:
@@ -21642,7 +21652,9 @@ class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
         els, ops = self._batch()
         real = canvas._grazing_terminal_legs
         if not graze:
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: the measure stubbed to a constant to isolate what it
+            # contributes; deliberately not the real signature, restored below.
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
         try:
             return canvas.apply_ops(copy.deepcopy(els),
                                     copy.deepcopy(ops), [])
@@ -21724,7 +21736,9 @@ class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
             doc, _ = canvas.validate_scene(json.loads(path.read_text()), name)
             els = canvas.normalize_scene_doc(doc)["elements"]
             real = canvas._grazing_terminal_legs
-            canvas._grazing_terminal_legs = lambda p: 0
+            # ty: the measure stubbed to a constant to isolate what it
+            # contributes; deliberately not the real signature, restored below.
+            canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
             try:
                 plain, _ = canvas.reroute_scene(copy.deepcopy(els))
             finally:
@@ -22656,7 +22670,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
     finding below is the new one.
     """
 
-    def scene(self, unbound_x=220):
+    def _scene(self, unbound_x=220):
         """One bound source and two boxes the arrow only passes.
 
         `a` is 60..220 on x and 148..228 on y, so its RIGHT border is
@@ -22706,7 +22720,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         so a check that had merely started double-counting `a` would
         fail here rather than pass by coincidence.
         """
-        els = self.scene()
+        els = self._scene()
         a, b, c, _d, ag = els
         rpath = canvas._rendered_path(ag)
 
@@ -22742,7 +22756,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         shared opening is deliberate: it is the same claim about the
         same pixels, and one detector regex reads both.
         """
-        found = self.runs(self.scene())
+        found = self.runs(self._scene())
         for m in found:
             self.assertIn("neither its source nor destination", m)
             self.assertIn("route it clear of that edge", m)
@@ -22755,7 +22769,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         the boxes are still beside the arrow at x=232, just not under
         it.
         """
-        self.assertFalse(self.runs(self.scene(unbound_x=232)))
+        self.assertFalse(self.runs(self._scene(unbound_x=232)))
 
     def test_a_shape_the_arrow_binds_is_not_reported_twice(self):
         """The bound arm keeps its own sentence and its own tier.
@@ -22794,7 +22808,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
         for one stroke — the arrangement the graze check's own
         `continue` chain already keeps.
         """
-        els = self.scene()
+        els = self._scene()
         els[4]["x"] = 300           # the drop now cuts b and c in half
         lint = canvas.lint_layout(els, artifact_type="flow")
         crossed = [m for m in lint["warnings"] if "passes through" in m]
@@ -22820,7 +22834,7 @@ class TestTheBorderRunIsMeasuredAgainstEveryNode(Base):
             "ops": [add("a", 60, 148), add("b", 220, 250),
                     add("c", 220, 360), add("d", 530, 438)]})
         els = [dict(e) for e in self.store.scenes["brd"]]
-        els.append(self.scene()[4])
+        els.append(self._scene()[4])
         self.store.commit(author="agent", new_scenes={"brd": els},
                           base_revn=self.store.head_revn())
         store = canvas.Store(self.project)
