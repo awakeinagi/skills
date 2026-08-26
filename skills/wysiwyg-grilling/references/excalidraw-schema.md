@@ -94,13 +94,31 @@ noise. Never read meaning into coordinates that large.
   "intent": "free-text: why this element exists",
   // pins only:
   "question": "…", "target": "element-id",
-  "status": "open" | "answered" | "resolved", "answer": "…" }
+  "status": "open" | "answered" | "resolved", "answer": "…",
+  // composed-widget host, SERVER-OWNED — read it, never write it:
+  "ungrouped": true }
 ```
 
 `role` drives narration semantics (label geometry never narrates; pin
 lifecycle facts; annotation facts). `kind: "button" | "nav"` makes wireframe
 `label_renamed` fire mapping tripwires — real labels on nav/buttons are
 load-bearing, not decoration.
+
+`ungrouped` is the user's Ctrl+Shift+G, remembered. The server writes it on
+the save that carries the gesture and reads it on every save after, which is
+what makes "nothing re-groups them" true beyond the next save rather than
+just on it. It is a record of what a person did, so it is not yours to set — and setting
+it does not work. Both doors drop the key: `add` at mint, `mod` on the merge.
+Neither is an ERROR, deliberately, because `mod` documents `customData` as
+merged and an agent re-sending an element it read back would otherwise have
+its batch rejected for echoing a key it never authored. So the only thing
+writing it earns you is a key that quietly disappears.
+
+Reading it is useful: a host carrying `ungrouped: true` is one the user
+pulled apart on purpose, so its parts are meant to be loose. Don't offer to
+tidy them back together, and don't count the widget as broken for it. Leave
+the key where you find it — `customData` merges rather than replaces, so an
+ordinary `mod` on a host preserves it without you doing anything.
 
 ## Font family ids
 
