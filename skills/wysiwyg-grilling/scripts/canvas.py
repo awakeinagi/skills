@@ -10788,39 +10788,54 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
     stored scene and the healthy one. A host is the subject here, and
     that is why this is a second walk rather than a widening.
 
-    THE COUNT IS OF TAGGED PARTS, never of bound labels: a caption
-    carries no `*_of` key, belongs to hosts that are not composites at
-    all, and is not what a kind mints. `_composed_part` is the same
-    predicate `normalize_z_order` and `_close_widget_group` ask, so a
-    part that bands above its owner is a part counted here.
+    THE COUNT IS OF TAGGED PARTS PLUS UNOWNED COPIES OF THEM, and never
+    of bound labels: a caption carries no `*_of` key, belongs to hosts
+    that are not composites at all, and is not what a kind mints.
+    `_composed_part` is the same predicate `normalize_z_order` and
+    `_close_widget_group` ask, so a part that bands above its owner is a
+    part counted here.
 
-    WHAT THIS DOES NOT SEE, measured through `Store.commit` rather than
-    assumed, and named so the check is not read as covering its whole
-    class: part-shaped decoration owned by NOBODY. Ctrl+Shift+G, save,
-    Ctrl+D, save — two blessed gestures, no ops — and the copy's parts
-    keep a backlink naming an id that is not the new host.
+    THE BLIND SPOT THIS PARAGRAPH USED TO NAME IS CLOSED (2026-08-26,
+    leaf-1.1.6), and what it said is kept because the shape of the miss
+    is the reason for the shape of the repair. It read: *"WHAT THIS DOES
+    NOT SEE … part-shaped decoration owned by NOBODY … The surplus arm
+    cannot see this class either, because untagged ink is not counted as
+    a part. That is a second instrument and it is not this one."* The
+    class was real — Ctrl+Shift+G, save, Ctrl+D, save, two blessed
+    gestures and no ops, and the copy's parts keep a backlink naming an
+    id that is not the new host — and the carve-out was believed
+    automatic. It was not: a `body` whose paste gate handed it a full
+    fresh set read 5 tagged against a floor of 5 while five untagged
+    copies stood on top of it, and every check called that healthy.
 
-    THE BLIND SET IS `body`, `kpi` AND `input`, and an earlier draft of
-    this paragraph named `body` and `checkbox`, which was wrong in both
-    halves. A CHECKED `checkbox` FIRES, at 1 of 2 — its arm mints the
+    THE SECOND INSTRUMENT IS `unowned_ink_inside`, AND IT IS GATED ON
+    CONGRUENCE. Unowned ink counts as drawn only where its type and
+    drawn size match a part this host ALREADY OWNS, which is what a
+    pasted copy of a part is and what an authored backdrop is not. The
+    two cheaper rules were measured and both cost a pole: counting every
+    unowned decoration standing inside a host silences a `slider` whose
+    ink is drawn-but-unlinked at 2 == 2 — the narrowing the user ruled
+    against on 2026-08-26, contract C12 — and counting it on the surplus
+    arm only bills the user `1 surplus` for the `reorder index 0` panel
+    `layout.md` instructs the agent to author. Congruence is also what
+    makes the narrowing structurally impossible rather than merely
+    avoided: a host that owns NOTHING has nothing to be congruent to, so
+    its count stays 0 and it goes on being reported.
+
+    WHICH KINDS REACH WHICH ARM is still worth stating, and an earlier
+    draft of it named `body` and `checkbox`, which was wrong in both
+    halves. A CHECKED `checkbox` FIRES at 1 of 2 — its arm mints the
     check stroke and never the box; an UNCHECKED one fires at 0 of 1.
-    Those are two different scenes and this paragraph used to average
-    them. The real three are exactly the arms of `reconcile_composed`
-    that MINT UNCONDITIONALLY: the paste gate hands the copy a full
-    fresh set, so the floor is satisfied and the damage is the orphaned
-    untagged ink left beside it — 5 tagged waves and 5 untagged, 5 == 5,
-    silence. `slider`, `toggle` and `image` re-derive parts that must
-    already exist, so their copies own nothing and this check names them.
-
-    That one fact about those three arms has three faces, which is why
-    it is worth stating once here: they are the only kinds a bare
-    rectangle gains parts from on `mod {"kind": …}`, the only ones a
-    real geometry `mod` re-mints for (the repair `lint_layout` offers),
-    and the only ones blind here.
-
-    The surplus arm cannot see this class either, because untagged ink
-    is not counted as a part. That is a second instrument and it is not
-    this one.
+    Those are two different scenes and that draft averaged them. The
+    kinds whose copies satisfy the floor and leave orphaned ink beside
+    it are exactly the arms of `reconcile_composed` that MINT
+    UNCONDITIONALLY — `body`, `kpi`, `input` — and that one fact about
+    them has three faces: they are the only kinds a bare rectangle gains
+    parts from on `mod {"kind": …}`, the only ones a real geometry `mod`
+    re-mints for (the repair `lint_layout` offers), and the only ones
+    that used to be blind here. `slider`, `toggle` and `image` re-derive
+    parts that must already exist, so their copies own nothing and this
+    check has always named them.
 
     Args:
         els: An element list.
@@ -20216,13 +20231,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # that the agent narrates its reading of the picture.
     #
     # So the finding states the OWNERSHIP fault, which is what this
-    # check actually measured, and says out loud that it cannot tell
-    # deleted ink from orphaned ink. It cannot: untagged strokes are not
-    # counted as parts, which is the same limit that makes the second
-    # instrument necessary. Naming the limit is cheaper than a guess
-    # that is wrong half the time, and both halves are damage anyway —
-    # a drag moves the host without them and the next re-derive draws a
-    # fresh set over whatever is left.
+    # check measured. IT USED TO STOP THERE and say out loud that it
+    # could not tell deleted ink from orphaned ink — true when untagged
+    # strokes were invisible to it, and one sentence for two pictures
+    # once they were not. `unowned_ink_inside` is the second instrument
+    # that paragraph said was necessary; it landed 2026-08-26, so the
+    # tail below tells the two apart instead of hedging between them.
+    # What is kept from the old reasoning is its bound: a guess that is
+    # wrong half the time is worse than naming a limit, so the sentence
+    # reports the OBSERVATION (what stands in the box, by id) and not
+    # the inference (that those are the missing parts). Both halves are
+    # damage either way — a drag moves the host without them and the
+    # next re-derive draws a fresh set over whatever is left.
     #
     # ERROR, not a note, and the tier doctrine at the top of this
     # function is what settles it: a `slider` whose track and thumb
