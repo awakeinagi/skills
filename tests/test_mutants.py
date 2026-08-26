@@ -2738,7 +2738,7 @@ def _void_pair(on_body: bool, grown: bool = False,
     Returns:
         The two-element scene: nodes `n1` and `n2`.
     """
-    cd = {"role": "node"}
+    cd: dict[str, Any] = {"role": "node"}
     if grown:
         cd["auto_grown"] = True
     sx, sy = (168, 168) if on_body else (0, 0)
@@ -5632,8 +5632,9 @@ class TestStoreIntegrity(unittest.TestCase):
         """
         for field in ("id", "fileId"):
             with self.subTest(field=field):
-                bad = {"id": "img", "type": "image", "x": 0, "y": 0,
-                       "width": 120, "height": 90, "fileId": "f1"}
+                bad: dict[str, Any] = {
+                    "id": "img", "type": "image", "x": 0, "y": 0,
+                    "width": 120, "height": 90, "fileId": "f1"}
                 bad[field] = {"x": 1}
                 body = json.dumps({"type": "excalidraw", "version": 2,
                                    "elements": [bad]})
@@ -27895,11 +27896,12 @@ def _fan_connector(eid: str, etype: str, dst: str,
         The element dict, ready to post in a user save. The foot is A's
         vertical centre, so two of these are drawn on one point.
     """
-    el = {"id": eid, "type": etype, "x": 100, "y": 140,
-          "points": [[0, 0], [200, 0]],
-          "startBinding": {"elementId": "A", "focus": 0, "gap": 4},
-          "endBinding": {"elementId": dst, "focus": 0, "gap": 4},
-          "customData": {}}
+    el: dict[str, Any] = {
+        "id": eid, "type": etype, "x": 100, "y": 140,
+        "points": [[0, 0], [200, 0]],
+        "startBinding": {"elementId": "A", "focus": 0, "gap": 4},
+        "endBinding": {"elementId": dst, "focus": 0, "gap": 4},
+        "customData": {}}
     if not bind_end:
         el["endBinding"] = None
     return el
