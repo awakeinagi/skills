@@ -1466,6 +1466,71 @@ def double_composed_ink(scene: list[dict], host_id: str) -> list[dict]:
 
 
 @_operator
+def unlink_composed_part(scene: list[dict], part_id: str) -> list[dict]:
+    """Break ONE part's backlink and leave its ink exactly where it is.
+
+    THE THIRD END OF THE AXIS THE OTHER TWO ALREADY HOLD, and the one
+    neither can reach. `strip_composed_parts` takes a host's parts away
+    — nothing owned, nothing drawn; `double_composed_ink` leaves them
+    and draws more — everything owned, more drawn. Both move the two
+    counts TOGETHER. This one moves them apart: it takes only the LINK,
+    so the host lands strictly between the ends with some parts owned
+    and identical ink standing beside them owning nobody. A check that
+    adds unowned ink to an ownership count reads correctly at both
+    existing ends and silently at this one, because the part ownership
+    lost is the ink the count gains.
+
+    A REAL STORED SHAPE, NOT A CONSTRUCTION. Measured through
+    `Store.commit` rather than assumed: save a healthy block, then save
+    it again with one wave's `body_of` gone, and what comes back off
+    disk is exactly this — three owned waves and a fourth still drawn,
+    naming nobody. `_saved_after_one_backlink_broke` is that
+    measurement, asserted beside the mutant, because a hand-built scene
+    cannot notice a repair that makes itself true by discarding the
+    orphan on commit.
+
+    THE PREDICATE IS `canvas.COMPOSED_PART_KEYS` ITSELF and not a copy
+    of it, which is a departure from the two operators above and the
+    reason is the direction of the mutation. Those two ADD or REMOVE
+    whole elements, so a spelling one key wider than the product's
+    costs nothing; this one has to remove exactly what
+    `part_owner_id` and `_composed_part` READ, or the mutation leaves a
+    key the check still resolves and the scene was never mutated at
+    all in the only sense that matters.
+
+    ONLY THE TAG GOES. Every other field is left byte for byte,
+    `groupIds` included, because the canvas goes on dragging the ink
+    with the group while nothing in the model says whose it is — that
+    gap between what the picture shows and what the model knows IS the
+    defect, and moving the ink too would make the scene about a
+    displaced decoration instead.
+
+    Args:
+        scene: The scene copy to mutate.
+        part_id: The composed part whose backlink is broken.
+
+    Returns:
+        The scene with `part_id`'s composed backlink keys gone and
+        every other field, its geometry included, untouched.
+
+    Raises:
+        EngineError: If `part_id` carries no composed backlink to
+            break, which would make this a no-op wearing the name of a
+            mutation.
+    """
+    target = next(e for e in scene if e["id"] == part_id)
+    cd = target.get("customData") or {}
+    if not any(cd.get(k) for k in canvas.COMPOSED_PART_KEYS):
+        raise EngineError(
+            "unlink_composed_part: %r carries no composed backlink, so "
+            "there is nothing to break — a scene that was never mutated "
+            "is the same silence in a new costume" % part_id)
+    target["customData"] = {k: v for k, v in cd.items()
+                            if k not in canvas.COMPOSED_PART_KEYS}
+    return scene
+
+
+@_operator
 def flip_direction(scene: list[dict], arrow_id: str) -> list[dict]:
     """Reverse an arrow's direction, swapping bindings and rebasing points.
 
@@ -1654,6 +1719,7 @@ OPERATORS: dict = {
     "drop_edge": drop_edge,
     "strip_composed_parts": strip_composed_parts,
     "double_composed_ink": double_composed_ink,
+    "unlink_composed_part": unlink_composed_part,
     "flip_direction": flip_direction,
     "rename_node": rename_node,
     "move_node_onto_rank": move_node_onto_rank,
@@ -1985,6 +2051,46 @@ class TestOperators(unittest.TestCase):
         """Doubling nothing is a no-op wearing the name of a mutation."""
         with self.assertRaises(EngineError):
             OPERATORS["double_composed_ink"](_body_block(), host_id="nope")
+
+    def test_unlink_composed_part_keeps_the_ink_and_drops_the_link(
+            self) -> None:
+        """One wave stops naming an owner; the drawing does not move.
+
+        THE OPERATOR'S OWN INNOCENCE, and here it carries more than
+        usual because the mutant beside it is GREEN. A green pin on a
+        scene whose ink quietly vanished would go on passing for a
+        reason that has nothing to do with the defect — it would be
+        reporting a wave that is genuinely gone, which is the
+        NEIGHBOUR's scene, and the pair would have collapsed to one
+        pole without saying so. So this asserts both halves of the one
+        mutation: the link is gone, and every drawn field is where it
+        was.
+        """
+        out = OPERATORS["unlink_composed_part"](_body_block(),
+                                                part_id="b-body1")
+        loose = next(e for e in out if e["id"] == "b-body1")
+        twin = next(e for e in _body_block() if e["id"] == "b-body1")
+        self.assertIsNone(
+            canvas.part_owner_id(loose),
+            "a wave that still names an owner is still a part, and the "
+            "count would never have moved")
+        self.assertEqual(
+            [e["id"] for e in out if canvas.part_owner_id(e) == "b"],
+            ["b-body2", "b-body3", "b-body4"],
+            "exactly one backlink breaks; the other three are the "
+            "ownership the count still has to see")
+        for field in ("type", "x", "y", "width", "height", "points",
+                      "groupIds"):
+            self.assertEqual(
+                loose.get(field), twin.get(field),
+                "the ink stands exactly where it stood — %r moved, so "
+                "the scene is about a displaced decoration instead"
+                % field)
+
+    def test_unlink_composed_part_refuses_an_untagged_element(self) -> None:
+        """Breaking a link that is not there mutates nothing."""
+        with self.assertRaises(EngineError):
+            OPERATORS["unlink_composed_part"](_body_block(), part_id="b")
 
     def test_unchanged_returns_equal_but_distinct_scene(self) -> None:
         """Unchanged returns an equal scene that is a distinct object.
@@ -17626,6 +17732,74 @@ def _body_block_with_a_fifth_wave() -> list[dict]:
     return [*out, fifth]
 
 
+def _body_block_with_a_wave_gone() -> list[dict]:
+    """The same block short one wave, with that wave's ink really gone.
+
+    THE OTHER PICTURE AT THE SAME COUNT, and the difference between it
+    and `unlink_composed_part`'s output is the whole subject of the
+    pair it serves. Both scenes own three waves against a floor of
+    four; in this one the fourth is absent from the drawing, in the
+    other it is still standing there naming nobody. A person shown the
+    two tells them apart at a glance — one block has a gap in it and
+    one does not — and the count the check reports has to be the same
+    for both, because what it counts is OWNERSHIP and both hosts own
+    three.
+
+    THIS POLE IS WHY IT IS A DELETION AND NOT A SECOND MUTATION. It is
+    built as-is and the operator never touches it, so the two scenes
+    differ in exactly one thing: whether `b-body1` is there at all. Any
+    other edit would give a repair somewhere else to blame.
+
+    IT DIES WHEN THE CHECK GOES BLIND, which is the property that makes
+    it a control rather than a restatement. A `composed_host_gaps` that
+    stopped speaking leaves this pole with nothing to report, and it
+    fails in the same commit as its mutant instead of going quietly
+    green the way a `Silence` pole would.
+
+    Returns:
+        The four-element scene: block `b` and waves `b-body2..4`.
+    """
+    return [e for e in _body_block() if e["id"] != "b-body1"]
+
+
+def _body_block_beside_near_miss_decoration() -> list[dict]:
+    """The healthy block with two authored decorations that ALMOST match.
+
+    THE TWO CHEAPEST WAYS TO SPELL "IS THIS A COPY OF A PART", each
+    given a scene that says no. A rule admitting unowned ink as drawn
+    has to decide what makes it a copy, and both single-field answers
+    are wrong in a way this block can show: `divider` is a LINE like
+    the waves and nothing like their size, and `rule` is exactly the
+    waves' drawn size and is a RECTANGLE. Type alone counts the first;
+    size alone counts the second; either one bills a host four waves
+    and one surplus part it never ordered.
+
+    AUTHORED IS THE POINT, not a technicality. `role: "decoration"`
+    with no part tag is a first-class value of the public ops schema
+    and `layout.md` instructs the agent to draw exactly this kind of
+    furniture, so both elements here are drawings a user asked for. The
+    scene's whole claim is that a widget with a rule drawn across it is
+    a widget with a rule drawn across it.
+
+    THE SIZES ARE THE WAVES' DRAWN BOX AND NOT THEIR STORED ONE. A wave
+    stores `height: 3` and its points run from -2 to +2, so the ink is
+    4 tall — `rule` is 144x4 because the box a reader sees is what a
+    congruence rule has to compare, and a rule reading stored fields
+    would find this scene a near miss for the wrong reason.
+
+    Returns:
+        The seven-element scene: the healthy block, plus `divider` and
+        `rule` standing inside it owning nobody.
+    """
+    return [*_body_block(),
+            el(id="divider", type="line", x=100, y=60, width=40, height=0,
+               points=[[0, 0], [40, 0]], strokeColor="#8d877a",
+               customData={"role": "decoration"}),
+            el(id="rule", type="rectangle", x=8, y=30, width=144, height=4,
+               backgroundColor="#f5f2ea",
+               customData={"role": "decoration"})]
+
+
 def _body_block_behind_an_authored_panel() -> list[dict]:
     """The healthy block with a backdrop the agent drew on purpose.
 
@@ -18197,6 +18371,62 @@ def _saved_twice_part_ink_count() -> int:
         return sum(1 for x in save(copied)
                    if (x.get("customData") or {}).get("role") == "decoration"
                    and x.get("x", 0) >= 250)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _saved_after_one_backlink_broke() -> tuple[int, int]:
+    """Ownership and drawn ink at a body block after two real saves.
+
+    THE POLE'S OWN REACHABILITY, MEASURED AND NOT ASSERTED. The mutant
+    it serves is hand-built, so by construction it cannot notice two
+    things: a save path that never lets this state onto disk (the pin
+    would be about a picture nobody can have), or a "repair" that
+    empties the finding by discarding the orphaned wave on commit (the
+    sentence made true by destroying the drawing, which is the nearest
+    miss this subject has). Both are visible only from the store, so
+    this drives the gestures the browser really makes — `apply_batch`
+    mints the block, one commit saves it whole, and a second commit
+    posts it again with one wave's `body_of` gone, which is what a
+    reconcile that dropped a backlink leaves for the next save to
+    write.
+
+    TWO SAVES AND NOT ONE, and the difference is measured rather than
+    stylistic: posting the partially-tagged scene as the host's FIRST
+    appearance comes back with all four backlinks gone (measured
+    2026-08-26), which is the `owned == 0` pole two other mutants
+    already hold. The state this pin is about needs the block to have
+    existed whole first — which is also the only way a user reaches it.
+
+    Returns:
+        `(owned, drawn)` off the stored scene — how many waves still
+        name `h` as owner, and how many waves are drawn at all.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-unlink-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": dict(_SWEEP_BOX,
+                                                  kind="body")}]})
+        whole = [copy.deepcopy(e) for e in store.scenes["f"]]
+        store.commit(author="user", new_scenes={"f": whole},
+                     base_revn=store.head_revn())
+        broken = [copy.deepcopy(e) for e in store.scenes["f"]]
+        first = next(e for e in broken
+                     if canvas.part_owner_id(e) == "h"
+                     and canvas._composed_part(e.get("customData") or {}))
+        for key in canvas.COMPOSED_PART_KEYS:
+            (first.get("customData") or {}).pop(key, None)
+        store.commit(author="user", new_scenes={"f": broken},
+                     base_revn=store.head_revn())
+        stored = [dict(e) for e in store.scenes["f"]]
+        return (sum(1 for e in stored if canvas.part_owner_id(e) == "h"
+                    and canvas._composed_part(e.get("customData") or {})),
+                sum(1 for e in stored if e.get("type") == "line"))
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -22868,6 +23098,80 @@ _register(Mutant(
                                     magnitude=(1, 0.0),
                                     direction="surplus"))))
 
+# Curator, leaf-1.1.6 review, 2026-08-26. GREEN BY INTENT AND THAT IS THE
+# ENTRY, not an omission: this pin records no defect the tree has. It
+# refuses one a repair is about to introduce, which is the only shape a
+# regression pin can take — the day it goes red, a candidate has taken
+# the class out of the check's reach and the failure is the message.
+#
+# WHAT THE DRAWING GETS WRONG. A `body` block owns three of the four
+# waves its own height owes, and the fourth is still DRAWN across it
+# naming nobody. The picture is a complete paragraph; the model is a
+# widget with a hole in it. Drag the host and the reader finds out: the
+# host goes 0 -> 300 and that wave stays at x=8, because the client
+# moves what the group holds and nothing in the model says the wave
+# belongs to anyone. `duplicated_widget_reported_as_bare` carries the
+# user's ruling for this class (contract C12, 2026-08-26) — such a
+# widget is DEAD, so it stays reported — and this is that ruling at the
+# one count the ruling's own poles cannot reach.
+#
+# THE CLASS IS AN ARITHMETIC ONE AND IT IS WORTH SPELLING, because a
+# fix aimed at the candidate's shape will not close it. A check that
+# answers `drawn = len(owned) + len(unowned ink congruent to owned)`
+# has added INK to an OWNERSHIP count. Break one backlink and the two
+# terms move in opposite directions by exactly one — `owned` loses the
+# part, the ink term gains the same element back — so the sum is
+# conserved and the check falls silent at every count STRICTLY between
+# bare and whole. Making the congruence stricter cannot help: the
+# orphan is a byte-identical copy of the ink beside it, so it satisfies
+# any test that a real pasted part must also satisfy.
+#
+# WHY NOTHING IN THE FAMILY SAW IT, measured rather than argued. At
+# `owned == 0` the host has nothing for loose ink to be congruent TO,
+# so the term is empty and the check goes on speaking — that is
+# `duplicated_widget_reported_as_bare`'s pole. At `owned == floor` the
+# extra ink pushes the count UP and lands on the surplus arm — that is
+# `doubled_ink_reads_as_a_healthy_count`'s. The blind band is the open
+# interval between them, and it needs a kind whose parts are copies of
+# EACH OTHER: `slider`, `toggle` and `checkbox` mint parts of different
+# shapes, so no orphan of theirs is ever congruent to a survivor, and
+# every pole this family had before this one is slider-built. `body` is
+# four identical waves, which is what makes the cancellation reachable
+# at all.
+#
+# MEASURED AGAINST NINE PATCHED COPIES OF `canvas.py`, one row each,
+# rather than reasoned about. Under the candidate that provoked this
+# entry, THIS IS THE ONLY POLE IN THE WHOLE FAMILY THAT FAILS — the
+# eight others, both neighbours and every false-positive control
+# included, pass — which is the entire reason the review reached a
+# curator instead of a green suite.
+#
+# WHO KEEPS IT GREEN, AND WHY IT PRESCRIBES NOTHING. Three repairs of
+# different shape were measured, and all three flip
+# `doubled_ink_reads_as_a_healthy_count` while leaving every pole here
+# green: SPLIT THE ARMS (missing counts ownership, surplus counts the
+# ink drawn); leave the arm alone and file the loose ink as a SECOND
+# row; or evaluate BOTH counts and report whichever disagrees. A pin
+# that only one repair can satisfy has silently prescribed that repair;
+# this one has three and an opinion about a fourth.
+#
+# THE FOURTH IS THE ONE IT REFUSES, and it is refused on the user's
+# ruling and not on taste: counting ink by POSITION — a part is drawn
+# if the picture looks right, backlinks aside — reads this scene as
+# healthy, and it is not, because the widget is dead. That repair fails
+# four poles at once here (this one, both authored-decoration controls,
+# and `wc`), so it cannot land quietly.
+_register(Mutant(
+    "orphaned_wave_cancels_the_gap_it_left",
+    build=_body_block,
+    op="unlink_composed_part", args={"part_id": "b-body1"},
+    expect=FindingSpec("composed_host_stripped", element="b",
+                       magnitude=(1, 0.0), direction="missing"),
+    neighbour=Neighbour(_body_block_with_a_wave_gone,
+                        FindingSpec("composed_host_stripped", element="b",
+                                    magnitude=(1, 0.0),
+                                    direction="missing"))))
+
 # Curator batch 46, 2026-08-25, from a review of the branch that landed
 # `composed_host_stripped` itself. WHAT THE DRAWING GETS WRONG: an input
 # whose value was settled through `customData` — the merge
@@ -24008,6 +24312,90 @@ class TestMutantCatalogue(unittest.TestCase):
         # patched `canvas.py` whose composed-host loop walks an empty
         # list, this reports nothing and fails.
         self._run_neighbour("duplicated_widget_reported_as_bare")
+
+    def test_mutant_orphaned_wave_cancels_the_gap_it_left(self) -> None:
+        """Three waves owned of four owed, and the fourth still drawn.
+
+        GREEN BY INTENT, so there is no decorator here to flip and the
+        reading of a failure is inverted from the usual: this method
+        going red does not mean a defect was found, it means a
+        candidate repair has taken the class OUT of the check's reach.
+        The entry above carries the arithmetic and the nine measured
+        rows.
+        """
+        # TWO CLAIMS, and the second is the one the pole itself cannot
+        # make. This scene is hand-built, so it is blind by
+        # construction to both of the ways it could stop being about a
+        # real picture: a save path that never lets this state onto
+        # disk, and a "repair" that empties the finding by discarding
+        # the orphaned wave on commit — the drawing destroyed to
+        # vindicate a sentence, which is this subject's nearest miss
+        # and the same guard `duplicated_widget_reported_as_bare`
+        # carries for its own. So the second claim drives the real
+        # gestures through `Store.commit`: mint the block, save it
+        # whole, save it again with one backlink gone, and read what
+        # came back.
+        #
+        # A FAILURE ON THE OWNERSHIP HALF IS NOT NECESSARILY DAMAGE,
+        # and saying so is the difference between a guard and a trap.
+        # The other thing that moves it is a save path that re-adopts
+        # orphaned ink — which would make the widget live again and
+        # take this pin's subject with it. That is a real repair
+        # somebody may land, and it should arrive as a curator
+        # re-judging this entry, not as a pin that quietly went on
+        # passing over a picture nobody can reach any more.
+        self._run("orphaned_wave_cancels_the_gap_it_left")
+        owned, drawn = _saved_after_one_backlink_broke()
+        self.assertEqual(
+            drawn, 4,
+            "the orphaned wave must still be DRAWN after the save that "
+            "broke its backlink; a repair that makes the count healthy "
+            "by discarding unowned ink on commit has deleted a user's "
+            "paragraph to settle an argument about a lint")
+        self.assertEqual(
+            owned, 3,
+            "this pin's picture is reachable on disk — a block that "
+            "owns three of four waves with the fourth still drawn. If "
+            "the save path now re-adopts orphaned ink the count is 4 "
+            "and the subject has moved; re-judge the entry rather than "
+            "relaxing this line")
+
+    def test_neighbour_orphaned_wave_cancels_the_gap_it_left(self) -> None:
+        """The same count with the wave really gone reads the same, at 1.
+
+        THE POLE THAT DISCRIMINATES THE CANDIDATE, and it is the only
+        one that does. Against the repair that provoked this pair the
+        mutant goes silent and this stays loud, so the difference
+        between the two answers is exactly the difference between the
+        two pictures — ink drawn against ink gone — which is the defect
+        stated as a subtraction rather than argued.
+
+        IT DIES WHEN THE CHECK GOES BLIND, measured against a patched
+        `canvas.py` whose composed-host loop walks an empty list: this
+        reports nothing and fails, in the same commit, ungated.
+        """
+        # TWO CLAIMS, and the second is the whole false-positive cost of
+        # deciding what makes loose ink a COPY of a part. Any rule that
+        # admits unowned ink has to answer that, and both single-field
+        # answers are wrong in a way this scene can show: `divider` is a
+        # LINE like the waves and nothing like their size, `rule` is
+        # exactly the waves' drawn size and is a RECTANGLE. Measured
+        # 2026-08-26 against patched copies, congruence on type alone
+        # and congruence on size alone each bill this healthy block for
+        # `1 surplus`, and NOTHING ELSE IN THIS FAMILY FAILS on either —
+        # not the authored panel, not either neighbour, not `wc`. Both
+        # decorations are drawings the public ops schema lets an agent
+        # author and `layout.md` tells it to.
+        self._run_neighbour("orphaned_wave_cancels_the_gap_it_left")
+        self.assertEqual(
+            [f["raw"] for f in
+             collect_findings(_body_block_beside_near_miss_decoration())
+             if f["check"] == "composed_host_stripped"], [],
+            "a rule drawn across a block and a short divider under it "
+            "are furniture the agent was instructed to draw; a "
+            "congruence rule that reads only the type, or only the "
+            "size, calls one of them a pasted copy of a wave and bills "
+            "the user for ink they asked for")
 
     def test_mutant_composed_host_remedy_reproduces_itself(self) -> None:
         """Doing what the ERROR asks brings the same ERROR back."""
