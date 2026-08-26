@@ -17727,23 +17727,34 @@ def _door_duplicate(kind: str) -> tuple[list[dict], list[str]]:
 # halfway to a count that goes stale. It cannot go stale here: the sweep's
 # UNGATED companion compares this set to the measurement and fails naming
 # the difference, so it costs one line per flip, which is the line the flip
-# already costs. Measured 2026-08-25 against this branch's base.
+# already costs, and it did: this set was RE-DERIVED on `734f238` rather
+# than carried over, after the guard below named the difference for free.
 #
-#   input / add (customData)  — `make_element` gates the value-row mint on
-#       the top-level `spec["value"]` while the floor reads `cd["value"]`.
-#   input / mod customData    — `customData` is not on the post-`mod`
-#       reconcile gate, so the merge writes composed state and nothing
-#       recomposes. Both clear at `3aa3839`.
-#   checkbox / mod kind       — the worst of the three and the one no
-#       curator had measured: the ERROR reads `(2, 1) missing`, and the
-#       prescribed remedy returns `(1, 2) SURPLUS` while silently
-#       unchecking the box, because `make_element` reads
-#       `spec.get("checked", False)` over a stored `customData.checked`
-#       that says True. Patching the input paths UNCOVERS a second
-#       checkbox door rather than closing this one.
+# THE TWO `input` PAIRS CLEARED on that fold — the flip contract arriving,
+# and the reason the sweep's numerator dropped from 3 to 2 while its
+# denominator held at 40 and its fired count fell 16 -> 12.
+#
+#   checkbox / mod kind        — the pair that survived the fold.
+#   checkbox / mod customData  — the pair the fold UNCOVERED, and this
+#       entry is the prediction in this file's own history coming true:
+#       the sweep's docstring said in advance that patching the input
+#       paths "UNCOVERS a second checkbox door rather than closing one",
+#       measured against a patched copy before the repair was written.
+#
+# BOTH ARE THE SAME TRAP, and its shape CHANGED under the repair rather
+# than going away, which is the part a bare count would have hidden.
+# Each door reports `(2, 1) missing`; re-issuing the host from its own
+# stored state now returns `(2, 3) SURPLUS`. Before the repair the
+# remedy also silently unchecked the box — `make_element` read
+# `spec.get("checked", False)` over a stored `customData.checked` of
+# True — and `_composed_state` fixed exactly that, so `checked` now
+# survives. What it did not fix is the re-add minting a second `h-box`
+# and `h-chk` while the originals stand, which leaves the scene holding
+# TWO ELEMENTS SHARING THE ID `h-chk`. An id collision is a worse
+# outcome than the uncheck it replaced, and nothing but this sweep says
+# so.
 _TRAPPED_PAIRS: set[tuple[str, str]] = {
-    ("input", "add (customData)"), ("input", "mod customData"),
-    ("checkbox", "mod kind")}
+    ("checkbox", "mod kind"), ("checkbox", "mod customData")}
 
 _REMEDY_DOORS: dict[str, Callable[[str], tuple[list[dict], list[str]]]] = {
     "add (top-level)": _door_add_top, "add (customData)": _door_add_custom,
@@ -23399,9 +23410,40 @@ class TestMutantCatalogue(unittest.TestCase):
         """The same host with the ink really gone is reported, at 2."""
         self._run_neighbour("duplicated_widget_reported_as_bare")
 
-    @unittest.expectedFailure
     def test_mutant_composed_host_remedy_reproduces_itself(self) -> None:
         """Doing what the ERROR asks brings the same ERROR back."""
+        # FLIPPED 2026-08-26 by `f87c34c`, "make the input paths agree,
+        # rather than documenting the trap" — candidate repair (iii) of
+        # the four this pin was measured green against, and NOT the
+        # message-only one it was measured still-red against. The
+        # decorator moved and nothing else; the assertions below are
+        # unedited.
+        #
+        # THE RED WAS WITNESSED, from an isolated tree with this
+        # module's own file copied beside the tree under test, so the
+        # only thing that varied is `canvas.py`:
+        #
+        #     PRE-FIX   38afe37 -> OK (expected failures=1)
+        #     POST-FIX  734f238 -> FAILED (unexpected successes=1)
+        #     CONTROL   the neighbour below passed on BOTH trees
+        #
+        # THE PRE-FIX SHA IS THIS BRANCH'S BASE AND NOT A POINT ON THE
+        # FOLDED LINEAGE, which is a fact about that lineage worth
+        # keeping rather than tidying away: it never held a state where
+        # this red was red AND its neighbour green. It went from no
+        # check at all (`b6caadc`, where the neighbour cannot pass
+        # because `composed_host_stripped` does not exist) straight to a
+        # window — `9a387da` and `e07384d` — where `composed_part_floor`
+        # gave `input` NO FLOOR. That window is exactly WRONG-1 from
+        # this pin's own fix-agnosticism matrix: the mutant reads green
+        # there because the check went blind, and the NEIGHBOUR FAILS,
+        # which is the whole reason the neighbour is an `input` and not
+        # the sibling's `body`. Measured on both shas. The tip settled
+        # on "ONE ROW, ALWAYS" instead, with all three readers brought
+        # to agree, and the neighbour passes again.
+        #
+        # So the flip is honest at the tip and the intermediate states
+        # were not, and only the pair could tell those apart.
         # TWO CLAIMS, and the second is here because the first has a
         # hole every subtraction has. `_run` asserts the property: the
         # finding must not survive its own prescribed repair. A fix
@@ -25152,8 +25194,21 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # input repair rather than waiting on it. Two opposite repairs turn it
 # green — mint from whichever door supplied the datum, or refuse the batch
 # out loud — which is what keeps it from prescribing either.
+#
+# BACK TO ONE on 2026-08-26, READ OFF THE GUARD the way the entries above
+# say to: the marker was dropped, `test_the_hand_authored_red_classes_are_
+# the_ones_that_exist` was run, it reported `measured
+# {'TestNoErrorTrapsTheAgentBehindIt': 1}`, and the measured side was
+# transcribed. `TestADeclaredDatumSurvivesTheDoorItCameThrough` lost a
+# LINE and not a number — the twelfth time that has been the shape here —
+# and it lost it to `3acf67d`, the user's ruling to HONOUR the datum,
+# which is one of the two opposite repairs it was measured against. The
+# class stays in the file at two green tests; only the colour moved.
+# THE SWEEP DID NOT FLIP AND SHOULD NOT HAVE: it is red on both checkbox
+# doors, one of which this fold UNCOVERED. That is the separation between
+# a pin and its generalisation arriving exactly as the sweep's own
+# docstring predicted it would.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestADeclaredDatumSurvivesTheDoorItCameThrough": 1,
     "TestNoErrorTrapsTheAgentBehindIt": 1}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
@@ -25663,8 +25718,21 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"composed_host_remedy_reproduces_itself",
-                               "duplicated_widget_reported_as_bare"}
+CATALOGUE_RED_IDS: set[str] = {"duplicated_widget_reported_as_bare"}
+# DOWN TO ONE on 2026-08-26, and READ OFF THE GUARD rather than typed:
+# the decorator was dropped first, `test_the_catalogue_reds_are_the_ones_
+# declared` was run, and the measured side was transcribed.
+# `composed_host_remedy_reproduces_itself` left by the route its own entry
+# named — `f87c34c` made the three input paths agree, which was candidate
+# repair (iii) of the four it was measured green against, and not the
+# message-only one it was measured still-red against. Its row carries the
+# witnessing, including the finding that the folded lineage never held a
+# state where that red was red AND its neighbour green: it passed through
+# a window at `9a387da`/`e07384d` where `input` had no floor at all, which
+# is WRONG-1 from its own matrix, and the neighbour is what said so.
+# `duplicated_widget_reported_as_bare` stays: nothing in this fold touched
+# `_rehost_duplicated_parts`, and a slider whose track and thumb are drawn
+# is still reported as a bare rectangle that says nothing about what it is.
 # BOTH ARRIVED 2026-08-25 (curator batch 46), from one review of the branch
 # that landed `composed_host_stripped`, and they are two SUBJECTS and not a
 # pair — the boundary between them was measured, not assumed. The remedy one
@@ -34799,20 +34867,47 @@ class TestADeclaredDatumSurvivesTheDoorItCameThrough(unittest.TestCase):
     the op boundary, so the pin does too.
     """
 
-    @unittest.expectedFailure
     def test_a_customdata_datum_is_kept_or_refused_but_never_rewritten(
             self) -> None:
         """Four kinds discard the caller's own datum without a word.
 
-        MEASURED 2026-08-25, and identical at `3aa3839`, the commit that
-        landed the input repair — so this is red against that tree as it
-        stands and is not waiting on it. Through `customData`, with zero
-        op errors and no finding anywhere: `kpi` value `'42'` comes back
-        `''`, `slider` value `40` comes back `50.0` (the default, not
-        the request), `checkbox` and `toggle` `checked: True` come back
-        `False`. `input` is the one kind that keeps it, before the
-        repair as an inconsistency the ERROR tier reported and after it
-        as a value row on the canvas.
+        FLIPPED 2026-08-26 by `3acf67d`, "a mint block may not clobber
+        the customData it is about to overwrite" — the user ruled
+        HONOUR IT and `_composed_state` now reads whichever door
+        supplied the datum, testing `is None` rather than truthiness so
+        a declared `0` or `False` survives too. That is candidate repair
+        (1) of the two this pin was measured against; the other, refusing
+        the batch out loud, would have flipped it equally, which is why
+        the pin never named either.
+
+        THE RED WAS WITNESSED BEFORE THE FLIP, and the observation is
+        recorded here because a born-green red with no recorded red
+        observation is indistinguishable from a vacuous test six months
+        from now. Both halves were run from an isolated tree — this
+        module's own file copied beside the tree under test — so the
+        only thing that varied is `canvas.py`. Per tree: `git archive
+        <sha> | tar -x -C <tree>`, then `cp tests/test_mutants.py
+        <tree>/tests/`, then from `<tree>/tests` run `python3 -m
+        unittest` naming this class and this method:
+
+            PRE-FIX   f87c34c -> OK (expected failures=1)
+            POST-FIX  734f238 -> FAILED (unexpected successes=1)
+
+        AND THE CONTROL IS WHAT MAKES THAT A FINDING, because a one-way
+        "green on the post-fix tree" proves nothing — a red can be green
+        for failing to run at all. The neighbour pole below,
+        `test_the_same_data_through_the_top_level_door_is_kept`, was run
+        on BOTH trees and passed on both: the reader was alive across
+        the flip, so the colour change is the subject moving and not the
+        instrument dying.
+
+        WHAT IT USED TO SAY, kept because the row is the record. Through
+        `customData`, with zero op errors and no finding anywhere: `kpi`
+        value `'42'` came back `''`, `slider` value `40` came back
+        `50.0` (the default, not the request), `checkbox` and `toggle`
+        `checked: True` came back `False`. `input` was the one kind that
+        kept it — before its own repair as an inconsistency the ERROR
+        tier reported, after it as a value row on the canvas.
 
         THE PROPERTY IS NOT "HONOUR IT", which is what keeps this red
         fix-agnostic and stops it prescribing the repair the implementer
