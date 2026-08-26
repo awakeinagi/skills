@@ -3372,9 +3372,10 @@ def _honour_ungroup(els, el, ungrouped_by_user):
     both edges are gestures rather than inferences:
 
     * SET when the gesture arrives, and re-asserted on later saves only
-      if it is somehow absent — the write is conditional, so a marked
-      widget resaved a hundred times writes `customData` zero times and
-      emits no `mod`. That matters: `customData` sits in
+      if it is somehow absent — the write is conditional, so resaving a
+      marked widget writes `customData` nothing and emits no `mod` at
+      all (measured over four consecutive reposts of the stored scene:
+      zero recorded changes on each). That matters: `customData` sits in
       `significant_attrs`, and `user_placed_ids` records what an
       unconditional stamp cost when it was tried for `placed_by` (a
       `mod` beside every `move`, which `mark_consequences` then skipped,
@@ -3416,17 +3417,27 @@ def _honour_ungroup(els, el, ungrouped_by_user):
     STATE to infer a gesture, which is the repair the user considered
     and did not choose.
 
+    THIS DEFECT'S PREVIOUS LIFE, ONE SAVE EARLIER, kept because the row
+    is the record and because the two are one class at two distances.
     `semantic_facts` has stated the ungroup half as product law since
     the gesture existed — "LOUD, AND NEVER REPAIRED... silently
     re-grouping would be the tool overruling the user's own hands, which
     is the one thing this product may not do" — and the code repaired it
-    anyway. Measured 2026-08-20: a user who ungrouped a domain entity
-    and saved got it silently re-assembled by `_reset_attribute_rows`
-    AND was told `saved_no_changes`, because the repair put the group
-    back before the differ looked and `widget_ungrouped` tests the
-    scene it is handed. `kind: body` did half of it — five wave lines
-    re-minted into the group with the body left outside, which is a
-    state neither the user nor the composer asked for.
+    anyway. Measured 2026-08-20, and FIXED then: a user who ungrouped a
+    domain entity and saved got it silently re-assembled by
+    `_reset_attribute_rows` AND was told `saved_no_changes`, because the
+    repair put the group back before the differ looked and
+    `widget_ungrouped` tests the scene it is handed. `kind: body` did
+    half of it — five wave lines re-minted into the group with the body
+    left outside, which is a state neither the user nor the composer
+    asked for. That fix made the CARRYING save honest and left the same
+    revocation alive one save further along, which is the half the mark
+    above closes. It survived because the pin watching it —
+    `test_a_user_ungroup_is_narrated_and_never_repaired`, landed at
+    `0713512` — asserts the carrying save and never asks a second one,
+    so it was green across the whole of that defect's life and is green
+    on both sides of this change. A one-scene pin cannot see a
+    two-save property.
 
     The other branch is not a belt on that brace. A host with no group
     in EITHER scene AND no mark is an unfinished assembly, and closing
