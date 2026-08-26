@@ -24450,11 +24450,18 @@ class TestMutantCatalogue(unittest.TestCase):
         # line reports an empty finding list.
         #
         # TWO CLAIMS, and the second names the wrong repair this pole
-        # would otherwise sit green over. The cheapest way to make the
-        # old sentence true is to have the save path discard part-shaped
-        # decoration that names no owner — and this pin's own scene is
-        # hand-built, so it would never notice. That repair deletes a
-        # user's slider to settle an argument about a lint. So the
+        # would otherwise sit green over — but NAME IT PRECISELY, since
+        # a review spliced the version written here and found it inert.
+        # "Discard part-shaped decoration that names no owner" no longer
+        # bites at all, before OR after `_rehost_duplicated_parts`,
+        # because the rigid-copy witness re-hosts the copy's ink FIRST:
+        # by the time that repair runs, the ink names an owner. The pole
+        # is not dead — a repair discarding FRESH part-shaped ink
+        # REGARDLESS of ownership still takes it to 0 and fails this
+        # pin. That is the repair to guard against, and this pin's own
+        # scene is hand-built so it would never notice. Either way the
+        # repair deletes a user's slider to settle an argument about a
+        # lint. So the
         # second claim is measured through the real save path: the ink a
         # duplicate lands with must still be there after another save.
         # It is the same discipline the value-survival guard on

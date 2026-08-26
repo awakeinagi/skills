@@ -3392,8 +3392,16 @@ def _rigid_copy_hosts(new_els: list[dict[str, Any]],
     copy's parts carry no group at all, `owners` is empty, and the
     backlink is dropped. Measured through `Store.commit` on 2026-08-26
     — not through `apply_ops`, which is a layer above the seam — that
-    drop damaged 7 of the 8 composed kinds. `slider`, `toggle`,
-    `checkbox` and `image` came back DEAD: their arms of
+    drop damaged ALL 8 composed kinds — a figure that read SEVEN until a
+    review found the eighth, and the miss was the fixture rather than
+    the kind. `entity` looked immune because the fixture measured had NO
+    ATTRIBUTES, so it minted only a bound label, and a bound label rides
+    `containerId` rather than a backlink and cannot be orphaned. Give it
+    three attributes and its rows are `attr_of` parts like any other —
+    the copy comes back owning one against the original's four. This
+    file already wrote that trap down for a sibling sweep, and the
+    sweep here walked into it anyway. `slider`, `toggle`, `checkbox`,
+    `image` and an attributed `entity` came back DEAD: their arms of
     `reconcile_composed` only re-derive parts that already exist, so
     the copy owned none while its own track and thumb stood drawn
     inside its box. `body`, `kpi` and `input` came back with DOUBLED
@@ -3558,7 +3566,12 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
     drew 10 wave lines; a checkbox copy drew two check strokes), and
     the arms that only re-derive left the copy a DEAD WIDGET whose
     parts no longer drag with it. Measured 2026-08-26 through
-    `Store.commit`, that reached 7 of the 8 composed kinds.
+    `Store.commit`, that reached ALL 8 composed kinds. It was recorded
+    as seven until a review supplied the eighth: `entity` is damaged
+    too, once its fixture carries the attributes that give it parts to
+    lose. The understatement never made the repair wrong — the fix
+    already covered `entity`, and only the count of what it covered was
+    short.
 
     `_rigid_copy_hosts` NOW ANSWERS THAT GESTURE, and the drop keeps
     only what it cannot: it identifies the copy by an exact offset
