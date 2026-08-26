@@ -17722,6 +17722,29 @@ def _door_duplicate(kind: str) -> tuple[list[dict], list[str]]:
         shutil.rmtree(root, ignore_errors=True)
 
 
+# WHICH PAIRS ARE TRAPPED TODAY, transcribed so a reader can tell WITHOUT
+# re-running the sweep — a denominator that needs a re-run to interpret is
+# halfway to a count that goes stale. It cannot go stale here: the sweep's
+# UNGATED companion compares this set to the measurement and fails naming
+# the difference, so it costs one line per flip, which is the line the flip
+# already costs. Measured 2026-08-25 against this branch's base.
+#
+#   input / add (customData)  — `make_element` gates the value-row mint on
+#       the top-level `spec["value"]` while the floor reads `cd["value"]`.
+#   input / mod customData    — `customData` is not on the post-`mod`
+#       reconcile gate, so the merge writes composed state and nothing
+#       recomposes. Both clear at `3aa3839`.
+#   checkbox / mod kind       — the worst of the three and the one no
+#       curator had measured: the ERROR reads `(2, 1) missing`, and the
+#       prescribed remedy returns `(1, 2) SURPLUS` while silently
+#       unchecking the box, because `make_element` reads
+#       `spec.get("checked", False)` over a stored `customData.checked`
+#       that says True. Patching the input paths UNCOVERS a second
+#       checkbox door rather than closing this one.
+_TRAPPED_PAIRS: set[tuple[str, str]] = {
+    ("input", "add (customData)"), ("input", "mod customData"),
+    ("checkbox", "mod kind")}
+
 _REMEDY_DOORS: dict[str, Callable[[str], tuple[list[dict], list[str]]]] = {
     "add (top-level)": _door_add_top, "add (customData)": _door_add_custom,
     "mod kind": _door_mod_kind, "mod customData": _door_mod_custom,
@@ -34904,6 +34927,12 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
         the `duplicate + save` door is in the walk for exactly that
         reason, measured rather than assumed to clear.
 
+        WHICH PAIRS ARE TRAPPED is deliberately not restated here.
+        `_TRAPPED_PAIRS` above carries them with a line each on why, and
+        the ungated companion below compares that transcription to the
+        measurement — so the list is readable without a run AND cannot
+        drift from one. Read the constant, not this paragraph.
+
         WHAT IT DOES NOT REACH, so nobody reads the denominator as the
         space: five doors and eight kinds is a sample of the documented
         op surface, not a cover of it. Batches that combine doors, ops
@@ -34958,6 +34987,23 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
             "no door in the whole walk produced the ERROR this sweep is "
             "about, so `looped == []` above would pass over a check that "
             "says nothing at all — a corpse, not a clean bill")
+        # AND THE TRANSCRIPTION, checked here rather than trusted. The
+        # red's own failure text names the trapped pairs, but only to
+        # somebody who ran it and lifted the mask; `_TRAPPED_PAIRS` is
+        # what a reader sees. Comparing the two is what stops that
+        # comment becoming the fifth hand copy in this repo to go quietly
+        # wrong — and it fails in BOTH directions, so a pair that clears
+        # forces the edit exactly as a pair that appears does.
+        self.assertEqual(
+            {(kind, door) for kind, door, _ in found["looped"]},
+            _TRAPPED_PAIRS,
+            "the trapped pairs have moved: measured %s against the "
+            "transcription in `_TRAPPED_PAIRS`, %s. Update that constant "
+            "and the paragraph above it — a pair that CLEARED is the "
+            "flip contract arriving, and a pair that APPEARED is a new "
+            "defect this sweep exists to name"
+            % (sorted((k, d) for k, d, _ in found["looped"]),
+               sorted(_TRAPPED_PAIRS)))
 
 
 class TestCoverage(unittest.TestCase):
