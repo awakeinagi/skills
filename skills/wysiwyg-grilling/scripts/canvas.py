@@ -2481,6 +2481,17 @@ def make_element(spec, existing_ids, errors, index_hint=0):
     # every op-made element is agent work — user elements arrive via the
     # canvas and carry author:"user" (sticky notes, user pins) or nothing
     custom.setdefault("author", "agent")
+    # THE UNGROUP MARK IS NOT MINTABLE. It records that a PERSON pulled a
+    # widget apart, so an op that arrives carrying one is claiming a
+    # gesture nobody made, and `_close_widget_group` would believe it —
+    # a forged mark on an `add` really did mint a widget that came back
+    # unassembled and stayed that way. Dropping it here keeps
+    # `_honour_ungroup` the single writer, which is what lets the rest of
+    # this file read the mark as evidence rather than as an assertion.
+    # Not an op ERROR: the key is meaningless rather than malformed, and
+    # `op_field_faults` reports what cannot be stored, not what will be
+    # ignored. The schema reference says plainly that it is ignored.
+    custom.pop(UNGROUP_MARK, None)
     el["customData"] = custom
     # `locked` joined this list with the pin guard. It was accepted on
     # `mod` and silently dropped on `add`, so `{"op": "add", ...,
@@ -2865,7 +2876,41 @@ def _close_widget_group(out):
     tagged = [e for e in parts if _composed_part(e.get("customData") or {})]
     if not tagged:
         return          # a plain labelled element is not a composite
+    # A REMEMBERED UNGROUP OUTRANKS EVERY DOOR, and the gate lives HERE
+    # rather than at the callers because there are five of them and the
+    # user's gesture is not a property of which one ran. `_honour_ungroup`
+    # used to be the only site that read the mark, so the AGENT path
+    # walked straight past it: measured on this tree, `mod attributes` on
+    # an ungrouped entity and a `mod label` that mints a caption both
+    # welded the widget back together with the mark still sitting on it,
+    # and the next ordinary save then DELETED the mark and narrated
+    # `saved_no_changes` — the gesture gone from the picture AND from the
+    # record, with a fresh Ctrl+Shift+G the only way back.
+    # `_reset_attribute_rows`' own docstring calls `mod attributes`
+    # "exactly what a grilling session revises repeatedly", so that is
+    # not an exotic door.
+    #
+    # IT IS ALSO WHAT MAKES THE CLEAR EDGE TRUE. `_honour_ungroup` clears
+    # the mark when `<id>-grp` is back in the posted scene, reasoning that
+    # only this code mints that id so its return means the client undid
+    # past the ungroup. That reasoning was sound about the ID and wrong
+    # about the INFERENCE while any server path could put the group back
+    # underneath the user. With every writer gated, the only route left
+    # for a marked host is the client, and the inference holds.
+    # It STRIPS rather than merely declining, because several compose
+    # blocks hand their parts `gid` at construction — `_compose_input_
+    # value` bakes it into the row it mints — so a gate that only skipped
+    # the loop would leave a freshly minted part alone in a group of one
+    # while its host sat outside. Ensuring the id is ABSENT is the same
+    # shape as ensuring it is present, one branch up, and it is
+    # idempotent: this function's job is to make a widget's grouping
+    # right, and for a widget the user pulled apart, right means gone.
     gid = body["id"] + "-grp"
+    if (body.get("customData") or {}).get(UNGROUP_MARK) is True:
+        for e in [body, *parts]:
+            if gid in (e.get("groupIds") or []):
+                e["groupIds"] = [g for g in e["groupIds"] if g != gid]
+        return
     for e in [body, *parts]:
         if gid not in (e.get("groupIds") or []):
             e["groupIds"] = [*(e.get("groupIds") or []), gid]
@@ -3124,8 +3169,25 @@ def _compose_input_slot(els, el, value_text, existing_ids):
         value_text: The value string, already stringified.
         existing_ids: Ids already in use, mutated with the row minted.
     """
+    # THE OWNER'S HALF IS OPEN-CODED HERE and so is its gate: this line
+    # is the one writer of `<id>-grp` that does NOT go through
+    # `_close_widget_group`, so the gate that function carries cannot
+    # cover it.
+    #
+    # DEFENSIVE, AND SAID SO RATHER THAN DRESSED UP. Unlike the two agent
+    # doors `_close_widget_group` closes, this one is not known to open:
+    # the non-mint caller is `_recompose_input_value`, which reaches here
+    # only when the input has NO value row, and a MARKED input has one by
+    # construction — it had to be a composite for there to have been a
+    # group to open. Deleting the row was tried as a way in and does not
+    # work: `reconcile_composed` re-derives it in the same save, and the
+    # gated and ungated trees print identical readings for that scene. So
+    # this gate is a consistency measure at a second writer of the same
+    # id, not a repair of a measured defect, and no revocation count
+    # anywhere is owed to it.
+    marked = (el.get("customData") or {}).get(UNGROUP_MARK) is True
     gid = el["id"] + "-grp"
-    if gid not in (el.get("groupIds") or []):
+    if not marked and gid not in (el.get("groupIds") or []):
         el["groupIds"] = [*(el.get("groupIds") or []), gid]
     for t in els:
         if t.get("type") == "text" and t.get("containerId") == el["id"]:
@@ -3387,11 +3449,28 @@ def _honour_ungroup(els, el, ungrouped_by_user):
       code mints that id — Excalidraw's own Ctrl+G mints a random one —
       so its reappearance means the client restored a state we wrote,
       i.e. the user undid past the ungroup and has handed the grouping
-      back. Cleared, too, on a host that is not in the base at all (the
+      back. THAT INFERENCE IS ONLY SOUND BECAUSE `_close_widget_group`
+      IS GATED, and it was NOT sound when this function was the only
+      reader of the mark: the agent path put the group back underneath
+      the user, this bullet read the group's return as an undo, and the
+      next ordinary save deleted the gesture from the record while
+      narrating `saved_no_changes`. Measured on that tree, 11 of 29
+      (kind, agent-door) pairs revoked — every kind through a `mod
+      label` that MINTS a caption, plus all three entity doors through
+      `_reset_attribute_rows`. The gate is what makes the sentence
+      above true rather than merely well-argued; do not weaken one
+      without the other.
+    * Cleared, too, on a host that is not in the base at all (the
       `False` call in `_interpret_user_composites`), which is what stops
       a `Ctrl+Shift+G`, save, `Ctrl+D` duplicate from carrying an
       inherited mark onto a copy this code is about to close: the copy
       arrives as an `add`, so the clear costs no `mod` either.
+    * The same edge is what discards a FORGED mark. An agent `mod` can
+      still write the key onto a live, assembled widget — nothing
+      refuses it — but the group is in the posted scene, so this clears
+      it on the next save and the widget never comes apart. Forging it
+      through `add` does not survive either: `make_element` drops the
+      key, so `_honour_ungroup` stays the mark's single writer.
 
     A HAND-MADE Ctrl+G KEEPS THE MARK, deliberately, and is the case the
     naming turns on. The user ungroups, then re-groups host and parts
@@ -3887,9 +3966,19 @@ def _interpret_user_composites(new_els: list[dict[str, Any]],
         # mark is read off the BASE host, not the posted one, so a
         # client that drops `customData` cannot revoke a gesture it
         # never made; and both witnesses are gated on the posted scene
-        # still lacking the group, which is the CLEAR edge — `<id>-grp`
+        # still lacking the group, which is the CLEAR edge.
+        #
+        # THE CLEAR EDGE LEANS ON `_close_widget_group`'S GATE, and this
+        # comment used to claim its conclusion without it: "`<id>-grp`
         # can only come back by our own hand, so its reappearance means
-        # the user undid past the ungroup.
+        # the user undid past the ungroup". The first half is true and
+        # the second did not follow — OUR OWN HAND included the agent
+        # path, which re-welded a marked widget through
+        # `_reset_attribute_rows` and `_set_label` and made this read a
+        # server repair as a user's undo. With every writer of that id
+        # gated on the mark, the client is the only route left and the
+        # inference holds.
+
         gid = el["id"] + "-grp"
         old_el = old_ix.get(el["id"]) or {}
         ungrouped_by_user = gid not in (el.get("groupIds") or []) and (
