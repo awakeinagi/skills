@@ -7199,6 +7199,46 @@ def _wrapped_body_text(auto_resize: bool) -> list[dict]:
                strokeColor="#1e1e1e")]
 
 
+def _wrapped_line_height() -> float:
+    """The multiplier `paint` steps this fixture's baselines by.
+
+    ASKED OF THE ELEMENT, not written down, and it is the one number in
+    this scene's arithmetic that has to be. The three constants above are
+    literals on purpose — a scene that derives its own regime from the
+    code under test cannot notice when that code moves it out of the
+    regime — but this is not a fact about the scene, it is a
+    transcription of `paint`'s own `line_height_of(e)`, and a
+    transcription goes stale on its own.
+
+    It did. Both figures below were written `* 1.25` while the shipped
+    reader resolved 1.35 for an element carrying neither a stored
+    `lineHeight` nor a `fontFamily`: `render_svg` emits this fixture's
+    baselines at 13.6, 35.2, 56.8 and 78.4, an advance of 21.6px, and
+    the two figures claimed 73.6 and 80. Both feed LOWER bounds, so
+    under-stating the reach of the ink only loosened them and neither
+    ever failed — the sixth site in one day for the same 1.25-against-
+    1.35 error, and `line_height_of` exists so that number has exactly
+    one author. Pinned against the emitted markup by curator batch 46.
+
+    THE TEXT ELEMENT IS SELECTED AND NOT INDEXED, and the difference is
+    not tidiness. `line_height_of` answers for ANY element — a
+    non-text one gets its family's default, and the spare `n1` next to
+    this fixture's `t1` returns the same 1.35 today. So a positional
+    `[0]` would go on returning the right number if the scene were ever
+    reordered, and nothing anywhere would say. The unpacking below fails
+    loudly instead the moment the fixture stops carrying exactly one
+    text. What it does NOT buy, stated so nobody banks on it: while both
+    elements answer 1.35 a wrong selector is invisible by value, and no
+    assertion available here could see it. The gain is that the element
+    this wants is named rather than counted to.
+
+    Returns:
+        The line-height multiplier for the wrapped fixture's text.
+    """
+    text, = [e for e in _wrapped_body_text(False) if e.get("type") == "text"]
+    return canvas.line_height_of(text)
+
+
 # How much smaller than tier 1's own frame the instrument probe is measured
 # in. Big enough that the cut is far outside anti-aliasing and MIN_BLOB, small
 # enough that the probe keeps about half its ink (121372 px whole, 61380 px
@@ -7779,7 +7819,9 @@ class TestRenderParityRegime(unittest.TestCase):
         # this pin quietly, which is why all of them are written down.
         # The other two claims were re-derived rather than assumed:
         # the greedy wrap still gives four lines (79/98/89/67px
-        # against the 100px bound) and the last baseline is 73.6.
+        # against the 100px bound) and the last baseline is 78.4 —
+        # 73.6 stood here, computed at a 1.25 this file no longer
+        # states, until curator batch 46 pinned it against the markup.
         self.assertEqual(canvas.text_dims(_WRAPPED_LABEL, 16), (339, 22),
                          "the font metrics moved: re-measure the wrapped "
                          "scene's regime, and the frame arithmetic in "
@@ -7792,10 +7834,14 @@ class TestRenderParityRegime(unittest.TestCase):
                          "the scene was built around: %r"
                          % (len(lines), _WRAPPED_LINES, lines))
         # `paint` puts line i's baseline at y + fs*0.85 + i*fs*lineHeight,
-        # so the fourth is at 73.6 — against the drawing y=60 a frame
+        # so the fourth is at 78.4 — against the drawing y=60 a frame
         # sized on the text's UNWRAPPED height plus the pad would end at,
-        # which is the frame this scene used to get.
-        last_baseline = 16 * 0.85 + (_WRAPPED_LINES - 1) * 16 * 1.25
+        # which is the frame this scene used to get. The multiplier is
+        # ASKED rather than written (`_wrapped_line_height`): stated as
+        # 1.25 this read 73.6, 4.8px short of where `paint` puts it, and
+        # short only loosens the `assertGreater` below.
+        last_baseline = (16 * 0.85 + (_WRAPPED_LINES - 1)
+                         * 16 * _wrapped_line_height())
         self.assertGreater(
             last_baseline, 20 + SVG_PAD,
             "the last line's baseline is at %g, inside the y=%d bottom a "
@@ -7825,39 +7871,46 @@ class TestRenderParityRegime(unittest.TestCase):
         46's review MINOR-1, 2026-08-15). The review is right that this
         test does not hold the line alone: under the family's own trap —
         revert the loop to the unwrapped string AND widen the pad to 100
-        — the bottom lands at 120 against an ink bottom of 80 and this
+        — the bottom lands at 122 against an ink bottom of 86.4 and this
         passes. The review's suggested repair was exact equality against
         `SVG_PAD`, matching the centered pin's style, with the
         over-specification worry (another element could come to set the
         bottom edge) noted as the reason not to insist.
 
-        Measured, and the repair does not work. Under that same cheat the
-        margin is 40.0 — EXACTLY `SVG_PAD` — so equality passes too, and
-        for a reason no assertion on this axis can escape: widening the
-        pad by 60 compensates precisely for the 60px of line height the
-        reverted loop fails to reserve, and the resulting frame is
-        numerically indistinguishable from the correct one. No function
-        of (bottom, ink_bottom) separates them.
+        Measured, and the repair still does not work — but the
+        arithmetic saying so has moved, so it was RE-DERIVED 2026-08-20
+        alongside curator batch 46's repair of `ink_bottom`. The honest
+        frame ends at 127 and the cheat's at 122, so the two margins are
+        40.6 and 35.6: no longer the indistinguishable 40.0 this note
+        recorded, a reading taken while `ink_bottom` said 80 and
+        `text_dims` still floored a line box. What kills the repair now
+        is the HONEST side. The loop reserves ceil(4 × 21.6) = 87 for the
+        wrapped block, so a correct frame clears the ink by 40.6 and
+        `assertEqual(bottom, ink_bottom + SVG_PAD)` is RED on a drawing
+        it approves of — which is not a tightening, it is a break.
 
         What separates them is the PAIR, exactly as the review said: the
         control pin next door asserts an honest scene's frame is
         unchanged, and the widened pad moves it. So the note rather than
         the change, and the note is worth more than the change would have
-        been — it records that a plausible tightening was tried against
-        the cheat it was proposed for and measured not to catch it. The
-        over-specification argument is secondary and also holds: `n1`
-        bottoms at y=20 against the text's 80 today, so the text does set
-        this edge, but that is a property of the scene and not of the
-        claim.
+        been — it records a plausible tightening tried against the cheat
+        it was proposed for, and re-tried the day the figure underneath
+        it was repaired. The over-specification argument is secondary and
+        also holds: `n1` bottoms at y=20 against the text's 86.4 today,
+        so the text does set this edge, but that is a property of the
+        scene and not of the claim.
         """
         svg, _w, _h = canvas.render_svg(_wrapped_body_text(False))
         dims = _SVG_DIMS.search(svg)
         self.assertIsNotNone(dims, "cannot parse the <svg> tag")
         bottom = float(dims.group(4)) + float(dims.group(6))
         # the scene puts the text at y=0, so the fourth line's baseline is
-        # at 73.6 and its descenders run under it to the bottom of the
-        # line box: y + fs*1.25*lines = 80.
-        ink_bottom = 16 * 1.25 * _WRAPPED_LINES
+        # at 78.4 and its descenders run under it to the bottom of the
+        # line box: y + fs*lineHeight*lines = 86.4. The multiplier is
+        # asked of the element for the reason `_wrapped_line_height`
+        # gives — stated as 1.25 this read 80, 6.4px short, and short
+        # only loosens the `assertGreaterEqual` below.
+        ink_bottom = 16 * _wrapped_line_height() * _WRAPPED_LINES
         self.assertGreaterEqual(
             bottom, ink_bottom,
             "the viewBox ends at %g but the wrapped text's last line runs "
