@@ -13163,17 +13163,36 @@ def client_wrap_width(container):
     were reading a rhombus's geometric band, which is a real quantity
     and is not the one that decides the wrap.
 
-    Predicted over the frozen corpus, and the verb matters: **15** of
-    the 291 shape- and frame-bound labels are ones THIS SERVER'S MODEL
-    says the client re-wraps on load, and in all 15 the server's own
-    estimate already exceeded this cap — so no improvement to
-    `text_dims` could have closed any of them. Re-derived 2026-08-20
-    (v0.9 WP4 review, M-8) at 15, where three comments carried 14 and
-    all three phrased it as what the CLIENT does. It is not: the
-    measurement is `client_wrapped_lines` against the stored line count,
-    which is this file predicting the browser, and the report that first
-    published it withdrew the client reading because the render tier
-    does not await webfonts. As a server-side prediction it is exact.
+    Predicted over the frozen corpus, and the verb matters — but TWO
+    predicates live here and conflating them is how this paragraph went
+    wrong twice. Over the 291 shape- and frame-bound labels:
+
+        A. the client re-wraps on load
+           (`client_wrapped_lines` != the stored line count)
+        B. the server's own estimate already exceeds this cap
+           (`text_dims`' width > `client_wrap_width`)
+
+    A is a STRICT SUBSET of B, and the two differ by exactly one
+    element: `wait-cutoff-label` in `edgar-late.excalidraw`, whose
+    stored text already carries the break the client would have made,
+    so B counts it and A does not. That single element is the whole
+    disagreement, and naming it is worth more than either count.
+
+    The sentence that stood here said 15 labels "are ones THIS SERVER'S
+    MODEL says the client re-wraps on load", which is B's number
+    attached to A's predicate. Its 2026-08-20 note (v0.9 WP4 review,
+    M-8) then dismissed three earlier comments carrying 14 as having
+    "phrased it as what the CLIENT does" — but 14 is the correct answer
+    to the question that sentence asks. The re-derivation corrected the
+    verb and broke the number.
+
+    What survives, and it is the load-bearing half: **no improvement to
+    `text_dims` could have closed any of them**, because A ⊆ B means
+    every label the client re-wraps is one the server had already
+    flagged as over-cap. That claim holds on the relation, not on
+    either literal, which is why it is now stated that way. To
+    re-derive: walk the corpus, count both predicates, and assert
+    A ⊆ B rather than transcribing a total.
 
     Args:
         container: The container element the label is bound to.
