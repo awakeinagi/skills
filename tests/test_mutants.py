@@ -24279,6 +24279,83 @@ RENDER_TIER = {
         "test_the_clip_instrument_still_sees_ink_leave_a_short_frame",
 }
 
+# The last recorded execution of the tests `RENDER_TIER` names.
+#
+# WHY THIS FILE EXISTS. The three rows above are reported "render-tier"
+# rather than UNCOVERED, so `test_every_detector_is_proven_or_named` — the
+# gate — passes over them. What backed that pass until 2026-08-20 was
+# `test_render_tier_evidence_resolves_to_real_tests`, which asserts the
+# dotted name RESOLVES and is `callable`. Neither says the test ever ran,
+# and it cannot: the render tier is gated behind `MUTANTS_RENDER=1`, no
+# hook in `.pre-commit-config.yaml` sets it, and there is no CI. Three
+# detectors were therefore counted as accounted-for on the strength of a
+# string that no run had ever exercised — and `callable` is a very low bar
+# besides, since a CLASS is callable, so an entry naming only
+# `TestRenderMutants` passed too.
+#
+# WHAT IT DOES NOT CLOSE, said here because a half-closed gap that reads
+# closed is worse than an open one. This proves each named test PASSED in
+# some recorded run, not that it passed against the tree you are reading.
+# Binding it to a hash of `canvas.py` and refusing the commit on a
+# mismatch was considered and rejected: every canvas.py edit would then
+# demand a browser, and the whole reason the tier is gated is that an
+# ordinary commit must not need one. So currency is REPORTED and not
+# enforced — `render_evidence_currency` computes it, `--coverage` prints
+# it, and `TestRenderTierEvidence` pins that the report can say "stale".
+# Re-record after touching `canvas.py`'s render path:
+#     MUTANTS_RENDER=1 python3 tests/test_mutants_render.py --record-evidence
+RENDER_RUN_RECORD = Path(__file__).parent / "mutants_render_run.json"
+
+
+def render_evidence_run() -> dict[str, Any]:
+    """Read the recorded render-tier evidence run.
+
+    Returns:
+        The record as written by `--record-evidence`, or `{}` when the
+        file is absent — absent is a state the gate reports, not one it
+        crashes on, so the message can name the command that fixes it.
+    """
+    if not RENDER_RUN_RECORD.exists():
+        return {}
+    return json.loads(RENDER_RUN_RECORD.read_text())
+
+
+def canvas_digest() -> str:
+    """Fingerprint the `canvas.py` the render tier would rasterize.
+
+    Returns:
+        The sha256 of `canvas.py`'s bytes, hex. This is the input the
+        recorded run's verdict is about; every other input the tier has
+        (the browser build, the system fonts) sits outside the repo and
+        is out of reach of any hash we could take here.
+    """
+    return hashlib.sha256(Path(canvas.__file__).read_bytes()).hexdigest()
+
+
+def render_evidence_currency() -> tuple[str, str]:
+    """Report whether the recorded render-tier run still describes this tree.
+
+    Returns:
+        `(state, detail)` where `state` is "missing" (no run recorded),
+        "stale" (recorded against a different `canvas.py`) or "current".
+        `detail` is a sentence naming the remedy or the run's date.
+    """
+    rec = render_evidence_run()
+    if not rec:
+        return ("missing",
+                "no render-tier run recorded — the three render-tier rows "
+                "rest on nothing. Run: MUTANTS_RENDER=1 python3 "
+                "tests/test_mutants_render.py --record-evidence")
+    if rec.get("canvas_sha256") != canvas_digest():
+        return ("stale",
+                "the recorded run (%s) is against a different canvas.py; "
+                "re-record with MUTANTS_RENDER=1 python3 "
+                "tests/test_mutants_render.py --record-evidence"
+                % rec.get("recorded", "undated"))
+    return ("current", "render-tier evidence last executed %s against this "
+                       "canvas.py" % rec.get("recorded", "undated"))
+
+
 # Check names a catalogue entry may name with no `DETECTORS` detector
 # behind them, mapped to why that is legitimate. Red-by-absence is a real
 # tactic — `phantom_passthrough_shared_attach` pinned a defect the lint
@@ -24858,6 +24935,16 @@ def coverage_table() -> list[tuple[str, str, str]]:
     in `RENDER_TIER` are reported "render-tier" instead: their proving
     mutants live in a separate env-gated catalogue (Task 8) that this
     function does not read, so they are never reported UNCOVERED.
+
+    WHAT "render-tier" IS WORTH, since the word carves three rows out of
+    the gate. Until 2026-08-20 it was worth the existence of a string:
+    nothing set `MUTANTS_RENDER=1` on any commit, so those three rows
+    were accounted-for on evidence no run had touched. They now rest on
+    `RENDER_RUN_RECORD` — a committed record of the named tests having
+    PASSED under the gate, asserted ungated by `TestRenderTierEvidence`.
+    The residue is currency and not existence: read
+    `render_evidence_currency`, which `--coverage` prints, for whether
+    that run was against the `canvas.py` you are holding.
 
     A RED mutant's own `expect` is not evidence, and this is the one rule
     here that is not obvious. A `FindingSpec` on a mutant marked
@@ -38420,6 +38507,84 @@ SWEEP_BASES: tuple[tuple[str, Callable[[], list[dict]]], ...] = (
     ("opposed", lambda: _opposed_pair(rounded=False)),
 )
 
+# The cells `sweep_args` cannot build, pinned in sweep order — the sweep's
+# DENOMINATOR, written down.
+#
+# 7 of the 15 (3 bases x 5 operators) cells skip, so the sweep reports over
+# fewer than half of them, and until 2026-08-20 nothing asserted which half.
+# That is the silent-instrument shape one level up from the one
+# `sweep_cells` already guards: a cell that stops being COMPARABLE does not
+# fail, it leaves the denominator, and "8 cells run, 0 survivors" reads
+# exactly like "15 cells run, 0 survivors" to anyone not counting. A base
+# builder losing a binding — the thing `_diamond_stage` and `_opposed_pair`
+# are edited for — silently retires cells from the harness.
+#
+# PINNED RATHER THAN CEILINGED, because a ceiling ("no more than 7") passes
+# the one case worth catching: a cell going quiet while another becomes
+# buildable, which holds the count and moves the coverage. The triple
+# carries the REASON as well as the cell, since a cell that starts skipping
+# for a different reason is a different fact about the base.
+#
+# AND NOT REPAIRED BY RESHAPING THE BASES, which was the other candidate.
+# Every skip here is a property the base is FOR: `_opposed_pair`'s arrows
+# carry no bindings (that is the configuration it exists to draw), and
+# `_chain` carries no bound label.
+#
+# THE COST OF RESHAPING IS SMALL, and the sentence that stood here said it
+# was large: "a builder 31 call sites share, most of them catalogue mutants
+# with pinned expectations — a five-line coverage gain paid for by
+# re-deriving the catalogue". All three clauses were wrong. The 31 is a
+# SUBSTRING count that sweeps in two other builders — `grep -oE
+# '[A-Za-z0-9_]*_chain\('` answers `_attach_chain(` 15, `_chain(` 13,
+# `_stub_chain(` 3 — and a word-boundary grep answers 13, one of which is
+# the `def`. So TWELVE call sites, every one of them a method of
+# `TestOperators`, and NONE of them a catalogue mutant. A reviewer then
+# performed the rejected repair and ran every class that can see it: the
+# real cost is ONE LINE of `EXPECTED_SKIPS`, and nothing is re-derived.
+#
+# THE CONCLUSION STILL HOLDS on its other argument, which is why it is kept:
+# every skip here is a property its base is FOR, so reshaping a base to
+# unlock a cell destroys the configuration another cell depends on. Widen
+# the sweep by ADDING a base that has the missing property, and update this
+# pin in the same commit. But the argument now rests on the reason rather
+# than on a number that was 2.6x the truth and misnamed what it would break.
+EXPECTED_SKIPS: tuple[tuple[str, str, str], ...] = (
+    ("chain", "rename_node", "no node carries a bound text label"),
+    ("diamond", "move_node_onto_rank",
+     "no pass-through node (one bound arrow in, another out)"),
+    ("diamond", "swap_endpoints",
+     "fewer than two arrows carry an end binding"),
+    ("opposed", "flip_direction", "no arrow bound at both ends to reverse"),
+    ("opposed", "rename_node", "no node carries a bound text label"),
+    ("opposed", "move_node_onto_rank",
+     "no pass-through node (one bound arrow in, another out)"),
+    ("opposed", "swap_endpoints",
+     "fewer than two arrows carry an end binding"),
+)
+
+
+def skip_drift(skipped: list[tuple[str, str, str]]) -> list[str]:
+    """Report how a sweep's skipped cells differ from `EXPECTED_SKIPS`.
+
+    Both directions matter and they mean opposite things: a cell that
+    newly skips has left the sweep's denominator without telling anyone,
+    and a pinned cell that newly runs is coverage the pin is now
+    understating. Either way the pin is the thing to update, in the same
+    commit as whatever moved.
+
+    Args:
+        skipped: The `(base, op, reason)` triples `sweep_cells` returned.
+
+    Returns:
+        One human-readable line per difference, in sweep order; empty
+        when the live skips are exactly the pinned ones.
+    """
+    live, pinned = list(skipped), list(EXPECTED_SKIPS)
+    drift = ["NEWLY SKIPPED %s/%s: %s" % t for t in live if t not in pinned]
+    drift += ["NO LONGER SKIPPED %s/%s (was: %s)" % t
+              for t in pinned if t not in live]
+    return drift
+
 
 def sweep_args(op: str, scene: list[dict]) -> tuple[dict | None, str | None]:
     """Build one sweep cell's concrete operator arguments.
@@ -38566,20 +38731,32 @@ def run_sweep(write: bool = True) -> int:
             run's record.
 
     Returns:
-        The number of survivors carrying no `DISPOSITIONS` entry — 0
-        when the sweep is fully accounted for, which is also this
-        function's process exit code.
+        The number of facts this sweep could not account for: survivors
+        carrying no `DISPOSITIONS` entry, plus cells whose skip status
+        disagrees with `EXPECTED_SKIPS`. 0 when the sweep is fully
+        accounted for, which is also this function's process exit code.
+        Drift counts because the exit code is what a caller reads, and a
+        sweep whose denominator moved under it has not succeeded at
+        measuring anything, however few survivors it found.
     """
     survivors, skipped = sweep_cells()
     if write:
         SWEEP_RECORD.write_text(json.dumps(
             {"swept": datetime.date.today().isoformat(),
              "survivors": survivors}, indent=2) + "\n")
-    ran = len(SWEEP_BASES) * len(CORRESPONDENCE) - len(skipped)
-    print("sweep: %d cells run, %d skipped, %d survivor(s)"
-          % (ran, len(skipped), len(survivors)))
+    cells = len(SWEEP_BASES) * len(CORRESPONDENCE)
+    ran = cells - len(skipped)
+    print("sweep: %d of %d cells run, %d skipped, %d survivor(s)"
+          % (ran, cells, len(skipped), len(survivors)))
     for base, op, reason in skipped:
         print("  SKIP  %-10s %-20s %s" % (base, op, reason))
+    drift = skip_drift(skipped)
+    for line in drift:
+        print("  DRIFT %s" % line)
+    if drift:
+        print("%d cell(s) changed skip status: the sweep's denominator "
+              "moved. Update EXPECTED_SKIPS in the commit that moved it"
+              % len(drift))
     missing = []
     for s in survivors:
         kind, why = DISPOSITIONS.get(s["id"], ("UNDISPOSITIONED", ""))
@@ -38592,7 +38769,7 @@ def run_sweep(write: bool = True) -> int:
     if missing:
         print("%d undispositioned survivor(s): add each id to DISPOSITIONS "
               "as promote / allow / bug, with a reason" % len(missing))
-    return len(missing)
+    return len(missing) + len(drift)
 
 
 # Survivor verdicts. "promote": a real gap worth a curated mutant and a lint
@@ -38797,6 +38974,31 @@ class TestDiscovery(unittest.TestCase):
         self.assertIn("sweep cell chain/drop_edge", msg)
         self.assertIn("mutated nothing", msg)
 
+    def test_the_sweep_skips_exactly_the_pinned_cells(self) -> None:
+        """The sweep's denominator is the pinned one, cell for cell.
+
+        `sweep_cells` raises on a cell that mutated nothing, so the
+        cells it RUNS cannot go quiet unnoticed. The cells it does not
+        run had no such guard: `sweep_args` returning `(None, reason)`
+        prints a SKIP line and drops the cell out of the denominator,
+        and 7 of the 15 cells take that path today. A base builder
+        losing a binding — one edit to `_diamond_stage` or
+        `_opposed_pair`, both of which exist to carry particular
+        bindings — retires cells from the harness while the report goes
+        on saying "0 survivors" in a smaller voice.
+
+        Failing in BOTH directions is the point. A newly skipped cell is
+        coverage lost silently; a pinned cell that starts running is
+        coverage the pin understates, and leaving that unstated is how
+        a pin becomes a ceiling nobody re-derives.
+        """
+        _survivors, skipped = sweep_cells()
+        self.assertEqual(
+            skip_drift(skipped), [],
+            "the sweep's skipped cells are not EXPECTED_SKIPS. Run "
+            "`python3 tests/test_mutants.py --sweep` to see the cells, "
+            "then update EXPECTED_SKIPS — in the commit that moved them")
+
     def test_live_sweep_reproduces_the_record(self) -> None:
         """The committed record still describes what a sweep finds today.
 
@@ -38854,6 +39056,11 @@ if __name__ == "__main__":
               "firing, not every disjunct held. A check can lose an arm "
               "with this table byte-identical — see coverage_table's "
               "docstring for the measured case.")
+        # The render-tier rows' currency rides the surface for the same
+        # reason the caveat above does: the reader this misleads is the
+        # one who ran `--coverage` and did not open the file. Reported
+        # rather than asserted — `RENDER_RUN_RECORD`'s comment has why.
+        print("\nrender-tier evidence: %s — %s" % render_evidence_currency())
     elif "--sweep" in sys.argv:
         raise SystemExit(run_sweep())
     else:

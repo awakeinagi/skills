@@ -57,6 +57,7 @@ the app bundle as well — the same purge clears both.
 from __future__ import annotations
 
 import contextlib
+import datetime
 import functools
 import hashlib
 import http.server
@@ -126,6 +127,10 @@ _BAND = 4
 _SLACK = 1
 
 _SVG_TAG = re.compile(r"^<svg [^>]*>")
+
+# A class the render gate turns on, read off its decorator. See
+# `TestRenderTierEvidence` for why the decorator and not the skip marker.
+_GATED_CLASS = re.compile(r"^@unittest\.skipUnless\(RENDER\s*,")
 
 
 def _browser() -> str:
@@ -8276,26 +8281,186 @@ class TestLegibilityFloorRegime(unittest.TestCase):
                                        want, places=2)
 
 
-class TestRenderTierEvidence(unittest.TestCase):
-    """The coverage table's render-tier evidence must name real tests.
+def resolve_evidence(dotted: str) -> tuple[Any, Any]:
+    """Walk a `RENDER_TIER` dotted name to its class and its test method.
 
-    Deliberately NOT gated: resolving a dotted name needs no browser, and
-    the rot this catches — renaming a test here and leaving `--coverage`
-    pointing at a ghost — happens in ordinary editing, where nobody has
-    `MUTANTS_RENDER=1` set. A gated check would notice months late.
+    Args:
+        dotted: A `module.Class.test_method` string.
+
+    Returns:
+        `(cls, method)`, either of which is None when the walk fell off
+        — the caller turns that into the assertion message, because only
+        it knows which check the string was standing for.
+    """
+    parts = dotted.split(".")
+    if len(parts) != 3:
+        return (None, None)
+    modname, clsname, methname = parts
+    mod = importlib.import_module(modname)
+    cls = getattr(mod, clsname, None)
+    return (cls, getattr(cls, methname, None) if cls is not None else None)
+
+
+def record_render_tier_evidence() -> int:
+    """Run the tests `RENDER_TIER` names and write down what happened.
+
+    The record is what lets an UNGATED gate assert those tests RAN,
+    rather than that their names resolve. It is deliberately a run of
+    exactly the named tests and nothing else: the point is evidence for
+    the three coverage rows, and a whole-tier run would take minutes and
+    couple the record to tests no row cites.
+
+    Returns:
+        0 when every named test passed and the record was written; 1
+        otherwise, in which case NOTHING is written — a failing run must
+        not leave behind a record saying the evidence is good.
+
+    Raises:
+        RuntimeError: If `MUTANTS_RENDER=1` is not set, since without it
+            every named test would be skipped and a record of skips
+            would be exactly the silence this file exists to kill.
+    """
+    if not RENDER:
+        raise RuntimeError(
+            "--record-evidence needs MUTANTS_RENDER=1: ungated, every "
+            "test it would record is skipped, and a record of skips is "
+            "the vacuous pass it exists to replace")
+    names = sorted(set(tm.RENDER_TIER.values()))
+    suite = unittest.TestLoader().loadTestsFromNames(names)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    bad = {str(t) for t, _ in result.failures + result.errors}
+    bad |= {str(t) for t, _ in result.skipped}
+    if bad or result.testsRun != len(names):
+        print("recorded nothing: %d of %d named tests did not pass"
+              % (len(bad) or len(names) - result.testsRun, len(names)))
+        return 1
+    tm.RENDER_RUN_RECORD.write_text(json.dumps(
+        {"recorded": datetime.date.today().isoformat(),
+         "canvas_sha256": tm.canvas_digest(),
+         "browser": Path(_browser()).name,
+         "passed": names}, indent=2) + "\n")
+    print("recorded %d passing render-tier evidence test(s) in %s"
+          % (len(names), tm.RENDER_RUN_RECORD.name))
+    return 0
+
+
+class TestRenderTierEvidence(unittest.TestCase):
+    """The coverage table's render-tier evidence must name tests that RAN.
+
+    Deliberately NOT gated: nothing here needs a browser, and the rot it
+    catches — renaming a test and leaving `--coverage` pointing at a
+    ghost, or adding a render-tier row nobody ever ran — happens in
+    ordinary editing, where nobody has `MUTANTS_RENDER=1` set. A gated
+    check would notice months late, if a gated run ever happened at all.
     """
 
-    def test_render_tier_evidence_resolves_to_real_tests(self) -> None:
-        """Every RENDER_TIER evidence string walks to a callable test."""
-        for check, dotted in tm.RENDER_TIER.items():
-            modname, *path = dotted.split(".")
-            obj: Any = importlib.import_module(modname)
-            for part in path:
-                obj = getattr(obj, part, None)
+    def test_render_tier_evidence_resolves_to_a_gated_test_method(self) -> None:
+        """Every RENDER_TIER string names a test the render tier runs.
+
+        `callable(obj)` was the old bar and it is nearly free: a CLASS is
+        callable, so `RENDER_TIER["parity_clipped"] =
+        "test_mutants_render.TestRenderParity"` passed while naming no
+        test at all. What the evidence column has to name is a test
+        METHOD, on a `TestCase`, in a class the `MUTANTS_RENDER` gate
+        actually turns on — a method parked on an ungated class is not
+        render-tier evidence, and one parked on a class gated by
+        something else would never run under the documented command.
+        """
+        for check, dotted in sorted(tm.RENDER_TIER.items()):
+            with self.subTest(check=check):
+                cls, method = resolve_evidence(dotted)
                 self.assertIsNotNone(
-                    obj, "RENDER_TIER[%r] names %s, but %r does not exist"
-                         % (check, dotted, part))
-            self.assertTrue(callable(obj), "%s is not callable" % dotted)
+                    cls, "RENDER_TIER[%r] = %r does not resolve to a class "
+                         "in this module" % (check, dotted))
+                self.assertTrue(
+                    isinstance(cls, type)
+                    and issubclass(cls, unittest.TestCase),
+                    "RENDER_TIER[%r] names %s, which is not a TestCase"
+                    % (check, cls))
+                self.assertIsNotNone(
+                    method, "RENDER_TIER[%r] = %r names no such method on %s"
+                            % (check, dotted, cls.__name__))
+                self.assertTrue(
+                    dotted.rsplit(".", 1)[-1].startswith("test"),
+                    "%s is not a test method, so the runner never calls it"
+                    % dotted)
+                # Read the DECORATOR and not `__unittest_skip__`, which
+                # `skipUnless` sets only on the ungated half of the coin:
+                # with MUTANTS_RENDER=1 the class carries no skip marker
+                # at all, so an attribute check would assert the gate
+                # exists exactly when nobody is running the tier.
+                self.assertTrue(
+                    _GATED_CLASS.match(inspect.getsource(cls)),
+                    "%s sits on %s, which is not decorated "
+                    "@unittest.skipUnless(RENDER, ...) — so it is either "
+                    "never run by the documented command, or it is "
+                    "ungated and belongs in the model tier"
+                    % (dotted, cls.__name__))
+
+    def test_every_render_tier_row_was_executed_under_the_gate(self) -> None:
+        """Each row's evidence passed in a recorded gated run.
+
+        This is the whole point of the file beside it, and the thing the
+        old `resolves` test could not say. `coverage_table` carves these
+        rows out of `test_every_detector_is_proven_or_named`; before the
+        record existed, what backed that carve-out was a string that no
+        run had ever exercised, because nothing in
+        `.pre-commit-config.yaml` sets `MUTANTS_RENDER` and there is no
+        CI. A row added here without a gated run now fails at once.
+        """
+        rec = tm.render_evidence_run()
+        state, detail = tm.render_evidence_currency()
+        self.assertNotEqual(state, "missing", detail)
+        passed = set(rec.get("passed") or ())
+        never_run = sorted(set(tm.RENDER_TIER.values()) - passed)
+        self.assertEqual(
+            never_run, [],
+            "these render-tier rows are counted as covered on evidence no "
+            "recorded run executed: %s. Run: MUTANTS_RENDER=1 python3 "
+            "tests/test_mutants_render.py --record-evidence" % never_run)
+
+    def test_the_run_record_holds_no_row_that_left_render_tier(self) -> None:
+        """The record may not outlive the rows it is evidence for.
+
+        The same discipline `RULE8_EXEMPT` and `ASPIRATIONAL` carry: a
+        record nobody prunes becomes a list of tests that stopped being
+        cited, and the next reader cannot tell which entries are live.
+        It also closes the rename in the direction the test above
+        cannot — a renamed row leaves its old name behind, and a stale
+        name in a "passed" list is how the next re-record gets skipped.
+        """
+        rec = tm.render_evidence_run()
+        ghosts = sorted(set(rec.get("passed") or ())
+                        - set(tm.RENDER_TIER.values()))
+        self.assertEqual(
+            ghosts, [],
+            "%s appears in %s but no RENDER_TIER row cites it any more — "
+            "re-record rather than editing the file by hand"
+            % (ghosts, tm.RENDER_RUN_RECORD.name))
+
+    def test_the_currency_report_can_say_stale(self) -> None:
+        """Currency is reported, so the report itself needs an instrument.
+
+        `render_evidence_currency` is the one channel that carries "this
+        evidence is older than the code it is about", and it is reported
+        rather than enforced — binding the commit to it would make every
+        `canvas.py` edit require a browser, which is the thing the gate
+        exists to avoid. A reported-only channel that cannot say the bad
+        word is a caveat, not an instrument, so all three of its states
+        are exercised here against fabricated records.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            with mock.patch.object(tm, "RENDER_RUN_RECORD", path):
+                self.assertEqual(tm.render_evidence_currency()[0], "missing")
+                path.write_text(json.dumps(
+                    {"recorded": "1999-01-01", "canvas_sha256": "deadbeef",
+                     "passed": []}))
+                self.assertEqual(tm.render_evidence_currency()[0], "stale")
+                path.write_text(json.dumps(
+                    {"recorded": "1999-01-01",
+                     "canvas_sha256": tm.canvas_digest(), "passed": []}))
+                self.assertEqual(tm.render_evidence_currency()[0], "current")
 
 
 class TestTheMirroredPngdiffDefaultsStillMatch(unittest.TestCase):
@@ -9307,3 +9472,9 @@ class TestTheAdvanceTableIsTheVendoredFaces(unittest.TestCase):
                          "U+2753 has an entry in NUNITO_ADVANCE, but the "
                          "vendored face has no such glyph: that number is "
                          "this machine's emoji font")
+
+
+if __name__ == "__main__":
+    if "--record-evidence" in sys.argv:
+        raise SystemExit(record_render_tier_evidence())
+    unittest.main()

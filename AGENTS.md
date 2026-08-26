@@ -227,10 +227,11 @@ npm --prefix frontends/wysiwyg-grilling run typecheck
 # NOBODY RUNS THIS FOR YOU. There is no CI in this repo.
 uvx pre-commit run --all-files
 
-# The line above is not "everything": <!-- live:gate_hooks_manual -->2<!-- /live:gate_hooks_manual --> hooks are manual-stage,
+# The line above is not "everything": <!-- live:gate_hooks_manual -->3<!-- /live:gate_hooks_manual --> hooks are manual-stage,
 # and `--all-files` leaves them out without saying so.
 uvx pre-commit run guard-mutants-sweep --hook-stage manual  # ~2m, rewrites guarded runtime files
 uvx pre-commit run e2e-tests --hook-stage manual            # Playwright
+uvx pre-commit run render-tier-evidence --hook-stage manual # needs a browser
 ```
 
 **That first comment said "Everything, as CI runs it" until 2026-08-20, and
@@ -243,10 +244,13 @@ halves fail differently. A wrong count is read and corrected; **a wrong claim
 about a safety net is never read at all** — it works by stopping the reader
 from looking, and it had been doing that for an unknown length of time.
 
-Both counts are live values, so "18" and "2" cannot drift out from under this
-paragraph the way "Everything" did. What CI would take to become true: a
-runner, a workflow file invoking both stages, and a status this file could
-point at. None exists. Until one does, the safety net is you.
+Both counts above are live values, so neither can drift out from under this
+paragraph the way "Everything" did. (This sentence named the two figures when
+it was written and was wrong inside a day — the manual stage grew a third hook
+— which is the same defect one line down from the one it was explaining. A
+paragraph about a live value does not get to hand-copy it.) What CI would take
+to become true: a runner, a workflow file invoking both stages, and a status
+this file could point at. None exists. Until one does, the safety net is you.
 
 ## Pre-commit
 
