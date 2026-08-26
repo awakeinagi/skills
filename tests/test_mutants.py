@@ -17556,11 +17556,14 @@ def _input_after_taking_its_own_prescribed_remedy() -> list[dict]:
     firing at all satisfies this pole vacuously and correctly — that is
     what makes the pin flip under repairs of different blast radius
     rather than prescribing one of them. Measured 2026-08-25 against
-    patched copies of `canvas.py`: naming `customData` in the reconcile
-    gate makes the `mod` compose, so nothing is prescribed and nothing
-    loops; gating the mint on `custom.get("value")` leaves the `mod`
-    broken but makes the re-issue work. Opposite blast radii, both
-    green, neither one named in this builder.
+    four patched copies of `canvas.py`, all four green: naming
+    `customData` in the post-`mod` reconcile gate (the `mod` composes,
+    so nothing is prescribed); gating the mint on `custom.get("value")`
+    (the `mod` stays broken, the re-issue starts working); making all
+    three input paths agree — `make_element`, `reconcile_composed` and
+    `composed_part_floor` currently read `spec["value"]`, nothing, and
+    `cd["value"]` respectively; and the first two together. Opposite
+    blast radii, none of them named in this builder.
 
     WHAT THIS POLE CANNOT SEE ALONE, said out loud because it is the
     hole a subtraction always leaves: deleting the `input` floor
@@ -17569,6 +17572,33 @@ def _input_after_taking_its_own_prescribed_remedy() -> list[dict]:
     and it is why the neighbour is an INPUT and not the `body` block the
     sibling mutant uses — a `body` pole survives an input-shaped
     lobotomy without noticing.
+
+    THE POPULATION IS THE OP PATH, AND ONLY THE OP PATH. A browser save
+    HEALS this drift: `reconcile_composed`'s input arm mints the value
+    row through `_recompose_input_value` whether or not one was asked
+    for, so the same scene committed through `Store.commit(author=
+    "user")` lands on disk with `inp1-value` present and no gap at all
+    (measured 2026-08-25). The loop therefore lives strictly between
+    ops — which is exactly where it bites, since the ERROR tier says
+    "repair in the same move, before narrating" and the agent has no
+    way to know a later save it cannot make would have healed it. Do
+    not read this pin as covering the persisted class.
+
+    THE OTHER HALF OF THE CLASS IS NOT PINNED HERE, and the boundary is
+    a judgement rather than an omission. Ctrl+Shift+G, save, Ctrl+D,
+    save — two blessed gestures, no op anywhere — persists this same
+    ERROR for `slider`, `toggle`, `image` at (2, 0) and `checkbox` at
+    (2, 1) when checked, because `_rehost_duplicated_parts` drops the
+    copy's backlinks and those five arms of `reconcile_composed` only
+    re-derive parts that already exist. That population is wider, it is
+    on disk, and it is re-read every session. It is NOT this pin's
+    subject: measured across all five, re-issuing the copy from its own
+    stored state CLEARS the finding, so the looping-remedy invariant is
+    not what it violates. It is wrong a different way — the copy's
+    track and thumb are on the canvas at x=310 and x=394 under the
+    ERROR's claim that the host "renders as a bare rectangle" — and it
+    has a different root cause and a different fix. It deserves its own
+    pin and does not have one.
 
     Returns:
         The post-remedy scene: unchanged when the check said nothing,
@@ -22036,15 +22066,22 @@ _register(Mutant(
 # says `proven` is per CHECK and not per ARM, and this is one of the
 # arms that footer is about.
 #
-# WHO FLIPS IT: the WP repairing the mint/floor split. Two repairs of
-# very different blast radius both turn it green, measured against
-# patched copies rather than reasoned about — naming `customData` in the
-# post-`mod` reconcile gate (canvas.py:9372), or gating the mint on
-# `custom.get("value")` (canvas.py:2695). A third candidate, rewording
-# the message to name the top-level key, leaves this red, and that is
-# the pin's opinion rather than an oversight: it documents the trap
-# without removing it, and the op layer still returns zero errors for a
-# batch whose result the ERROR tier condemns.
+# WHO FLIPS IT: the WP repairing the input paths. FOUR repairs of very
+# different blast radius all turn it green, measured against patched
+# copies of `canvas.py` rather than reasoned about — naming `customData`
+# in the post-`mod` reconcile gate (canvas.py:9372); gating the mint on
+# `custom.get("value")` (canvas.py:2695); making all three input paths
+# agree, which is the one most likely to land; and the first two
+# together. Three WRONG repairs each leave it red, and each is caught by
+# a different leg of the pair, which is the whole reason there are three
+# legs: deleting `composed_part_floor`'s `input` arm empties the mutant
+# scene but kills the NEIGHBOUR; having the mint discard a `customData`
+# value it did not mint for clears the finding but trips the VALUE
+# GUARD, re-opening the v0.5 silent-drop defect at canvas.py:2696; and
+# rewording the message to name the top-level key leaves the MUTANT red.
+# That last one is the pin's opinion and not an oversight — it documents
+# the trap without removing it, and the op layer still returns zero
+# errors for a three-op batch whose result the ERROR tier condemns.
 _register(Mutant(
     "composed_host_remedy_reproduces_itself",
     build=_input_after_taking_its_own_prescribed_remedy,
