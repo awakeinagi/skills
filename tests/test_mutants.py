@@ -26662,7 +26662,8 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
 # `measured {'TestAnUngroupIsNotRevokedByTheNextSave': 2}`.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestAnUngroupIsNotRevokedByTheNextSave": 2}
+    "TestAnUngroupIsNotRevokedByTheNextSave": 2,
+    "TestOnlyAGroupingGestureChangesGrouping": 1}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -38488,6 +38489,409 @@ class TestAnUngroupIsNotRevokedByTheNextSave(unittest.TestCase):
             "carries it says so out loud — and a silent one would make "
             "the revocation next door unremarkable: %s"
             % r["ungroup_verbs"])
+
+
+class _GroupingBench:
+    """One scratch project holding the same slider the class above uses.
+
+    SHARED VOCABULARY, NOT A SECOND FIXTURE. `TestAnUngroupIsNotRevoked
+    ByTheNextSave` owns the in-session door and mints `w` as a 160x48
+    slider; every door below mints the identical widget, so a reader
+    comparing the two classes is looking at one drawing reached by
+    different routes rather than at two scenes that might differ in
+    some way nobody wrote down.
+
+    Attributes:
+        root: The scratch project directory, removed by `close`.
+        project: The `canvas.Project` over it.
+        store: The live store; `catch_up` REPLACES this, because that
+            door's whole point is a session that restarted.
+    """
+
+    HOST = "w"
+    GID = "w-grp"
+    AID = "f"
+
+    def __init__(self) -> None:
+        """Mint one grouped slider through the ops layer."""
+        self.root = Path(tempfile.mkdtemp(prefix="mutants-grouping-"))
+        self.project = canvas.Project(self.root)
+        self.project.ensure_tree()
+        self.store = canvas.Store(self.project)
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": self.AID,
+            "create": {"id": self.AID, "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": self.HOST, "kind": "slider",
+                "label": "W", "x": 0, "y": 0, "width": 160,
+                "height": 48}}]})
+
+    def close(self) -> None:
+        """Remove the scratch project."""
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def scene(self) -> list[dict[str, Any]]:
+        """A deep copy of the stored scene.
+
+        Returns:
+            The elements as the client would have read them back.
+        """
+        return [copy.deepcopy(e) for e in self.store.scenes[self.AID]]
+
+    def save(self, els: list[dict[str, Any]] | None = None) -> None:
+        """Commit as `/api/save` does, never through `apply_ops`.
+
+        Args:
+            els: The scene the client posts. Defaults to the stored
+                scene, which is the save that carries no gesture.
+        """
+        self.store.commit(
+            author="user",
+            new_scenes={self.AID: els if els is not None else self.scene()},
+            base_revn=self.store.head_revn())
+
+    def geometry_mod(self) -> None:
+        """The ordinary agent edit: geometry, and nothing else.
+
+        This is the whole instrument. A `mod` that names `width` has
+        said nothing about grouping, so whatever it does to grouping it
+        did on its own account.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": self.AID,
+            "ops": [{"op": "mod", "id": self.HOST,
+                     "attrs": {"width": 200}}]})
+
+    def grouping(self) -> str:
+        """How the widget currently reads to someone dragging it.
+
+        Returns:
+            `"grouped"` when the host and every one of its parts share
+            the widget group, `"apart"` when none of them do, and
+            `"split(h=…,parts=n/m)"` for the half-states that are
+            neither — a shape worth naming rather than rounding, since
+            a host left alone in a group of one is a real defect this
+            file has seen before.
+        """
+        els = self.store.scenes[self.AID]
+        host = next(e for e in els if e["id"] == self.HOST)
+        parts = [e for e in els if canvas.part_owner_id(e) == self.HOST]
+        in_host = self.GID in (host.get("groupIds") or [])
+        in_parts = sum(1 for p in parts
+                       if self.GID in (p.get("groupIds") or []))
+        if in_host and in_parts == len(parts):
+            return "grouped"
+        if not in_host and in_parts == 0:
+            return "apart"
+        return "split(h=%s,parts=%d/%d)" % (in_host, in_parts, len(parts))
+
+    def ungroup(self) -> None:
+        """Ctrl+Shift+G and save: the widget group off host and parts."""
+        els = []
+        for e in self.scene():
+            if self.GID in (e.get("groupIds") or []):
+                e["groupIds"] = [g for g in e["groupIds"]
+                                 if g != self.GID]
+            els.append(e)
+        self.save(els)
+
+    def regrouped_scene(self) -> list[dict[str, Any]]:
+        """The same scene with the widget group put back on.
+
+        Returns:
+            Host and parts each carrying the widget group again — what
+            selecting the pieces and pressing Ctrl+G produces.
+        """
+        els = []
+        for e in self.scene():
+            if e["id"] == self.HOST or \
+                    canvas.part_owner_id(e) == self.HOST:
+                e["groupIds"] = sorted({*(e.get("groupIds") or []),
+                                        self.GID})
+            els.append(e)
+        return els
+
+    def reopen_from_disk(self, els: list[dict[str, Any]]) -> None:
+        """Write the artifact file and restart the store over it.
+
+        THE ONLY DOOR THAT DOES NOT GO THROUGH A REQUEST. The desktop
+        Excalidraw app owns the same file; a user who edits it with the
+        session down leaves a scene no handler ever saw, and `catch_up`
+        reconciles it by committing what is on disk. Modelled by
+        writing the file and constructing a NEW `Store`, because a
+        store that never reloaded would keep reading its own memory.
+
+        Args:
+            els: The elements the desktop app left in the file.
+        """
+        path = self.project.artifacts_dir / (self.AID + ".excalidraw")
+        doc = json.loads(path.read_text())
+        doc["elements"] = els
+        path.write_text(json.dumps(doc))
+        self.store = canvas.Store(self.project)
+        self.store.catch_up()
+
+
+def grouping_through_the_unswept_doors() -> dict[str, tuple[str, str, str]]:
+    """Drive the doors no in-session sweep can construct, and read them.
+
+    WHY A GRID CANNOT REACH THESE. Every sweep of this area starts from
+    an in-session ungrouped state, and the server never writes the one
+    pair that matters — the ungroup remembered on the host WHILE the
+    widget's own group stands on it. Both doors here produce that pair
+    without forging it: one lets the desktop app put the group back
+    where no request could observe it, the other lets a client post the
+    scene without the `customData` that carries the memory.
+
+    Each door names what the user's last PHYSICAL act asked for. That
+    expectation comes from the gesture this function performs, never
+    from anything it measures, so no repair to the code under test can
+    move it.
+
+    Returns:
+        `door -> (asked_for, after_the_gesture, after_a_geometry_mod)`,
+        each state one of `"grouped"`, `"apart"` or a `split(...)`
+        reading.
+    """
+    out: dict[str, tuple[str, str, str]] = {}
+    for door in ("desktop re-group", "client strips customData"):
+        bench = _GroupingBench()
+        try:
+            bench.ungroup()
+            bench.save()
+            if door == "desktop re-group":
+                asked = "grouped"
+                bench.reopen_from_disk(bench.regrouped_scene())
+            else:
+                asked = "apart"
+                stripped = []
+                for e in bench.scene():
+                    if e["id"] == bench.HOST:
+                        e = {k: v for k, v in e.items()
+                             if k != "customData"}
+                    stripped.append(e)
+                bench.save(stripped)
+            settled = bench.grouping()
+            bench.geometry_mod()
+            out[door] = (asked, settled, bench.grouping())
+        finally:
+            bench.close()
+    return out
+
+
+def grouping_after_a_forged_ungroup_mark() -> tuple[str, str, list[str]]:
+    """Try to pull a widget apart through the ops layer, two ways.
+
+    THE STRUCTURAL HAZARD, DRIVEN. The memory of an ungroup is written
+    and cleared on the user save path and read on every path, so every
+    door that can WRITE it is a way to take apart a widget the user
+    never touched. This drives the two the schema exposes: `customData`,
+    which `mod` documents as merged, and the terse top-level key.
+
+    Nothing here is forged into the store by hand — both attempts go
+    through `apply_batch`, so a door that is shut answers for itself.
+
+    Returns:
+        `(after_the_forged_mod, after_a_geometry_mod, terse_errors)` —
+        the grouping readings around the `customData` attempt, and
+        whatever the terse-key attempt was told, empty when it was
+        accepted in silence.
+    """
+    mark = getattr(canvas, "UNGROUP_MARK", "ungrouped")
+    bench = _GroupingBench()
+    try:
+        bench.save()
+        bench.store.apply_batch({
+            "base_revn": bench.store.head_revn(), "artifact": bench.AID,
+            "ops": [{"op": "mod", "id": bench.HOST,
+                     "attrs": {"customData": {mark: True}}}]})
+        forged = bench.grouping()
+        bench.geometry_mod()
+        after = bench.grouping()
+    finally:
+        bench.close()
+    terse = _GroupingBench()
+    try:
+        terse.save()
+        errors: list[str] = []
+        try:
+            terse.store.apply_batch({
+                "base_revn": terse.store.head_revn(),
+                "artifact": terse.AID,
+                "ops": [{"op": "mod", "id": terse.HOST,
+                         "attrs": {mark: True}}]})
+        except canvas.BatchError as exc:
+            errors = [str(exc)]
+        return (forged, after, errors)
+    finally:
+        terse.close()
+
+
+def a_minted_composite_is_one_draggable_thing() -> tuple[str, str]:
+    """Mint a widget nobody has touched, and edit its geometry.
+
+    THE MECHANISM'S OWN PULSE. Every claim in the class below is an
+    equality between two readings, and equality is satisfied perfectly
+    by a product that has stopped grouping anything at all. This is the
+    reading that is not an equality: a composite arrives as ONE
+    draggable thing and stays one across an ordinary edit.
+
+    Returns:
+        `(at_mint, after_a_geometry_mod)`, both expected `"grouped"`.
+    """
+    bench = _GroupingBench()
+    try:
+        at_mint = bench.grouping()
+        bench.save()
+        bench.geometry_mod()
+        return (at_mint, bench.grouping())
+    finally:
+        bench.close()
+
+
+class TestOnlyAGroupingGestureChangesGrouping(unittest.TestCase):
+    """A `mod {"width"}` decides how wide a widget is, and nothing else.
+
+    THE CLASS NEXT DOOR OWNS THE IN-SESSION DOOR; this one owns the two
+    it cannot reach, and they are one law apart rather than one defect
+    apart. `TestAnUngroupIsNotRevokedByTheNextSave` pins the gesture
+    being FORGOTTEN across two ordinary saves. What is pinned here is
+    the opposite failure of the same law — a gesture REMEMBERED past
+    the moment the user took it back — and both are the tool deciding
+    grouping on its own account, which `_honour_ungroup`'s own
+    docstring calls "the one thing this product may not do".
+
+    WHY NO GRID FOUND EITHER, and it is not a missing cell. Every sweep
+    of this area — the fixer's 144, the reviewer's, the controller's —
+    starts from an in-session ungrouped state, and the server never
+    writes the one pair that matters: the ungroup remembered on the
+    host WHILE the widget's own group stands on it. `_interpret_user_
+    composites` clears the memory the moment a scene arrives carrying
+    the group, so no request can leave that pair behind. The world
+    leaves it anyway, and the two doors below are the routes.
+
+    THE READING THIS ASSERTS, AND WHY IT IS NOT A PREFERENCE. Two
+    products were on the table — the memory is authoritative and a
+    live group is stale, or the user's most recent PHYSICAL act wins —
+    and the second is already the one this product implements. Measured
+    2026-08-26: a re-group posted in session clears the memory and the
+    widget stays together. The desktop door is the SAME PHYSICAL
+    GESTURE arriving by another route and gets the opposite answer. So
+    this is not an open design question being settled by a test; it is
+    one door disagreeing with the answer the product already gives,
+    and the first reading is refused by the product's own behaviour
+    before any docstring is quoted.
+
+    NOT A CATALOGUE MUTANT, for the reason the class above gives and
+    one more. `collect_findings` reads ONE scene and this is a relation
+    across a restart; and the scene it ends on is internally coherent —
+    a widget whose parts sit outside its group is exactly what a user
+    who ungrouped it should see, so every scene-level check is
+    correctly silent about a picture that is nonetheless wrong.
+
+    WHO FLIPS IT, MEASURED AGAINST PATCHED COPIES rather than reasoned
+    about — three repairs at three different layers, each turning every
+    door below green with no other door moving: the out-of-session door
+    interpreting composites before it commits; the second reader
+    treating a live group as evidence the memory is stale; and the
+    loader normalizing the pair away as it reads the file. A pin that
+    only one repair can satisfy has prescribed that repair; this one
+    names a layer each and prefers none.
+
+    TWO WRONG ANSWERS ARE CAUGHT, AND BY DIFFERENT LEGS. Reading the
+    memory off the POSTED host instead of the base one leaves the
+    desktop door red AND breaks the stripped-`customData` door, which
+    is the only thing in the suite that separates those two spellings —
+    82 composed tests and the whole module pass on both. And a product
+    that simply stops closing groups satisfies every equality here
+    vacuously; that one is caught by the ungated pole, which is why the
+    pole is not optional.
+    """
+
+    @unittest.expectedFailure
+    def test_neither_unswept_door_lets_a_mod_decide_the_grouping(
+            self) -> None:
+        """A gesture the server never saw is answered by the next edit."""
+        # TWO HALVES OF ONE LAW, and the message names which one broke
+        # because they have different owners. `settled` wrong means the
+        # gesture was not recorded at all; `after` differing from
+        # `settled` means an edit that said nothing about grouping
+        # changed it anyway. Both are failures of "only a grouping
+        # gesture changes grouping", so they belong in one red — a pin
+        # split across the two would flip half-way and read as progress.
+        #
+        # RED ON BOTH SIDES OF THE FIX IN FLIGHT, measured 2026-08-26
+        # so this is not discovered later: at `33b7e10` the stripped-
+        # `customData` door fails and the desktop door passes for the
+        # empty reason that nothing remembers anything; at the ungroup
+        # fixer's tip the memory exists, that door passes, and the
+        # desktop door fails. One red, two trees, two different doors —
+        # which is what stops it going quietly green on either.
+        doors = grouping_through_the_unswept_doors()
+        wrong = []
+        for door, (asked, settled, after) in sorted(doors.items()):
+            if settled != asked:
+                wrong.append("%s: the user's last physical act asked for "
+                             "%s and the save left it %s"
+                             % (door, asked, settled))
+            elif after != settled:
+                wrong.append("%s: settled at %s, and a `mod {width: 200}` "
+                             "— which says nothing about grouping — left "
+                             "it %s" % (door, settled, after))
+        self.assertEqual(
+            wrong, [],
+            "grouping is a user's gesture and this product may not take "
+            "one back on its own account: %s" % "; ".join(wrong))
+
+    def test_a_forged_mark_cannot_take_a_widget_apart(self) -> None:
+        """The ops layer may not pull apart what the user built.
+
+        UNGATED ON PURPOSE, and it is a regression pole rather than a
+        record of a defect. The memory of an ungroup is written and
+        cleared on ONE path and read on every path, so each new reader
+        makes every unreachable writer live — and an agent batch that
+        could write it would be able to take apart a widget nobody
+        touched, which is the same product law the red above is about
+        arriving from the other side.
+
+        MEASURED, NOT FEARED: against a `canvas.py` with the two doors
+        re-opened, this widget comes back `apart` from a `mod` that only
+        ever named `customData`, and this method is what fails. It is
+        green today on both sides of the fix in flight — before it,
+        because nothing reads what the door writes; after it, because
+        the door is shut — and those are two different reasons for one
+        colour, which is exactly the state a live guard is for.
+        """
+        forged, after, terse = grouping_after_a_forged_ungroup_mark()
+        self.assertEqual(
+            (forged, after), ("grouped", "grouped"),
+            "an agent batch naming only `customData` took a widget the "
+            "user assembled apart: %r after the forged mod, %r after an "
+            "ordinary geometry edit" % (forged, after))
+        self.assertTrue(
+            terse and "ungrouped" in terse[0],
+            "the terse door must refuse out loud and name the attribute "
+            "it will not take; it answered %r" % (terse or "nothing"))
+
+    def test_the_grouping_mechanism_is_still_alive(self) -> None:
+        """A widget nobody touched is one thing, before and after an edit.
+
+        THE RED CANNOT OBSERVE THIS, which is the whole reason it is a
+        separate method. Every claim up there is an equality between
+        two readings, and a `canvas.py` that never groups anything
+        satisfies all of them — the widget is apart before and apart
+        after, so nothing "changed" and the mask reports a healthy
+        expected failure over a product that has stopped assembling
+        widgets at all. Measured against exactly that patch: the red
+        stays red on one door, this method fails on both readings, and
+        the failure is the one that names the cause.
+        """
+        at_mint, after = a_minted_composite_is_one_draggable_thing()
+        self.assertEqual(
+            (at_mint, after), ("grouped", "grouped"),
+            "a composed widget arrives as one draggable thing and stays "
+            "one across an ordinary edit; this one read %r at the mint "
+            "and %r after a `mod {width: 200}`" % (at_mint, after))
 
 
 class TestADeclaredDatumSurvivesTheDoorItCameThrough(unittest.TestCase):
