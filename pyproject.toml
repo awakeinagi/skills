@@ -148,10 +148,13 @@ suppress-dummy-args = true       # _ and __ need no annotation
 # bodies of untyped functions by default and canvas.py carries the `ANN` debt
 # above, so `uvx mypy` printed "Success: no issues found" while
 # `uvx mypy --check-untyped-defs` printed pages of errors it had been silent
-# about. Run both yourself rather than trusting a figure here — that count
-# falls whenever somebody annotates anything, which is exactly how the number
-# this sentence used to quote went stale inside its own branch. pyright was a
-# `pyrightconfig.json` in no hook and in no document — a gate by convention.
+# about. No figure here, and not merely because the count falls whenever
+# somebody annotates anything: the number this sentence used to quote was
+# read under `[tool.mypy]`, which this same branch deleted, so nobody can
+# reproduce it at head under any invocation. A measurement whose instrument
+# has been removed is not stale, it is unrepeatable. Run the two commands.
+# pyright was a `pyrightconfig.json` in no hook and in no document — a gate
+# by convention.
 #
 # ty CHECKS UNANNOTATED BODIES; mypy DID NOT — binary, not a matter of degree,
 # which is why this claim gets no number. Inject one type error into an
