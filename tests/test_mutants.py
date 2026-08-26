@@ -33330,17 +33330,36 @@ class TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture(
         flatten axis reverted only        -> the flatten red only
         method deleted                    -> 3 fail, presence green first
 
-    ONE BLIND SPOT, MEASURED AND LEFT AS FOUND, because a batch about
-    unrecorded blind spots should not ship one. The size red forbids an
-    integer literal in the ARGUMENTS of the wrap and metric calls. Bind
-    `fs = 16` one line above and pass it by name and all four methods
-    pass — a fixture-derived size that never reads the label, wearing
-    the repair's shape. The landed repair does read the label
-    (`lbl.get("fontSize") or 16`, the check's own binding), so the tree
-    is honest; what is being recorded is that the RED does not compel
-    it, and that a future author could satisfy this without satisfying
-    the check. Not edited to fit: an acceptance test tightened by the
-    hand it accepts is the pattern this class exists inside.
+    ONE BLIND SPOT, DISCLOSED 2026-08-20 AND CLOSED 2026-08-25. As
+    filed, the size red forbade an integer literal in the ARGUMENTS of
+    the wrap and metric calls — so binding `fs = 16` one line above and
+    passing it by name left all four methods green over a
+    fixture-derived size that never reads the label, wearing the
+    repair's shape. The landed repair did read the label, so the tree
+    was honest; what the handback recorded was that the RED did not
+    compel it. It was left as found ON PURPOSE, because an acceptance
+    test tightened by the hand it accepts is the pattern this class
+    exists inside — and the disclosure lived only in a commit message,
+    which is a place nobody reads a green from.
+
+    A reviewer's Minor moved it into the tree. Reproduced first, on the
+    shipped method, three shapes and not one: `fs = 16` bound above,
+    `font_size=16` passed by keyword (never in `args`), and `16.0`
+    (never an `int`). The size red now walks the argument backwards
+    through the method's own bindings and demands a `fontSize` read, so
+    all three fail it and the name is finally the assertion. Measured
+    the same way as the table above:
+
+        fs = 16 bound one line above  -> the size red only
+        the literal by keyword        -> the size red only
+        the literal as a float        -> the size red only
+        method deleted                -> 3 fail, unchanged
+
+    TWO CASES CAME WITH IT, because a widened predicate that nobody
+    aimed at a bad input is the same unproven claim in a larger costume:
+    one fires the guard at four fixture-sized repairs and two honest
+    ones, the other pins the single shape it still lets through and the
+    reason that is tolerable.
 
     KEPT AFTER THE FLIP rather than deleted with the defect. Both reds
     read the method's own syntax tree, so they go on refusing a pinned
