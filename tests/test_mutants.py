@@ -25113,7 +25113,24 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # and leaves this red on `checkbox`, whose remedy turns a `(2, 1) missing`
 # into a `(1, 2) surplus` and silently unchecks the box. The two do not
 # flip together, so neither subsumes the other.
+#
+# A SECOND ENTRY the same day, and it is the one the sweep above FOUND.
+# `TestADeclaredDatumSurvivesTheDoorItCameThrough` pins the half of the
+# `customData` split that no instrument can reach: `add` rewrites a datum
+# the caller declared — `kpi` value `'42'` to `''`, `slider` 40 to the
+# default 50.0, `checkbox` and `toggle` `checked: True` to False — AND
+# mints the parts matching the rewritten state, so the scene is internally
+# coherent, `composed_host_gaps` is empty and every registered check is
+# correctly silent. It is hand-authored for a sharper reason than the
+# sweep's: registering a check name for it would state a contract no
+# scene-level lint can meet, because the disagreement is between the store
+# and the REQUEST and no rule over elements can reach a request. Measured
+# identical at `3aa3839`, so it is red against the tree that landed the
+# input repair rather than waiting on it. Two opposite repairs turn it
+# green — mint from whichever door supplied the datum, or refuse the batch
+# out loud — which is what keeps it from prescribing either.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestADeclaredDatumSurvivesTheDoorItCameThrough": 1,
     "TestNoErrorTrapsTheAgentBehindIt": 1}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
@@ -34673,6 +34690,167 @@ class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
                 "`assertGreaterEqual` against a frame that clears both, "
                 "so the short figure has never failed"
                 % (got, truth, truth - got))
+
+
+_ABSENT = object()
+
+
+def declared_datum_after_add(kind: str, field: str, value: Any,
+                             through_custom_data: bool) -> tuple:
+    """`add` one composed host declaring `field`, and read it back.
+
+    THE INSTRUMENT IS THE STORE, NOT THE LINT, and it has to be: the
+    scenes this measures are internally CONSISTENT — the parts drawn
+    match the state as rewritten — so `composed_host_gaps` is empty and
+    every registered check is correctly quiet. Nothing scene-level can
+    see this, because nothing scene-level ever saw the request. The
+    evidence exists only in the relation between what was asked for and
+    what came back.
+
+    Args:
+        kind: The composed kind to declare.
+        field: The state key the kind's floor is a function of.
+        value: What the caller declares.
+        through_custom_data: Route it through `customData` rather than
+            as a top-level op key. Both doors are documented.
+
+    Returns:
+        `(stored, op_errors, gaps)` — the value read back off the host
+        (`_ABSENT` if the key is gone), the batch's op errors, and
+        `composed_host_gaps` on the result.
+    """
+    spec = dict(_SWEEP_BOX)
+    if through_custom_data:
+        spec["customData"] = {"kind": kind, field: value}
+    else:
+        spec["kind"], spec[field] = kind, value
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": spec}], errors)
+    host = next(e for e in els if e["id"] == "h")
+    return ((host.get("customData") or {}).get(field, _ABSENT), errors,
+            canvas.composed_host_gaps(els))
+
+
+def sweep_declared_data(through_custom_data: bool) -> list[tuple]:
+    """Every kind whose declared datum comes back changed, and silently.
+
+    Args:
+        through_custom_data: Which of the two documented doors to use.
+
+    Returns:
+        Sorted `(kind, field, declared, stored)` for each kind where the
+        value came back different with no op error to say so. Value
+        equality, not string equality: `slider` legitimately widens an
+        int 40 to 40.0 and that is a coercion, not a discard.
+    """
+    out = []
+    for kind in sorted(_KIND_STATE):
+        for field, value in _KIND_STATE[kind].items():
+            stored, errors, _ = declared_datum_after_add(
+                kind, field, value, through_custom_data)
+            if errors:
+                continue          # refused out loud is an honest answer
+            if stored is _ABSENT or stored != value:
+                out.append((kind, field, value,
+                            "<absent>" if stored is _ABSENT else stored))
+    return out
+
+
+class TestADeclaredDatumSurvivesTheDoorItCameThrough(unittest.TestCase):
+    """A datum the caller declared must not come back changed in silence.
+
+    THE SUBJECT HAS NO CHECK, AND CANNOT HAVE ONE OF THE USUAL SHAPE.
+    Found 2026-08-25 by `sweep_remedy_fixpoints` while it was hunting
+    something else, which is the argument for sweeps in one line. Every
+    other pin in this file hangs off a detector that speaks; here every
+    detector is correctly quiet, because the scene it is handed is
+    internally coherent — `add` rewrites the state AND mints the parts
+    that match the rewritten state, so floor equals drawn and the
+    picture agrees with the store. What disagrees is the store and the
+    REQUEST, and no scene-level rule can reach a request.
+
+    THAT IS WHY IT IS A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT.
+    Registering a check name for it — the `composed_host_stripped`
+    red-by-absence pattern — would state a contract no lint can meet
+    and quietly prescribe a rule that cannot exist. The remedy lives at
+    the op boundary, so the pin does too.
+    """
+
+    @unittest.expectedFailure
+    def test_a_customdata_datum_is_kept_or_refused_but_never_rewritten(
+            self) -> None:
+        """Four kinds discard the caller's own datum without a word.
+
+        MEASURED 2026-08-25, and identical at `3aa3839`, the commit that
+        landed the input repair — so this is red against that tree as it
+        stands and is not waiting on it. Through `customData`, with zero
+        op errors and no finding anywhere: `kpi` value `'42'` comes back
+        `''`, `slider` value `40` comes back `50.0` (the default, not
+        the request), `checkbox` and `toggle` `checked: True` come back
+        `False`. `input` is the one kind that keeps it, before the
+        repair as an inconsistency the ERROR tier reported and after it
+        as a value row on the canvas.
+
+        THE PROPERTY IS NOT "HONOUR IT", which is what keeps this red
+        fix-agnostic and stops it prescribing the repair the implementer
+        is weighing. Three answers are honest — mint from whichever door
+        supplied it, refuse the batch and say why, or leave the caller's
+        `customData` alone — and only one is not: rewriting a stored
+        datum to a value nobody asked for while reporting success. A
+        refusal passes this test by construction, since an op error is
+        the batch saying so out loud.
+
+        THE THIRD ASSERTION IS THE NEAREST WRONG REPAIR. Honouring the
+        datum without minting the part it implies would clear this test
+        and open the one next door: a `checked` checkbox owing two parts
+        and drawing one. So the scene is required to stay internally
+        consistent under whatever repair lands, which is the half a
+        request/response contract cannot express on its own.
+        """
+        self.assertEqual(
+            sweep_declared_data(through_custom_data=True), [],
+            "a documented `add` rewrote a datum the caller declared in "
+            "`customData` and reported no error: %s. Honour it, or refuse "
+            "the batch and say why — but a stored value nobody asked for, "
+            "under a scene every check calls healthy, is the v0.5 "
+            "silent-drop defect on a second field"
+            % (sweep_declared_data(through_custom_data=True),))
+        for kind, state in sorted(_KIND_STATE.items()):
+            for field, value in state.items():
+                with self.subTest(kind=kind, field=field):
+                    _, _, gaps = declared_datum_after_add(
+                        kind, field, value, True)
+                    self.assertEqual(
+                        gaps, [],
+                        "%s: whatever repair lands must leave the parts "
+                        "agreeing with the state — honouring the datum "
+                        "and not minting what it owes trades this defect "
+                        "for the one composed_host_stripped reports"
+                        % kind)
+
+    def test_the_same_data_through_the_top_level_door_is_kept(self) -> None:
+        """The live half: the store read is real and the doors differ.
+
+        THE NEIGHBOUR'S JOB, for a pin with no detector. The red above
+        is an emptiness claim, and an emptiness claim is satisfied
+        perfectly by a broken instrument — a `declared_datum_after_add`
+        that stopped reading `customData`, or an `apply_ops` that
+        stopped building anything, would report "nothing rewritten" and
+        look like a fix. This asserts the same five declarations through
+        the OTHER documented door and requires every one to survive, so
+        the pair says something a single pole cannot: the datum is not
+        unstorable, and the difference the red measures is the door.
+
+        Ungated and asserted in every commit, for the reason every
+        neighbour is: the mask over the red hides errors as readily as
+        failures.
+        """
+        self.assertEqual(
+            sweep_declared_data(through_custom_data=False), [],
+            "the top-level door must keep every declared datum, or the "
+            "red beside this one is measuring a broken reader rather "
+            "than a difference between two doors: %s"
+            % (sweep_declared_data(through_custom_data=False),))
 
 
 class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
