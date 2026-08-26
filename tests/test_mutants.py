@@ -24369,8 +24369,21 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # not the one the handover named; a note here that had transcribed the
 # named repair would have described a tree that does not exist. Read the
 # class, not the paragraph that commissioned it.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestTheWireframeRefusalNamesTheWholeVocabulary": 1}
+#
+# EMPTY AGAIN on 2026-08-25, and the entry below called it: the class lost
+# its LINE and not a number, having exactly one red and one owning surface.
+# This value was READ OFF the guard rather than typed, on the 2026-08-20
+# precedent — the marker was dropped first,
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` was run, it
+# reported `measured {} against a declared
+# {'TestTheWireframeRefusalNamesTheWholeVocabulary': 1}`, and the measured
+# side was transcribed. The fix is `_mermaid_refusal`'s wireframe arm
+# interpolating `", ".join(WIREFRAME_KINDS)` instead of transcribing ten of
+# them, and the red reported UNEXPECTED SUCCESS against it while still
+# marked, which is the order the flip contract asks for and the only
+# evidence that the red and the fix were ever about the same sentence. The
+# class stays in the file at five green tests; only the colour moved.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -33555,7 +33568,6 @@ class TestTheWireframeRefusalNamesTheWholeVocabulary(unittest.TestCase):
                     "quietly tell a screen it has lanes"):
             self._pin_over(_repair_reaching_for_the_union)
 
-    @unittest.expectedFailure
     def test_the_refusal_names_every_kind_a_wireframe_may_declare(
             self) -> None:
         """THE RED: 10 of 17 named on fold-wp4 @ 2c544c5, 7 omitted.
