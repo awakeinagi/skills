@@ -362,13 +362,15 @@ loop variable), `SIM115` (a file opened without a context manager), and `E741`
 
 `ty` is **not** on this list: it is clean and it gates. Keeping it that way is
 a standing constraint, and **`[tool.ty.rules]` is not how you do it** — that
-retires the finding instead of the debt. Four suppressions exist, each one
-line with its derivation beside it (five monkeypatch sites in
-`test_backend.py`, and `log_message` in `canvas.py`, recorded as an
-unreachable LSP violation rather than repaired). Everything else was paid by
-annotating, renaming or repairing. Note also that the `ANN` rows above hide
-nothing from it: unlike mypy, `ty` checks unannotated function bodies, so
-that debt was never shielding a type error.
+retires the finding instead of the debt. Per-line suppressions exist and each
+carries its derivation beside it — `grep -rn 'ty: ignore'` is the inventory,
+deliberately given as a command because a count here would go stale the first
+time one is added or paid. They are the monkeypatch sites in
+`test_backend.py`, where a stub is deliberately not the real signature, and
+`log_message` in `canvas.py`, recorded as an unreachable LSP violation rather
+than repaired. Everything else was paid by annotating, renaming or repairing.
+Note also that the `ANN` rows above hide nothing from `ty`: unlike mypy it
+checks unannotated function bodies, so that debt never shielded a type error.
 
 Retrofit rule: **when you touch a function, bring it to standard** — full
 Google docstring and full annotations — even if the change was one line. That
