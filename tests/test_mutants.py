@@ -34962,13 +34962,20 @@ class TestCoverage(unittest.TestCase):
         magnitude, and the direction picks the tail.
 
         THE CORPUS CANNOT EXERCISE IT, measured rather than inherited:
-        across the 24 frozen artifacts there are 67 composed hosts, 27
-        of them entities and so carved out, and every one of the 40 that
-        carries a floor draws exactly what it owes. ZERO findings added
+        across the 24 frozen artifacts there are 67 composed hosts, 32
+        of them carved out (27 entities, 5 inputs) and 35 floored, every
+        one of the 35 drawing exactly what it owes. ZERO findings added
         to every shipped drawing, so `corpus_census` does not move. That
         zero is an EMPTY population and not an unreachable one —
         Ctrl+Shift+G then Ctrl+D on a slider reaches it through
-        `_rehost_duplicated_parts`' two-owner drop branch.
+        `_rehost_duplicated_parts`' NO-HOST drop branch. That function's
+        own docstring draws the distinction and an earlier version of
+        this paragraph got it backwards: `len(pick) == 1` fails on two
+        shapes, a group naming no host and a group naming two or more,
+        and Ctrl+Shift+G is the first — the parts carry no group at all,
+        so `owners` is empty. The claim the branch name supports was
+        reproduced either way; only the name was wrong, and it is the
+        kind of wrong that sends the next reader to the wrong arm.
 
         THE DENOMINATOR IS THE ARTIFACTS, not the fixture tree, and the
         first sweep of this got it wrong in the direction that looks

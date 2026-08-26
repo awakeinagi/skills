@@ -19746,12 +19746,17 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # a silence nobody has to remember to ask for.
     #
     # ZERO ON THE FROZEN CORPUS, measured 2026-08-25 rather than hoped:
-    # 67 composed hosts across the 24 frozen artifacts, 27 of them
-    # entities and so exempt, and every floored one draws what it owes.
-    # The corpus census does not move. The denominator is the ARTIFACTS
-    # and not the whole fixture tree — `saves/` holds diffs (`changes`,
-    # `facts`, `inverse`), not scenes, so a sweep that globbed it would
-    # have reported the same zero while reading no elements at all.
+    # 67 composed hosts across the 24 frozen artifacts, 32 of them
+    # exempt (27 entities, 5 inputs) and 35 floored, every one of the 35
+    # drawing exactly what it owes. The corpus census does not move.
+    # The denominator is the ARTIFACTS and not the whole fixture tree —
+    # `saves/` holds diffs (`changes`, `facts`, `inverse`), not scenes,
+    # so a sweep that globbed it would have reported the same zero while
+    # reading no elements at all. Worth one clause because it bounds the
+    # reading rather than decorating it: the corpus holds no `body` host
+    # at all, so the kind the acceptance mutant is built on is exercised
+    # by that mutant and by `TestComposedHostFloors`, never by a shipped
+    # drawing.
     for hid, kind, floor, drawn in composed_host_gaps(els):
         # THE REPAIR IS PER KIND BECAUSE THE CODE IS. `body`, `kpi` and
         # `input` are the three arms of `reconcile_composed` that mint
