@@ -17776,10 +17776,22 @@ def _door_duplicate(kind: str) -> tuple[list[dict], list[str]]:
 #
 # WHAT THE FLIP COST, said plainly because the numerator moving to zero is
 # the least informative part: the numerator fell 2 -> 0 while the
-# denominator held at 40 and the fired count held at 12. Twelve pairs
-# still file an ERROR; all twelve can now escape it by the repair the
-# finding prescribes, which is the whole claim this sweep makes. A
-# denominator that moved would have meant the walk stopped asking.
+# DENOMINATOR HELD at 40. That second half is the whole reading. A
+# denominator that moved would have meant the walk stopped asking, and
+# "0 trapped" would have been the sound of a broken instrument rather
+# than a repair.
+#
+# NO FIRED COUNT IS WRITTEN HERE, and the reason is that a previous
+# version of this paragraph wrote one. It said "the fired count held at
+# 12. Twelve pairs still file an ERROR" — true when written, false one
+# fold later, when `_rigid_copy_hosts` gave the ungrouped copy a second
+# witness and the four `duplicate + save` pairs stopped filing at all.
+# Nothing asserted the 12, so nothing went red; it would simply have sat
+# there being wrong, which is this file's most-repeated failure. The
+# claim that does not go stale is the one the sweep actually makes:
+# whatever fires must be escapable by the repair the finding prescribes,
+# and `looped` is the count of the ones that are not. Read the live
+# figures with `sweep_remedy_fixpoints()` rather than from this comment.
 _TRAPPED_PAIRS: set[tuple[str, str]] = set()
 
 _REMEDY_DOORS: dict[str, Callable[[str], tuple[list[dict], list[str]]]] = {

@@ -3370,6 +3370,114 @@ def _honour_ungroup(els, el, ungrouped_by_user):
     _close_widget_group([el, *parts])
 
 
+def _rigid_copy_hosts(new_els: list[dict[str, Any]],
+                      fresh: list[dict[str, Any]],
+                      old_ix: dict[str, dict[str, Any]]) -> dict[str, str]:
+    """Match each stale owner to the fresh host that is its rigid copy.
+
+    THE SECOND WITNESS, FOR THE COPY THAT HAS NO GROUP TO SPEAK FOR IT.
+    `_rehost_duplicated_parts` reads a duplicated part's new host off
+    the group the copy landed in, and that witness is silent for
+    exactly one gesture: `Ctrl+Shift+G`, save, `Ctrl+D`, save. The
+    ungroup takes the widget group off host and parts alike, so the
+    copy's parts carry no group at all, `owners` is empty, and the
+    backlink is dropped. Measured through `Store.commit` on 2026-08-26
+    — not through `apply_ops`, which is a layer above the seam — that
+    drop damaged 7 of the 8 composed kinds. `slider`, `toggle`,
+    `checkbox` and `image` came back DEAD: their arms of
+    `reconcile_composed` only re-derive parts that already exist, so
+    the copy owned none while its own track and thumb stood drawn
+    inside its box. `body`, `kpi` and `input` came back with DOUBLED
+    ink, their minting arms drawing a fresh set beside the orphaned one
+    (a body block's copy went from 3 decorations to 6).
+
+    IT IS NOT A GUESS FROM GEOMETRY, and that distinction is why this
+    is allowed to stand beside a docstring next door that rules
+    guessing out. Nothing here asks which host a part looks closest to,
+    or whose box it falls inside; either question would put a user's
+    ink somewhere they did not draw it. It asks an IDENTITY instead. A
+    duplicate is a rigid translation of a whole selection, so the
+    copy's parts stand at the same offsets inside the copy that the
+    original's parts stand at inside the original — every part, both
+    axes, exactly. The claim is made only when the copy's part count
+    equals the original's and exactly ONE fresh host answers it;
+    anything else falls through to the drop, unchanged.
+
+    KEYED ON THE STALE BACKLINK, so it must be read BEFORE the caller
+    rewrites `customData`. And bounded to owners that stand IN THE
+    BASE: a part naming a host this scene has never held is a pasted
+    stencil, which the group witness already resolves and which has no
+    original here to be a rigid copy of.
+
+    Args:
+        new_els: The incoming normalized user scene. Read, not mutated.
+        fresh: The tagged parts absent from the base — the candidates
+            the caller is re-pointing.
+        old_ix: id -> element for the base state.
+
+    Returns:
+        `{stale_owner_id: fresh_host_id}`, carrying an entry only where
+        the copy was identified without ambiguity. Empty when no fresh
+        part names a standing host.
+    """
+    def offsets(parts: list[dict[str, Any]],
+                host: dict[str, Any]) -> list[tuple]:
+        """Where these parts sit inside that host, sorted.
+
+        Args:
+            parts: The elements to place.
+            host: The element they are measured against.
+
+        Returns:
+            Sorted `(dx, dy, type)` triples. `x`/`y` is the anchor for
+            a point-strung part as much as for a box, and a rigid
+            translation moves the anchor and leaves `points` alone, so
+            no extent is needed or wanted here. Rounded to absorb the
+            float noise a round-trip through JSON leaves behind.
+        """
+        hx, hy = host.get("x", 0), host.get("y", 0)
+        return sorted((round(p.get("x", 0) - hx, 3),
+                       round(p.get("y", 0) - hy, 3), p.get("type") or "")
+                      for p in parts)
+
+    wanted: dict[str, list[dict[str, Any]]] = {}
+    for e in fresh:
+        oid = part_owner_id(e)
+        if oid in old_ix:
+            wanted.setdefault(oid, []).append(e)
+    if not wanted:
+        return {}
+    live: dict[str, dict[str, Any]] = {}
+    standing: dict[str, list[dict[str, Any]]] = {}
+    minted: list[dict[str, Any]] = []
+    for e in new_els:
+        if not isinstance(e, dict) or e.get("isDeleted"):
+            continue
+        live[e["id"]] = e
+        oid = part_owner_id(e)
+        if oid is None:
+            # A host, by the caller's own rule: never a tagged part and
+            # never a bound label, which answers with its `containerId`.
+            if e["id"] not in old_ix:
+                minted.append(e)
+        elif e["id"] in old_ix and _composed_part(e.get("customData") or {}):
+            standing.setdefault(oid, []).append(e)
+    out: dict[str, str] = {}
+    for hid, copies in wanted.items():
+        src = live.get(hid)
+        mine = standing.get(hid, [])
+        if src is None or len(mine) != len(copies):
+            continue
+        kind = (src.get("customData") or {}).get("kind")
+        want = offsets(mine, src)
+        hits = [h for h in minted
+                if (h.get("customData") or {}).get("kind") == kind
+                and offsets(copies, h) == want]
+        if len(hits) == 1:
+            out[hid] = hits[0]["id"]
+    return out
+
+
 def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
                              old_ix: dict[str, dict[str, Any]]) -> None:
     """Point a duplicated part's `*_of` backlink at its OWN host.
@@ -3434,18 +3542,25 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
     DROPPING IS THE FALLBACK FOR AMBIGUITY, NOT ONLY FOR ABSENCE, and
     it is a residual rather than a clean answer. `len(pick) == 1` fails
     on TWO shapes: a group naming no host (an ungrouped widget, whose
-    parts carry no group at all), and a group naming two or more. Both
-    then strip the backlink, and the cost is visible on
-    `Ctrl+Shift+G` then `Ctrl+D` — the copy's parts are untagged, so
-    the arms that remint draw the doubled ink this very paragraph
-    argues against (a 5-wave body copy drew 10 wave lines; a checkbox
-    copy drew two check strokes), and the arms that only re-derive
-    leave the copy a DEAD WIDGET whose parts no longer drag with it.
-    Kept anyway, deliberately: the base behaviour is worse — it DELETES
-    those parts outright — and the alternative to dropping is guessing
-    a host from geometry, which would put a user's ink somewhere they
-    did not draw it. A save may not delete what a user just drew, and
-    it may not invent an owner for it either.
+    parts carry no group at all), and a group naming two or more. What
+    that used to cost was visible on `Ctrl+Shift+G` then `Ctrl+D` — the
+    copy's parts came back untagged, so the arms that remint drew the
+    doubled ink this very paragraph argues against (a 5-wave body copy
+    drew 10 wave lines; a checkbox copy drew two check strokes), and
+    the arms that only re-derive left the copy a DEAD WIDGET whose
+    parts no longer drag with it. Measured 2026-08-26 through
+    `Store.commit`, that reached 7 of the 8 composed kinds.
+
+    `_rigid_copy_hosts` NOW ANSWERS THAT GESTURE, and the drop keeps
+    only what it cannot: it identifies the copy by an exact offset
+    match — the same arithmetic identity a rigid translation makes true
+    — never by proximity or containment. Where it cannot say which host
+    the ink belongs to, this still drops rather than guesses, because
+    the base behaviour is worse (it DELETES those parts outright) and
+    the alternative to dropping is guessing a host from geometry, which
+    would put a user's ink somewhere they did not draw it. A save may
+    not delete what a user just drew, and it may not invent an owner
+    for it either.
 
     Only parts ABSENT FROM THE BASE are touched. An existing part whose
     backlink looks odd is the blessed ungroup gesture, or a pin, and
@@ -3473,6 +3588,9 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
             continue        # a part, or a bound label — never a host
         for g in e.get("groupIds") or []:
             hosts.setdefault(g, []).append(e["id"])
+    # THE SECOND WITNESS, computed once and keyed on the STALE backlink
+    # — so it is built here, before the loop below rewrites any of them.
+    rigid = _rigid_copy_hosts(new_els, fresh, old_ix)
     for e in fresh:
         gids = e.get("groupIds") or []
         owners = hosts.get(gids[0], []) if gids else []
@@ -3497,10 +3615,15 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
         # dropping a user's backlink, which is the expensive answer.
         minted = [o for o in owners if o not in old_ix]
         pick = minted or owners
-        # Ambiguity degrades to DROP, never to a guess. Both `len == 0`
-        # and `len >= 2` land here; see the docstring for what that
-        # costs and why it is still the right trade.
+        # Ambiguity asks the SECOND witness, and only then degrades to
+        # DROP — never to a guess. Both `len == 0` and `len >= 2` land
+        # here; the group has stopped discriminating either way, and
+        # `_rigid_copy_hosts` answers on an identity rather than a
+        # resemblance. It is ORDERED SECOND deliberately: where the
+        # group speaks, nothing about this path changes at all.
         host = pick[0] if len(pick) == 1 else None
+        if host is None:
+            host = rigid.get(part_owner_id(e))
         cd = dict(e["customData"])
         changed = False
         for k in COMPOSED_PART_KEYS:
