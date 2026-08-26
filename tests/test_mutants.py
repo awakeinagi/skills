@@ -17542,6 +17542,229 @@ def _orphaned_widget_copy(with_ink: bool) -> list[dict]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# The remedy-fixpoint sweep. `duplicated_widget_reported_as_bare` and
+# `composed_host_remedy_reproduces_itself` each pin ONE instance with a
+# quadruple; this asks the same question of every composed kind through
+# every documented door, so the answer carries a denominator.
+# ---------------------------------------------------------------------------
+_COMPOSED_KINDS = ("body", "kpi", "input", "slider", "toggle", "checkbox",
+                   "image", "entity")
+# The settled state each kind's floor is a function of. `body` derives its
+# floor from height, `image` and `entity` from the kind alone, so those
+# three declare nothing here and that is not an omission.
+_KIND_STATE: dict[str, dict] = {
+    "input": {"value": "09:00"}, "kpi": {"value": "42"},
+    "slider": {"value": 40}, "checkbox": {"checked": True},
+    "toggle": {"checked": True}}
+_SWEEP_BOX = {"type": "rectangle", "id": "h", "label": "H", "x": 0, "y": 0,
+              "width": 200, "height": 64}
+
+
+def _hosts_reported_stripped(els: list[dict]) -> list[str]:
+    """Host ids the composed-host ERROR names in this scene.
+
+    Args:
+        els: A scene.
+
+    Returns:
+        Sorted ids, empty when the check said nothing.
+    """
+    lines = canvas.lint_layout(els)["errors"]
+    return sorted({e["id"] for e in els
+                   if any(ln.startswith(e["id"] + " ") and
+                          "is a composed" in ln for ln in lines)})
+
+
+def _reissue_from_stored_state(els: list[dict],
+                               hid: str) -> tuple[list[dict], list[str]]:
+    """Perform the repair a reader of the scene can perform.
+
+    Args:
+        els: The scene the finding fired on.
+        hid: The host the finding named.
+
+    Returns:
+        `(scene, op_errors)` after `del` + `add` of that host as stored.
+    """
+    stored = copy.deepcopy(next(e for e in els if e["id"] == hid))
+    for key in ("seed", "version", "versionNonce", "updated",
+                "boundElements", "index"):
+        stored.pop(key, None)
+    errors: list[str] = []
+    out = canvas.apply_ops(copy.deepcopy(els),
+                           [{"op": "del", "id": hid},
+                            {"op": "add", "element": stored}], errors)
+    return out, errors
+
+
+def _door_add_top(kind: str) -> tuple[list[dict], list[str]]:
+    """`add` with the kind and its settled state as top-level keys.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": dict(
+        _SWEEP_BOX, kind=kind, **_KIND_STATE.get(kind, {}))}], errors)
+    return els, errors
+
+
+def _door_add_custom(kind: str) -> tuple[list[dict], list[str]]:
+    """`add` with the kind and its state inside `customData`.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add", "element": dict(
+        _SWEEP_BOX,
+        customData=dict({"kind": kind}, **_KIND_STATE.get(kind, {})))}],
+        errors)
+    return els, errors
+
+
+def _door_mod_kind(kind: str) -> tuple[list[dict], list[str]]:
+    """`mod {"kind": K}` then the state, top-level, on a bare rectangle.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add",
+                                 "element": dict(_SWEEP_BOX)}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "h",
+                                  "attrs": {"kind": kind}}], errors)
+    if _KIND_STATE.get(kind):
+        els = canvas.apply_ops(els, [{"op": "mod", "id": "h",
+                                      "attrs": dict(_KIND_STATE[kind])}],
+                               errors)
+    return els, errors
+
+
+def _door_mod_custom(kind: str) -> tuple[list[dict], list[str]]:
+    """`mod {"customData": {...}}` on a bare rectangle.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)`.
+    """
+    errors: list[str] = []
+    els = canvas.apply_ops([], [{"op": "add",
+                                 "element": dict(_SWEEP_BOX)}], errors)
+    els = canvas.apply_ops(els, [{"op": "mod", "id": "h", "attrs": {
+        "customData": dict({"kind": kind},
+                           **_KIND_STATE.get(kind, {}))}}], errors)
+    return els, errors
+
+
+def _door_duplicate(kind: str) -> tuple[list[dict], list[str]]:
+    """Ungroup, save, duplicate host and parts, save — no op at all.
+
+    THIS DOOR IS IN THE SWEEP BECAUSE IT MUST NOT BE ASSUMED. Measured
+    2026-08-25 it CLEARS for every kind, which is exactly why
+    `duplicated_widget_reported_as_bare` pins a different invariant. But
+    that is a fact about today's arms of `reconcile_composed`, not a
+    property, and the day one of them changes this door is where the
+    change shows up.
+
+    Args:
+        kind: A composed kind.
+
+    Returns:
+        `(scene, op_errors)` after the second commit.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-sweep-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": dict(
+                _SWEEP_BOX, kind=kind, **_KIND_STATE.get(kind, {}))}]})
+
+        def save(scene: list[dict]) -> list[dict]:
+            """Commit as the browser does.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                The stored scene after the commit.
+            """
+            store.commit(author="user", new_scenes={"f": list(scene)},
+                         base_revn=store.head_revn())
+            return [dict(e) for e in store.scenes["f"]]
+
+        ungrouped = save([dict(e, groupIds=[]) for e in store.scenes["f"]])
+        copied = list(ungrouped)
+        for src in [x for x in ungrouped
+                    if x["id"] == "h" or canvas.part_owner_id(x) == "h"]:
+            dup = copy.deepcopy(src)
+            dup["id"], dup["x"] = src["id"] + "c", src.get("x", 0) + 400
+            dup.pop("boundElements", None)
+            copied.append(dup)
+        return save(copied), []
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+_REMEDY_DOORS: dict[str, Callable[[str], tuple[list[dict], list[str]]]] = {
+    "add (top-level)": _door_add_top, "add (customData)": _door_add_custom,
+    "mod kind": _door_mod_kind, "mod customData": _door_mod_custom,
+    "duplicate + save": _door_duplicate}
+
+
+def sweep_remedy_fixpoints() -> dict[str, list]:
+    """Ask every kind through every door whether its ERROR is escapable.
+
+    Returns:
+        `{"asked", "fired", "looped", "refused"}`, each a sorted list of
+        `(kind, door)` pairs (`looped` carries the surviving host ids
+        too), so a caller reports what was found and the denominator it
+        was found in rather than a bare boolean.
+    """
+    out: dict[str, list] = {"asked": [], "fired": [], "looped": [],
+                            "refused": []}
+    for kind in _COMPOSED_KINDS:
+        for door, build in _REMEDY_DOORS.items():
+            els, errors = build(kind)
+            if errors:
+                # A refused batch is not a looping one; recorded rather
+                # than skipped, so the denominator never shrinks quietly.
+                out["refused"].append((kind, door, errors[0]))
+                continue
+            out["asked"].append((kind, door))
+            hosts = _hosts_reported_stripped(els)
+            if not hosts:
+                continue
+            out["fired"].append((kind, door))
+            survived = []
+            for host in hosts:
+                after, aerrors = _reissue_from_stored_state(els, host)
+                # A refused re-issue counts as surviving: the remedy has
+                # to be a thing the op layer accepts, or the host is
+                # trapped just as surely as by a looping one.
+                if aerrors or host in _hosts_reported_stripped(after):
+                    survived.append(host)
+            if survived:
+                out["looped"].append((kind, door, survived))
+    return out
+
+
 def _saved_twice_part_ink_count() -> int:
     """Part-shaped ink standing at the copy after two real user saves.
 
@@ -24871,7 +25094,27 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # one author the two reds cannot flip apart, and a separability measured
 # across five candidates said nothing about the candidate that landed. Read
 # the class, not the paragraph that commissioned it — again.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+# ONE ENTRY AGAIN on 2026-08-25 (curator batch 46), and this value was read
+# off the guard rather than typed, the way the paragraph above says to.
+# `TestNoErrorTrapsTheAgentBehindIt` holds the remedy-fixpoint SWEEP, which
+# is the generalisation of `composed_host_remedy_reproduces_itself` from one
+# instance to its class: every composed kind through every documented door,
+# asking whether the ERROR a batch produces can be escaped by the repair the
+# finding itself prescribes. It is hand-authored rather than a catalogue
+# entry because a sweep has no neighbour and asserts no magnitude — its
+# claim is a DENOMINATOR — and it sits outside `TestMutantCatalogue`
+# because every red in that class must map to a mutant id or the
+# red-by-assertion guard walks past it. Its second, UNGATED method does the
+# neighbour's job: a sweep that crashed or asked nothing satisfies
+# `looped == []` perfectly, so the companion asserts the walk reached every
+# pair, was refused by none, and heard the check speak.
+# WHY IT IS NOT A DUPLICATE OF THE MUTANT, measured rather than argued:
+# patching the three input paths into agreement clears both `input` pairs
+# and leaves this red on `checkbox`, whose remedy turns a `(2, 1) missing`
+# into a `(1, 2) surplus` and silently unchecks the box. The two do not
+# flip together, so neither subsumes the other.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestNoErrorTrapsTheAgentBehindIt": 1}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -34430,6 +34673,113 @@ class TestTheRenderRegimeFiguresAreTheOnesPaintEmits(unittest.TestCase):
                 "`assertGreaterEqual` against a frame that clears both, "
                 "so the short figure has never failed"
                 % (got, truth, truth - got))
+
+
+class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
+    """The remedy-fixpoint property, swept across kinds and doors.
+
+    NOT IN `TestMutantCatalogue`, and the placement is the guard's
+    ruling rather than a preference: every `expectedFailure` in that
+    class must map to a catalogue mutant, or
+    `test_red_mutants_are_red_by_mismatch_not_by_error` walks past it
+    and reports health it never checked. This is a sweep, not a mutant,
+    so it lives beside its own companion instead — which does the job a
+    neighbour does, one class down.
+    """
+
+    @unittest.expectedFailure
+    def test_no_error_survives_its_own_prescribed_remedy(self) -> None:
+        """No composed kind is trapped behind an ERROR it cannot escape.
+
+        THE GENERALISATION OF ONE MUTANT TO ITS CLASS. Every ERROR-tier
+        finding a documented op batch can produce must clear when the
+        host it names is re-issued from its own stored state — the only
+        repair a reader of the SCENE can perform, since the lint is
+        handed elements and never an op log. A finding whose remedy
+        reproduces it is worse than silence: silence leaves the agent
+        looking, a looping remedy sends it round the same corner
+        forever, while the ERROR tier says "repair in the same move".
+
+        WHY THIS DOES NOT REPLACE `composed_host_remedy_reproduces_
+        itself`, which is the obvious objection and the reason both
+        exist. That mutant is the CONTRACT for one instance: a full
+        quadruple with a neighbour that dies if the check goes blind, a
+        magnitude-bearing pole, a value-survival guard for the nearest
+        wrong repair, and four candidate fixes proved to flip it. None
+        of that is expressible here — a sweep has no neighbour, asserts
+        no magnitude, and cannot tell a fix from a lobotomy. This is the
+        DENOMINATOR instead: how many doors were asked and how many came
+        back trapped. THEY DO NOT EVEN FLIP TOGETHER, which settles the
+        duplication question by measurement: patching the three input
+        paths into agreement clears both `input` pairs and leaves this
+        red on `checkbox`, where the remedy turns a `(2, 1) missing`
+        into a `(1, 2) surplus` and silently unchecks the box on the way
+        — because `make_element` reads `spec.get("checked", False)` over
+        a stored `customData.checked` that says True. Measured
+        2026-08-25, and that repair UNCOVERS a second checkbox door
+        rather than closing one.
+
+        IT REPORTS RATHER THAN EXPECTS, which is the second reason it is
+        shaped as a sweep. Nothing here encodes which pairs are supposed
+        to loop, so a kind that starts looping arrives named in the
+        failure text instead of passing under a stale allowance — and
+        the `duplicate + save` door is in the walk for exactly that
+        reason, measured rather than assumed to clear.
+
+        WHAT IT DOES NOT REACH, so nobody reads the denominator as the
+        space: five doors and eight kinds is a sample of the documented
+        op surface, not a cover of it. Batches that combine doors, ops
+        other than `add`/`mod`, and every geometry other than one 200x64
+        box are outside it.
+        """
+        found = sweep_remedy_fixpoints()
+        self.assertEqual(
+            found["looped"], [],
+            "%d of the %d (kind, door) pairs asked file an ERROR, and %d "
+            "of those cannot be escaped by the repair the finding itself "
+            "prescribes: %s. Refused batches (not counted as asked): %s"
+            % (len(found["fired"]), len(found["asked"]),
+               len(found["looped"]), found["looped"],
+               [(k, d) for k, d, _ in found["refused"]]))
+
+    def test_the_sweep_reaches_every_door_and_hears_the_check(self) -> None:
+        """The companion: the walk above is neither crashed nor vacuous.
+
+        THIS IS THE NEIGHBOUR'S JOB, DONE FOR A SWEEP. The assertion
+        above sits under `expectedFailure`, which swallows errors as
+        well as failures, so a builder that started raising — or a door
+        that quietly stopped reaching the op layer — would read as the
+        same healthy red as a live defect. Worse, `looped == []` is
+        satisfied perfectly by a walk that asks nothing at all: delete
+        the ERROR and this sweep goes green while proving less than
+        nothing. So this half is ungated and asserted in every commit,
+        and it claims the three facts that make the red mean something:
+        every kind reached every door, no batch was refused, and the
+        check under test actually SPOKE somewhere in the walk.
+
+        The numbers are floors and not equalities on purpose. A door or
+        a kind added later must not fail this by existing; what must
+        fail it is a walk that shrank, went silent, or started being
+        turned away by the op layer.
+        """
+        found = sweep_remedy_fixpoints()
+        self.assertEqual(
+            len(found["asked"]),
+            len(_COMPOSED_KINDS) * len(_REMEDY_DOORS),
+            "the sweep did not reach every (kind, door) pair: asked %d of "
+            "%d, refused %s" % (len(found["asked"]),
+                                len(_COMPOSED_KINDS) * len(_REMEDY_DOORS),
+                                [(k, d) for k, d, _ in found["refused"]]))
+        self.assertEqual(
+            found["refused"], [],
+            "every door in this sweep is documented and must be accepted; "
+            "a refused batch measures the op layer's manners, not the "
+            "remedy property: %s" % (found["refused"],))
+        self.assertGreaterEqual(
+            len(found["fired"]), 1,
+            "no door in the whole walk produced the ERROR this sweep is "
+            "about, so `looped == []` above would pass over a check that "
+            "says nothing at all — a corpse, not a clean bill")
 
 
 class TestCoverage(unittest.TestCase):
