@@ -1362,6 +1362,66 @@ def strip_composed_parts(scene: list[dict], host_id: str) -> list[dict]:
 
 
 @_operator
+def double_composed_ink(scene: list[dict], host_id: str) -> list[dict]:
+    """Draw an untagged copy of every part one host owns, in place.
+
+    THE SIBLING OF `strip_composed_parts`, AT THE OTHER END OF THE SAME
+    AXIS. That one takes a host's parts away; this one leaves them and
+    draws the same ink over them again with the backlinks gone. Both
+    reach a stored shape a real gesture produced — this is what the
+    ungrouped-duplicate path used to manufacture, and what scenes
+    already on disk still hold: a host owning exactly the parts its
+    kind owes, with a second unowned set drawn on top. Nothing on the
+    canvas separates the two sets; a reader counts the ink and gets
+    double.
+
+    THE TAG IS THE ONLY THING REMOVED, and every other field is copied
+    byte for byte, `groupIds` included. A paste in place lands inside
+    the host's own group, and the geometry has to stay identical or the
+    scene stops being about one thing — an oversized copy trips the
+    grouped-decoration note, which is a different defect and a mutant
+    injects exactly one. `role: "decoration"` is kept because that is
+    what the ink IS once its `*_of` key is gone: the public schema's
+    standalone decoration, which is precisely why nothing counts it.
+
+    THE PREDICATE IS `strip_composed_parts`' OWN, spelled the same way
+    on purpose. The two operators must agree about what a part is, or
+    one could add ink the other could not take away and the pair would
+    stop being two ends of one axis.
+
+    Args:
+        scene: The scene copy to mutate.
+        host_id: The composed host whose ink is doubled.
+
+    Returns:
+        The scene with one untagged `<id>-ghost` copy appended per
+        tagged part. Ids are cosmetic — ownership is read from
+        `customData` backlinks and never from a name — so they are
+        spelled for a reader rather than after any real paste.
+
+    Raises:
+        EngineError: If the host owns no tagged parts, which would make
+            this a no-op wearing the name of a mutation.
+    """
+    ghosts = []
+    for e in scene:
+        if not any(k.endswith("_of") and v == host_id
+                   for k, v in (e.get("customData") or {}).items()):
+            continue
+        ghost = copy.deepcopy(e)
+        ghost["id"] = e["id"] + "-ghost"
+        ghost["customData"] = {"role": "decoration"}
+        ghost.pop("boundElements", None)
+        ghosts.append(ghost)
+    if not ghosts:
+        raise EngineError(
+            "double_composed_ink: %r owns no tagged parts, so there is "
+            "no ink to double — a scene that was never mutated is the "
+            "same silence in a new costume" % host_id)
+    return scene + ghosts
+
+
+@_operator
 def flip_direction(scene: list[dict], arrow_id: str) -> list[dict]:
     """Reverse an arrow's direction, swapping bindings and rebasing points.
 
@@ -1549,6 +1609,7 @@ OPERATORS: dict = {
     "merge_corridors": merge_corridors,
     "drop_edge": drop_edge,
     "strip_composed_parts": strip_composed_parts,
+    "double_composed_ink": double_composed_ink,
     "flip_direction": flip_direction,
     "rename_node": rename_node,
     "move_node_onto_rank": move_node_onto_rank,
@@ -1846,6 +1907,40 @@ class TestOperators(unittest.TestCase):
         self.assertEqual(
             (arr_b["x"] + arr_b["points"][-1][0],
              arr_b["y"] + arr_b["points"][-1][1]), (100, 0))
+
+    def test_double_composed_ink_adds_ink_that_owns_nobody(self) -> None:
+        """Each part gains an untagged twin; nothing else moves.
+
+        THE OPERATOR'S OWN INNOCENCE, and it is what the mutant beside
+        it cannot assert. `doubled_ink_reads_as_a_healthy_count` says
+        the check is silent about this scene, and a check is also silent
+        about a scene where nothing happened — so unless something
+        proves the ghosts arrived, drew where the parts draw, and own
+        nobody, the mutant's redness could as easily be an operator that
+        did nothing interesting.
+        """
+        out = OPERATORS["double_composed_ink"](_body_block(), host_id="b")
+        ghosts = [e for e in out if e["id"].endswith("-ghost")]
+        self.assertEqual(
+            len(ghosts), 4,
+            "the block owns four waves, so it gains four ghosts")
+        for ghost in ghosts:
+            twin = next(e for e in out
+                        if e["id"] == ghost["id"][:-len("-ghost")])
+            self.assertIsNone(
+                canvas.part_owner_id(ghost),
+                "a ghost that still names an owner is a part, and the "
+                "check would count it")
+            self.assertEqual(
+                (ghost["x"], ghost["y"], ghost["width"], ghost["height"]),
+                (twin["x"], twin["y"], twin["width"], twin["height"]),
+                "the ghost draws exactly where its twin draws, or the "
+                "scene is about a moved decoration instead")
+
+    def test_double_composed_ink_refuses_a_host_with_no_parts(self) -> None:
+        """Doubling nothing is a no-op wearing the name of a mutation."""
+        with self.assertRaises(EngineError):
+            OPERATORS["double_composed_ink"](_body_block(), host_id="nope")
 
     def test_unchanged_returns_equal_but_distinct_scene(self) -> None:
         """Unchanged returns an equal scene that is a distinct object.
@@ -17459,6 +17554,63 @@ def _body_block() -> list[dict]:
         for i in (1, 2, 3, 4)]
 
 
+def _body_block_with_a_fifth_wave() -> list[dict]:
+    """The same block drawing five waves where its height owes four.
+
+    THE SURPLUS ARM FIRING LEGITIMATELY, which is the pole
+    `doubled_ink_reads_as_a_healthy_count` needs beside it. That mutant
+    says the arm is blind to ink it does not own; this says the arm
+    SPEAKS, on the same host, the same kind and the same direction, when
+    the extra wave carries a backlink. Held together they locate the
+    blindness exactly: it is not the surplus arm that is missing, it is
+    the definition of "drawn" underneath it.
+
+    THE FIFTH WAVE SITS AT y=48 AND THAT IS THE MINIMIZATION, not an
+    arbitrary slot. At y=72 it hangs 10px below a 64px block and trips
+    the grouped-decoration note — a second, unrelated finding in a scene
+    that exists to carry one. Inside the block it is a duplicate of
+    wave 1 in every field but its id and its y, so the only thing this
+    scene says is that there is one part too many.
+
+    Returns:
+        The six-element scene: block `b`, waves `b-body1..4`, and the
+        surplus `b-body5`.
+    """
+    out = _body_block()
+    fifth = copy.deepcopy(next(e for e in out if e["id"] == "b-body1"))
+    fifth["id"], fifth["y"] = "b-body5", 48
+    return [*out, fifth]
+
+
+def _body_block_behind_an_authored_panel() -> list[dict]:
+    """The healthy block with a backdrop the agent drew on purpose.
+
+    THE FALSE-POSITIVE COST OF ANY DOUBLED-INK RULE, written down as an
+    assertion because it is the only pole that says what such a rule may
+    NOT do. `role: "decoration"` with no part tag is a first-class value
+    of the PUBLIC ops schema — `ops-reference.md` lists it among the four
+    an agent may set, and `layout.md` instructs the agent to author one
+    (the thick low-opacity backdrop behind parallel edges, the `reorder
+    index 0` panel). A rule that counts every unowned decoration standing
+    inside a host as ink it did not order bills the user for a drawing
+    they made deliberately.
+
+    MEASURED, NOT FEARED: the cheapest repair that clears the mutant —
+    add unowned decoration inside the host to `drawn` — reports this
+    scene at `1 surplus`. The panel is a 152x56 rectangle against waves
+    that are 144x3 lines, so it is not a copy of anything the host owns,
+    which is the difference a rule has to be able to see.
+
+    Returns:
+        The six-element scene: block `b`, waves `b-body1..4`, and the
+        authored `panel`.
+    """
+    return [*_body_block(),
+            el(id="panel", type="rectangle", x=4, y=4, width=152,
+               height=56, backgroundColor="#f5f2ea",
+               customData={"role": "decoration"})]
+
+
 def _entity_without_rows() -> list[dict]:
     """The legally part-less entity, beside a live finding to die with.
 
@@ -17550,6 +17702,42 @@ def _orphaned_widget_copy(with_ink: bool) -> list[dict]:
     return out
 
 
+def _lint_lines_about(els: list[dict], host: str) -> list[str]:
+    """Everything the lint's two loud tiers say about one host.
+
+    THE OUTCOME, NOT THE SENTENCE, and that is why this reads
+    `lint_layout` directly instead of `collect_findings`' parsed view.
+    `duplicated_widget_reported_as_bare` asserts that two pictures read
+    DIFFERENTLY, and the one thing it may not do is say how: a red
+    anchored on a phrase makes the locating regex as prescriptive as the
+    assertion, and every honest rewording then fails it for the wrong
+    reason. Three structurally different repairs were measured against
+    patched copies of `canvas.py` — split the tail clause, name the
+    orphaned ids in it, or leave the sentence alone and append a SECOND
+    error — and only ONE of the three keeps
+    `_COMPOSED_HOST_STRIPPED_RE`'s groups where the harness expects
+    them. All three change what comes back from here.
+
+    NOTES ARE EXCLUDED, and that is a bound rather than an oversight.
+    Both poles already carry an ink-blind note naming the host
+    (`unconnected node(s): wc`), so widening to that tier buys nothing
+    today and buys a FALSE GREEN the day any note merely counts
+    decorations — the two scenes differ by two decorations and by
+    nothing else. Errors and warnings are where a finding about a
+    composed host lands.
+
+    Args:
+        els: A scene.
+        host: The element id the returned lines must name.
+
+    Returns:
+        The error and warning lines mentioning `host`, in lint order.
+        Empty when the loud tiers say nothing about it at all.
+    """
+    lint = canvas.lint_layout(els, artifact_type="flow")
+    return [ln for ln in lint["errors"] + lint["warnings"] if host in ln]
+
+
 # ---------------------------------------------------------------------------
 # The remedy-fixpoint sweep. `duplicated_widget_reported_as_bare` and
 # `composed_host_remedy_reproduces_itself` each pin ONE instance with a
@@ -17567,6 +17755,80 @@ _KIND_STATE: dict[str, dict] = {
     "toggle": {"checked": True}}
 _SWEEP_BOX = {"type": "rectangle", "id": "h", "label": "H", "x": 0, "y": 0,
               "width": 200, "height": 64}
+
+
+# THE DOUBLED-INK SWEEP'S OWN STATE TABLE, and it is a copy of
+# `_KIND_STATE` rather than an edit to it. `entity` declares nothing
+# there because that sweep is about FLOORS and an entity has none; here
+# the question is whether a kind can reach a doubled-ink state at all,
+# and an entity with no attributes mints no rows, so it would answer
+# "cannot" for a reason about the fixture rather than about the kind.
+# Editing the shared table would have moved `sweep_remedy_fixpoints`'
+# denominator — 40 pairs, held across two folds and read as evidence
+# that its walk was still asking — so the two tables are kept apart.
+_DOUBLED_INK_STATE: dict[str, dict] = dict(
+    _KIND_STATE, entity={"attributes": ["id", "name", "status"]})
+
+
+def sweep_doubled_ink() -> dict[str, tuple[int, int, bool]]:
+    """Ask every composed kind whether doubled ink is reported.
+
+    THE DENOMINATOR THE SINGLE MUTANT CANNOT CARRY.
+    `doubled_ink_reads_as_a_healthy_count` pins one kind with a
+    magnitude and a direction; this asks the same question of all of
+    them, so the answer has a population behind it. Each kind is minted
+    through the documented top-level `add` door, then an untagged copy
+    of each tagged part is drawn in place — the state the
+    ungrouped-duplicate gesture used to manufacture and that scenes on
+    disk still hold.
+
+    WHAT `reported` MEANS HERE IS DELIBERATELY WIDE: any line the lint
+    did not already say about the healthy scene, in any tier, from any
+    check. Reading only `composed_host_gaps` would have made the answer
+    a tautology about the function under test; reading the DELTA lets an
+    unrelated check take the credit if it earns it, and four of them do
+    — a doubled text row trips `text_over_text`, a black thumb drawn on
+    a black thumb reads 1.00:1 to the contrast check. Neither is a
+    report of doubled ink; both are accidents of what the part happens
+    to be shaped like, which is why they are counted separately from
+    the composed-host answer rather than folded into it.
+
+    Returns:
+        `kind -> (tagged, ghosts, reported)`, where `reported` is True
+        when doubling the ink changed what the lint says. A kind that
+        mints no parts answers `(0, 0, False)` and is not part of the
+        population — the caller decides that by reading `ghosts`.
+    """
+    out: dict[str, tuple[int, int, bool]] = {}
+    for kind in _COMPOSED_KINDS:
+        errors: list[str] = []
+        els = canvas.apply_ops([], [{"op": "add", "element": dict(
+            _SWEEP_BOX, kind=kind,
+            **_DOUBLED_INK_STATE.get(kind, {}))}], errors)
+        tagged = [e for e in els
+                  if any(k.endswith("_of") and v == "h"
+                         for k, v in (e.get("customData") or {}).items())]
+        if errors or not tagged:
+            out[kind] = (len(tagged), 0, False)
+            continue
+        doubled = OPERATORS["double_composed_ink"](els, host_id="h")
+        before, after = _every_lint_line(els), _every_lint_line(doubled)
+        out[kind] = (len(tagged), len(doubled) - len(els),
+                     sorted(after) != sorted(before))
+    return out
+
+
+def _every_lint_line(els: list[dict]) -> list[str]:
+    """All three lint tiers as one list, for delta comparisons.
+
+    Args:
+        els: A scene.
+
+    Returns:
+        Errors, warnings and notes concatenated in tier order.
+    """
+    lint = canvas.lint_layout(els)
+    return lint["errors"] + lint["warnings"] + lint["notes"]
 
 
 def _hosts_reported_stripped(els: list[dict]) -> list[str]:
@@ -22496,6 +22758,72 @@ _register(Mutant(
                         FindingSpec("widget_group_incomplete", element="w",
                                     magnitude=(3, 0.10)))))
 
+# Curator, leaf-1.1.5, 2026-08-26, handed over by the fixer who closed
+# the duplicate-backlink defect and VERIFIED here before it was encoded.
+# WHAT THE DRAWING GETS WRONG: a `body` block draws eight waves where its
+# own height owes four, and every check calls the scene healthy. Four of
+# the eight carry a backlink and four carry none, and
+# `composed_host_gaps` counts TAGGED parts against the floor — 4 == 4,
+# silence. The surplus arm cannot reach it either, for the same reason
+# and by its own docstring: untagged ink is not counted as a part.
+#
+# NOT MANUFACTURABLE ANY MORE, AND THAT IS NOT THE SAME AS GONE. The
+# repair that landed on this branch stopped the ungrouped-duplicate
+# gesture producing this state; scenes already persisted to disk still
+# hold it, and `catch_up()` re-reads them every session. A defect that
+# can no longer be created is still a defect that is still on disk.
+#
+# THE DENOMINATOR IS THE FINDING, and it is DERIVED rather than written
+# here — `sweep_doubled_ink()` measures it and
+# `test_every_composed_kind_can_reach_a_doubled_ink_state` asserts the
+# population against `_COMPOSED_KINDS`, so no count in this comment can
+# go stale by sitting still. What is worth stating is the SHAPE the
+# sweep found: `composed_host_gaps` reports none of them, and the cover
+# that does exist belongs to unrelated checks reading unrelated things —
+# a doubled text row trips `text_over_text`, a black thumb drawn on a
+# black thumb reads 1.00:1 to the contrast check. That cover is
+# offset-dependent: move the pasted ink 10px, the way a real paste does,
+# and the contrast catch dies for `slider` and `toggle` while a ghost X
+# stroke starts poking out of `image`. Kinds enter and leave the covered
+# set with the offset, which is what "covered by accident" looks like
+# when you measure it instead of counting it.
+#
+# WHY `body`, AND WHY THIS BASE SCENE. `_body_block` is
+# `composed_host_stripped_is_invisible`'s base, shared here on purpose
+# rather than copied: the two mutants are the two ends of one axis —
+# that one takes the host's parts away, this one leaves them and draws
+# the same ink over them again — and `strip_composed_parts` and
+# `double_composed_ink` ask the same predicate so they cannot drift
+# apart. `body` is also one of the two kinds bare at BOTH offsets, and
+# the one whose floor is recomputable from the stored host with no
+# history, which is what lets this assert a magnitude instead of an
+# existence.
+#
+# WHO FLIPS IT, AND THE ONE REPAIR THAT MUST NOT. Measured against
+# patched copies of `canvas.py`, not reasoned about. Adding unowned
+# decoration inside the host to `drawn` reports this scene at `4
+# surplus` AND SILENCES `wc` with its ink drawn — 2 == 2 — which is the
+# narrowing contract C12 forbids, and `duplicated_widget_reported_as_
+# bare`'s own `expect` fails on it. Splitting the arms (missing keeps
+# counting tagged parts, surplus counts the ink actually drawn) keeps
+# `wc` and clears this — and then bills the user `1 surplus` for the
+# authored backdrop panel the neighbour's second claim carries. Only the
+# third measured repair clears all three poles: count unowned decoration
+# CONGRUENT to a part the host already owns, which is what a pasted copy
+# is and what a 152x56 panel over 144x3 waves is not. Three poles, three
+# repairs, one survivor — the pair is not a trap, and that was measured
+# before it was filed.
+_register(Mutant(
+    "doubled_ink_reads_as_a_healthy_count",
+    build=_body_block,
+    op="double_composed_ink", args={"host_id": "b"},
+    expect=FindingSpec("composed_host_stripped", element="b",
+                       magnitude=(4, 0.0), direction="surplus"),
+    neighbour=Neighbour(_body_block_with_a_fifth_wave,
+                        FindingSpec("composed_host_stripped", element="b",
+                                    magnitude=(1, 0.0),
+                                    direction="surplus"))))
+
 # Curator batch 46, 2026-08-25, from a review of the branch that landed
 # `composed_host_stripped` itself. WHAT THE DRAWING GETS WRONG: an input
 # whose value was settled through `customData` — the merge
@@ -22572,11 +22900,59 @@ _register(Mutant(
 # of both pictures has not repaired the blindness, it has paid for the
 # lie with the information. If the owning WP disagrees, that is a
 # decision to take in the open.
+#
+# RE-JUDGED 2026-08-26 BY A USER RULING, and the two paragraphs above
+# are SUPERSEDED. They are left standing because the correction is the
+# record: this pin invited the owning WP to disagree in the open, the WP
+# measured the invitation and the user answered it, and deleting the
+# question would leave the answer looking unprompted. What was right in
+# them is the SUBJECT; what was wrong is the REMEDY.
+#
+# THE MEASUREMENT THAT CAME BACK. A fixer proved the `Silence` pole is
+# unreachable from the save path at all — the check reads
+# `[('wc', 2.0, 'missing')]` identically on the fixed tree and the
+# reverted one — so the only repair that could have flipped it was
+# narrowing `composed_host_gaps` to go quiet on a host with unowned
+# part-shaped ink drawn inside it.
+#
+# THE RULING: keep reporting, fix the wording. A widget whose ink is
+# visibly present but unlinked is DEAD — drag it and the parts stay
+# behind — so a finding there is CORRECT; what is wrong is calling it
+# "missing", which reads as "gone". Narrowing would make that class
+# reported by nothing at all, including in every scene already persisted
+# to disk and re-read by `catch_up()` each session, which is the cost
+# the paragraphs above never priced. `.unlazy/v09-close/PLAN.md` carries
+# it as contract C12.
+#
+# SO THE PIN INVERTS AND GOES GREEN, AND ITS RED MOVES HOUSE. `expect`
+# is no longer a Silence — it is the ruling's own half, asserted in
+# every commit: the check MUST fire here, on the picture where the ink
+# is drawn, at 2 missing. That leg is what now REFUSES the narrowing,
+# and it is measured rather than argued — against a patched `canvas.py`
+# that goes quiet on a host with unowned part-shaped ink inside it,
+# `_run`'s finding list is `[]` and this mutant FAILS. A ruled-against
+# repair now breaks a green test loudly instead of satisfying a red.
+#
+# WHY THE WORDING RED IS NOT IN THIS SLOT, and it is not a preference.
+# The remaining defect is a TWO-SCENE property — that these two
+# pictures must not read alike — and every expectation this engine has
+# is over ONE scene's findings. Worse, the normalized finding record
+# (`check`/`element`/`magnitude`/`direction`) is deliberately blind to
+# the tail clause where the distinction has to land: `canvas.py` names
+# the HEAD, direction word included, as the curator's template that may
+# not be reworded. Measured against three honest repairs, all three
+# leave this mutant's parsed finding byte-identical to today's. There
+# is therefore no `FindingSpec` that mismatches now and matches after a
+# fix, and `test_red_mutants_are_red_by_mismatch_not_by_error` is right
+# to refuse a red whose `expect` passes. The red is hand-authored
+# instead, in `TestTheStrippedHostFindingTellsDrawnFromGone` below,
+# which is what `HAND_AUTHORED_RED_CLASSES` exists for.
 _register(Mutant(
     "duplicated_widget_reported_as_bare",
     build=lambda: _orphaned_widget_copy(with_ink=True),
     op="unchanged", args={},
-    expect=Silence("composed_host_stripped"),
+    expect=FindingSpec("composed_host_stripped", element="wc",
+                       magnitude=(2, 0.0), direction="missing"),
     neighbour=Neighbour(lambda: _orphaned_widget_copy(with_ink=False),
                         FindingSpec("composed_host_stripped", element="wc",
                                     magnitude=(2, 0.0),
@@ -23459,20 +23835,114 @@ class TestMutantCatalogue(unittest.TestCase):
             "and must never be reported as stripped")
 
     @unittest.expectedFailure
+    def test_mutant_doubled_ink_reads_as_a_healthy_count(self) -> None:
+        """Eight waves on a block that owes four, and 4 == 4 is healthy."""
+        # The check counts what is TAGGED, so the four unowned copies
+        # drawn over the four real ones are not ink to it. Its own
+        # surplus arm already carries the right sentence for this scene
+        # — "The extra parts are drawn over the widget's own ink" — and
+        # cannot reach it. The entry above carries the denominator and
+        # the three measured repairs.
+        self._run("doubled_ink_reads_as_a_healthy_count")
+
+    def test_neighbour_doubled_ink_reads_as_a_healthy_count(self) -> None:
+        """A fifth TAGGED wave is surplus the same arm reports, at 1."""
+        # TWO CLAIMS, and the second is the whole false-positive cost of
+        # whatever rule lands — the pole that says what the fix may NOT
+        # do, which no `FindingSpec` slot can hold. `role: "decoration"`
+        # with no part tag is a first-class value of the public ops
+        # schema and layout.md tells the agent to author one, so a rule
+        # that counts every unowned decoration standing inside a host
+        # bills the user for a backdrop they drew on purpose. It is
+        # written as an assertion rather than left to the rule's author
+        # because it is measured, not feared: the cheapest repair that
+        # clears the mutant reports this scene at `1 surplus`.
+        #
+        # Ungated and asserted in every commit, which is what makes it a
+        # control rather than a wish — and what makes the first claim
+        # one too. The mask over the mutant hides errors as readily as
+        # failures, so a `composed_host_gaps` that stopped speaking
+        # entirely would leave the red reading `expected failure`; this
+        # pole fails.
+        self._run_neighbour("doubled_ink_reads_as_a_healthy_count")
+        self.assertEqual(
+            [f["raw"] for f in
+             collect_findings(_body_block_behind_an_authored_panel())
+             if f["check"] == "composed_host_stripped"], [],
+            "a backdrop panel the agent was instructed to draw is not "
+            "ink the host failed to order; a doubled-ink rule that "
+            "cannot tell a pasted copy of a part from an authored "
+            "decoration has replaced a silence with a false alarm")
+
+    def test_every_composed_kind_can_reach_a_doubled_ink_state(self) -> None:
+        """The denominator behind the mutant above, and only that.
+
+        THE POPULATION, NOT THE VERDICT, and the split is the point. The
+        verdict — which kinds are reported — is what the red pins for one
+        kind and what a fix moves; asserting it here would make this go
+        red the day the fix lands, which is backwards for an ungated
+        pole. What must NOT move is the number of questions the sweep
+        asks. A kind that stopped minting parts would drop out of the
+        population silently and take its coverage question with it, and
+        the sweep would report a smaller, healthier-looking answer for a
+        reason that has nothing to do with the check.
+
+        Derived, never transcribed: the expected population is
+        `_COMPOSED_KINDS` itself, so there is no count here to go stale.
+        That is the same discipline `sweep_remedy_fixpoints`' companion
+        keeps for its own 40 pairs, and for the same reason — a
+        denominator that moved while the numerator fell would have made
+        a broken instrument read as a repair.
+        """
+        sweep = sweep_doubled_ink()
+        self.assertEqual(
+            sorted(sweep), sorted(_COMPOSED_KINDS),
+            "the doubled-ink sweep no longer walks every composed kind")
+        self.assertEqual(
+            sorted(k for k, (_, ghosts, _r) in sweep.items() if ghosts),
+            sorted(_COMPOSED_KINDS),
+            "every composed kind mints at least one tagged part in its "
+            "settled state, so every one of them can be doubled: %s "
+            "reached no doubled-ink state, which shrinks the coverage "
+            "question rather than answering it"
+            % sorted(k for k, (_, g, _r) in sweep.items() if not g))
+
     def test_mutant_duplicated_widget_reported_as_bare(self) -> None:
-        """A drawn slider is called a bare rectangle that says nothing."""
+        """A dead widget is still reported dead where its ink is drawn."""
+        # RE-JUDGED AND FLIPPED 2026-08-26 by a user ruling, not by a
+        # repair: keep reporting, fix the wording. The entry above
+        # carries the record and the superseded reasoning. What changed
+        # here is the POLE — `expect` was `Silence`, asking the check to
+        # go quiet on a host whose part-shaped ink is drawn but linked
+        # to nothing, and the user ruled that such a widget is DEAD (a
+        # drag moves the host and the parts stay behind) so a finding
+        # there is correct. The wording defect this pin was really
+        # about now lives, undecorated-control and all, in
+        # `TestTheStrippedHostFindingTellsDrawnFromGone`.
+        #
+        # THIS METHOD IS NOW AN OBSERVATION POLE, which is the reason it
+        # is ungated rather than a consequence of the flip. The ruling's
+        # non-negotiable half — the check keeps speaking here — cannot
+        # be asserted inside the red that observes it: `expectedFailure`
+        # absorbs a failure as readily as it absorbs a pass, so a
+        # narrowing that silenced this class would leave the red reading
+        # `expected failure` and a mutation sweep reading SURVIVED over
+        # a pristine tree. Asserted here it fails out loud. Measured
+        # against a patched `canvas.py` that takes the narrowing: this
+        # line reports an empty finding list.
+        #
         # TWO CLAIMS, and the second names the wrong repair this pole
-        # would otherwise sit green over. `_run` asserts the check is
-        # quiet where the parts are drawn. The cheapest way to make it
-        # quiet is to make the sentence TRUE instead — have the save
-        # path discard part-shaped decoration that names no owner — and
-        # this pin's own scene is hand-built, so it would never notice.
-        # That repair deletes a user's slider to settle an argument
-        # about a lint. So the second claim is measured through the
-        # real save path: the ink a duplicate lands with must still be
-        # there after another save. It is the same discipline the
-        # value-survival guard on `composed_host_remedy_reproduces_
-        # itself` carries, aimed at this subject's own nearest miss.
+        # would otherwise sit green over. The cheapest way to make the
+        # old sentence true is to have the save path discard part-shaped
+        # decoration that names no owner — and this pin's own scene is
+        # hand-built, so it would never notice. That repair deletes a
+        # user's slider to settle an argument about a lint. So the
+        # second claim is measured through the real save path: the ink a
+        # duplicate lands with must still be there after another save.
+        # It is the same discipline the value-survival guard on
+        # `composed_host_remedy_reproduces_itself` carries, aimed at
+        # this subject's own nearest miss, and the ruling does not touch
+        # it.
         self._run("duplicated_widget_reported_as_bare")
         self.assertEqual(_saved_twice_part_ink_count(), 2,
                          "the duplicate's own track and thumb must "
@@ -23483,6 +23953,16 @@ class TestMutantCatalogue(unittest.TestCase):
 
     def test_neighbour_duplicated_widget_reported_as_bare(self) -> None:
         """The same host with the ink really gone is reported, at 2."""
+        # THE POLE THAT DID NOT MOVE when the mutant's did, and it is
+        # worth saying why it still counts as a control now that both
+        # slots carry the same expectation. The two scenes differ — ink
+        # drawn against ink gone — and the check answering them
+        # IDENTICALLY is the whole finding, so a pairing that read as
+        # duplication before the ruling reads as the statement of the
+        # defect after it. It remains a live pole in the only sense that
+        # matters: it DIES when the check goes blind. Measured against a
+        # patched `canvas.py` whose composed-host loop walks an empty
+        # list, this reports nothing and fails.
         self._run_neighbour("duplicated_widget_reported_as_bare")
 
     def test_mutant_composed_host_remedy_reproduces_itself(self) -> None:
@@ -25461,7 +25941,51 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # above keep recording. No ordinal is claimed: the running count in those
 # entries was inherited rather than re-derived, and incrementing an
 # inherited number is how a figure goes false without anyone editing it.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# ONE JOINED 2026-08-26 (curator, leaf-1.1.5), and it arrived by
+# RELOCATION rather than by discovery, which is a shape this dict has not
+# carried before. `TestTheStrippedHostFindingTellsDrawnFromGone` is the
+# surviving half of `duplicated_widget_reported_as_bare`: the user ruled
+# that the check must keep reporting a widget whose ink is drawn but
+# unlinked and must stop calling it "missing", which left the pin's
+# subject intact and its remedy void. The catalogue mutant took the
+# ruling's assertable half and went green in the same change; the half
+# left over is a TWO-SCENE property — these two pictures must not read
+# alike — and no expectation this engine has is over two scenes, so
+# `test_red_mutants_are_red_by_mismatch_not_by_error` would have
+# refused it as a catalogue red. `durable_red_counts` does not move: one
+# decorator left `TestMutantCatalogue` and one arrived here.
+#
+# A SECOND JOINED the same day, at TWO reds, and it is the first entry
+# here that arrived from a HANDOVER rather than from this file's own
+# instruments: a fixer measured it at `a871bee`, and it was re-measured
+# at this tree before being encoded, because the tip had moved twelve
+# commits and a report is not a reproduction.
+# `TestAnUngroupIsNotRevokedByTheNextSave` pins a gesture the product
+# honours for exactly one save and then silently takes back — the rule
+# is delta-based against the PREVIOUS SAVE, so once the base stops
+# carrying the group the widget reads as an unfinished assembly and is
+# closed again. It carries TWO reds and not one because two different
+# repairs clear two different halves: a fix that keeps re-grouping but
+# starts SAYING so clears the narration red and leaves the gesture red,
+# and the split is what stops a narration change reading as a repair.
+#
+# WHY NOT A CATALOGUE MUTANT, the same structural answer this dict keeps
+# giving: `collect_findings` runs over ONE scene and this is a relation
+# between two consecutive commits. The scene it lands on is internally
+# coherent — host and parts sharing a group is what healthy looks like —
+# so every scene-level check is correctly silent, `widget_group_
+# incomplete` included, which spoke about the ungrouped state and goes
+# quiet the moment the gesture is revoked.
+#
+# THE VALUE BELOW WAS READ OFF THE GUARD, as every entry above says to:
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
+# `measured {'TestTheStrippedHostFindingTellsDrawnFromGone': 1,
+# 'TestAnUngroupIsNotRevokedByTheNextSave': 2}`, and the measured side
+# was transcribed.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestTheStrippedHostFindingTellsDrawnFromGone": 1,
+    "TestAnUngroupIsNotRevokedByTheNextSave": 2}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -25970,7 +26494,45 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"duplicated_widget_reported_as_bare"}
+CATALOGUE_RED_IDS: set[str] = {"doubled_ink_reads_as_a_healthy_count"}
+# REFILLED the same day it emptied, 2026-08-26 (curator, leaf-1.1.5), by
+# a coverage hole the fixer who closed the duplicate-backlink defect
+# handed over and this leaf VERIFIED before encoding. A composed host can
+# draw its parts TWICE — once tagged, once not — and
+# `composed_host_gaps` counts tagged parts against the floor, reads
+# 4 == 4, and says nothing; its surplus arm cannot reach it either,
+# because untagged ink is not counted as a part. The repair on this
+# branch stopped the ungrouped-duplicate gesture MANUFACTURING that
+# state; it did not remove it from the scenes already on disk that
+# `catch_up()` re-reads every session, and a defect that can no longer
+# be created is still a defect that is still there. Its denominator is
+# derived by `sweep_doubled_ink()` rather than written down, and pinned
+# ungated by `test_every_composed_kind_can_reach_a_doubled_ink_state`.
+# THE VALUE WAS READ OFF THE GUARD: the decorator was added, the mask
+# lifted to confirm `FAILED (failures=1)` on an ASSERTION naming the
+# absent finding, and `test_the_catalogue_reds_are_the_ones_declared`
+# was run and its measured side transcribed.
+# EMPTY on 2026-08-26 (curator, leaf-1.1.5), and the reason is unlike
+# every drain below it: no repair landed. A USER RULING did.
+# `duplicated_widget_reported_as_bare` asked the check to go SILENT on a
+# host whose part-shaped ink is drawn but linked to nothing; the user
+# ruled that such a widget is DEAD — drag it and the parts stay behind —
+# so a finding there is correct and the narrowing would leave the class
+# reported by nothing, including in every scene already on disk. The pin
+# was right about the subject and wrong about the remedy, so it was
+# re-judged rather than deleted: its `expect` now asserts the ruling's
+# own half (the check FIRES on that picture, at 2 missing), which is
+# green today and is what REFUSES the narrowing — measured against a
+# patched `canvas.py` that takes it, `_run` reads an empty finding list.
+# THE DEFECT DID NOT LEAVE WITH THE ROW. What remains — that the two
+# pictures must not read alike — is a two-scene property no `expect`
+# slot can hold, so it moved to `TestTheStrippedHostFindingTellsDrawn
+# FromGone` and is counted by `HAND_AUTHORED_RED_CLASSES` instead. The
+# durable red count for this file is unchanged; only its address moved,
+# and reading this empty set as "nothing is red here" is the one wrong
+# conclusion available. THE VALUE WAS READ OFF THE GUARD: the decorator
+# was dropped first, `test_the_catalogue_reds_are_the_ones_declared` was
+# run, and it reported `measured []`.
 # DOWN TO ONE on 2026-08-26, and READ OFF THE GUARD rather than typed:
 # the decorator was dropped first, `test_the_catalogue_reds_are_the_ones_
 # declared` was run, and the measured side was transcribed.
@@ -36793,6 +37355,303 @@ def sweep_declared_data(through_custom_data: bool) -> list[tuple]:
                 out.append((kind, field, value,
                             "<absent>" if stored is _ABSENT else stored))
     return out
+
+
+class TestTheStrippedHostFindingTellsDrawnFromGone(unittest.TestCase):
+    """One sentence for two pictures, so a reader cannot tell them apart.
+
+    THE OTHER HALF OF `duplicated_widget_reported_as_bare`, and it is
+    hand-authored for a structural reason rather than a preference. The
+    claim is a TWO-SCENE property — a slider whose track and thumb are
+    DRAWN inside it but linked to nothing, and the same host with that
+    ink genuinely gone, must not read alike — and every expectation the
+    catalogue engine has is over ONE scene's findings. The normalized
+    finding record is blind to it besides: `check`, `element`,
+    `magnitude` and `direction` are identical on both pictures under
+    every honest repair measured, because `canvas.py` names the message
+    HEAD (direction word included) as a template that may not be
+    reworded, so the distinction has to land in the tail the record
+    never reads. There is no `FindingSpec` that mismatches today and
+    matches after a fix, which is exactly why
+    `test_red_mutants_are_red_by_mismatch_not_by_error` refuses to hold
+    this red.
+
+    THE USER'S RULING IS THE SPEC, taken 2026-08-26 and recorded as
+    contract C12: keep reporting, fix the wording. A widget whose ink is
+    visibly present but unlinked is DEAD — drag it and the parts stay
+    behind — so a finding there is correct, and narrowing the check to
+    go quiet on it would leave the class reported by NOTHING, including
+    in every scene already persisted to disk and re-read by `catch_up()`
+    each session. What is wrong is calling it "missing", which reads as
+    "gone".
+
+    THE RED PRESCRIBES NO WORDING, which is the discipline this repo has
+    already paid for twice: a red anchored on a phrase makes the
+    locating regex as prescriptive as the assertion, and every honest
+    rewording then fails it for the wrong reason. So it asserts that the
+    two pictures are DISTINGUISHABLE and never how, and it reads
+    `lint_layout`'s own lines rather than the harness anchor — a repair
+    that moves the distinction into the direction word, or into a second
+    finding entirely, flips it without having to keep any regex
+    matching.
+
+    FLIPPED BY THE WP THAT OWNS THE WORDING (leaf-1.1.6). THREE repairs
+    of very different shape were measured green against patched copies
+    of `canvas.py` rather than reasoned about: splitting the tail clause
+    on whether unowned part-shaped ink stands inside the host; naming
+    the orphaned ids in that clause instead; and leaving the sentence
+    untouched while appending a SECOND error about the ink. THREE WRONG
+    ones stay red, each caught by a different leg — the narrowing the
+    user ruled against breaks the GREEN pole below and the catalogue
+    mutant's own `expect`; a rewording that does not distinguish
+    ("cannot tell which" to "cannot determine which") leaves the two
+    line lists equal; and a repair that makes the old sentence true by
+    discarding the copy's ink on commit trips the save-path guard on
+    `test_mutant_duplicated_widget_reported_as_bare`.
+    """
+
+    @unittest.expectedFailure
+    def test_the_two_pictures_do_not_read_alike(self) -> None:
+        """Ink drawn and ink gone are one repair apart and one sentence."""
+        drawn = _lint_lines_about(_orphaned_widget_copy(with_ink=True), "wc")
+        gone = _lint_lines_about(_orphaned_widget_copy(with_ink=False), "wc")
+        self.assertNotEqual(
+            drawn, gone,
+            "a slider whose own track and thumb are drawn inside its box "
+            "while nothing names it owner, and the same host with that "
+            "ink gone, are two different pictures needing two different "
+            "repairs — and the lint says the same thing about both: %r. "
+            "An agent relaying it tells the user their slider is empty "
+            "while they are looking at a slider" % (drawn,))
+
+    def test_both_pictures_are_still_reported(self) -> None:
+        """The live half: the ruling's floor, held outside the mask.
+
+        THE RED ABOVE CANNOT OBSERVE THIS, and that is the whole reason
+        it is a separate method. `expectedFailure` absorbs a failure as
+        readily as it absorbs an error, so a narrowing that silenced the
+        drawn-ink class would satisfy the difference the red measures —
+        one list empty, one not — and leave it reading `expected
+        failure` while a mutation sweep read SURVIVED over a pristine
+        tree. Measured, not reasoned: against a patched `canvas.py` that
+        skips a host with unowned part-shaped ink drawn inside it, the
+        red goes GREEN and this method fails.
+
+        It is also the control for the red's instrument. A
+        distinguishability claim is satisfied perfectly by a check that
+        has stopped speaking about one of the two scenes, and by one
+        that has stopped speaking at all — against a `canvas.py` whose
+        composed-host loop walks an empty list, both lists here are
+        empty and this fails while the red stays red.
+        """
+        for ink in (True, False):
+            with self.subTest(ink_drawn=ink):
+                self.assertTrue(
+                    _lint_lines_about(_orphaned_widget_copy(ink), "wc"),
+                    "the user ruled that a composed host short of the "
+                    "parts its own geometry owes stays reported whether "
+                    "its ink is drawn or gone; nothing in the loud tiers "
+                    "names `wc` with ink_drawn=%s" % ink)
+
+
+def _ungroup_then_save_again() -> dict[str, Any]:
+    """Drive Ctrl+Shift+G, save, then one more save that changes nothing.
+
+    THE WHOLE GESTURE THROUGH `Store.commit`, which is the path
+    `/api/save` uses, because the defect lives in the seam between two
+    saves and no single-scene fixture can hold it. `apply_ops` is a
+    layer above it and would not see this at all.
+
+    The second save posts the STORED SCENE BACK VERBATIM. That is the
+    load-bearing part of the fixture: there is no edit for a reconciler
+    to react to, no op, no gesture — the user saved for an unrelated
+    reason, or the client autosaved, and the only thing that happened is
+    that a save happened.
+
+    Returns:
+        `{"minted", "ungrouped", "after"}` — `id -> groupIds` after each
+        of the three states — plus `"ungroup_verbs"` and
+        `"second_verbs"`, the verb counts each of the two commits
+        reported for itself.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-ungroup-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "w", "kind": "slider",
+                "label": "W", "x": 0, "y": 0, "width": 160,
+                "height": 48}}]})
+
+        def groups(scene: list[dict]) -> dict[str, list[str]]:
+            """Read every element's group membership.
+
+            Args:
+                scene: A stored scene.
+
+            Returns:
+                `id -> groupIds`, copied so a later commit cannot
+                rewrite a reading already taken.
+            """
+            return {e["id"]: list(e.get("groupIds") or []) for e in scene}
+
+        def save(scene: list[dict]) -> tuple[dict[str, list[str]], dict]:
+            """Commit as the browser does.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                `(groups, verb_counts)` after the commit.
+            """
+            res = store.commit(author="user", new_scenes={"f": list(scene)},
+                               base_revn=store.head_revn())
+            return (groups(store.scenes["f"]),
+                    dict((res.get("summary") or {}).get("verb_counts") or {}))
+
+        minted = [dict(e) for e in store.scenes["f"]]
+        ungrouped, ungroup_verbs = save(
+            [dict(e, groupIds=[]) for e in minted])
+        stored = [dict(e) for e in store.scenes["f"]]
+        after, second_verbs = save(stored)
+        return {"minted": groups(minted), "ungrouped": ungrouped,
+                "after": after, "ungroup_verbs": ungroup_verbs,
+                "second_verbs": second_verbs}
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+class TestAnUngroupIsNotRevokedByTheNextSave(unittest.TestCase):
+    """Ctrl+Shift+G is honoured for one save and then taken back.
+
+    THE PRODUCT LAW IS ALREADY WRITTEN, in `_honour_ungroup`'s own
+    docstring, and it is unusually absolute: "silently re-grouping would
+    be the tool overruling the user's own hands, which is the one thing
+    this product may not do". That docstring also records this defect's
+    previous life — a user who ungrouped a domain entity on 2026-08-20
+    got it silently re-assembled AND was told `saved_no_changes` — so
+    what is pinned here is not a new class, it is the same class one
+    save further along, which is why it survived the fix that closed it.
+
+    THE MECHANISM, AND WHY IT IS INVISIBLE. The rule is DELTA-based on
+    purpose, and the docstring argues that correctly: a widget the user
+    pulled apart and a widget that was never assembled are
+    indistinguishable in the posted scene alone, so only the BASE scene
+    separates them. But the base is the PREVIOUS SAVE. On the save that
+    carries the ungroup the base still has the group and the gesture is
+    honoured; on the next save the base no longer has it, the two cases
+    become indistinguishable again, and the widget is read as an
+    unfinished assembly and closed. The gesture is not overridden by a
+    conflicting one — it is forgotten, by a rule that can only remember
+    one save back.
+
+    HANDED OVER RATHER THAN FOUND HERE, measured at `a871bee`, and
+    RE-MEASURED at this tree before being encoded: the tip had moved
+    twelve commits and a report is not a reproduction. It still
+    reproduces, on the same four elements.
+
+    NOT A CATALOGUE MUTANT, and for the reason the class two above it
+    gives: `collect_findings` runs over ONE scene, and this defect is a
+    relation between two consecutive commits. The resulting scene is
+    internally coherent — host and parts share a group, which is what a
+    healthy widget looks like — so every scene-level check is correctly
+    silent, including `widget_group_incomplete`, which spoke about the
+    ungrouped state and goes quiet again the moment the gesture is
+    revoked. A reader of the drawing cannot tell "the tool put it back"
+    from "the user changed their mind", which is the whole defect
+    restated as a picture.
+
+    WHAT FLIPS IT: the WP that owns `_interpret_user_composites`. TWO
+    repairs of different shape were measured green against patched
+    copies of `canvas.py` rather than reasoned about — persisting the
+    gesture on the host so a stamped widget is never re-closed, and
+    reading state rather than delta for a host that already existed in
+    the base. Two controls stay red or expose a vacuous pass: a
+    `canvas.py` that never honours the ungroup at all makes both reds
+    below pass VACUOUSLY (the group is there before and after, so
+    "unchanged" is true) and is caught only by the ungated pole, which
+    is why that pole is not optional; and a repair that merely narrates
+    the re-group instead of claiming no change clears the second red and
+    leaves the first one red, which is the split the two reds exist for.
+    """
+
+    @unittest.expectedFailure
+    def test_the_ungroup_survives_a_save_that_changes_nothing(self) -> None:
+        """The next save takes the gesture back, and it need not be a gesture."""
+        r = _ungroup_then_save_again()
+        moved = sorted(i for i, g in r["after"].items()
+                       if g != r["ungrouped"].get(i))
+        self.assertEqual(
+            moved, [],
+            "the user pulled this widget apart and the very next save "
+            "put it back together: %s came back carrying %s. Nothing "
+            "else changed in that save — the posted scene was the "
+            "stored one, verbatim — so the gesture was not overridden "
+            "by a later one, it was forgotten by a rule that remembers "
+            "exactly one save back"
+            % (moved, {i: r["after"][i] for i in moved}))
+
+    @unittest.expectedFailure
+    def test_a_save_that_narrates_no_change_changed_nothing(self) -> None:
+        """The second lie: it rewrote four elements and said it had not."""
+        # THE RELATION, NOT THE SENTENCE. This reads the verb COUNTS the
+        # commit published about itself, never its headline text, so a
+        # rewrite of the wording cannot satisfy it and cannot break it.
+        # It is the narrower of the two reds on purpose: a repair that
+        # keeps re-grouping but starts SAYING so clears this one and
+        # leaves the other red, which is the whole reason they are two.
+        r = _ungroup_then_save_again()
+        moved = sorted(i for i, g in r["after"].items()
+                       if g != r["ungrouped"].get(i))
+        self.assertFalse(
+            moved and "saved_no_changes" in r["second_verbs"],
+            "a commit reporting %s rewrote the group membership of %s. "
+            "The save before it had just told the user, in its own "
+            "headline, that their parts would not be put back together; "
+            "this one put them back and narrated nothing at all"
+            % (r["second_verbs"], moved))
+
+    def test_the_ungroup_is_honoured_on_the_save_that_carries_it(
+            self) -> None:
+        """The live half, and what stands between the reds and a vacuum.
+
+        Both reds are EQUALITY claims across two saves, and equality is
+        satisfied perfectly by a tree where nothing ever happens. A
+        `canvas.py` that never honours the ungroup at all leaves the
+        group on host and parts through both saves — so "the second save
+        changed nothing" is TRUE, both reds pass, and the masks report
+        two healthy expected failures over a product that has stopped
+        listening to the gesture entirely. Measured against exactly that
+        patch: both reds go to unexpected success and this method is
+        what fails.
+
+        So this asserts the ABSOLUTE numbers the reds deliberately do
+        not: the mint puts all four elements in one group, and the save
+        that carries the gesture takes every one of them out of it.
+        """
+        r = _ungroup_then_save_again()
+        self.assertEqual(
+            sorted(i for i, g in r["minted"].items() if g == ["w-grp"]),
+            sorted(r["minted"]),
+            "the mint no longer puts the whole widget in one group, so "
+            "there is no group left for a gesture to open: %s"
+            % r["minted"])
+        self.assertEqual(
+            {i: g for i, g in r["ungrouped"].items() if g}, {},
+            "Ctrl+Shift+G must be honoured on the save that carries it, "
+            "or the reds beside this one are comparing a widget that "
+            "was never ungrouped against itself and passing: %s"
+            % r["ungrouped"])
+        self.assertIn(
+            "widget_ungrouped", r["ungroup_verbs"],
+            "the ungroup is product law's LOUD half — the save that "
+            "carries it says so out loud — and a silent one would make "
+            "the revocation next door unremarkable: %s"
+            % r["ungroup_verbs"])
 
 
 class TestADeclaredDatumSurvivesTheDoorItCameThrough(unittest.TestCase):
