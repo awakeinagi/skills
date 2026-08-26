@@ -1117,6 +1117,23 @@ The seven, each real:
    already carried a `label`, and the code path only fires when one is MINTED.
    It reported 3 revocations where the truth was 11.
 
+**IT HAS A SECOND DIRECTION, and the same root cause produces both.** An
+extraction-vs-checkout mismatch makes an instrument that reads NOTHING go
+silently green — that is the six above. It also makes an instrument that
+correctly REFUSES throw a spurious RED, loudly. Instance 5 is that second
+kind: one failure in 2047 tests that looked exactly like a finding about the
+code under ablation.
+
+`livedoc.tracked_prose_files()` is the cheap canary for both, because it is
+the one place in this tree that turns the mismatch into a refusal you can see
+immediately: run `python3 tests/livedoc.py check` inside any extraction and it
+raises `git could not list tracked markdown ... exit status 128` in under a
+second. A reviewer hit exactly that during this close, from a different entry
+point and before the suite run existed, and recorded it as "the instrument
+working correctly" — which was true and one inference short. It also predicted
+that ANY full-suite run in an extraction would show exactly one failure, which
+is the conclusion that would have saved a control run.
+
 **What catches it, in order of cost:**
 
 - **Pin every control to an explicit sha.** Never `HEAD`, never "the working
@@ -1130,6 +1147,9 @@ The seven, each real:
 - **When a single failure appears in a large run, control it before reading
   it.** Instance 5 was one failure in 2047 tests and looked exactly like a
   finding.
+- **Run `python3 tests/livedoc.py check` first in any extraction.** One second,
+  and it tells you whether you are in a repository before you spend 400s
+  finding out from a test.
 
 The corollary that generalises: **a measurement without a control is an
 observation, not a finding** — and the specific danger of a drifted control is
