@@ -1112,7 +1112,7 @@ is identical every time and the shape is what you have to recognise.
 A probe that breaks loudly gets fixed in a minute; a probe that quietly agrees
 with you ships.
 
-The seven, each real:
+The instances, each real:
 
 1. A counterfactual archived `HEAD`. Once its agent committed, the "before"
    arm was running the very file it was the control for, and went green. Its
@@ -1147,7 +1147,7 @@ The seven, each real:
 
 **IT HAS A SECOND DIRECTION, and the same root cause produces both.** An
 extraction-vs-checkout mismatch makes an instrument that reads NOTHING go
-silently green — that is the six above. It also makes an instrument that
+silently green — that is most of the list below. It also makes an instrument that
 correctly REFUSES throw a spurious RED, loudly. Instance 5 is that second
 kind: one failure in 2047 tests that looked exactly like a finding about the
 code under ablation.
@@ -1165,7 +1165,7 @@ is the conclusion that would have saved a control run.
 **What catches it, in order of cost:**
 
 - **Pin every control to an explicit sha.** Never `HEAD`, never "the working
-  tree", never a stash. Four of the seven die on this rule alone.
+  tree", never a stash. Most of the list dies on this rule alone.
 - **Make the probe assert its own edit landed** — re-parse the file and check
   the mutation is present and the original absent. Refuse loudly if not, the
   way one agent's transplant printed `PROBE IS A NO-OP: head and ctrl versions
