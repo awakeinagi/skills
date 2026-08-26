@@ -367,8 +367,11 @@ same reason the rows above exist: it is not clean yet. Measure with `uvx ty
 check`. Nearly all of what it reports traces to two annotation gaps rather
 than to defects — an unannotated dict literal whose inferred value union is
 narrower than the Excalidraw JSON it models, and tests that monkeypatch a
-module attribute with a stub of a different signature. Both are paid by the
-retrofit rule below. **Widening `[tool.ty.rules]` to reach zero is the one
+module attribute with a stub of a different signature. Both are annotations
+somebody has to write, which is the retrofit rule's business. What will *not*
+help is retiring the `ANN` rows above first: unlike mypy, `ty` checks
+unannotated function bodies, so that debt is hiding no type error from it and
+never was. **Widening `[tool.ty.rules]` to reach zero is the one
 repair that is not allowed**, because it retires the finding instead of the
 debt, and a checker configured until it is silent is the arrangement `ty`
 replaced.

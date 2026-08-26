@@ -149,6 +149,19 @@ suppress-dummy-args = true       # _ and __ need no annotation
 # above, so `uvx mypy` printed "Success: no issues found" while
 # `--check-untyped-defs` printed 109 errors (measured 2026-08-25). pyright was
 # a `pyrightconfig.json` in no hook and in no document — a gate by convention.
+#
+# ty CHECKS UNANNOTATED BODIES; mypy DID NOT. Proved by injecting one identical
+# error (`_probe: int = "not an int"`) into `_mermaid_refusal` twice, changing
+# only the signature: mypy said "Success: no issues found" over the unannotated
+# def and "Found 5 errors" over the annotated one, while ty reported it at the
+# same line both times. Two consequences. The swap is a COVERAGE GAIN today,
+# with none of the `ANN` debt above retired first. And `[tool.mypy]`'s two
+# commented-out "target state" lines — `disallow_untyped_defs` and
+# `disallow_incomplete_defs`, kept "to flip once the ANN debt is retired" —
+# went out MOOT rather than merely obsolete: the state they were waiting for is
+# the state ty already ships. Do not re-add an equivalent here expecting it to
+# buy anything. (Nothing in this repo's prose should say that annotating a
+# function brings its body under the type checker. Under ty it was never out.)
 # ---------------------------------------------------------------------------
 [tool.ty.environment]
 # Matches the 3.9 floor in `requires-python`. Stated rather than inferred so a
@@ -174,31 +187,51 @@ exclude = [
 ]
 
 # ---------------------------------------------------------------------------
-# RULE POLICY. Five rules off, and the list is not a convenience — it is
-# `pyrightconfig.json`'s seven suppressions translated one-for-one, so the swap
-# changes the TOOL and not what this repo considers an error. The mapping,
-# because the file that held the originals is deleted and this is now the only
-# place the decision is written down:
+# RULE POLICY. Five rules off, carried over from `pyrightconfig.json`'s seven
+# suppressions. That file is deleted, so this is now the only place the
+# decision is written down:
 #
-#   pyright                                        ty
-#   reportOptionalSubscript + reportIndexIssue  -> not-subscriptable
-#   reportOptionalMemberAccess                  -> unresolved-attribute
-#   reportOptionalIterable                      -> not-iterable
-#   reportOptionalOperand + reportOperatorIssue -> unsupported-operator
-#   reportArgumentType                          -> invalid-argument-type
+#   pyright                                        ty            shared lines
+#   reportOptionalSubscript + reportIndexIssue  -> not-subscriptable   5 of 5
+#   reportOptionalMemberAccess                  -> unresolved-attribute   18
+#   reportOptionalIterable                      -> not-iterable       2 of 2
+#   reportOptionalOperand + reportOperatorIssue -> unsupported-operator      1
+#   reportArgumentType                          -> invalid-argument-type    5
 #
-# All five report the SAME underlying thing on this codebase: an Excalidraw
-# element is loose JSON, AGENTS.md § Type hints rules that `dict[str, Any]` is
-# the correct and honest annotation for one, and a checker reading such a dict
-# infers `str | int | list | None` from whichever keys a literal happened to
-# set, then objects when the next line legitimately writes or reads a wider
-# value. That is a fact about the annotation, not about the code.
+# THE MAPPING IS BY INTENT, NOT BY EQUIVALENCE, and the right-hand column is
+# there so nobody re-derives that the hard way. Measured 2026-08-25 by running
+# both checkers over canvas.py with every suppression off and intersecting the
+# LINE NUMBERS per pair. Rows 1-3 hold up as translations — ty's
+# `not-subscriptable` lines are a strict subset of pyright's, pyright's
+# `reportOptionalIterable` lines are a strict subset of ty's, and the
+# member-access pair agrees on 18 lines of 28. Row 4 does not: 6 pyright lines
+# and 17 ty lines share exactly ONE, because ty's population there is dominated
+# by an inference pyright does not make (see the note below this block). Read
+# the list as "the same five failure shapes this repo had already ruled
+# uninteresting", never as "the same findings".
+#
+# All five describe one situation on this codebase: an Excalidraw element is
+# loose JSON, AGENTS.md § Type hints rules that `dict[str, Any]` is the correct
+# and honest annotation for one, and a checker reading such a dict infers
+# `str | int | list | None` from whichever keys a literal happened to set, then
+# objects when the next line legitimately writes or reads a wider value. That
+# is a fact about the annotation, not about the code.
+#
+# ONE FINDING WAS LOST WITH pyright AND IS RECORDED RATHER THAN ABSORBED.
+# Under its real config pyright reported three diagnostics on canvas.py, two of
+# them artifacts of misparsing the module docstring as a 3.14 t-string. The
+# third was real: `mermaid_dropped_roles` returns `list(MERMAID_DROP_ROLES)`,
+# and because `list` is invariant that is `list[Literal[...]]` against a
+# declared `-> list[str]` (`reportReturnType`, canvas.py:26033). ty is silent
+# on it and so is mypy. So ty's residual findings and pyright's do not overlap
+# at all — they are different findings, not a re-spelling — and this one is a
+# genuine coverage loss from the swap, worth a look on its own merits.
 #
 # THESE ARE OFF BECAUSE THE MODEL IS LOOSE, NOT BECAUSE THE FINDINGS ARE
 # UNINTERESTING. `unsupported-operator` in particular is over-suppressed today:
 # 16 of its 21 hits in canvas.py come from one unannotated module-level dict
-# and vanish when it is annotated (measured 2026-08-25, see the § Type check
-# note in AGENTS.md). Retire entries from this list as the ANN debt above is
+# and vanish when it is annotated (measured 2026-08-25; AGENTS.md § Known debt
+# names the two causes). Retire entries from this list as the ANN debt above is
 # paid; it is a burn-down like the ruff one, not a permanent exemption.
 # ---------------------------------------------------------------------------
 [tool.ty.rules]
