@@ -32983,23 +32983,278 @@ def _apex_pin_derivation() -> ast.FunctionDef:
     return tree.body[0]
 
 
-def _apex_pin_calls(name: str) -> list[ast.Call]:
+def _apex_pin_calls(name: str,
+                    node: ast.FunctionDef | None = None) -> list[ast.Call]:
     """Every call to `name` inside the subject method.
 
     Args:
         name: The attribute called on `canvas`, e.g. `text_dims`.
+        node: A function to read INSTEAD of the pinned method. Only the
+            guard's own proof cases below pass this, and they pass
+            known-bad repairs on purpose: a predicate that can never be
+            aimed at an input it should reject has no way to show it
+            bites, and this file's whole subject is checks that pass
+            without checking.
 
     Returns:
         The matching `ast.Call` nodes, in source order.
     """
     found = []
-    for node in ast.walk(_apex_pin_derivation()):
-        if not isinstance(node, ast.Call):
+    for sub in ast.walk(node if node is not None else _apex_pin_derivation()):
+        if not isinstance(sub, ast.Call):
             continue
-        fn = node.func
+        fn = sub.func
         if isinstance(fn, ast.Attribute) and fn.attr == name:
-            found.append(node)
+            found.append(sub)
     return found
+
+
+_APEX_SIZE_PARAMS = ("fs", "font_size")
+_APEX_SIZE_CALLS = ("client_wrapped_lines", "text_dims")
+
+
+def _apex_size_parameter(name: str) -> int:
+    """Where `canvas.<name>` takes its font size, by position.
+
+    Resolved from the LIVE signature rather than written down beside
+    it. A parameter that moved would otherwise point the guard below at
+    some other argument silently — a size check that had drifted onto
+    the wrap width reads green over every input, which is this class's
+    own defect class committed inside the repair for it.
+
+    Args:
+        name: The `canvas` function called, e.g. `text_dims`.
+
+    Returns:
+        The zero-based index of its font-size parameter.
+
+    Raises:
+        AssertionError: If it has no font-size parameter or more than
+            one. Either way the guard cannot say which argument carries
+            the size, and a guard that cannot find its subject must
+            refuse rather than pass.
+    """
+    params = list(inspect.signature(getattr(canvas, name)).parameters)
+    found = [i for i, p in enumerate(params) if p in _APEX_SIZE_PARAMS]
+    if len(found) != 1:
+        raise AssertionError(
+            "canvas.%s takes %d parameters named %s, so the guard below "
+            "cannot tell which argument carries the font size: %s"
+            % (name, len(found), " or ".join(_APEX_SIZE_PARAMS), params))
+    return found[0]
+
+
+def _apex_size_arguments(
+        node: ast.FunctionDef) -> list[tuple[str, ast.expr]]:
+    """Every font-size argument handed to a wrap or metric call in `node`.
+
+    Keywords are read as well as positions, because the guard this
+    feeds replaced one that read `call.args` alone — and `text_dims(…,
+    font_size=16)` sailed past that one untouched.
+
+    Args:
+        node: The function whose body is being read.
+
+    Returns:
+        `(called name, the expression passed as its font size)`, one per
+        call, in call order.
+
+    Raises:
+        AssertionError: If a call passes a font size the guard cannot
+            locate — a splat, or too few positionals. Reporting nothing
+            about such a call would make the guard quietest exactly
+            where its subject is strangest.
+    """
+    out: list[tuple[str, ast.expr]] = []
+    for name in _APEX_SIZE_CALLS:
+        index = _apex_size_parameter(name)
+        for call in _apex_pin_calls(name, node):
+            passed = None
+            for kw in call.keywords:
+                if kw.arg in _APEX_SIZE_PARAMS:
+                    passed = kw.value
+            if passed is None and len(call.args) > index:
+                passed = call.args[index]
+            if passed is None:
+                raise AssertionError(
+                    "a call to canvas.%s in %s passes a font size this "
+                    "guard cannot find (%d positional argument(s), "
+                    "keywords %s) — read it rather than trusting a green "
+                    "that was never taken"
+                    % (name, _APEX_PIN_METHOD, len(call.args),
+                       [kw.arg for kw in call.keywords]))
+            out.append((name, passed))
+    return out
+
+
+def _apex_bindings(node: ast.FunctionDef) -> dict[str, list[ast.expr]]:
+    """Every local name in `node`, mapped to what it was bound from.
+
+    Args:
+        node: The function whose body is being read.
+
+    Returns:
+        Local name -> the expressions assigned to it, in source order.
+        A name bound twice keeps both, so the guard below cannot be
+        satisfied by one honest binding beside a fixture-sized one.
+    """
+    bound: dict[str, list[ast.expr]] = {}
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Assign):
+            targets: list[ast.expr] = list(sub.targets)
+        elif isinstance(sub, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+            targets = [sub.target]
+        else:
+            continue
+        if sub.value is None:
+            continue
+        for target in targets:
+            for leaf in ast.walk(target):
+                if isinstance(leaf, ast.Name):
+                    bound.setdefault(leaf.id, []).append(sub.value)
+    return bound
+
+
+def _apex_reads_a_font_size(expr: ast.expr,
+                            bound: dict[str, list[ast.expr]]) -> bool:
+    """Whether `expr`'s derivation reaches a `fontSize` read off an element.
+
+    The invariant the guard's NAME claims, walked backwards through the
+    method's own local bindings: a size is taken from the label when the
+    thing it was computed from is `el["fontSize"]` or
+    `el.get("fontSize")`. Following the bindings is the whole point —
+    the guard this replaced looked only at the call site, so a constant
+    bound one line above satisfied it.
+
+    Args:
+        expr: The expression passed as a font size.
+        bound: `_apex_bindings` for the enclosing function.
+
+    Returns:
+        True when some `fontSize` read is reachable backwards from
+        `expr`. False means the size came from somewhere that is not the
+        label.
+    """
+    stack: list[ast.AST] = [expr]
+    seen: set[str] = set()
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, ast.Subscript) and isinstance(
+                cur.slice, ast.Constant) and cur.slice.value == "fontSize":
+            return True
+        if (isinstance(cur, ast.Call) and isinstance(cur.func, ast.Attribute)
+                and cur.func.attr == "get" and cur.args
+                and isinstance(cur.args[0], ast.Constant)
+                and cur.args[0].value == "fontSize"):
+            return True
+        if isinstance(cur, ast.Name):
+            if cur.id not in seen:
+                seen.add(cur.id)
+                stack.extend(bound.get(cur.id, []))
+            continue
+        stack.extend(ast.iter_child_nodes(cur))
+    return False
+
+
+def _apex_sizes_not_read_from_the_label(node: ast.FunctionDef) -> list[str]:
+    """The wrap and metric calls in `node` taking a size off something else.
+
+    Args:
+        node: The function whose body is being read.
+
+    Returns:
+        One `'call <- source'` line per offending argument, empty when
+        every size is derived from a `fontSize` read. The binding is
+        quoted as well as the argument, because `fs` at a call site is
+        the shape of a repair and `fs = 16` is the defect.
+    """
+    bound = _apex_bindings(node)
+    blind = []
+    for name, expr in _apex_size_arguments(node):
+        if _apex_reads_a_font_size(expr, bound):
+            continue
+        quoted = ast.unparse(expr)
+        if isinstance(expr, ast.Name) and bound.get(expr.id):
+            quoted = "%s (bound from %s)" % (quoted, ", ".join(
+                ast.unparse(each) for each in bound[expr.id]))
+        blind.append("%s <- %s" % (name, quoted))
+    return blind
+
+
+def _apex_proof_tree(source: str) -> ast.FunctionDef:
+    """Parse a synthetic repair that the guard's proof cases aim at it.
+
+    Args:
+        source: A method body written to imitate one repair shape.
+
+    Returns:
+        The `ast.FunctionDef` the guard reads.
+
+    Raises:
+        AssertionError: If `source` is not a single function definition.
+    """
+    tree = ast.parse(textwrap.dedent(source).strip())
+    node = tree.body[0]
+    if not isinstance(node, ast.FunctionDef):
+        raise AssertionError(
+            "a proof case for the size guard is not a function "
+            "definition, so the guard is being fired at nothing: %r"
+            % source.strip()[:120])
+    return node
+
+
+# The repair shapes the size guard is aimed at, so that "it is green" and
+# "it checked something" stop being the same sentence. Every one of the
+# fixture-sized four passed the guard this file carried until 2026-08-25:
+# it collected integer literals out of `call.args`, which none of them puts
+# there. The size argument is spelled at a different site in each.
+_APEX_HONEST_REPAIRS = {
+    "the shipped repair, the check's own binding": """
+        def m(self) -> None:
+            fs = lbl.get("fontSize") or 16
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                             fs, canvas.line_height_of(lbl))
+    """,
+    "a plain subscript, no `get` anywhere": """
+        def m(self) -> None:
+            fs = lbl["fontSize"]
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                             fs, canvas.line_height_of(lbl))
+    """,
+}
+_APEX_FIXTURE_SIZED_REPAIRS = {
+    "a literal bound one line above": """
+        def m(self) -> None:
+            fs = 16
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                             fs, canvas.line_height_of(lbl))
+    """,
+    "a literal passed by keyword": """
+        def m(self) -> None:
+            canvas.text_dims(canvas.client_wrapped_lines(
+                flat, 100, fs=16), font_size=16,
+                line_height=canvas.line_height_of(lbl))
+    """,
+    "a literal written as a float": """
+        def m(self) -> None:
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, 16.0),
+                             16.0, canvas.line_height_of(lbl))
+    """,
+    "a size read off a module constant instead of the label": """
+        def m(self) -> None:
+            fs = canvas.MIN_FONT_FLOOR
+            canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                             fs, canvas.line_height_of(lbl))
+    """,
+}
+# THE HOLE THE GUARD STILL HAS, kept under its own name because it is a
+# decision and not an oversight. See the case that pins it.
+_APEX_MENTIONS_WITHOUT_USING = """
+    def m(self) -> None:
+        fs = 16 if lbl.get("fontSize") else 16
+        canvas.text_dims(canvas.client_wrapped_lines(flat, 100, fs),
+                         fs, canvas.line_height_of(lbl))
+"""
 
 
 def _apex_divergence(**overrides: object) -> tuple[float, int]:
@@ -33157,14 +33412,49 @@ class TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture(
         otherwise have looked done. It also stays armed against the
         reverse: put either literal back and this re-reds while the
         flatten method below stays green, measured 2026-08-20.
+
+        WIDENED 2026-08-25 TO THE CLAIM ITS NAME MAKES, after a reviewer
+        measured that it did not make it. Until then this collected
+        integer literals out of `call.args` and required the list to be
+        empty — which forbids a literal AT THE CALL SITE and nothing
+        else. Bind `fs = 16` one line above, pass `fs` by name, and this
+        went green over the exact defect it was flipped for; so did
+        `font_size=16`, which is not in `args` at all, and so did `16.0`,
+        which is not an `int`. Three shapes, one guard, all green,
+        reproduced before this was touched. It now walks the size
+        argument BACKWARDS through the method's own local bindings and
+        requires the derivation to reach a `fontSize` read off an
+        element. That is the sentence in the name, so the two can no
+        longer come apart. The old literal check is kept underneath
+        rather than replaced: it is narrower and subsumed, and it costs
+        one line to keep the message that named the original defect.
+
+        THE GUARD IS ITSELF GUARDED, because a predicate nobody ever
+        aimed at a bad input is the thing this class is about.
+        `test_the_size_guard_rejects_every_fixture_sized_repair` fires it
+        at four, and `test_the_size_guard_reads_the_source_and_not_the
+        _value` pins the one shape it still lets through.
         """
+        node = _apex_pin_derivation()
+        deep, blind = _apex_divergence(fontSize=20)
+        unrooted = _apex_sizes_not_read_from_the_label(node)
+        self.assertEqual(
+            unrooted, [],
+            "%s takes its font size from something that is not the "
+            "label: %s. On a fontSize-20 label the check's band is %.0fpx "
+            "deep and a fixture-sized reading gives %d — the pin would go "
+            "on passing over a check measuring the wrong block. The "
+            "repair is the check's own binding; a size bound from a "
+            "literal, from a module constant, or from anything else that "
+            "never reads the element does not satisfy this, whatever "
+            "shape it wears at the call site"
+            % (_APEX_PIN_METHOD, unrooted, deep, blind))
         literals = [
             arg.value
-            for name in ("client_wrapped_lines", "text_dims")
+            for name in _APEX_SIZE_CALLS
             for call in _apex_pin_calls(name)
             for arg in call.args
             if isinstance(arg, ast.Constant) and isinstance(arg.value, int)]
-        deep, blind = _apex_divergence(fontSize=20)
         self.assertEqual(
             literals, [],
             "%s passes the font size as a literal %s where the check "
@@ -33172,6 +33462,97 @@ class TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture(
             "is %.0fpx deep and this reading gives %d — the pin would go "
             "on passing over a check measuring the wrong block"
             % (_APEX_PIN_METHOD, literals, deep, blind))
+
+    def test_the_size_guard_rejects_every_fixture_sized_repair(self) -> None:
+        """GREEN: the guard above is fired at four repairs it must refuse.
+
+        THE REASON THIS CASE EXISTS is that the guard above was green
+        for five days over the defect it is named for, and nothing in
+        the tree said so. A green whose subject is honest proves the
+        SUBJECT and never the guard — so the guard gets its own inputs,
+        written to be wrong in four different ways, and has to reject
+        all four. This is the neighbour shape the mutation harness runs
+        on, one layer up: the live pole that stops a widened or dead
+        predicate from hiding inside a passing assertion.
+
+        All four are shapes the PREVIOUS guard passed, and each is wrong
+        on its own axis: a literal moved one line up out of `args`, a
+        literal moved out of `args` into `keywords`, a literal that is
+        not an `int`, and a size read off a module constant — a real
+        read of a real name that is still not the label.
+
+        The honest repairs are asserted too, and not as decoration: a
+        guard that rejected everything would satisfy every rejection
+        above and be exactly as useless. The subscript one earns its
+        place by using no `get` at all, so a predicate that had quietly
+        narrowed to `.get("fontSize")` fails here rather than waiting for
+        a repair that spells it the other way.
+        """
+        for label, source in sorted(_APEX_HONEST_REPAIRS.items()):
+            self.assertEqual(
+                _apex_sizes_not_read_from_the_label(
+                    _apex_proof_tree(source)), [],
+                "the size guard REJECTS %s, so it has narrowed past the "
+                "invariant it states and an honest repair can no longer "
+                "satisfy it: %s" % (label, source.strip()))
+        for label, source in sorted(_APEX_FIXTURE_SIZED_REPAIRS.items()):
+            blind = _apex_sizes_not_read_from_the_label(
+                _apex_proof_tree(source))
+            self.assertEqual(
+                len(blind), len(_APEX_SIZE_CALLS),
+                "the size guard ACCEPTS %s, or reports only some of its "
+                "calls (%s). Every one of these takes a size the label "
+                "never supplied, and each must name both the wrap and the "
+                "metric call, because a repair that fixed one and not the "
+                "other is how this family drifts: %s"
+                % (label, blind, source.strip()))
+
+    def test_the_size_guard_reads_the_source_and_not_the_value(self) -> None:
+        """THE KNOWN LIMIT, pinned so nobody reads the guard as total.
+
+        The guard above reads SYNTAX. It proves a `fontSize` read is
+        reachable backwards from the size argument; it does not prove
+        the value flows. `fs = 16 if lbl.get("fontSize") else 16`
+        mentions the label, derives nothing from it, and is accepted.
+        That is the hole, and it is left open on purpose: closing it
+        needs value-flow analysis of a method the guard is only reading,
+        and this class's own history is that a pin which reproduced its
+        subject instead of reading it watched a copy for a whole batch.
+
+        IF THIS CASE GOES RED, THE LIMIT CLOSED. That is good news and
+        not a regression: retire this case and the matching paragraph in
+        `test_the_pin_takes_its_font_size_from_the_label` in the same
+        change, and write down what the value-flow arm costs in false
+        positives — a helper call like `fs = size_of(lbl)` is the shape
+        it will have to go on accepting.
+
+        THE LAST ASSERTION PINS WHY THE LIMIT IS TOLERABLE, so it
+        expires on the day the reason does. A syntactic guard is needed
+        here only because BEHAVIOUR cannot tell a literal 16 from a read
+        on this stage: the apex fixture is a fontSize-16 label, so the
+        two readings agree to the pixel and running the pinned method
+        distinguishes nothing. Move that stage off 16 and the pinned
+        method starts failing on its own over a fixture-sized size,
+        which is a stronger instrument than any tree walk — at which
+        point this whole family is arguing about a defect the suite
+        already catches.
+        """
+        self.assertEqual(
+            _apex_sizes_not_read_from_the_label(
+                _apex_proof_tree(_APEX_MENTIONS_WITHOUT_USING)), [],
+            "the size guard has grown a VALUE-FLOW arm: it now rejects a "
+            "size that mentions the label without deriving from it. If "
+            "that is deliberate, retire this case and the limit paragraph "
+            "in `%s` together, and record the false-positive surface — a "
+            "size routed through a helper reads the same way from here"
+            % _APEX_PIN_METHOD)
+        same, blind = _apex_divergence()
+        self.assertEqual(
+            same, blind,
+            "on the SHIPPED stage a fixture-sized reading now disagrees "
+            "with the check (%.0f against %d), so running the pinned "
+            "method would catch a literal by itself and the reason this "
+            "limit was left to a source walk has expired" % (same, blind))
 
     def test_the_pin_flattens_the_text_the_way_the_check_does(self) -> None:
         """GREEN since 2026-08-20. RED WAS: the text went in whole.
