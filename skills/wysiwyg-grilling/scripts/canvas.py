@@ -10334,6 +10334,111 @@ def part_owner_id(el):
     return None
 
 
+def _drawn_box(el):
+    """The box an element's INK occupies, not the box it stores.
+
+    THE STANDING REPO RULE AT A NEW SITE — bound a point-strung element
+    by its `points`, never by a stored `width`/`height` — and `image` is
+    the instance that proves it is not ceremony here. That kind's second
+    `x_of` stroke is the anti-diagonal: it stores `y` at the host's
+    BOTTOM edge and runs upward, so `y + height` puts its box a whole
+    host-height BELOW the drawing. Measured 2026-08-26, a containment
+    test reading the stored box saw 1 of `image`'s 2 parts and would
+    have under-counted every copy of the other.
+
+    `points_extent` cannot serve: it answers the SPAN and drops the
+    offsets, and this needs where the path starts as well as how far it
+    reaches.
+
+    Args:
+        el: Any element dict.
+
+    Returns:
+        `(x0, y0, x1, y1)` in scene coordinates, normalized so `x0 <= x1`
+        and `y0 <= y1`.
+    """
+    x, y = el.get("x", 0), el.get("y", 0)
+    pts = el.get("points") or []
+    if pts:
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        return (x + min(xs), y + min(ys), x + max(xs), y + max(ys))
+    w, h = el.get("width", 0), el.get("height", 0)
+    return (min(x, x + w), min(y, y + h), max(x, x + w), max(y, y + h))
+
+
+def _ink_shape(el):
+    """An element's type and drawn size, as a congruence key.
+
+    SIZE AND NOT POSITION, because a paste MOVES the copy — the client's
+    own duplicate offset is 10px — while the thing that makes it a copy
+    is that it is the same shape. Rounded to the tenth, the precision
+    `normalize_element` stores geometry at, so two elements the scene
+    cannot tell apart are not told apart here either.
+
+    Args:
+        el: Any element dict.
+
+    Returns:
+        `(type, width, height)` of the drawn ink.
+    """
+    x0, y0, x1, y1 = _drawn_box(el)
+    return (el.get("type"), round(x1 - x0, 1), round(y1 - y0, 1))
+
+
+def unowned_ink_inside(els, host):
+    """Decoration standing on a host's box that nothing owns.
+
+    THE SECOND INSTRUMENT `composed_host_gaps`' DOCSTRING NAMED, and it
+    is ONE function because TWO sites now ask the question and they may
+    not drift apart: the gap count reads it to see ink a host did not
+    order, and `lint_layout` reads it to tell a widget whose parts are
+    DRAWN but unlinked from one whose parts are GONE. The user ruled on
+    2026-08-26 (contract C12) that those two pictures may not read
+    alike, and this is the only thing in the file that can see the
+    difference between them.
+
+    IT ANSWERS AN OBSERVATION, NOT AN INFERENCE, and that bound is what
+    makes it safe to call from a check. Ink standing inside a host that
+    owns nothing MAY be that host's orphaned parts and may equally be a
+    backdrop the agent drew on purpose: `role: "decoration"` with no
+    part tag is a first-class value of the PUBLIC ops schema
+    (`ops-reference.md` lists it among the four an agent may set) and
+    `layout.md` instructs the agent to author one. So this reports what
+    is there and leaves each reader to bound it — the gap count admits
+    only ink CONGRUENT to a part the host already owns, and the message
+    names the ids rather than claiming what they are. A rule that
+    counted every unowned decoration inside a host would bill the user
+    `1 surplus` for a backdrop they drew deliberately; that is measured
+    rather than feared, and `_body_block_behind_an_authored_panel` is
+    the pole that holds it.
+
+    OWNED IS OWNED BY ANYBODY, not by this host. A part backlinked to a
+    DIFFERENT host is somebody's part and not loose ink, and a bound
+    label answers its container through `part_owner_id`, so neither can
+    arrive here as ink nobody ordered.
+
+    Args:
+        els: An element list.
+        host: The element whose box is the subject.
+
+    Returns:
+        Every live element carrying `role: "decoration"` with no owner
+        at all, whose drawn box touches the host's — in scene order, so
+        a caller naming ids names them in the order the scene does.
+    """
+    hx0, hy0, hx1, hy1 = _drawn_box(host)
+    out = []
+    for e in els:
+        if e.get("isDeleted") or e.get("id") == host.get("id"):
+            continue
+        if role_of(e) != "decoration" or part_owner_id(e) is not None:
+            continue
+        x0, y0, x1, y1 = _drawn_box(e)
+        if x0 <= hx1 and hx0 <= x1 and y0 <= hy1 and hy0 <= y1:
+            out.append(e)
+    return out
+
+
 GRID_SNAP_TYPES = ("rectangle", "diamond", "ellipse", "frame")
 
 
@@ -10725,7 +10830,7 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         every floored composed host draws exactly what its kind owes.
         `drawn` differs from `floor` in both directions.
     """
-    parts: dict[str, int] = {}
+    parts: dict[str, list[dict[str, Any]]] = {}
     pinned: set[str] = set()
     for e in els:
         if e.get("isDeleted") or not _composed_part(e.get("customData")
@@ -10734,7 +10839,7 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         oid = part_owner_id(e)
         if not oid:
             continue
-        parts[oid] = parts.get(oid, 0) + 1
+        parts.setdefault(oid, []).append(e)
         if pinned_to_canvas(e):
             pinned.add(oid)
     out = []
@@ -10742,7 +10847,25 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         floor = composed_part_floor(e)
         if floor is None:
             continue
-        drawn = parts.get(e["id"], 0)
+        owned = parts.get(e["id"], [])
+        # THE CONGRUENCE GATE, AND IT IS THE WHOLE RULE. Unowned ink
+        # counts as drawn only where it is the same TYPE and the same
+        # SIZE as a part this host already owns, which is what a pasted
+        # copy of a part is and what an authored backdrop is not — a
+        # 152x56 panel over 144x3 waves matches nothing and is not
+        # billed. The cheaper rules were both measured and both cost
+        # something the poles refuse: counting every unowned decoration
+        # inside the host silences `wc` at 2 == 2, the narrowing
+        # contract C12 forbids, and splitting the arms so that only
+        # surplus counts loose ink bills the authored panel `1 surplus`.
+        # Requiring a part to be congruent WITH is also why the
+        # narrowing cannot happen by accident: a host that owns nothing
+        # has nothing to be congruent to, so its count stays 0 and it
+        # goes on being reported.
+        shapes = {_ink_shape(p) for p in owned}
+        copies = [g for g in unowned_ink_inside(els, e)
+                  if _ink_shape(g) in shapes]
+        drawn = len(owned) + len(copies)
         # A PINNED PART SUPPRESSES THE SURPLUS ARM AND ONLY THAT ARM,
         # because this file's own reconciler produces the reading.
         # `reconcile_composed`'s `body` branch deletes every wave and
@@ -20178,19 +20301,57 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # STRIPPED_RE` matches "…whose own geometry draws N part(s), and
         # the scene has M — D missing|surplus", and rewording the head
         # is how a check silently stops being the one its mutant proves.
+        #
+        # THE TAIL SPLITS ON THE INK, AND THAT SPLIT IS A USER RULING
+        # (contract C12, 2026-08-26). The old sentence said the parts
+        # were "either gone from the scene or still drawn beside it with
+        # their backlink broken, and this check cannot tell which" — one
+        # sentence for TWO PICTURES a person tells apart instantly, and
+        # an agent relaying it told a user their slider was an empty box
+        # while they were looking at a slider. It cannot be repaired by
+        # narrowing the check to go quiet on the drawn-ink picture: that
+        # widget is DEAD (a drag moves the host and the ink stays
+        # behind), so the finding is correct and only the wording was
+        # wrong, and going quiet would leave the class reported by
+        # NOTHING — including in every scene already on disk that
+        # `catch_up()` re-reads each session.
+        #
+        # IT REPORTS THE OBSERVATION AND NOT THE INFERENCE. Loose ink
+        # inside a host that owns nothing may be its orphaned parts and
+        # may be an authored backdrop, so the message names what stands
+        # there and lets the reader judge, rather than guessing which
+        # and being wrong half the time. The ids are named because that
+        # is the cheapest thing that makes the two pictures readable
+        # apart AND is worth having on its own — they are what the
+        # reader has to go and look at.
+        loose = unowned_ink_inside(els, ix[hid]) if hid in ix else []
+        seen = "%d unowned decoration(s) (%s)" % (
+            len(loose), ", ".join(e["id"] for e in sorted(
+                loose, key=lambda e: e["id"])[:4]))
         remint = kind in ("body", "kpi", "input")
         if drawn > floor:
             said = "The extra parts are drawn over the widget's own ink."
+            if loose:
+                said += (" %s stand inside its box carrying no backlink "
+                         "at all, so they are copies of its ink that "
+                         "nothing owns — deleting them is the repair, "
+                         "not re-minting." % seen)
+        elif loose:
+            said = ("Its box is NOT empty: %s stand inside it, drawn but "
+                    "linked to nothing. The widget is dead all the same "
+                    "— a drag moves the host and leaves that ink behind, "
+                    "and %s."
+                    % (seen,
+                       "the next re-derive draws a FRESH set over it "
+                       "rather than adopting it" if remint else
+                       "nothing adopts orphaned ink"))
         else:
-            said = ("The parts it does not own are either gone from the "
-                    "scene or still drawn beside it with their backlink "
-                    "broken, and this check cannot tell which. Either "
-                    "way the widget is dead: a drag moves the host "
-                    "without them, and %s."
-                    % ("the next re-derive draws a FRESH set over "
-                       "whatever is left rather than adopting it"
-                       if remint else
-                       "nothing re-mints what is gone"))
+            said = ("Nothing unowned is drawn inside its box either, so "
+                    "those parts are gone from the scene rather than "
+                    "orphaned in place. The widget is dead: a drag moves "
+                    "a host with nothing to move, and %s."
+                    % ("the next re-derive mints a fresh set"
+                       if remint else "nothing re-mints what is gone"))
         if remint:
             fix = ("Repair: `mod` this host's `width` or `height` to a "
                    "DIFFERENT value — a %s re-derives its parts from "
