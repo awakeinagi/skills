@@ -28382,7 +28382,6 @@ class TestAResolveFromAnotherArtifactHonoursACanvasPin(Base):
         """
         return "pin-q1" in {e["id"] for e in self.store.scenes["g"]}
 
-    @unittest.expectedFailure
     def test_a_resolve_from_another_artifact_cannot_take_a_pinned_glyph(self):
         """Both removal verbs must answer the same way about one element.
 
