@@ -21823,6 +21823,30 @@ class Store:
             # load can honestly know: the SET half needs a previous
             # revision to compare against, which is `catch_up`'s job and
             # needs history this loop has not consulted.
+            #
+            # CHOSEN OVER THE REPAIR AT THE SECOND READER, and measured
+            # rather than argued. `TestOnlyAGroupingGestureChangesGrouping`
+            # names three layers that flip it and prefers none: this one,
+            # interpreting composites before the out-of-session commit,
+            # and `_close_widget_group` treating a live group as evidence
+            # the memory is stale. The third one WORKS on every reader
+            # that pin has — it closes the offline route, satisfies the
+            # pin, and leaves the 56-cell external sweep at 0 — and it
+            # takes the 144-cell grid from 0 breaches to SIX, all of them
+            # entity: `_compose_attribute_rows` writes `gid` onto the
+            # host BEFORE `_close_widget_group` runs, so a reader that
+            # reads a live group as "the memory is stale" reads the
+            # widget's own half-built state that way and welds a widget
+            # the user pulled apart, revoking the mark on the way. That
+            # is round 2's `attributes: []` class returning through all
+            # six entity doors.
+            #
+            # The general form is the lesson this whole task keeps
+            # teaching: a repair sited at ONE reader protects that reader
+            # and makes every other reader's view of an impossible state
+            # somebody else's problem. Normalizing at the load kills the
+            # pair — mark present AND `<id>-grp` present — before any of
+            # the thirteen reader sites can see it.
             _reconcile_ungroup_marks(self.scenes[aid], self.scenes[aid])
             self.artifact_meta[aid] = doc.get("wysiwyg", {})
             if doc.get("files"):
