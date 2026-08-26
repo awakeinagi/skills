@@ -2486,7 +2486,8 @@ def make_element(spec, existing_ids, errors, index_hint=0):
     # gesture nobody made, and `_close_widget_group` would believe it —
     # a forged mark on an `add` really did mint a widget that came back
     # unassembled and stayed that way. Dropping it here keeps
-    # `_honour_ungroup` the single writer, which is what lets the rest of
+    # `_honour_ungroup` the writer for the GESTURE (`_reconcile_ungroup_
+    # marks` is the other writer, for reconciliation), which is what lets the rest of
     # this file read the mark as evidence rather than as an assertion.
     # Not an op ERROR: the key is meaningless rather than malformed, and
     # `op_field_faults` reports what cannot be stored, not what will be
@@ -3508,12 +3509,29 @@ def _honour_ungroup(els, el, ungrouped_by_user):
       a `Ctrl+Shift+G`, save, `Ctrl+D` duplicate from carrying an
       inherited mark onto a copy this code is about to close: the copy
       arrives as an `add`, so the clear costs no `mod` either.
-    * The same edge is what discards a FORGED mark. An agent `mod` can
-      still write the key onto a live, assembled widget — nothing
-      refuses it — but the group is in the posted scene, so this clears
-      it on the next save and the widget never comes apart. Forging it
-      through `add` does not survive either: `make_element` drops the
-      key, so `_honour_ungroup` stays the mark's single writer.
+    * A FORGED mark is stopped AT THE DOOR, not by this edge, and the
+      sentence that stood here said the opposite twice. It claimed an
+      agent `mod` "can still write the key ... nothing refuses it" and
+      that this edge would clear it on the next save. BOTH HALVES ARE
+      FALSE. `apply_ops` pops the key out of a `mod customData` merge
+      before it ever lands — see the comment at that site, which
+      explains why it is popped rather than refused — and `make_element`
+      pops it at `add`. And the edge would NOT have saved us: reopen the
+      `mod` door alone and a batch naming only `customData` takes an
+      assembled widget apart immediately AND leaves it apart through an
+      ordinary geometry edit afterwards.
+      That matters because a reader who believed this paragraph would
+      read those two pops as redundant and delete them. `references/
+      excalidraw-schema.md` had it right all along: both doors drop the
+      key.
+    * `_honour_ungroup` is NOT the mark's single writer, and three
+      places in this file said it was. `_reconcile_ungroup_marks` both
+      sets and clears it, and says so in its own docstring. It arrived
+      two commits after the three claims and none of them was revisited
+      — the same defect this close already fixed once for group ids,
+      where "the one writer" turned out to be one of four. Both writers
+      only write on a real gesture, so the SPIRIT holds; the sentence is
+      what a reader acts on.
 
     A HAND-MADE Ctrl+G KEEPS THE MARK, deliberately, and is the case the
     naming turns on. The user ungroups, then re-groups host and parts
