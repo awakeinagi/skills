@@ -35636,7 +35636,11 @@ def _apex_pin_derivation() -> ast.FunctionDef:
     Raises:
         AssertionError: If the owning class or the method is gone. A
             red whose subject has been deleted must say so rather than
-            go on failing about a tree that no longer exists.
+            go on failing about a tree that no longer exists. Also if
+            the source no longer parses to a plain `def`, which is the
+            same refusal one step later: a decorator this helper cannot
+            see through, or a method replaced by an assignment, would
+            otherwise be read as though it were the pin.
     """
     owner = globals().get(_APEX_PIN_OWNER)
     method = getattr(owner, _APEX_PIN_METHOD, None) if owner else None
@@ -35647,7 +35651,14 @@ def _apex_pin_derivation() -> ast.FunctionDef:
             "than leaving reds about a method nobody has"
             % (_APEX_PIN_OWNER, _APEX_PIN_METHOD))
     tree = ast.parse(textwrap.dedent(inspect.getsource(method)))
-    return tree.body[0]
+    node = tree.body[0]
+    if not isinstance(node, ast.FunctionDef):
+        raise AssertionError(
+            "%s.%s no longer parses as a plain `def` — it is a %s. This "
+            "helper reads the SUBJECT's syntax tree, so anything it "
+            "cannot recognise must refuse rather than be measured"
+            % (_APEX_PIN_OWNER, _APEX_PIN_METHOD, type(node).__name__))
+    return node
 
 
 def _apex_pin_calls(name: str,
@@ -36648,7 +36659,7 @@ def declared_datum_after_add(kind: str, field: str, value: Any,
         (`_ABSENT` if the key is gone), the batch's op errors, and
         `composed_host_gaps` on the result.
     """
-    spec = dict(_SWEEP_BOX)
+    spec: dict[str, Any] = dict(_SWEEP_BOX)
     if through_custom_data:
         spec["customData"] = {"kind": kind, field: value}
     else:
