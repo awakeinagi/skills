@@ -1232,6 +1232,23 @@ is invisible in the artefact and only visible in the dispatch history.
   check — so "what would it have missed?" stayed live even after the leak. If
   you must leak something, leak conclusions and never coverage.
 
+**HOW TO CHECK AN INDEPENDENCE CLAIM WITHOUT TRUSTING THE AGENTS.** Both
+parties here are reporting on themselves, so their accounts — however candid,
+and both were — cannot settle it. What settled it was a leg that cannot be
+wrong in the same way: **the two reviewers cite the same code at different
+lines.** The first anchors at `canvas.py:2494` and `:9788` in the tree it was
+given; the cross-model pass anchors at `:2495` and `:9812` in the tree that
+tree's fixes produced. Each anchor sits exactly where its author said, in its
+author's tree, and the two differ by 44 insertions and 14 deletions across
+that file. A reviewer who had copied the other's findings would have carried
+the pre-fold numbers.
+
+Generalise it: **when you need to know whether two observers were independent,
+look for an artefact of WHERE each stood rather than WHAT each concluded.**
+Line numbers, shas, file digests, the order results arrived — anything the
+copying reviewer would have inherited unchanged. Conclusions converge whether
+or not there was contact; coordinates do not.
+
 The generalisation, which is the same one §6b ends on: **two reviewers agreeing
 is not independent confirmation unless they measured differently** — and that
 holds whether the shared instrument was a grep, a model, or a message.
