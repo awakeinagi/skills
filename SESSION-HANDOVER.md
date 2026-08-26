@@ -189,9 +189,7 @@ scan, so a red in `tests/test_backend.py` or `tests/test_mutants_render.py`
 is invisible to it. Those two files have their own guards — the durable
 counts and the render row — and the gap is the union of what none of them
 name, stated here rather than discovered a tenth time.
-Export, Store and PaintOrder have all drained to zero and left that list,
-ShapeBlind joined them on 2026-08-15 (Task 56) and LabelAnchor on the
-curves fold-in.
+
 Batch 21's six were the biggest single-batch addition on record; Task 56 then
 took four of the twenty-one back off. Of batch 21's, four still have no
 owner: the r5b-2 cache/replay drift (2, addendum wave) and the
