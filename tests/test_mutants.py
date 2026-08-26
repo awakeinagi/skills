@@ -32810,6 +32810,21 @@ class TestTheInkBandHelperMeasuresTheCheckItQuotes(unittest.TestCase):
 # Swept 2026-08-25 across all 17 tracked Python files: zero names carry a
 # second module-level site. The defect is REACHABLE, not present — so this
 # arrives as a relation with its live half beside it, not as a red.
+#
+# THE FAILURE MESSAGE POINTS AT A TRACKED FILE, and that is not a style
+# choice. It named `CONTINUATION.md`'s FOLD HAZARDS entry for one revision,
+# which is where the `CLOSED_PIN_STATUSES` ruling really is — and that file
+# is untracked: `git archive HEAD | tar -t | grep -c CONTINUATION` is 0, and
+# it is not even present in every worktree. The reader this guard exists for
+# is mid-merge on a clone, at the moment they most need the pointer to work,
+# and a bare filename resolving to nothing is the worst thing to hand them.
+# So it points at `test_the_closed_status_set_is_defined_exactly_once` in
+# tests/test_backend.py, which carries the same reasoning and IS in the
+# archive. Adding the full path would not have fixed it — a path into a
+# gitignored planning tree is still dangling. THE RULE, since it generalises
+# past this message: a pointer inside a tracked file must resolve in a fresh
+# clone. Every other pointer in this section was checked the same way (six
+# modules and references/wireframe.md, all present in `git archive HEAD`).
 # ---------------------------------------------------------------------------
 
 
@@ -32851,7 +32866,7 @@ def module_level_sites(source: str) -> dict[str, list[int]]:
 
 
 def with_a_second_assignment(source: str, name: str) -> str:
-    """Splice a byte-identical second binding of `name` above the first.
+    """Splice a value-identical second binding of `name` above the first.
 
     The duplicate's VALUE is read off the live module instead of typed
     here, so this stage cannot go stale against the constant it copies —
@@ -33108,9 +33123,10 @@ class TestOneNameHasOneModuleLevelSite(unittest.TestCase):
                     "keeps the LAST, so nothing fails and the file runs "
                     "against whichever copy sorted second — ruff F811 and "
                     "mypy were both measured silent on exactly this shape. "
-                    "Keep one site: CONTINUATION.md's FOLD HAZARDS entry "
-                    "for `CLOSED_PIN_STATUSES` carries the ruling on which "
-                    "copy survives."
+                    "Keep one site. `CLOSED_PIN_STATUSES` was merged this "
+                    "way once already, and the precedent plus the ruling "
+                    "on which copy survives is in tests/test_backend.py, "
+                    "`test_the_closed_status_set_is_defined_exactly_once`."
                     % (path.name, len(doubled),
                        "; ".join("%s at lines %s" % (n, at)
                                  for n, at in sorted(doubled.items()))))
@@ -33231,6 +33247,31 @@ def arms_the_refusal_enumerates(message: str) -> list[str]:
     Both would close if the read were scoped to the parenthesised list,
     and that would key the pin to today's punctuation, which is the
     coupling pole one exists to avoid. The trade is deliberate.
+
+    AND WHAT MAKES IT FIRE, which is the half a limitations paragraph
+    usually leaves out and the half a later editor actually needs. This
+    reports an arm on ANY complete enumeration of it, wherever in the
+    message it sits and whatever it is there to say — including an
+    honest contrast. Measured 2026-08-25, all three of these appended to
+    a correctly repaired refusal return `['flow']`:
+
+        "Unlike a flow (source, transform, agent, control, sink, store,
+         lane), a screen has no steps."
+        "mermaid's flowchart handles a source, a transform, an agent, a
+         control, a sink, a store and a lane — a screen is none of those."
+        "For a flow use source/transform/agent/control/sink/store/lane
+         instead."
+
+    A refusal that explains what mermaid DOES cover is a plausible
+    future edit, and naming the flow arm to contrast against is the
+    natural way to write it. If you are that editor: this is a false
+    red, not a finding about your sentence. Drop one kind from the
+    contrast and it goes quiet — six of the seven flow kinds measures
+    clean, as does four of the five sequence ones — or name the arm
+    without listing it. The gap is far narrower than the word-level
+    version this replaced (a complete seven-name enumeration, not one
+    English word) and closing it needs the list-scoping rejected above,
+    so it is left open and written down instead.
 
     Args:
         message: The refusal text to read.
