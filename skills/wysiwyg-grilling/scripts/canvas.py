@@ -2335,6 +2335,58 @@ def apply_strategic(el, value, errors, index_hint, explicit_bg=False):
         el["fillStyle"] = "solid"
 
 
+def _composed_state(spec, custom, key, default):
+    """A composite's state field: the op's word, then the stored one.
+
+    A MINT BLOCK MAY NOT READ `spec` OVER `customData` IT IS ABOUT TO
+    OVERWRITE, and this is that rule with one home instead of four. The
+    generic keys above (`role`, `kind`, `intent`, `parent`, `document`,
+    `annotates`, `tooltip`) already work this way — `custom` starts as a
+    copy of the spec's `customData` and each `if spec.get(k)` OVERRIDES
+    it. The four composite blocks departed from that and CLOBBERED:
+    `checked` was `bool(spec.get("checked", False))`, `value` was
+    `float(spec.get("value", 50))`, so a datum arriving through the
+    `customData` door was silently replaced by the default.
+
+    Measured 2026-08-25 over `add` with the datum in `customData` only:
+    checkbox True -> False, toggle True -> False, slider 80 -> 50, kpi
+    "$4.2M" -> "". Every one landed a CONSISTENT scene — the right part
+    count for the wrong state — so no check could see it and none did.
+    That is the v0.5 silent drop, which was found on `value` for an
+    `input` and fixed there, alive on four more fields.
+
+    IT IS THE PRESCRIBED REMEDY THAT MAKES THIS URGENT rather than
+    merely wrong. `lint_layout` tells a stripped `checkbox` to `del` and
+    re-add it; an agent re-adding from the element it just read back
+    hands the state through `customData`, and the checkbox came back
+    UNCHECKED with the finding flipped from missing to surplus. A repair
+    a check prescribes may not destroy the state it was protecting.
+
+    NOT TRUTHINESS, unlike the generic keys, and that is the one place
+    this differs from the pattern it restores: `checked: False` and
+    `value: 0` are real words. An `if spec.get(key)` here would ignore
+    an explicit uncheck and fall back to a stored `True`, which is the
+    same class of silent override in the other direction.
+
+    Args:
+        spec: The op's element spec — the agent's explicit word.
+        custom: The `customData` already assembled for this element,
+            which is the spec's own `customData` plus the generic keys.
+        key: The state field, e.g. `"checked"` or `"value"`.
+        default: Used only when NEITHER door supplies the field, so
+            every kind's documented default survives untouched.
+
+    Returns:
+        The raw value, uncoerced — each caller keeps the coercion it
+        had, so this changes where the number comes from and never what
+        it is turned into.
+    """
+    v = spec.get(key)
+    if v is None:
+        v = custom.get(key)
+    return default if v is None else v
+
+
 def make_element(spec, existing_ids, errors, index_hint=0):
     """Build a full Excalidraw element (and possibly a bound label element)
     from a terse spec. Returns a list of elements ([shape] or [shape, label]).
@@ -2676,7 +2728,8 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         if len(out) > 1 and out[1].get("containerId") == el_id:
             out[1]["verticalAlign"] = "bottom"
             recenter_label([el, out[1]], el)
-        custom["value"] = str(spec.get("value") or "")
+        custom["value"] = str(_composed_state(spec, custom, "value", None)
+                              or "")
         out.append(_compose_kpi_value(el, custom["value"], existing_ids))
     if custom.get("kind") in ("checkbox", "toggle") and \
             etype == "rectangle":
@@ -2686,14 +2739,14 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         el["groupIds"] = [*(el.get("groupIds") or []), gid]
         if el.get("height", 0) < 28:
             el["height"] = 28
-        custom["checked"] = bool(spec.get("checked", False))
+        custom["checked"] = bool(_composed_state(spec, custom, "checked",
+                                                 False))
         if len(out) > 1 and out[1].get("containerId") == el_id:
             out[1]["textAlign"] = "left"
         out.extend(_compose_control_glyph(el, custom["kind"],
                                           custom["checked"], existing_ids))
     if custom.get("kind") == "input" and etype == "rectangle" and \
-            (spec.get("value") is not None
-             or custom.get("value") is not None):
+            _composed_state(spec, custom, "value", None) is not None:
         # a settled value belongs ON the control (v0.5). `value` used to
         # be read only by kpi and slider, so an input was handed one and
         # silently dropped it — the admin console's schedule field read
@@ -2726,10 +2779,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # because it is the documented one; an input declared with no
         # value at all draws the empty slot, which is what
         # `_compose_input_value`'s docstring already says it is for.
-        v = spec.get("value")
-        if v is None:
-            v = custom.get("value")
-        custom["value"] = "" if v is None else str(v)
+        custom["value"] = str(_composed_state(spec, custom, "value", ""))
         _compose_input_slot(out, el, custom["value"], existing_ids)
     if custom.get("kind") == "slider" and etype == "rectangle":
         # slider stand-in (v0.3): track + thumb; customData.value (0–100)
@@ -2742,7 +2792,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
             out[1]["verticalAlign"] = "top"
             recenter_label([el, out[1]], el)
         try:
-            v = float(spec.get("value", 50))
+            v = float(_composed_state(spec, custom, "value", 50))
         except (TypeError, ValueError):
             errors.append("op %d: slider `value` must be a number 0–100"
                           % index_hint)

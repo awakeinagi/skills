@@ -25851,6 +25851,55 @@ class TestComposedHostFloors(Base):
                         "message is sending it to `del` + `add` when a "
                         "cheap repair exists" % spec["kind"])
 
+    def test_the_prescribed_repair_preserves_the_state_it_protects(self):
+        """`del` + `add` must not silently uncheck the user's checkbox.
+
+        THE THIRD TRAPPED CASE, and the worst shape a check can have:
+        the remedy it prescribes destroying the thing it was protecting.
+        Measured before the mint fix, with zero op errors at every step —
+        `mod {"kind": "checkbox"}` reported (1, 0); `mod {"checked":
+        true}` reported (2, 1); and the prescribed `del` + re-add came
+        back (1, 2), flipping the finding from MISSING to SURPLUS while
+        turning `checked` from True to False. `make_element` read
+        `spec.get("checked", False)` over the stored `customData.checked`
+        an agent re-adding from the read-back element has no other way
+        to send.
+
+        Driven through the real op path rather than `make_element`,
+        because the loop this closes is an agent's: read the element
+        back, delete it, add it again with what it read.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": "w", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "h", "type": "rectangle",
+                      "x": 0, "y": 0, "width": 160, "height": 28,
+                      "label": "Enabled"}]})
+        for attrs in ({"kind": "checkbox"}, {"checked": True}):
+            self.store.apply_batch(
+                {"base_revn": self.store.head_revn(), "artifact": "w",
+                 "ops": [{"op": "mod", "id": "h", "attrs": attrs}]})
+        self.assertTrue(canvas.composed_host_gaps(self.store.scenes["w"]),
+                        "the host is not short of parts, so the remedy "
+                        "under test is not the one being prescribed")
+        host = dict(next(e for e in self.store.scenes["w"]
+                         if e["id"] == "h"))
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "w",
+             "ops": [{"op": "del", "id": "h"},
+                     {"op": "add", "id": "h", "type": "rectangle",
+                      "x": host["x"], "y": host["y"],
+                      "width": host["width"], "height": host["height"],
+                      "label": "Enabled",
+                      "customData": dict(host["customData"])}]})
+        back = next(e for e in self.store.scenes["w"] if e["id"] == "h")
+        self.assertIs((back.get("customData") or {}).get("checked"), True,
+                      "the repair this check prescribes silently "
+                      "unchecked the user's checkbox")
+        self.assertEqual(canvas.composed_host_gaps(self.store.scenes["w"]),
+                         [], "the prescribed repair did not clear the "
+                             "finding it was prescribed for")
+
     def test_a_no_op_mod_repairs_nothing_and_the_message_says_so(self):
         """`mod {height: same}` reconciles, mints, and is discarded.
 
@@ -25882,6 +25931,107 @@ class TestComposedHostFloors(Base):
                   for e in out]
         self.assertEqual(canvas.composed_host_gaps(ghosts),
                          [("w", "slider", 2, 0)])
+
+
+class TestCompositeStateSurvivesTheCustomDataDoor(Base):
+    """A mint block may not clobber `customData` it is about to overwrite.
+
+    `_composed_state`' rule, over every kind that has a state field.
+    `custom` starts as a copy of the spec's `customData` and the generic
+    keys — `role`, `kind`, `intent`, `parent` — OVERRIDE it only when
+    the spec supplies them. Four composite blocks departed from that and
+    clobbered instead, so a datum arriving through the `customData` door
+    was replaced by the kind's default: checkbox and toggle True ->
+    False, slider 80 -> 50, kpi "$4.2M" -> "".
+
+    WHY THIS SITS BESIDE THE COMPOSED-HOST CHECK. Each drop landed a
+    CONSISTENT scene — the right part count for the wrong state — so no
+    count-based check could see it and none did. What made it this
+    task's business is the REMEDY: `lint_layout` tells a stripped
+    checkbox to `del` and re-add it, an agent re-adding from the element
+    it just read back hands the state through `customData`, and the
+    checkbox came back unchecked with the finding flipped from missing
+    to surplus. A repair a check prescribes may not destroy the state it
+    was protecting.
+
+    NOT the silent-drop detector. That a scene can be damaged this way
+    with no check saying anything is a curator's red to write, and these
+    are unit poles on the mint, not a claim that anything reports it.
+    """
+
+    STATE = (("checkbox", "checked", True, False, 28),
+             ("toggle", "checked", True, False, 28),
+             ("slider", "value", 80.0, 50.0, 44),
+             ("kpi", "value", "$4.2M", "", 64),
+             ("input", "value", "09:00", None, 40))
+
+    def _mint(self, kind, h, **spec):
+        """Mint one composite, returning its element list.
+
+        Args:
+            kind: The composed kind.
+            h: Height before `make_element`'s clamps.
+            **spec: Extra spec keys merged over the defaults.
+
+        Returns:
+            The minted element list, `out[0]` the host.
+        """
+        errors = []
+        out = canvas.make_element(
+            dict({"id": "h", "type": "rectangle", "x": 0, "y": 0,
+                  "width": 160, "height": h, "label": "H", "kind": kind},
+                 **spec), set(), errors, 0)
+        self.assertEqual(errors, [])
+        return out
+
+    def test_a_datum_declared_in_customdata_reaches_the_element(self):
+        """The door the mint used not to read at all."""
+        for kind, field, declared, _default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h, customData={field: declared})
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 declared,
+                                 "%s dropped a %s declared in customData"
+                                 % (kind, field))
+
+    def test_the_top_level_key_still_wins_over_the_stored_one(self):
+        """The op's explicit word beats the element's memory.
+
+        The documented door has to stay the loud one, or a stale
+        `customData` riding along on a paste would outrank what the
+        agent just said.
+        """
+        for kind, field, declared, _default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h, customData={field: declared},
+                                 **{field: declared})
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 declared)
+
+    def test_an_explicit_false_or_zero_is_a_word_and_not_an_absence(self):
+        """Truthiness would have been the easy spelling and is wrong.
+
+        The generic keys use `if spec.get(k)`, so copying them verbatim
+        would ignore `checked: False` over a stored `True` and `value: 0`
+        over a stored 80 — the same silent override, pointing the other
+        way. `_composed_state` tests `is None` for that reason.
+        """
+        out = self._mint("checkbox", 28, customData={"checked": True},
+                         checked=False)
+        self.assertIs((out[0].get("customData") or {}).get("checked"), False,
+                      "an explicit uncheck was read as an absence")
+        out = self._mint("slider", 44, customData={"value": 80}, value=0)
+        self.assertEqual((out[0].get("customData") or {}).get("value"), 0.0,
+                         "an explicit 0 was read as an absence")
+
+    def test_every_documented_default_is_untouched(self):
+        """Neither door supplying still lands the kind's own default."""
+        for kind, field, _declared, default, h in self.STATE:
+            with self.subTest(kind=kind):
+                out = self._mint(kind, h)
+                self.assertEqual((out[0].get("customData") or {}).get(field),
+                                 default,
+                                 "%s's default %s moved" % (kind, field))
 
 
 class TestPinnedAddSpec(Base):
