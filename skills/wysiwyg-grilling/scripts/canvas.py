@@ -2224,10 +2224,19 @@ def fit_label_in(container, lbl):
     declined wraps the client performs anyway, and `autoResize: False`
     bought nothing on this path.
 
-    Measured cost of the fiction over the frozen corpus: 14 bound labels
-    whose stored box says one line and whose drawn picture has two or
-    more — including on the AGENT'S OWN snapshot, which is the only view
-    it has of its drawing.
+    Measured cost of the fiction over the frozen corpus, and SAY WHICH
+    PREDICATE, because this sentence carried the other one's number.
+    It read "14 bound labels whose stored BOX says one line" — 14 is the
+    count of labels whose stored TEXT is one line while the drawn picture
+    has two or more. Ask the same question of the BOX and the answer is
+    FOUR, by three independent readings (box height in line-boxes, stored
+    height against drawn height, stored box lines against painted lines).
+    Ten of the 14 have a stored box of 2 to 4.23 line-boxes, so they are
+    not one-line boxes at all. The fiction is real and costs FOUR on the
+    reading these words state — including on the AGENT'S OWN snapshot,
+    which is the only view it has of its drawing. Fourteen is the text
+    reading and belongs to `client_wrap_width`, which now spells out both
+    predicates and their subset relation rather than trusting a total.
 
     So there is no walk any more, because there is no choice to make.
     The client's wrap width is a function of the container's width
@@ -3608,10 +3617,37 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
         # `hosts[gids[0]]`, `owners` has length 2, and the line below is
         # the only thing choosing the copy over the original.
         #
-        # Proved by ablation rather than by reading: with `pick =
-        # owners`, `test_editing_group_duplicate_prefers_the_newly_
-        # minted_host` is the SOLE test in 1760 that goes red. The arm
-        # it guards — two hosts under one group — otherwise degrades to
+        # THE CODE CLAIM IS LIVE; THE ABLATION INSTRUCTION THAT STOOD
+        # HERE HAS EXPIRED, and the difference matters because a reader
+        # who runs the old one gets a green suite and concludes the belt
+        # is dead. It said: with `pick = owners`,
+        # `test_editing_group_duplicate_prefers_the_newly_minted_host`
+        # is the SOLE test in 1760 that goes red. True when written.
+        # ONE COMMIT LATER `_rigid_copy_hosts` landed as a second
+        # witness, and with `pick = owners` the tie-break falls to
+        # `host = None` and the rigid witness answers correctly — so
+        # that ablation now reddens NOTHING, measured, 10 of 10 green.
+        #
+        # What is still true is the reachability, and it is observed
+        # rather than argued: instrument the tie-break during that test
+        # and it reports `(len(owners), len(minted)) == (2, 1)` twice.
+        # Reached, and this line is what discriminates.
+        #
+        # SO NOTHING IN THE TREE SEPARATES `minted or owners` FROM
+        # `owners`, and that is now a MEASUREMENT rather than the
+        # extrapolation-from-ten it started as. The whole suite was run
+        # against a tree with this line neutered: 2047 tests, one
+        # failure, and that failure is present IDENTICALLY on an
+        # unmodified control — `test_the_real_checkout_has_a_surface_to_
+        # scan` calls `git ls-files`, which exits 128 in a `git archive`
+        # extraction that is not a repository. Nothing else moved. The
+        # first version of this sentence said "nothing in the tree" off
+        # a single ten-test class, which is the claim-exceeds-evidence
+        # shape the paragraph below is about, committed inside it.
+        #
+        # A coverage gap rather than a dead belt: it wants a pin from a
+        # curator, not a deletion. The arm it
+        # guards — two hosts under one group — otherwise degrades to
         # dropping a user's backlink, which is the expensive answer.
         minted = [o for o in owners if o not in old_ix]
         pick = minted or owners
@@ -10309,6 +10345,119 @@ def part_owner_id(el):
     return None
 
 
+def _drawn_box(el):
+    """The box an element's INK occupies, not the box it stores.
+
+    THE STANDING REPO RULE AT A NEW SITE — bound a point-strung element
+    by its `points`, never by a stored `width`/`height` — and `image` is
+    the instance that proves it is not ceremony here. That kind's second
+    `x_of` stroke is the anti-diagonal: it stores `y` at the host's
+    BOTTOM edge and runs upward, so `y + height` puts its box a whole
+    host-height BELOW the drawing. Measured 2026-08-26, a containment
+    test reading the stored box saw 1 of `image`'s 2 parts and would
+    have under-counted every copy of the other.
+
+    `points_extent` cannot serve: it answers the SPAN and drops the
+    offsets, and this needs where the path starts as well as how far it
+    reaches.
+
+    Args:
+        el: Any element dict.
+
+    Returns:
+        `(x0, y0, x1, y1)` in scene coordinates, normalized so `x0 <= x1`
+        and `y0 <= y1`.
+    """
+    x, y = el.get("x", 0), el.get("y", 0)
+    pts = el.get("points") or []
+    if pts:
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        return (x + min(xs), y + min(ys), x + max(xs), y + max(ys))
+    w, h = el.get("width", 0), el.get("height", 0)
+    return (min(x, x + w), min(y, y + h), max(x, x + w), max(y, y + h))
+
+
+def _ink_shape(el):
+    """An element's type and drawn size, as a congruence key.
+
+    SIZE AND NOT POSITION, because a paste MOVES the copy — the client's
+    own duplicate offset is 10px — while the thing that makes it a copy
+    is that it is the same shape.
+
+    THE TENTH IS A FLOAT-NOISE FLOOR AND NOT A STORAGE PRECISION, which
+    an earlier draft of this sentence got backwards by citing
+    `normalize_element`. That path rounds through `_round_geom`, which
+    is `int(round(v))` — WHOLE pixels — so on any scene that has been
+    through a commit this rounding is a no-op and exact equality would
+    do. It earns its place on the scenes that have NOT: a hand-built
+    fixture or an in-flight `apply_ops` result can carry a wave 114.08
+    wide, and there a tenth is far tighter than any real difference
+    between two shapes and far looser than the noise of recomputing one.
+
+    Args:
+        el: Any element dict.
+
+    Returns:
+        `(type, width, height)` of the drawn ink.
+    """
+    x0, y0, x1, y1 = _drawn_box(el)
+    return (el.get("type"), round(x1 - x0, 1), round(y1 - y0, 1))
+
+
+def unowned_ink_inside(els, host):
+    """Decoration standing on a host's box that nothing owns.
+
+    THE SECOND INSTRUMENT `composed_host_gaps`' DOCSTRING NAMED, and it
+    is ONE function because TWO sites now ask the question and they may
+    not drift apart: the gap count reads it to see ink a host did not
+    order, and `lint_layout` reads it to tell a widget whose parts are
+    DRAWN but unlinked from one whose parts are GONE. The user ruled on
+    2026-08-26 (contract C12) that those two pictures may not read
+    alike, and this is the only thing in the file that can see the
+    difference between them.
+
+    IT ANSWERS AN OBSERVATION, NOT AN INFERENCE, and that bound is what
+    makes it safe to call from a check. Ink standing inside a host that
+    owns nothing MAY be that host's orphaned parts and may equally be a
+    backdrop the agent drew on purpose: `role: "decoration"` with no
+    part tag is a first-class value of the PUBLIC ops schema
+    (`ops-reference.md` lists it among the four an agent may set) and
+    `layout.md` instructs the agent to author one. So this reports what
+    is there and leaves each reader to bound it — the gap count admits
+    only ink CONGRUENT to a part the host already owns, and the message
+    names the ids rather than claiming what they are. A rule that
+    counted every unowned decoration inside a host would bill the user
+    `1 surplus` for a backdrop they drew deliberately; that is measured
+    rather than feared, and `_body_block_behind_an_authored_panel` is
+    the pole that holds it.
+
+    OWNED IS OWNED BY ANYBODY, not by this host. A part backlinked to a
+    DIFFERENT host is somebody's part and not loose ink, and a bound
+    label answers its container through `part_owner_id`, so neither can
+    arrive here as ink nobody ordered.
+
+    Args:
+        els: An element list.
+        host: The element whose box is the subject.
+
+    Returns:
+        Every live element carrying `role: "decoration"` with no owner
+        at all, whose drawn box touches the host's — in scene order, so
+        a caller naming ids names them in the order the scene does.
+    """
+    hx0, hy0, hx1, hy1 = _drawn_box(host)
+    out = []
+    for e in els:
+        if e.get("isDeleted") or e.get("id") == host.get("id"):
+            continue
+        if role_of(e) != "decoration" or part_owner_id(e) is not None:
+            continue
+        x0, y0, x1, y1 = _drawn_box(e)
+        if x0 <= hx1 and hx0 <= x1 and y0 <= hy1 and hy0 <= y1:
+            out.append(e)
+    return out
+
+
 GRID_SNAP_TYPES = ("rectangle", "diamond", "ellipse", "frame")
 
 
@@ -10658,39 +10807,85 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
     stored scene and the healthy one. A host is the subject here, and
     that is why this is a second walk rather than a widening.
 
-    THE COUNT IS OF TAGGED PARTS, never of bound labels: a caption
-    carries no `*_of` key, belongs to hosts that are not composites at
-    all, and is not what a kind mints. `_composed_part` is the same
-    predicate `normalize_z_order` and `_close_widget_group` ask, so a
-    part that bands above its owner is a part counted here.
+    THE COUNT IS OF TAGGED PARTS PLUS UNOWNED COPIES OF THEM, and never
+    of bound labels: a caption carries no `*_of` key, belongs to hosts
+    that are not composites at all, and is not what a kind mints.
+    `_composed_part` is the same predicate `normalize_z_order` and
+    `_close_widget_group` ask, so a part that bands above its owner is a
+    part counted here.
 
-    WHAT THIS DOES NOT SEE, measured through `Store.commit` rather than
-    assumed, and named so the check is not read as covering its whole
-    class: part-shaped decoration owned by NOBODY. Ctrl+Shift+G, save,
-    Ctrl+D, save — two blessed gestures, no ops — and the copy's parts
-    keep a backlink naming an id that is not the new host.
+    THE BLIND SPOT THIS PARAGRAPH USED TO NAME IS CLOSED (2026-08-26,
+    leaf-1.1.6), and what it said is kept because the shape of the miss
+    is the reason for the shape of the repair. It read: *"WHAT THIS DOES
+    NOT SEE … part-shaped decoration owned by NOBODY … The surplus arm
+    cannot see this class either, because untagged ink is not counted as
+    a part. That is a second instrument and it is not this one."* The
+    class was real — Ctrl+Shift+G, save, Ctrl+D, save, two blessed
+    gestures and no ops, and the copy's parts keep a backlink naming an
+    id that is not the new host — and the carve-out was believed
+    automatic. It was not: a `body` whose paste gate handed it a full
+    fresh set read 5 tagged against a floor of 5 while five untagged
+    copies stood on top of it, and every check called that healthy.
 
-    THE BLIND SET IS `body`, `kpi` AND `input`, and an earlier draft of
-    this paragraph named `body` and `checkbox`, which was wrong in both
-    halves. A CHECKED `checkbox` FIRES, at 1 of 2 — its arm mints the
+    THE SECOND INSTRUMENT IS `unowned_ink_inside`, AND IT IS READ BY THE
+    SURPLUS ARM ONLY. The missing arm counts OWNED parts and nothing
+    else, exactly as it did before that instrument existed, and THAT is
+    what makes the narrowing contract C12 forbids structurally
+    unreachable: loose decoration is not an input to it, so no
+    arrangement of loose decoration can quiet it.
+
+    "THE SURPLUS ARM CAN ONLY ADD A FINDING" IS TRUE OF THE SWEPT REGION
+    AND NOT IN GENERAL, which a reviewer caught by sweeping a region the
+    repair did not. Below the floor it is exact — every previously-firing
+    scene still fires at the same magnitude, and the only deltas are two
+    additions the old shape was blind to. ABOVE the floor, where a host
+    already owns more parts than its geometry draws, congruent loose ink
+    reaches the surplus arm and MOVES the magnitude on all seven floored
+    kinds: a body with one extra part and three ghosts reads (4, 5)
+    before and (4, 8) after. That is the doubled-ink repair doing its job
+    and is intended — but the sentence that stood here claimed a scope
+    wider than the sweep behind it, which is this docstring's own subject
+    one level up.
+
+    AN EARLIER DRAFT PUT THE GUARANTEE IN THE WRONG PLACE and the
+    correction is worth keeping, because the wrong version reads as
+    sound. It claimed congruence was what made the narrowing impossible
+    — "a host that owns NOTHING has nothing to be congruent to, so its
+    count stays 0". True, and about the wrong door: the door is
+    `0 < owned < floor`. With one number, `drawn = owned + copies`, an
+    ownership count and an ink count CANCEL — strip a backlink and
+    `owned` falls by one while `copies` rises by one, because the
+    orphan is congruent to its own surviving siblings. Measured through
+    `Store.commit`, that silenced `body` at 1 and 2 stripped backlinks
+    and `image` at 1, on scenes where dragging the host leaves the ink
+    behind. `slider`, `toggle` and `checkbox` escaped only because their
+    parts have DIFFERENT shapes from each other, so nothing was
+    congruent to anything — which is why a slider-shaped pole cannot see
+    this class and why the arms are split rather than the predicate
+    tightened.
+
+    CONGRUENCE STILL BOUNDS THE SURPLUS ARM, and that is the job it can
+    do: unowned ink counts as drawn only where its type and drawn size
+    match a part this host ALREADY OWNS, which is what a pasted copy of
+    a part is and what an authored backdrop is not. Splitting the arms
+    WITHOUT the gate was measured too, and bills the user `1 surplus`
+    for the `reorder index 0` panel `layout.md` instructs the agent to
+    author.
+
+    WHICH KINDS REACH WHICH ARM is still worth stating, and an earlier
+    draft of it named `body` and `checkbox`, which was wrong in both
+    halves. A CHECKED `checkbox` FIRES at 1 of 2 — its arm mints the
     check stroke and never the box; an UNCHECKED one fires at 0 of 1.
-    Those are two different scenes and this paragraph used to average
-    them. The real three are exactly the arms of `reconcile_composed`
-    that MINT UNCONDITIONALLY: the paste gate hands the copy a full
-    fresh set, so the floor is satisfied and the damage is the orphaned
-    untagged ink left beside it — 5 tagged waves and 5 untagged, 5 == 5,
-    silence. `slider`, `toggle` and `image` re-derive parts that must
-    already exist, so their copies own nothing and this check names them.
-
-    That one fact about those three arms has three faces, which is why
-    it is worth stating once here: they are the only kinds a bare
-    rectangle gains parts from on `mod {"kind": …}`, the only ones a
-    real geometry `mod` re-mints for (the repair `lint_layout` offers),
-    and the only ones blind here.
-
-    The surplus arm cannot see this class either, because untagged ink
-    is not counted as a part. That is a second instrument and it is not
-    this one.
+    Those are two different scenes and that draft averaged them. The
+    kinds whose copies satisfy the floor and leave orphaned ink beside
+    it are exactly the arms of `reconcile_composed` that MINT
+    UNCONDITIONALLY — `body`, `kpi`, `input` — and that one fact about
+    them has three faces: they are the only kinds a bare rectangle gains
+    parts from on `mod {"kind": …}`, the only ones a real geometry `mod`
+    re-mints for (the repair `lint_layout` offers), and the only ones
+    that used to be blind here. `slider`, `toggle` and `image` re-derive
+    parts that must already exist, so their copies own nothing and this
+    check has always named them.
 
     Args:
         els: An element list.
@@ -10700,7 +10895,7 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         every floored composed host draws exactly what its kind owes.
         `drawn` differs from `floor` in both directions.
     """
-    parts: dict[str, int] = {}
+    parts: dict[str, list[dict[str, Any]]] = {}
     pinned: set[str] = set()
     for e in els:
         if e.get("isDeleted") or not _composed_part(e.get("customData")
@@ -10709,7 +10904,7 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         oid = part_owner_id(e)
         if not oid:
             continue
-        parts[oid] = parts.get(oid, 0) + 1
+        parts.setdefault(oid, []).append(e)
         if pinned_to_canvas(e):
             pinned.add(oid)
     out = []
@@ -10717,7 +10912,44 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         floor = composed_part_floor(e)
         if floor is None:
             continue
-        drawn = parts.get(e["id"], 0)
+        owned = parts.get(e["id"], [])
+        kind = (e.get("customData") or {}).get("kind")
+        # THE TWO ARMS READ TWO DIFFERENT NUMBERS, AND THAT SEPARATION IS
+        # THE RULE. The missing arm asks an OWNERSHIP question — how many
+        # parts does this host own — and the surplus arm asks an INK
+        # question — how much part-shaped ink is drawn on it. A single
+        # `drawn = owned + copies` compared against the floor in both
+        # directions looks tidier and is WRONG, because the two quantities
+        # then CANCEL: strip one backlink and `owned` falls by one while
+        # `copies` rises by one, the sum is unchanged, and the check goes
+        # silent on a `body` that has genuinely lost a part. Measured
+        # through `Store.commit` on 2026-08-26, that shape silenced
+        # `body` at 1 and 2 stripped backlinks and `image` at 1 — the
+        # exact damage the user's ruling is about, since dragging such a
+        # host leaves the orphaned wave behind.
+        #
+        # SO THE MISSING ARM NEVER READS UNOWNED INK AT ALL. It counts
+        # what this check has always counted, which is what makes the
+        # narrowing contract C12 forbids structurally unreachable rather
+        # than merely avoided: nothing about loose decoration is an input
+        # to it, so no arrangement of loose decoration can quiet it. The
+        # surplus arm is the only reader of `unowned_ink_inside`, and it
+        # can only ADD a finding where there was none.
+        #
+        # THE CONGRUENCE GATE BOUNDS THE SURPLUS ARM AND ONLY IT. Unowned
+        # ink counts as drawn only where its type and drawn size match a
+        # part this host ALREADY OWNS, which is what a pasted copy of a
+        # part is and what an authored backdrop is not — a 152x56 panel
+        # over 144x3 waves matches nothing and is not billed. Splitting
+        # the arms WITHOUT this gate was measured and bills the user
+        # `1 surplus` for the `reorder index 0` panel `layout.md`
+        # instructs the agent to author.
+        if len(owned) < floor:
+            out.append((e["id"], kind, floor, len(owned)))
+            continue
+        shapes = {_ink_shape(p) for p in owned}
+        ink = len(owned) + sum(
+            1 for g in unowned_ink_inside(els, e) if _ink_shape(g) in shapes)
         # A PINNED PART SUPPRESSES THE SURPLUS ARM AND ONLY THAT ARM,
         # because this file's own reconciler produces the reading.
         # `reconcile_composed`'s `body` branch deletes every wave and
@@ -10727,11 +10959,8 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
         # 2026-08-25). That is a pin honoured, not damage. The missing
         # arm needs no such guard: a pin can only keep a part alive,
         # never remove one, so it cannot push a count below the floor.
-        if drawn > floor and e["id"] in pinned:
-            continue
-        if drawn != floor:
-            out.append((e["id"], (e.get("customData") or {}).get("kind"),
-                        floor, drawn))
+        if ink > floor and e["id"] not in pinned:
+            out.append((e["id"], kind, floor, ink))
     return sorted(out)
 
 
@@ -13173,10 +13402,19 @@ def client_wrap_width(container):
            (`text_dims`' width > `client_wrap_width`)
 
     A is a STRICT SUBSET of B, and the two differ by exactly one
-    element: `wait-cutoff-label` in `edgar-late.excalidraw`, whose
-    stored text already carries the break the client would have made,
-    so B counts it and A does not. That single element is the whole
-    disagreement, and naming it is worth more than either count.
+    element: `wait-cutoff-label` in `edgar-late.excalidraw`. It is NOT,
+    as this paragraph first said, a label whose stored text already
+    carries the break — its text is `'In by cutoff?'`, one unbroken
+    line, and `client_wrapped_lines` returns it whole. It sits in B-minus-A
+    because `text_dims` reserves 2px of kerning headroom, taking 89 to
+    91 across a 90px cap: the server's estimate crosses where the
+    client's wrap does not. Naming it CORRECTLY is worth more than
+    either count — the first version named the right element for the
+    wrong reason, which is this paragraph's own subject one level down.
+
+    The relation is robust rather than lucky: the smallest margin in A
+    is +5px, so removing that 2px pad collapses B onto A at 14 == 14
+    rather than breaking A subset of B.
 
     The sentence that stood here said 15 labels "are ones THIS SERVER'S
     MODEL says the client re-wraps on load", which is B's number
@@ -20059,13 +20297,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # that the agent narrates its reading of the picture.
     #
     # So the finding states the OWNERSHIP fault, which is what this
-    # check actually measured, and says out loud that it cannot tell
-    # deleted ink from orphaned ink. It cannot: untagged strokes are not
-    # counted as parts, which is the same limit that makes the second
-    # instrument necessary. Naming the limit is cheaper than a guess
-    # that is wrong half the time, and both halves are damage anyway —
-    # a drag moves the host without them and the next re-derive draws a
-    # fresh set over whatever is left.
+    # check measured. IT USED TO STOP THERE and say out loud that it
+    # could not tell deleted ink from orphaned ink — true when untagged
+    # strokes were invisible to it, and one sentence for two pictures
+    # once they were not. `unowned_ink_inside` is the second instrument
+    # that paragraph said was necessary; it landed 2026-08-26, so the
+    # tail below tells the two apart instead of hedging between them.
+    # What is kept from the old reasoning is its bound: a guess that is
+    # wrong half the time is worse than naming a limit, so the sentence
+    # reports the OBSERVATION (what stands in the box, by id) and not
+    # the inference (that those are the missing parts). Both halves are
+    # damage either way — a drag moves the host without them and the
+    # next re-derive draws a fresh set over whatever is left.
     #
     # ERROR, not a note, and the tier doctrine at the top of this
     # function is what settles it: a `slider` whose track and thumb
@@ -20144,19 +20387,69 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # STRIPPED_RE` matches "…whose own geometry draws N part(s), and
         # the scene has M — D missing|surplus", and rewording the head
         # is how a check silently stops being the one its mutant proves.
+        #
+        # THE TAIL SPLITS ON THE INK, AND THAT SPLIT IS A USER RULING
+        # (contract C12, 2026-08-26). The old sentence said the parts
+        # were "either gone from the scene or still drawn beside it with
+        # their backlink broken, and this check cannot tell which" — one
+        # sentence for TWO PICTURES a person tells apart instantly, and
+        # an agent relaying it told a user their slider was an empty box
+        # while they were looking at a slider. It cannot be repaired by
+        # narrowing the check to go quiet on the drawn-ink picture: that
+        # widget is DEAD (a drag moves the host and the ink stays
+        # behind), so the finding is correct and only the wording was
+        # wrong, and going quiet would leave the class reported by
+        # NOTHING — including in every scene already on disk that
+        # `catch_up()` re-reads each session.
+        #
+        # IT REPORTS THE OBSERVATION AND NOT THE INFERENCE. Loose ink
+        # inside a host that owns nothing may be its orphaned parts and
+        # may be an authored backdrop, so the message names what stands
+        # there and lets the reader judge, rather than guessing which
+        # and being wrong half the time. The ids are named because that
+        # is the cheapest thing that makes the two pictures readable
+        # apart AND is worth having on its own — they are what the
+        # reader has to go and look at.
+        #
+        # SCENE ORDER, NOT SORTED, and the truncation SAYS it truncates.
+        # A lexicographic sort here read `h-body1, h-body10, h-body11,
+        # h-body12` off a twelve-wave block — three of the four ids a
+        # string sort happens to put first, which tells a reader looking
+        # for the ink almost nothing and looks like a claim about which
+        # waves are loose. `unowned_ink_inside` answers in scene order,
+        # so the first four are the first four ON THE CANVAS, and the
+        # count is printed against the list so "4 of 12" cannot read as
+        # "4".
+        loose = unowned_ink_inside(els, ix[hid]) if hid in ix else []
+        shown = [g["id"] for g in loose[:4]]
+        seen = "%d unowned decoration(s) (%s%s)" % (
+            len(loose), ", ".join(shown),
+            " and %d more" % (len(loose) - len(shown))
+            if len(loose) > len(shown) else "")
         remint = kind in ("body", "kpi", "input")
         if drawn > floor:
             said = "The extra parts are drawn over the widget's own ink."
+            if loose:
+                said += (" %s stand inside its box carrying no backlink "
+                         "at all, so they are copies of its ink that "
+                         "nothing owns — deleting them is the repair, "
+                         "not re-minting." % seen)
+        elif loose:
+            said = ("Its box is NOT empty: %s stand inside it, drawn but "
+                    "linked to nothing. The widget is dead all the same "
+                    "— a drag moves the host and leaves that ink behind, "
+                    "and %s."
+                    % (seen,
+                       "the next re-derive draws a FRESH set over it "
+                       "rather than adopting it" if remint else
+                       "nothing adopts orphaned ink"))
         else:
-            said = ("The parts it does not own are either gone from the "
-                    "scene or still drawn beside it with their backlink "
-                    "broken, and this check cannot tell which. Either "
-                    "way the widget is dead: a drag moves the host "
-                    "without them, and %s."
-                    % ("the next re-derive draws a FRESH set over "
-                       "whatever is left rather than adopting it"
-                       if remint else
-                       "nothing re-mints what is gone"))
+            said = ("Nothing unowned is drawn inside its box either, so "
+                    "those parts are gone from the scene rather than "
+                    "orphaned in place. The widget is dead: a drag moves "
+                    "a host with nothing to move, and %s."
+                    % ("the next re-derive mints a fresh set"
+                       if remint else "nothing re-mints what is gone"))
         if remint:
             fix = ("Repair: `mod` this host's `width` or `height` to a "
                    "DIFFERENT value — a %s re-derives its parts from "
