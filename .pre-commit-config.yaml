@@ -109,7 +109,7 @@ repos:
     hooks:
       - id: backend-tests
         name: backend tests
-        entry: python3 -m unittest discover -s tests -q
+        entry: uv run --group dev pytest -n auto tests -q
         language: system
         pass_filenames: false
         require_serial: true
