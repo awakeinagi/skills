@@ -26,7 +26,7 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
@@ -3424,7 +3424,7 @@ class TestAcceptanceFixes(Base):
         # an L-elbow whose chord crosses a box its path misses: path goes
         # right along y=100 then down at x=400; the box sits at the chord's
         # middle (200-260, 200-260) — chord hits it, real path doesn't
-        els = [
+        els: list[dict[str, Any]] = [
             {"id": "a", "type": "rectangle", "x": 0, "y": 68, "width": 60,
              "height": 64, "customData": {"role": "node"}},
             {"id": "b", "type": "rectangle", "x": 370, "y": 300,
@@ -4872,9 +4872,13 @@ class FixtureReplayBase(unittest.TestCase):
         doc = json.loads(path.read_text())
         edited = next((e for e in doc["elements"]
                        if e.get("type") == "text" and e.get("text")), None)
-        self.assertIsNotNone(edited, "fixture %s has no text to edit — the "
-                                     "premise of this control is gone"
-                             % self.FIXTURE)
+        # NOT `assertIsNotNone` then subscript: `unittest`'s assertions do
+        # not narrow, so that pair reads as a narrowing that is not one —
+        # the reason `tests_helpers.measured` exists, and `ty` reports it.
+        if edited is None:
+            raise AssertionError(
+                "fixture %s has no text to edit — the premise of this "
+                "control is gone" % self.FIXTURE)
         edited["text"] = edited["originalText"] = "OUT OF SESSION"
         path.write_text(json.dumps(doc))
         rec = canvas.Store(self.project).catch_up()
@@ -5369,10 +5373,11 @@ class TestAcceptanceTearsheetFixture(FixtureReplayBase):
         # arrow — so the re-derivation is proved directly below and this
         # test keeps the half only a real project can show: that the
         # propagation mints nothing.
-        both = [{"id": "s", "type": "arrow", "x": 0, "y": 0,
-                 "points": [[0, 0], [100, 0]], "roundness": {"type": 2}},
-                {"id": "e", "type": "arrow", "x": 0, "y": 0,
-                 "points": [[0, 0], [100, 0], [100, 60]], "roundness": None}]
+        both: list[dict[str, Any]] = [
+            {"id": "s", "type": "arrow", "x": 0, "y": 0,
+             "points": [[0, 0], [100, 0]], "roundness": {"type": 2}},
+            {"id": "e", "type": "arrow", "x": 0, "y": 0,
+             "points": [[0, 0], [100, 0], [100, 60]], "roundness": None}]
         for a in both:
             a["customData"] = {"routed": canvas._route_sig(a)}
         canvas.rebuild_bound_elements(both)
@@ -10619,10 +10624,11 @@ class TestOrphanLabelHonoursIntent(unittest.TestCase):
         Returns:
             The two-element scene.
         """
-        label = {"id": "g1-label", "type": "text", "x": 10, "y": 20,
-                 "width": 100, "height": 20, "text": "GHOST",
-                 "originalText": "GHOST", "opacity": 100,
-                 "containerId": "g1"}
+        label: dict[str, Any] = {
+            "id": "g1-label", "type": "text", "x": 10, "y": 20,
+            "width": 100, "height": 20, "text": "GHOST",
+            "originalText": "GHOST", "opacity": 100,
+            "containerId": "g1"}
         label.update(over)
         return [{"id": "g1", "type": "rectangle", "x": 0, "y": 0,
                  "width": 120, "height": 60, "opacity": 0,
@@ -12575,9 +12581,10 @@ class TestLintHygiene(Base):
         self.assertEqual(len(hits), 1)
 
     def test_offgrid_ignores_user_drawn_elements(self):
-        els = [{"id": "note-user-1", "type": "rectangle", "x": 3, "y": 7,
-                "width": 101, "height": 53, "isDeleted": False,
-                "customData": {"role": "node", "author": "user"}}]
+        els: list[dict[str, Any]] = [
+            {"id": "note-user-1", "type": "rectangle", "x": 3, "y": 7,
+             "width": 101, "height": 53, "isDeleted": False,
+             "customData": {"role": "node", "author": "user"}}]
         notes = canvas.lint_layout(els, artifact_type="flow")["notes"]
         self.assertFalse(any("off the 4px grid" in n for n in notes))
         els[0]["customData"]["author"] = "agent"
@@ -19053,9 +19060,10 @@ class TestStateVariantFrames(Base):
         els = []
         for fid, lbl, fx in (("f-normal", normal, 0),
                              ("f-degraded", degraded, 900)):
-            frame = {"id": fid, "type": "frame", "x": fx, "y": 100,
-                     "width": 720, "height": 480,
-                     "name": fid.replace("f-", "")}
+            frame: dict[str, Any] = {
+                "id": fid, "type": "frame", "x": fx, "y": 100,
+                "width": 720, "height": 480,
+                "name": fid.replace("f-", "")}
             if variant_of and fid == "f-degraded":
                 frame["customData"] = {"variant_of": "f-normal"}
             els.append(frame)
@@ -27370,7 +27378,8 @@ class TestAPinnedComposedPartIsKinToItsOwner(Base):
         """
         _checkbox_widget(self.store)
         box = _part_id(self.store, "w", "box_of", "cb")
-        els = [dict(e, groupIds=[]) for e in self.store.scenes["w"]]
+        els: list[dict[str, Any]] = [dict(e, groupIds=[])
+                                     for e in self.store.scenes["w"]]
         for e in els:
             if e["id"] == box:
                 e["locked"] = True
