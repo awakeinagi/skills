@@ -25735,6 +25735,109 @@ class TestComposedHostFloors(Base):
         self.assertEqual(canvas.composed_host_gaps(kept),
                          [("w", "slider", 2, 0)])
 
+    def _damaged_on_disk(self, spec, h, aid="a"):
+        """Add a widget, strip its parts on disk, and reopen the project.
+
+        The damage has to reach the FILE. `Store.commit` runs
+        `_interpret_user_composites`, which recomposes what it can, so a
+        strip pushed through the user save path heals three kinds before
+        anything under test is reached — and stripping `Store.scenes` in
+        memory instead leaves the store's live id set holding ids the
+        scene no longer has, which makes `reconcile_composed` skip
+        re-minting them. Both are probe artifacts that read as findings.
+        Writing the file and reopening is the real case the ledger
+        names: a scene already on disk, re-read every session.
+
+        Args:
+            spec: The composed kind's mint spec.
+            h: The host's height before `make_element`'s clamps.
+            aid: Artifact id — one per case, since these share a store.
+
+        Returns:
+            A fresh `Store` over the damaged project.
+        """
+        op = dict({"op": "add", "id": "h", "type": "rectangle", "x": 0,
+                   "y": 0, "width": 160, "height": h, "label": "H"}, **spec)
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": aid, "name": "A", "type": "wireframe"},
+             "ops": [op]})
+        f = self.project.artifacts_dir / (aid + ".excalidraw")
+        doc = json.loads(f.read_text())
+        doc["elements"] = [e for e in doc["elements"]
+                           if not canvas._composed_part(
+                               e.get("customData") or {})]
+        f.write_text(json.dumps(doc))
+        return canvas.Store(self.project)
+
+    def test_the_repair_the_message_names_is_the_one_that_works(self):
+        """The remedy is applied and watched, not spell-checked.
+
+        THIS IS THE POLE THE WHOLE REVIEW WAS ABOUT. The first version
+        of this ERROR told every kind to "re-add it", and on the one
+        route that reaches an `input` the re-add reproduced the finding
+        verbatim — an ERROR whose contract is "repair it in the same
+        move" handing back a loop. A string assertion would have been
+        satisfied by that message and by the next broken one, so this
+        parses nothing: it applies the op the sentence names and asks
+        the check again.
+
+        The split is `reconcile_composed`'s, not a taste: `body` and
+        `kpi` mint unconditionally, so a real geometry change brings
+        their parts back; `slider`, `toggle` and `image` re-derive parts
+        that must already exist, so a `mod` leaves them short and the
+        message correctly sends those to `del` + `add`. Both directions
+        are asserted, because a message that named the destructive
+        repair for a kind with a cheap one is the other half of the
+        same defect.
+        """
+        for spec, h, remint in (({"kind": "body"}, 60, True),
+                                ({"kind": "kpi", "value": "$4.2M"}, 64, True),
+                                ({"kind": "slider", "value": 60}, 44, False),
+                                ({"kind": "toggle", "checked": True}, 28,
+                                 False),
+                                ({"kind": "image"}, 60, False)):
+            with self.subTest(kind=spec["kind"]):
+                aid = "a-" + spec["kind"]
+                st = self._damaged_on_disk(spec, h, aid)
+                self.assertTrue(canvas.composed_host_gaps(st.scenes[aid]),
+                                "the scene was not damaged, so this "
+                                "subtest measures nothing")
+                st.apply_batch({"base_revn": st.head_revn(),
+                                "artifact": aid,
+                                "ops": [{"op": "mod", "id": "h",
+                                         "attrs": {"width": 161}}]})
+                after = canvas.composed_host_gaps(st.scenes[aid])
+                if remint:
+                    self.assertEqual(
+                        after, [],
+                        "the message sends a %s to a geometry `mod` and "
+                        "the `mod` did not repair it" % spec["kind"])
+                else:
+                    self.assertTrue(
+                        after,
+                        "a geometry `mod` now repairs a %s, so the "
+                        "message is sending it to `del` + `add` when a "
+                        "cheap repair exists" % spec["kind"])
+
+    def test_a_no_op_mod_repairs_nothing_and_the_message_says_so(self):
+        """`mod {height: same}` reconciles, mints, and is discarded.
+
+        The obvious first thing an agent tries, and it looks like the
+        repair the message names without being it — which is why that
+        message spells out that the value has to CHANGE. Measured on the
+        kind where a real change DOES work, so the two differ in exactly
+        one thing.
+        """
+        st = self._damaged_on_disk({"kind": "body"}, 60)
+        st.apply_batch({"base_revn": st.head_revn(), "artifact": "a",
+                        "ops": [{"op": "mod", "id": "h",
+                                 "attrs": {"height": 60}}]})
+        self.assertEqual(canvas.composed_host_gaps(st.scenes["a"]),
+                         [("h", "body", 3, 0)],
+                         "a no-op `mod` repaired the host, so the "
+                         "message's warning about it is now wrong")
+
     def test_a_soft_deleted_part_is_absent_ink_and_counts_as_gone(self):
         """A tombstone is not drawn, so it does not satisfy a floor.
 

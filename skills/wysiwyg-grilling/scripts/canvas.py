@@ -19776,33 +19776,49 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # and `mod {"kind": <same>}` both reconcile and mint, and the
         # batch discards the result. The value has to CHANGE.
         #
+        # THE CONSEQUENCE SPLITS ON THE SAME LINE AS THE REPAIR, and an
+        # earlier draft gave every kind the re-minting one — "the next
+        # re-derive draws a fresh set over whatever is left", which is
+        # true of a `body` (a 5-wave copy drew 10 lines) and false of a
+        # `slider`, whose arm never mints and simply leaves the widget
+        # dead. `_rehost_duplicated_parts`' own docstring states both
+        # halves; this sentence may not average them.
+        #
         # THE HEAD OF THIS SENTENCE IS THE CURATOR'S TEMPLATE and only
         # the tail after the direction word is mine: `_COMPOSED_HOST_
         # STRIPPED_RE` matches "…whose own geometry draws N part(s), and
         # the scene has M — D missing|surplus", and rewording the head
         # is how a check silently stops being the one its mutant proves.
         remint = kind in ("body", "kpi", "input")
+        if drawn > floor:
+            said = "The extra parts are drawn over the widget's own ink."
+        else:
+            said = ("The parts it does not own are either gone from the "
+                    "scene or still drawn beside it with their backlink "
+                    "broken, and this check cannot tell which. Either "
+                    "way the widget is dead: a drag moves the host "
+                    "without them, and %s."
+                    % ("the next re-derive draws a FRESH set over "
+                       "whatever is left rather than adopting it"
+                       if remint else
+                       "nothing re-mints what is gone"))
+        if remint:
+            fix = ("Repair: `mod` this host's `width` or `height` to a "
+                   "DIFFERENT value — a %s re-derives its parts from "
+                   "the host, so any real geometry change mints them "
+                   "back (a no-op `mod` does not)." % kind)
+        else:
+            fix = ("Repair: `del` then `add` it. A `mod` re-derives a "
+                   "%s's parts from the host but does not re-mint the "
+                   "ones that are gone, so it comes back still short — "
+                   "and `del` + `add` costs this element's mappings, "
+                   "pins and rename detection, which is why this is "
+                   "reported and not done for you." % kind)
         errors.append(
             "%s is a composed %s whose own geometry draws %d part(s), "
             "and the scene has %d — %d %s. %s %s"
             % (name(hid), kind, floor, drawn, abs(floor - drawn),
-               "missing" if drawn < floor else "surplus",
-               "The parts it does not own are either gone from the scene "
-               "or still drawn beside it with their backlink broken, and "
-               "this check cannot tell which. Either way the widget is "
-               "dead: a drag moves the host without them, and the next "
-               "re-derive draws a fresh set over whatever is left."
-               if drawn < floor else
-               "The extra parts are drawn over the widget's own ink.",
-               ("Repair: `mod` this host's `width` or `height` to a "
-                "DIFFERENT value — a %s re-derives its parts from the "
-                "host, so any real geometry change mints them back (a "
-                "no-op `mod` does not)." % kind) if remint else
-               ("Repair: `del` then `add` it — a %s's parts are "
-                "re-derived and never re-minted, so no `mod` brings "
-                "them back. That costs this element's mappings, pins "
-                "and rename detection, which is why this is reported "
-                "and not repaired for you." % kind)))
+               "missing" if drawn < floor else "surplus", said, fix))
     bound_ids = set()
     for a in arrows:
         for key in ("startBinding", "endBinding"):
