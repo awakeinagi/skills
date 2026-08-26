@@ -1085,6 +1085,57 @@ clear the npm cache before touching a tracked file.
 Kept rather than deleted only because the workaround is worth having written
 down if it comes back.
 
+### 6b. THE CONTROL DRIFTS ONTO ITS SUBJECT — seven instances in one day
+
+The most repeated failure of the v0.9 close, across six different agents
+including the controller. It is recorded as one hazard rather than seven
+anecdotes because the shape is identical every time and the shape is what you
+have to recognise.
+
+**Every instance failed TOWARD "all clear".** Not one produced a false alarm.
+A probe that breaks loudly gets fixed in a minute; a probe that quietly agrees
+with you ships.
+
+The seven, each real:
+
+1. A counterfactual archived `HEAD`. Once its agent committed, the "before"
+   arm was running the very file it was the control for, and went green. Its
+   own words: *"it failed in the direction that reports success."*
+2. Another counterfactual stashed against its author's own committed draft
+   instead of the base, so both arms were the fix.
+3. Two probes hardcoded `sys.path` to the working tree, so they read the FIXED
+   file while reporting on a spliced one.
+4. An extraction `cd`'d into a scratch directory and lost git context,
+   producing empty archives — caught only because `tar` errored.
+5. A full-suite run on a `git archive` extraction reported one failure that was
+   entirely the harness: `git ls-files` exits 128 outside a repository. The
+   same test fails identically on an unmodified extraction, which is the only
+   reason it was not published as a finding.
+6. A probe run from the wrong working directory returned an empty dict, which
+   read as a clean zero.
+7. A door sweep never opened the door it was named for — every spec it built
+   already carried a `label`, and the code path only fires when one is MINTED.
+   It reported 3 revocations where the truth was 11.
+
+**What catches it, in order of cost:**
+
+- **Pin every control to an explicit sha.** Never `HEAD`, never "the working
+  tree", never a stash. Four of the seven die on this rule alone.
+- **Make the probe assert its own edit landed** — re-parse the file and check
+  the mutation is present and the original absent. Refuse loudly if not, the
+  way one agent's transplant printed `PROBE IS A NO-OP: head and ctrl versions
+  are identical` rather than reporting a clean pass.
+- **Run the negative pole.** A probe that cannot demonstrate a failure has not
+  demonstrated a pass. If the control does not fire, you have no instrument.
+- **When a single failure appears in a large run, control it before reading
+  it.** Instance 5 was one failure in 2047 tests and looked exactly like a
+  finding.
+
+The corollary that generalises: **a measurement without a control is an
+observation, not a finding** — and the specific danger of a drifted control is
+that it converts an observation into a confident wrong finding, with a number
+attached.
+
 ## 7. Live state you may want, or may want to clean up
 
 Both assessment servers are **still running**, so the projects are browsable:
