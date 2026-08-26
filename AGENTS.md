@@ -366,9 +366,11 @@ retires the finding instead of the debt. Per-line suppressions exist and each
 carries its derivation beside it — `grep -rn 'ty: ignore'` is the inventory,
 deliberately given as a command because a count here would go stale the first
 time one is added or paid. They are the monkeypatch sites in
-`test_backend.py`, where a stub is deliberately not the real signature, and
-`log_message` in `canvas.py`, recorded as an unreachable LSP violation rather
-than repaired. Everything else was paid by annotating, renaming or repairing.
+`test_backend.py`, where a stub is deliberately not the real signature.
+Everything else was paid by annotating, renaming or repairing — including the
+one finding that was argued down as unreachable first: the argument was wrong,
+the one-word rename was always the answer, and **a suppression carrying a
+proof is a bet that the proof is right.**
 Note also that the `ANN` rows above hide nothing from `ty`: unlike mypy it
 checks unannotated function bodies, so that debt never shielded a type error.
 
