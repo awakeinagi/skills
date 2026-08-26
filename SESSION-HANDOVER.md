@@ -1085,12 +1085,13 @@ clear the npm cache before touching a tracked file.
 Kept rather than deleted only because the workaround is worth having written
 down if it comes back.
 
-### 6b. THE CONTROL DRIFTS ONTO ITS SUBJECT — seven instances in one day
+### 6b. THE CONTROL DRIFTS ONTO ITS SUBJECT — the v0.9 close's signature failure
 
 The most repeated failure of the v0.9 close, across six different agents
-including the controller. It is recorded as one hazard rather than seven
-anecdotes because the shape is identical every time and the shape is what you
-have to recognise.
+including the controller. Instances kept arriving right up to the last fold,
+so NO COUNT IS WRITTEN HERE — it would have been wrong within the hour, twice.
+It is recorded as one hazard rather than a pile of anecdotes because the shape
+is identical every time and the shape is what you have to recognise.
 
 **Every instance failed TOWARD "all clear".** Not one produced a false alarm.
 A probe that breaks loudly gets fixed in a minute; a probe that quietly agrees
@@ -1116,6 +1117,18 @@ The seven, each real:
 7. A door sweep never opened the door it was named for — every spec it built
    already carried a `label`, and the code path only fires when one is MINTED.
    It reported 3 revocations where the truth was 11.
+8. A grid read its scenes only AFTER the user save, and so missed every cell of
+   a defect that lasts exactly one revision — in the scene the batch commits
+   and the client renders.
+9. A class sweep excluded 133 of 180 classes by selecting for `TestCase`, when
+   most of them derive from a local `Base`. It reported covering 180 and
+   covered 36.
+10. THREE separate agents, and the controller, enumerated the same thing the
+    same wrong way: they grepped CALL SITES of a function, when the writes they
+    were hunting also occur as dict literals and keyword arguments. An AST
+    census found 11 writes across 5 functions where the greps found 5. A shared
+    method produces a shared blind spot, and agreement between reviewers is not
+    independent confirmation when they used the same instrument.
 
 **IT HAS A SECOND DIRECTION, and the same root cause produces both.** An
 extraction-vs-checkout mismatch makes an instrument that reads NOTHING go
