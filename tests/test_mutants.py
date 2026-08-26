@@ -26661,9 +26661,36 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # the decorator was dropped first, and
 # `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
 # `measured {'TestAnUngroupIsNotRevokedByTheNextSave': 2}`.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestAnUngroupIsNotRevokedByTheNextSave": 2,
-    "TestOnlyAGroupingGestureChangesGrouping": 1}
+#
+# BOTH LEFT on 2026-08-26 in ONE pass, and the dict empties again. The
+# five-round ungroup fold (`74976c8`) cleared all three reds at once —
+# two in `TestAnUngroupIsNotRevokedByTheNextSave`, one in
+# `TestOnlyAGroupingGestureChangesGrouping` — so both classes lost their
+# LINE rather than a number, which is the shape the entries below keep
+# recording as the usual one. ONE curator flipped them in one pass by
+# instruction, because two hands editing a two-line roster is how a
+# transcription goes wrong, and the roster is the half no live value
+# owns.
+#
+# THE PREDICTION THE FIRST CLASS CARRIED WAS RIGHT FOR THE WRONG
+# REASON, and that is worth a clause. Its two reds were split
+# deliberately so a repair that kept re-grouping and merely started
+# SAYING so would clear one and leave the other. No such repair landed:
+# the re-grouping stopped, so the narration became honest by having
+# nothing left to narrate, and the split never had to do its work.
+# PROXIMITY BEAT OWNERSHIP again — the same reading the empty-save entry
+# below arrived at from the opposite direction.
+#
+# EACH FLIP WAS WITNESSED WITH THE MASK LIFTED and not credited from the
+# colour, `tests/` held at `74976c8` while `canvas.py` varied:
+# `d145e5e` and `8f997f6` both report `failures=3 errors=0` BY
+# ASSERTION, `74976c8` reports `failures=0`, and the ungated neighbours
+# are green at every one — which is what separates a mechanism repaired
+# from a mechanism gone quiet.
+#
+# `{}` HERE IS DERIVED AND NOT ASSUMED: the decorators came off first,
+# and the guard reported `measured {}` against the declared pair.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -38416,9 +38443,25 @@ class TestAnUngroupIsNotRevokedByTheNextSave(unittest.TestCase):
     leaves the first one red, which is the split the two reds exist for.
     """
 
-    @unittest.expectedFailure
     def test_the_ungroup_survives_a_save_that_changes_nothing(self) -> None:
-        """The next save takes the gesture back, and it need not be a gesture."""
+        """The gesture now outlives the save that carries it."""
+        # FLIPPED 2026-08-26 by `74976c8`, the five-round ungroup fold.
+        # The rule stopped being decided per save: an ungroup is
+        # REMEMBERED on the host and reconciled wherever a scene
+        # arrives, so the second save has a previous decision to read
+        # instead of two indistinguishable pictures. The assertion below
+        # is the curator's, unedited; only this decorator moved.
+        #
+        # THE RED WAS WITNESSED, MASK LIFTED, before it was dropped —
+        # `expectedFailure` reports an assertion and an unrelated
+        # exception identically, so a flip credited from the colour
+        # alone can be crediting a red that had started ERRORING. With
+        # `tests/` held at `74976c8` and only `canvas.py` varied:
+        #
+        #     d145e5e (pre-fix)  reds failures=3 errors=0
+        #     74976c8 (the fix)  reds failures=0 errors=0
+        #     neighbours GREEN at both, which is what says the greens
+        #     are a working mechanism and not a quiet one
         r = _ungroup_then_save_again()
         moved = sorted(i for i, g in r["after"].items()
                        if g != r["ungrouped"].get(i))
@@ -38432,9 +38475,16 @@ class TestAnUngroupIsNotRevokedByTheNextSave(unittest.TestCase):
             "exactly one save back"
             % (moved, {i: r["after"][i] for i in moved}))
 
-    @unittest.expectedFailure
     def test_a_save_that_narrates_no_change_changed_nothing(self) -> None:
-        """The second lie: it rewrote four elements and said it had not."""
+        """A save that says it changed nothing now changed nothing."""
+        # FLIPPED 2026-08-26 by `74976c8`, and it flipped for the RIGHT
+        # reason rather than the cheap one. The split these two reds
+        # existed for was that a repair could keep re-grouping and
+        # merely start SAYING so, clearing this one and leaving its
+        # sibling red. That is not what landed: the re-grouping stopped,
+        # so both cleared together and the narration is honest because
+        # there is nothing left to narrate.
+        #
         # THE RELATION, NOT THE SENTENCE. This reads the verb COUNTS the
         # commit published about itself, never its headline text, so a
         # rewrite of the wording cannot satisfy it and cannot break it.
@@ -38808,10 +38858,28 @@ class TestOnlyAGroupingGestureChangesGrouping(unittest.TestCase):
     pole is not optional.
     """
 
-    @unittest.expectedFailure
     def test_neither_unswept_door_lets_a_mod_decide_the_grouping(
             self) -> None:
-        """A gesture the server never saw is answered by the next edit."""
+        """A gesture the server never saw survives the next edit."""
+        # FLIPPED 2026-08-26 by `74976c8`, the five-round ungroup fold,
+        # and the assertion below is the curator's unedited — only this
+        # decorator moved. What landed is the LOAD-SITED reconciler: the
+        # mark is made honest at the moment a scene enters memory, which
+        # is what reaches both of this method's doors.
+        #
+        # THE RED WAS WITNESSED, MASK LIFTED, before it was dropped.
+        # `expectedFailure` absorbs an error as readily as a failure, so
+        # a flip taken from the colour can be crediting a red that had
+        # started raising. With `tests/` held at `74976c8` and only
+        # `canvas.py` varied:
+        #
+        #     8f997f6 (pre-fix)  failures=3 errors=0, this one among
+        #                        them, BY ASSERTION on the stripped-
+        #                        `customData` door
+        #     74976c8 (the fix)  failures=0 errors=0
+        #     the two ungated poles below GREEN at both ends, which is
+        #     what separates "repaired" from "gone quiet"
+        #
         # TWO HALVES OF ONE LAW, and the message names which one broke
         # because they have different owners. `settled` wrong means the
         # gesture was not recorded at all; `after` differing from
