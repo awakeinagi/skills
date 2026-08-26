@@ -26817,6 +26817,83 @@ class TestPinnedSurvivesTheBackDoors(Base):
                              for e in self.store.scenes["checkout-flow"]),
                          "resolve_pin stopped removing glyphs")
 
+    # ---- D6: the resolve sweep reaches scenes the gate never read -------
+    def _question_elsewhere(self, locked, pid="pin-q7"):
+        """Draw a ❓ on a SECOND artifact, optionally pinned there.
+
+        The batch under test names `checkout-flow`, so the glyph has to
+        live somewhere else for the two scenes to be different at all —
+        that difference is the whole subject. Minted by a real `pin` op
+        and pinned by a real whole-scene user save, because a hand-built
+        `customData` is not how a canvas pin is represented.
+
+        Args:
+            locked: Whether the user has pinned the ❓ to the canvas.
+            pid: The pin id to mint.
+
+        Returns:
+            The pin's id.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "notes",
+             "create": {"id": "notes", "name": "Notes", "type": "flow"},
+             "ops": [{"op": "pin", "id": pid, "question": "which?"}]})
+        els = [dict(e) for e in self.store.scenes["notes"]]
+        for e in els:
+            if e["id"] == pid:
+                e["locked"] = locked
+        self.store.commit(author="user", new_scenes={"notes": els},
+                          base_revn=self.store.head_revn())
+        return pid
+
+    def test_a_resolve_from_another_artifact_is_held_by_the_pin(self):
+        """The gate must read every scene the id-global sweep will reach.
+
+        THIS IS THE GUARD-OBSERVATION TEST, and it is here rather than
+        in `TestAResolveFromAnotherArtifactHonoursACanvasPin` because
+        that class's red is `expectedFailure`: with the fix in place it
+        is an UNEXPECTED SUCCESS, so deleting the guard makes it fail —
+        which the decorator absorbs and `guard_mutants.verdict` reads as
+        SURVIVED. A roster entry pointing there would be inverted, and
+        would report a kill against the pristine tree. Its three poles
+        cannot serve either: two never touch this path, and the
+        registry-agreement pole is green both ways (the ❓ leaves and
+        the record agrees it left).
+
+        Asserted through the front door, in `del`'s own currency: the
+        batch is refused with the element named, nothing commits, and
+        the glyph is still drawn on the artifact it lives on.
+        """
+        pid = self._question_elsewhere(locked=True)
+        head = self.store.head_revn()
+        with self.assertRaises(canvas.BatchError) as cm:
+            self.store.apply_batch(
+                {"base_revn": head, "artifact": "checkout-flow",
+                 "ops": [{"op": "resolve_pin", "id": pid,
+                          "answer": "settled"}]})
+        self.assertIn("%s is pinned" % pid, "\n".join(cm.exception.errors))
+        self.assertEqual(self.store.head_revn(), head,
+                         "a wholly-held batch still wrote a revision")
+        self.assertTrue(any(e["id"] == pid for e in self.store.scenes["notes"]),
+                        "a resolve from another artifact took a pinned ❓")
+
+    def test_a_resolve_from_another_artifact_still_takes_an_unpinned_glyph(
+            self):
+        """The control: r5-17's fix, which this gate may not undo.
+
+        Without it a repair that simply stopped the sweep crossing
+        artifacts would satisfy the test above — and that is the state
+        where the registry says resolved while the ❓ stays drawn
+        forever.
+        """
+        pid = self._question_elsewhere(locked=False, pid="pin-q6")
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow",
+             "ops": [{"op": "resolve_pin", "id": pid, "answer": "settled"}]})
+        self.assertFalse(any(e["id"] == pid for e in self.store.scenes["notes"]),
+                         "the cross-artifact sweep stopped removing glyphs")
+
     # ---- C-3: the backlink the gate could not read ----------------------
     def _checkbox(self, aid, ungroup):
         """A checkbox whose box is pinned, optionally ungrouped by the user.
