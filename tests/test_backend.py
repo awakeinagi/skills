@@ -28186,6 +28186,209 @@ class TestResolvePinHonoursACanvasPin(Base):
         self.assertIn("q1", "\n".join(cm.exception.errors))
 
 
+class TestAResolveFromAnotherArtifactHonoursACanvasPin(Base):
+    """`resolve_pin` reaches across artifacts, and that reach has no gate.
+
+    THE SAME SHAPE AS THE FIVE IN `TestPinnedSurvivesTheBackDoors`: the
+    gate judged the batch, and a mover downstream of it did not ask the
+    predicate. `resolve_pin` IS one of `pin_held_ops`' judged kinds —
+    that fix landed at `7d9d180` and the class above holds it — but the
+    gate is handed `base_els`, the BATCH ARTIFACT's scene and nothing
+    else, while the op is id-global by design: `apply_batch` walks every
+    scene in the project and drops every ❓ carrying that id, under a
+    role gate and no pin gate. The guarded set and the removed set are
+    therefore computed over different scenes, so a ❓ pinned on artifact
+    `g` is invisible to a gate reading artifact `f`.
+
+    WHAT THE DRAWING GETS WRONG. The user tacks a question to the canvas
+    on one drawing; the agent, working on another, resolves it and the
+    tack comes off with the glyph, `pin_held` reported as None. `del` on
+    that same id, aimed at the artifact it lives on, is refused in so
+    many words. Same element, same removal, two verbs, opposite answers
+    — that asymmetry is the finding rather than the deletion, because an
+    agent told "no" by one verb should not get "yes" from another.
+
+    THE SHAPE IS THE PRODUCT'S OWN, not a contrivance. `SKILL.md` pairs
+    "one batch = one artifact" with "the batch that executes an answer
+    also carries its mirrored pin's `resolve_pin`", and the sweep exists
+    precisely because a resolve aimed at another artifact used to leave
+    the ❓ drawn forever (r5-17).
+
+    NOT A CLAIM THAT A PINNED QUESTION IS UNRESOLVABLE. The unpinned
+    pole proves the sweep still works, so a repair that simply deleted
+    it cannot pass; and the fourth test holds the r5-17 invariant, so a
+    repair that spares the glyph while still filing the record
+    `resolved` — registry and canvas disagreeing, which is that
+    finding's exact signature — cannot pass either.
+
+    Salvaged from `worktree-agent-a41021fac6987f466` (`52f6b6b`,
+    2026-08-18) and re-derived here 2026-08-26. That branch's class
+    named the SAME-ARTIFACT door, which `7d9d180` closed; its red now
+    error-reds behind `expectedFailure` on the refusal its own fixture
+    provokes, and this is the door where the finding survives.
+    """
+
+    def _seed(self, locked):
+        """Draw the ❓ on `g` while the batch under test will name `f`.
+
+        Two artifacts is the irreducible minimum here — the whole defect
+        is that the gate reads one scene and the op removes from all of
+        them — so `f` carries a single node to be a real drawing the
+        agent is working on, and `g` carries nothing but the question.
+        The ❓ is minted by a real `pin` op and pinned by a real
+        whole-scene user save, because a hand-built `customData` is not
+        how a canvas pin is represented and a scene that invents one
+        answers about nothing.
+
+        Args:
+            locked: Whether the user has pinned the ❓ to the canvas.
+        """
+        self.store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "box", "x": 0, "y": 0,
+                "width": 100, "height": 60, "role": "node"}}]})
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": "g",
+            "create": {"id": "g", "name": "G", "type": "flow"},
+            "ops": [{"op": "pin", "id": "pin-q1",
+                     "question": "which box?"}]})
+        els = [dict(e) for e in self.store.scenes["g"]]
+        for e in els:
+            if e["id"] == "pin-q1":
+                e["locked"] = locked
+        self.store.commit(author="user", new_scenes={"g": els},
+                          base_revn=self.store.head_revn())
+
+    def _attempt(self, aid, op):
+        """Send one op as its own batch and report which way it went.
+
+        Args:
+            aid: The artifact the batch names.
+            op: The single op.
+
+        Returns:
+            `"applied"`, or the joined refusal text. Refusals are
+            returned rather than raised because the red compares two
+            verbs and needs both to answer in the same currency.
+        """
+        try:
+            self.store.apply_batch({"base_revn": self.store.head_revn(),
+                                    "artifact": aid, "ops": [op]})
+        except canvas.BatchError as exc:
+            return "\n".join(exc.errors)
+        return "applied"
+
+    def _resolve(self):
+        """Resolve the question from `f`, the artifact it is not drawn on.
+
+        Returns:
+            `"applied"`, or the joined refusal text.
+        """
+        return self._attempt("f", {"op": "resolve_pin", "id": "pin-q1",
+                                   "answer": "the one in the header"})
+
+    def _delete(self):
+        """Delete the ❓ through the front door, on the artifact it lives on.
+
+        Returns:
+            `"applied"`, or the joined refusal text.
+        """
+        return self._attempt("g", {"op": "del", "id": "pin-q1"})
+
+    def _standing(self):
+        """Whether the ❓ is still drawn on `g`.
+
+        Returns:
+            True while the glyph is in the scene.
+        """
+        return "pin-q1" in {e["id"] for e in self.store.scenes["g"]}
+
+    @unittest.expectedFailure
+    def test_a_resolve_from_another_artifact_cannot_take_a_pinned_glyph(self):
+        """Both removal verbs must answer the same way about one element.
+
+        THE RELATION, NOT A LITERAL. What is asserted is that the two
+        verbs agree, because "the gate protects this element" is a
+        property of the element and not of the op that named it. The
+        absolute — that a pinned ❓ stands and is refused in words — is
+        held by the ungated pole below, so a repair that made `del`
+        start deleting pinned elements cannot satisfy this by dragging
+        both sides down.
+
+        The `del` runs FIRST and on the same store deliberately: it is
+        refused today, so nothing commits and the resolve meets the
+        identical scene at the identical revision. One fixture, one
+        element, two verbs, back to back.
+        """
+        self._seed(locked=True)
+        self._delete()
+        after_del = self._standing()
+        outcome = self._resolve()
+        after_resolve = self._standing()
+        self.assertEqual(
+            after_resolve, after_del,
+            "`del` and `resolve_pin` disagree about one pinned ❓: after "
+            "`del` on artifact g it was standing=%r, after `resolve_pin` "
+            "from artifact f it was standing=%r. The resolve answered %r "
+            "— the gate read f's scene, where nothing is pinned, while "
+            "the sweep removed from g's"
+            % (after_del, after_resolve, outcome))
+
+    def test_del_on_the_pinned_glyph_is_refused_where_it_lives(self):
+        """The absolute the relation above is measured against.
+
+        UNGATED, and it holds the numbers on purpose: the red asserts
+        only that the two verbs agree, which a repair breaking `del`
+        would also satisfy. This says what the right answer IS — refused
+        in words that name the element, glyph still drawn.
+        """
+        self._seed(locked=True)
+        self.assertIn("pin-q1 is pinned", self._delete())
+        self.assertTrue(self._standing(),
+                        "`del` refused in words and removed it anyway")
+
+    def test_the_sweep_still_takes_an_unpinned_glyph_from_another_artifact(
+            self):
+        """The live half: a resolve still reaches the ❓ where it lives.
+
+        UNGATED. This is r5-17's fix, and without it the red above would
+        pass on a `resolve_pin` that had simply stopped reaching other
+        artifacts — the state where the registry says resolved and four
+        ❓ stay drawn.
+        """
+        self._seed(locked=False)
+        self.assertEqual(self._resolve(), "applied")
+        self.assertFalse(self._standing(),
+                         "the cross-artifact sweep stopped removing glyphs")
+
+    def test_no_pin_reads_resolved_while_its_glyph_is_still_drawn(self):
+        """Registry and canvas may never disagree about one question.
+
+        UNGATED, and this is the pole that catches the WRONG repair. A
+        fix that teaches the sweep to skip pinned glyphs and stops there
+        turns the red green while filing the record `resolved` over a ❓
+        still on the canvas — r5-17's exact signature, and a worse
+        failure than the deletion because the question becomes
+        unanswerable rather than merely gone. Green today (the glyph is
+        removed and the record agrees) and green under every honest
+        repair, all of which leave the record open because the op never
+        applies.
+        """
+        self._seed(locked=True)
+        self._resolve()
+        drawn = {e["id"] for els in self.store.scenes.values() for e in els
+                 if canvas.role_of(e) == "pin"}
+        resolved = {p["id"] for p in self.store.registry["pins"]
+                    if p.get("status") == "resolved"}
+        self.assertEqual(
+            drawn & resolved, set(),
+            "the registry calls %s resolved while the canvas still draws "
+            "the ❓ — a question the user can see and nothing can answer"
+            % sorted(drawn & resolved))
+
+
 def _converging_arrows(n=3, target_side=300):
     """`n` routed arrows arriving on one node's left side, ready to fan.
 
