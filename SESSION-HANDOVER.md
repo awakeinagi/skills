@@ -1184,6 +1184,54 @@ observation, not a finding** — and the specific danger of a drifted control is
 that it converts an observation into a confident wrong finding, with a number
 attached.
 
+### 6c. INDEPENDENCE IS A PROPERTY OF THE DISPATCH, AND A PEER CAN DESTROY IT
+
+Recorded because it nearly cost the v0.9 close its only independent look, and
+because nothing in the harness prevents it happening again.
+
+A second whole-branch reviewer was dispatched on a DIFFERENT model, for one
+reason: everything else in the close — the controller, every fixer, every
+curator, and the first whole-branch review — ran on the same one. Its entire
+value was the correlated blind spot the others cannot see by construction.
+
+**The first reviewer then messaged it directly to say the task was already
+complete — and attached its findings.** Not a status line: four Important
+findings with their `file:line` anchors, the commit chain behind its
+whole-branch answer, a structural finding, an ambiguity it could not settle,
+and the paths to its repro scripts. Close to its whole report.
+
+Nobody did anything wrong on purpose. The first reviewer was being helpful and
+disclosed the extent unprompted the moment it was asked to stand down, which is
+the only reason the contamination is measurable at all.
+
+**Why this is the same family as §6b: it fails toward "all clear".** A peer
+saying "already done" produces agreement, and agreement is what a reviewer is
+supposed to produce when things are fine. There is no error, nothing crashes,
+and the resulting report reads exactly like a clean second opinion. The failure
+is invisible in the artefact and only visible in the dispatch history.
+
+**What to do about it:**
+
+- **Say in the brief who the reviewer may talk to, and who it may not.** A
+  cross-model or second-arm reviewer should be told explicitly that the first
+  reviewer is part of its SUBJECT, not its predecessor to defer to.
+- **Order the reading.** Form your own list FIRST; read the other pass only
+  afterwards, and report both directions — what you found that it did not, and
+  what it found that you would have missed. The second half is the more useful
+  one and the one that survives contamination.
+- **Ask the discriminating question before scoring independence**, and make the
+  honest answer cheap: "did you read it, and had you formed your list yet?"
+  with three explicit options. An honest "yes, before" costs one dispatch; a
+  face-saving "no" costs the release its only independent look.
+- **Method and negative space are worth more than findings.** Here the first
+  reviewer disclosed its findings but NOT its method or what it had failed to
+  check — so "what would it have missed?" stayed live even after the leak. If
+  you must leak something, leak conclusions and never coverage.
+
+The generalisation, which is the same one §6b ends on: **two reviewers agreeing
+is not independent confirmation unless they measured differently** — and that
+holds whether the shared instrument was a grep, a model, or a message.
+
 ## 7. Live state you may want, or may want to clean up
 
 Both assessment servers are **still running**, so the projects are browsable:
