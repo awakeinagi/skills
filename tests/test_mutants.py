@@ -34962,9 +34962,9 @@ class TestCoverage(unittest.TestCase):
         magnitude, and the direction picks the tail.
 
         THE CORPUS CANNOT EXERCISE IT, measured rather than inherited:
-        across the 24 frozen artifacts there are 67 composed hosts, 32
-        of them carved out (27 entities, 5 inputs) and 35 floored, every
-        one of the 35 drawing exactly what it owes. ZERO findings added
+        across the 24 frozen artifacts there are 67 composed hosts, 27
+        of them entities and so carved out, and every one of the 40 that
+        carries a floor draws exactly what it owes. ZERO findings added
         to every shipped drawing, so `corpus_census` does not move. That
         zero is an EMPTY population and not an unreachable one —
         Ctrl+Shift+G then Ctrl+D on a slider reaches it through

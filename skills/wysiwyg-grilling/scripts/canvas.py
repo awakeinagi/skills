@@ -2692,12 +2692,44 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         out.extend(_compose_control_glyph(el, custom["kind"],
                                           custom["checked"], existing_ids))
     if custom.get("kind") == "input" and etype == "rectangle" and \
-            spec.get("value") is not None:
+            (spec.get("value") is not None
+             or custom.get("value") is not None):
         # a settled value belongs ON the control (v0.5). `value` used to
         # be read only by kpi and slider, so an input was handed one and
         # silently dropped it — the admin console's schedule field read
         # "Run at" with no time in it, and nothing complained
-        custom["value"] = str(spec["value"])
+        #
+        # STILL GATED ON HAVING A VALUE — `TestInputValue.test_add_
+        # without_value_stays_a_bare_field` is a standing decision that
+        # a valueless input is a bare field, and it is not this task's
+        # to overturn — but READING BOTH DOORS since 2026-08-25, because
+        # THREE READERS OF "when does an input owe a row" HAD PARTED and
+        # a lint cannot derive a floor from a disagreement. This gate
+        # was `spec.get("value") is not None` — the op's TOP-LEVEL key —
+        # while `reconcile_composed` mints through
+        # `_recompose_input_value`'s first-assembly branch
+        # unconditionally, and anything reading the stored element sees
+        # only `customData.value`. So `add {"kind": "input",
+        # "customData": {"value": "09:00"}}` stored the datum and drew
+        # no row for it, which is the v0.5 silent drop returning through
+        # the other door: `mod` documents `customData` as MERGED
+        # (references/ops-reference.md), so that shape is reachable and
+        # supported. `kpi` never had the split — its block is ungated
+        # and overwrites `custom["value"]` from the spec — and this now
+        # matches it.
+        #
+        # THE DATUM IS CARRIED, NEVER DISCARDED, which is the half a
+        # repair here is most likely to get wrong: clearing the finding
+        # by dropping a declared `customData` value would look honest
+        # and would re-open the exact v0.5 defect this block was written
+        # for. Whichever door supplied it wins, the top-level key first
+        # because it is the documented one; an input declared with no
+        # value at all draws the empty slot, which is what
+        # `_compose_input_value`'s docstring already says it is for.
+        v = spec.get("value")
+        if v is None:
+            v = custom.get("value")
+        custom["value"] = "" if v is None else str(v)
         _compose_input_slot(out, el, custom["value"], existing_ids)
     if custom.get("kind") == "slider" and etype == "rectangle":
         # slider stand-in (v0.3): track + thumb; customData.value (0–100)
@@ -9368,8 +9400,26 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # `reconcile_composed` that MINT unconditionally; the other
             # five re-derive parts that must already exist, so they are
             # correctly unmoved by a bare `kind` write.
+            #
+            # `customData` IS THE FIFTH DOOR, added 2026-08-25, and it
+            # is the one that was writing composed STATE with nothing
+            # recomposing it. `mod` documents `customData` as MERGED
+            # (references/ops-reference.md), so `mod {"customData":
+            # {"value": "09:00"}}` settled an input's value, drew no row
+            # for it, and returned ZERO errors — and the composed-host
+            # lint then condemned the scene that batch had just been
+            # told was fine. The same door writes `{"kind": "body"}`
+            # without composing waves, which is `kind`'s own case
+            # arriving through the key rather than the shorthand.
+            #
+            # Scoped by the same argument as the four above rather than
+            # widened past them: this reconciles the element the `mod`
+            # named, exactly as a `label` or a `height` write already
+            # does, and `reconcile_composed` is idempotent on a host
+            # whose parts are already right — which is why adding a
+            # door costs nothing on the ops that were already correct.
             if ("width" in attrs or "height" in attrs or "label" in attrs
-                    or "kind" in attrs):
+                    or "kind" in attrs or "customData" in attrs):
                 reconcile_composed(els, index, existing, el)
             dx = (el.get("x", 0) - old_x) if isinstance(old_x, (int, float)) \
                 else 0
@@ -10306,33 +10356,36 @@ def composed_part_floor(el: dict[str, Any]) -> int | None:
     if kind in ("toggle", "slider"):
         return 2                      # pill/track plus thumb
     if kind == "input":
-        # THE SECOND CARVE-OUT, and it is here because THREE READERS OF
-        # "when does an input owe a row" DISAGREE — measured 2026-08-25,
-        # not read off the page. `make_element` gates the mint on the
-        # SPEC's top-level `value`; `reconcile_composed` mints
-        # unconditionally through `_recompose_input_value`'s
-        # first-assembly branch, empty string and all; and a lint can
-        # only ever read the STORED `customData.value`. A floor is a
-        # claim the stored element GUARANTEES, and with the three
-        # parting there is no such claim to make.
+        # ONE ROW, ALWAYS, and this line is only allowed to say so
+        # because the other two readers were brought to agree with it in
+        # the same change. THREE READERS OF "when does an input owe a
+        # row" HAD PARTED — `make_element` gated the mint on the SPEC's
+        # top-level `value`, `reconcile_composed` minted unconditionally
+        # through `_recompose_input_value`'s first-assembly branch, and
+        # a lint can only ever see the STORED `customData.value`. A
+        # floor is a claim the stored element GUARANTEES; a
+        # disagreement is not one, and the version of this branch that
+        # returned 1 on a stored `value` was false in all three
+        # directions. It was not merely inert: `mod {"customData":
+        # {"value": …}}` is documented as a MERGE, it wrote a field the
+        # mint had never read, and the ERROR that produced named a
+        # repair — re-add it — that reproduced the finding verbatim.
         #
-        # The earlier version of this branch said "gated the way the
-        # mint is" and returned 1 on a stored `value`. That was false in
-        # all three directions and it was not merely inert: `mod
-        # {"customData": {"value": …}}` is documented as a merge
-        # (ops-reference.md), it writes the field nothing recomposes,
-        # and the ERROR that produced named a repair — re-add it — that
-        # reproduced the finding verbatim. A rule whose remedy is a loop
-        # is worse than no rule.
+        # The alternative was to give `input` no floor at all. That
+        # silences the loop and leaves the split standing, which is a
+        # lint declining to look at a kind because the code under it is
+        # inconsistent — the inconsistency is the defect, so it is fixed
+        # rather than routed around. Zero corpus movement either way:
+        # all 5 frozen inputs carry a value AND a row (measured).
         #
-        # WHAT THIS COSTS is a false negative on a stripped input, and
-        # it is close to nothing real: `input` is one of the three kinds
-        # already invisible to this check in the only class two
-        # keystrokes reach, because its arm mints the copy a fresh row
-        # (see `composed_host_gaps`). The three readers should be made
-        # consistent — that is a change to `make_element`, not to a
-        # lint, and it is filed rather than taken here.
-        return None
+        # WHY "HAS A VALUE" AND NOT "ALWAYS ONE ROW": the stronger rule
+        # was tried and it contradicts `TestInputValue.test_add_without_
+        # value_stays_a_bare_field`, a standing decision that a
+        # valueless input is a bare field. Overturning someone else's
+        # acceptance test to make a lint's arithmetic tidier is the
+        # exact move this repo keeps a split to prevent, so the floor
+        # bent to the product decision instead.
+        return None if cd.get("value") is None else 1
     if kind == "body":
         # Spelled out rather than calling `_compose_body_lines`, which
         # would mint n throwaway elements per lint and needs an id set;
@@ -10371,20 +10424,21 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
 
     THE BLIND SET IS `body`, `kpi` AND `input`, and an earlier draft of
     this paragraph named `body` and `checkbox`, which was wrong in both
-    halves. `checkbox` FIRES (it comes back owning 1 of 2). The real
-    three are exactly the arms of `reconcile_composed` that MINT
-    UNCONDITIONALLY: the paste gate hands the copy a full fresh set, so
-    the floor is satisfied and the damage is the orphaned untagged ink
-    left beside it — 5 tagged waves and 5 untagged, 5 == 5, silence.
-    `slider`, `toggle` and `image` re-derive parts that must already
-    exist, so their copies own nothing and this check names them.
+    halves. A CHECKED `checkbox` FIRES, at 1 of 2 — its arm mints the
+    check stroke and never the box; an UNCHECKED one fires at 0 of 1.
+    Those are two different scenes and this paragraph used to average
+    them. The real three are exactly the arms of `reconcile_composed`
+    that MINT UNCONDITIONALLY: the paste gate hands the copy a full
+    fresh set, so the floor is satisfied and the damage is the orphaned
+    untagged ink left beside it — 5 tagged waves and 5 untagged, 5 == 5,
+    silence. `slider`, `toggle` and `image` re-derive parts that must
+    already exist, so their copies own nothing and this check names them.
 
     That one fact about those three arms has three faces, which is why
     it is worth stating once here: they are the only kinds a bare
     rectangle gains parts from on `mod {"kind": …}`, the only ones a
     real geometry `mod` re-mints for (the repair `lint_layout` offers),
-    and the only ones blind here. `input` is moot either way — it has
-    no floor at all, for the reason `composed_part_floor` gives.
+    and the only ones blind here.
 
     The surplus arm cannot see this class either, because untagged ink
     is not counted as a part. That is a second instrument and it is not
@@ -19745,10 +19799,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # carved out in `composed_part_floor` by having no floor at all —
     # a silence nobody has to remember to ask for.
     #
+    # REACHABLE THROUGH THE BARE-`kind` DOOR TOO, and the count is
+    # FOUR, not five: `mod {"kind": X}` on a plain rectangle composes
+    # parts for `body`, `kpi` and `input` and for nothing else, so
+    # `image`, `checkbox`, `toggle` and `slider` come out of that door
+    # as hosts owing parts they do not have. `entity` is the fifth kind
+    # that door leaves bare and it raises nothing, because it has no
+    # floor — which is why the number here is four.
+    #
     # ZERO ON THE FROZEN CORPUS, measured 2026-08-25 rather than hoped:
-    # 67 composed hosts across the 24 frozen artifacts, 32 of them
-    # exempt (27 entities, 5 inputs) and 35 floored, every one of the 35
-    # drawing exactly what it owes. The corpus census does not move.
+    # 67 composed hosts across the 24 frozen artifacts, 27 of them
+    # entities and so exempt, 40 carrying a floor, and every one of the
+    # 40 drawing exactly what it owes. The corpus census does not move.
     # The denominator is the ARTIFACTS and not the whole fixture tree —
     # `saves/` holds diffs (`changes`, `facts`, `inverse`), not scenes,
     # so a sweep that globbed it would have reported the same zero while

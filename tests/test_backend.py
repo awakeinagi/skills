@@ -25452,24 +25452,25 @@ class TestComposedHostFloors(Base):
     # element guarantees AFTER `make_element`'s own clamps: `kpi` is
     # lifted to 64px, `checkbox`/`toggle` to 28, `slider` to 44, and
     # `body` is not clamped at all, so 60px gives it `60 // 16` = 3.
-    # `entity` and `input` are the two Nones — the whole false-positive
-    # cost of the rule, and both are here rather than trusted.
+    # `entity` is the one None — the whole false-positive cost of the
+    # rule, and it is here rather than trusted.
     #
-    # THE LAST ROW IS THE customData ROUTE and it is not a duplicate of
-    # the one above it. Every other spec here authors through top-level
-    # op keys, which is the only door `make_element` reads for `input` —
-    # so a pole built only that way never exercises the field a LINT
-    # reads, and the false-positive sweep would have run past the case
-    # that produced a looping ERROR.
+    # THE THREE `input` ROWS ARE THREE DOORS, not one case written out
+    # three times, and they are the reason this class caught a looping
+    # ERROR. Every other spec authors through top-level op keys; for
+    # `input` that used to be the only door `make_element` read, while
+    # the lint read `customData.value` and `reconcile_composed` read
+    # neither. A pole built only the top-level way never exercises the
+    # field the check reads. All three must now agree on ONE row.
     SPECS = (
         ({"kind": "slider", "value": 60}, 2),
         ({"kind": "checkbox", "checked": True}, 2),
         ({"kind": "checkbox", "checked": False}, 1),
         ({"kind": "toggle", "checked": True}, 2),
         ({"kind": "kpi", "value": "$4.2M"}, 1),
-        ({"kind": "input", "value": "09:00"}, None),
+        ({"kind": "input", "value": "09:00"}, 1),
         ({"kind": "input"}, None),
-        ({"kind": "input", "customData": {"value": "09:00"}}, None),
+        ({"kind": "input", "customData": {"value": "09:00"}}, 1),
         ({"kind": "image"}, 2),
         ({"kind": "entity", "attributes": ["id", "total"]}, None),
         ({"kind": "body"}, 3),
@@ -25620,49 +25621,79 @@ class TestComposedHostFloors(Base):
         self.assertIsNone(canvas.composed_part_floor(bare))
         self.assertEqual(canvas.composed_host_gaps([bare]), [])
 
-    def test_an_input_has_no_floor_because_its_readers_disagree(self):
-        """The second carve-out, and the reason is a measured three-way split.
+    def test_an_input_owes_a_row_exactly_when_it_carries_a_value(self):
+        """The floor may only say 1 where the mint agrees it says 1.
 
-        An earlier version gave `input` a floor of 1 on a stored
-        `customData.value`, justified as "gated the way the mint is".
-        That was false in all three directions, and the three are
-        asserted here rather than described, because the justification
-        being wrong is what made the rule wrong:
+        THE DEFECT THIS CLOSES WAS A DISAGREEMENT, not a wrong number.
+        `composed_part_floor` returned 1 on a stored `customData.value`
+        and justified it as "gated the way the mint is". It was not:
+        `make_element` read only the SPEC's TOP-LEVEL `value`, so `add
+        {"kind": "input", "customData": {"value": "09:00"}}` — reachable
+        because `mod` documents `customData` as MERGED — stored the
+        datum, drew no row for it, and raised an ERROR whose remedy was
+        to re-add it, which reproduced the finding verbatim.
 
-        * `make_element` gates the mint on the SPEC's top-level `value`
-        * `reconcile_composed` mints unconditionally, empty string too
-        * a lint can only read the STORED `customData.value`
+        The rule they now share is "a value through EITHER door means a
+        row", which is the shape the product decision forced: making
+        every input owe a row was tried and contradicts
+        `TestInputValue.test_add_without_value_stays_a_bare_field`.
 
-        A floor is a claim the stored element GUARANTEES. With those
-        three parting there is no such claim, so `input` has none — and
-        the documented `mod {"customData": …}` merge, which writes the
-        field nothing recomposes, stays silent instead of raising an
-        ERROR whose remedy reproduced it.
+        THE DATUM MUST SURVIVE and that is asserted, not assumed. The
+        cheap way to clear this finding is to drop the declared
+        `customData` value at mint time — the scene goes quiet, the
+        check goes quiet, and the v0.5 silent drop this whole block
+        exists for is back.
         """
-        bare = self._mint({"kind": "input"})[0]
-        settled = dict(bare, customData=dict(bare["customData"],
-                                             value="09:00"))
-        for host in (bare, settled):
-            self.assertIsNone(canvas.composed_part_floor(host))
-            self.assertEqual(canvas.composed_host_gaps([host]), [])
-        # the split itself, so a later hand that "fixes" one reader sees
-        # the other two move under it
-        self.assertNotIn("value", self._mint({"kind": "input"})[0]
-                         .get("customData") or {},
-                         "the mint now stores a value for a bare input, so "
-                         "the three readers may have converged — re-derive "
-                         "the floor rather than deleting this")
-        with_row = self._mint({"kind": "input", "value": "09:00"})
-        self.assertTrue(any((e.get("customData") or {}).get("value_of") == "w"
-                            for e in with_row))
-        stripped = [e for e in with_row
-                    if not canvas._composed_part(e.get("customData") or {})]
-        canvas.reconcile_composed(stripped, None, None, stripped[0])
-        self.assertTrue(
-            any((e.get("customData") or {}).get("value_of") == "w"
-                for e in stripped),
-            "`reconcile_composed` no longer mints an input's row, so the "
-            "third reader has moved and the carve-out needs re-deriving")
+        for spec, rows_want in (({"kind": "input"}, 0),
+                                ({"kind": "input", "value": "09:00"}, 1),
+                                ({"kind": "input",
+                                  "customData": {"value": "09:00"}}, 1)):
+            with self.subTest(spec=spec):
+                out = self._mint(spec)
+                rows = [e for e in out
+                        if (e.get("customData") or {}).get("value_of") == "w"]
+                self.assertEqual(len(rows), rows_want,
+                                 "the mint drew %d value rows for %r"
+                                 % (len(rows), spec))
+                self.assertEqual(canvas.composed_host_gaps(out), [])
+                if rows_want:
+                    self.assertEqual(rows[0].get("text"), "09:00")
+                    self.assertEqual((out[0].get("customData") or {})
+                                     .get("value"), "09:00")
+
+    def test_the_customdata_door_settles_a_value_and_draws_it(self):
+        """`mod {"customData": …}` is a merge, and now it recomposes.
+
+        The op layer returned ZERO errors for this batch while the
+        composed-host ERROR condemned the scene it produced — a batch
+        told it was fine and then reported as damage, with a remedy that
+        reproduced itself. `customData` is the fifth door on the
+        post-`mod` reconcile gate for that reason.
+
+        Asserted on the PICTURE and not only on the finding: a repair
+        that quietened the lint by dropping the agent's datum would pass
+        a silence check and re-open the defect, so what is required is
+        that the value the op settled is both stored AND drawn.
+        """
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "create": {"id": "w", "name": "W", "type": "wireframe"},
+             "ops": [{"op": "add", "id": "inp", "type": "rectangle",
+                      "x": 0, "y": 0, "width": 160, "height": 40,
+                      "label": "Run at", "kind": "input"}]})
+        self.store.apply_batch(
+            {"base_revn": self.store.head_revn(), "artifact": "w",
+             "ops": [{"op": "mod", "id": "inp",
+                      "attrs": {"customData": {"value": "09:00"}}}]})
+        els = self.store.scenes["w"]
+        host = next(e for e in els if e["id"] == "inp")
+        rows = [e for e in els
+                if (e.get("customData") or {}).get("value_of") == "inp"]
+        self.assertEqual((host.get("customData") or {}).get("value"),
+                         "09:00", "the settled value was dropped")
+        self.assertEqual([r.get("text") for r in rows], ["09:00"],
+                         "the settled value is stored but not drawn")
+        self.assertEqual(canvas.composed_host_gaps(els), [])
 
     def test_a_checkbox_floor_follows_the_state_it_stores(self):
         """A cleared tick lowers the floor rather than tripping it.
