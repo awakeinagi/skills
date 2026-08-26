@@ -631,7 +631,7 @@ and priority order when suggesting views.
   group carry behind a `mod x/y`; a deletion's cascade; z-rebanding;
   relayout; the composed-part reconciler; bound-label re-centring; and
   the load-time repairs. **That list is illustrative, not a roster** —
-  <!-- live:pin_guard_sites -->Twenty-three<!-- /live:pin_guard_sites -->
+  <!-- live:pin_guard_sites -->Twenty-four<!-- /live:pin_guard_sites -->
   guard sites hold the promise, more than are named here, and some of
   them refuse an op rather than decline a move. Each has a test that
   goes red if that guard is deleted. That last clause is a claim about a
