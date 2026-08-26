@@ -17516,6 +17516,11 @@ def _settled_input_through_customdata() -> list[dict]:
     Returns:
         The three-element scene: host `inp1`, its bound label, and
         whatever the op layer composed for it — which today is nothing.
+
+    Raises:
+        EngineError: If either op is refused. "Zero op errors" is half
+            of what makes this a defect rather than a malformed batch,
+            so it is asserted here and not left to the reader.
     """
     errors: list[str] = []
     els = canvas.apply_ops([], [{"op": "add", "element": {
@@ -17604,6 +17609,11 @@ def _input_after_taking_its_own_prescribed_remedy() -> list[dict]:
         The post-remedy scene: unchanged when the check said nothing,
         else the same drawing with `inp1` re-issued from its own
         stored form.
+
+    Raises:
+        EngineError: If the re-issue is itself refused. The remedy has
+            to be a thing the op layer accepts, or this pole would be
+            measuring a rejected batch instead of a looping one.
     """
     els = _settled_input_through_customdata()
     if not [f for f in collect_findings(els)
@@ -25185,7 +25195,21 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"composed_host_remedy_reproduces_itself"}
+# ARRIVED 2026-08-25 (curator batch 46), refilling this set the same day the
+# entry below emptied it, and against the very check that flip landed. It is
+# red for a reason no entry here has had before: the check FIRES, and what it
+# says is TRUE. What is wrong is the REMEDY — the finding asks for the host to
+# be re-issued, and re-issuing it reproduces the finding verbatim, on a
+# three-op batch that returns zero op errors at every step. So the pin is a
+# two-scene property (a prescribed repair must not be reproducible by
+# performing it) rather than a magnitude, which is why its `expect` is a
+# `Silence` over a scene the builder has already tried to repair. It flips
+# when the WP owning `input` makes `make_element`, `reconcile_composed` and
+# `composed_part_floor` read one field instead of three; four candidate
+# repairs of differing blast radius were measured green against patched
+# copies of `canvas.py` before it was filed, and three wrong ones measured
+# still-red, each caught by a different leg of the pair.
 # EMPTIED AGAIN 2026-08-25 by the lint the entry below was waiting for:
 # `composed_part_floor` + `composed_host_gaps` in canvas.py, filed as an
 # ERROR from `lint_layout`. The mutant, its `FindingSpec` and its
