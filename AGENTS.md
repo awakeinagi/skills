@@ -363,10 +363,13 @@ loop variable), `SIM115` (a file opened without a context manager), and `E741`
 `ty` is **not** on this list: it is clean and it gates. Keeping it that way is
 a standing constraint, and **`[tool.ty.rules]` is not how you do it** — that
 retires the finding instead of the debt. Per-line suppressions exist and each
-carries its derivation beside it — `grep -rn 'ty: ignore'` is the inventory,
+carries its derivation beside it — `grep -rn 'ty: ignore\['` is the inventory,
 deliberately given as a command because a count here would go stale the first
-time one is added or paid. They are the monkeypatch sites in
-`test_backend.py`, where a stub is deliberately not the real signature.
+time one is added or paid. **Match the bracket**: the unbracketed spelling
+also finds this sentence, which is how an inventory returns one more than it
+should. They are the monkeypatch sites in `test_backend.py`, where the stub's
+shape is *not* the cause — ty declares a module-level `def` as that exact
+function, so any reassignment is rejected, an identical signature included.
 Everything else was paid by annotating, renaming or repairing — including the
 one finding that was argued down as unreachable first: the argument was wrong,
 the one-word rename was always the answer, and **a suppression carrying a

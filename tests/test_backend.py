@@ -17432,10 +17432,14 @@ class TestTheDeclineRunsOnePass(unittest.TestCase):
             seen["n"] += 1
             return real(els)
 
-        # ty: a counting stub is deliberately not the real signature, and
-        # the `finally` puts the real one back. Suppressed per-rule per-line
-        # rather than by switching `invalid-assignment` off, which would
-        # also silence the real subscript-on-None findings it catches.
+        # ty: MONKEYPATCH, and the stub's shape is not why this fires. ty
+        # gives a module-level `def` a declared type that is THAT function,
+        # so no other function is assignable to the attribute whatever it
+        # looks like — a byte-identical `def wrapper(els)` is rejected in
+        # the same words (measured). So there is nothing to fix in the
+        # stub; the `finally` below restores the real one. Per-line, not
+        # `invalid-assignment` switched off — that rule catches the
+        # subscript-on-None class, which found a live defect in this file.
         canvas.reroute_scene = wrapper  # ty: ignore[invalid-assignment]
         try:
             yield seen
@@ -19423,8 +19427,11 @@ class TestRouterTotalityAndSelfLoops(Base):
         def boom(*args, **kwargs):
             raise ValueError("boom")
 
-        # ty: a raising stub, deliberately not the real signature; the
-        # `finally` below restores it. Per-line, not a rule switched off.
+        # ty: MONKEYPATCH. Not about the stub's shape — ty declares a
+        # module-level `def` as THAT function, so any reassignment is
+        # rejected, an identical signature included (measured). The
+        # `finally` below restores it. See the note at the
+        # `reroute_scene` patch for why this is per-line.
         canvas.route_arrow = boom  # ty: ignore[invalid-assignment]
         try:
             with self.assertRaises(canvas.BatchError) as ctx:
@@ -19460,8 +19467,11 @@ class TestRouterTotalityAndSelfLoops(Base):
         def boom(*args, **kwargs):
             raise ValueError("boom")
 
-        # ty: a raising stub, deliberately not the real signature; the
-        # `finally` below restores it. Per-line, not a rule switched off.
+        # ty: MONKEYPATCH. Not about the stub's shape — ty declares a
+        # module-level `def` as THAT function, so any reassignment is
+        # rejected, an identical signature included (measured). The
+        # `finally` below restores it. See the note at the
+        # `reroute_scene` patch for why this is per-line.
         canvas.route_arrow = boom  # ty: ignore[invalid-assignment]
         try:
             result = self.store.check_batch({
@@ -21553,8 +21563,10 @@ class TestGrazeSceneGuard(Base):
             els = canvas.normalize_scene_doc(doc)["elements"]
             shipped, _ = canvas.reroute_scene(copy.deepcopy(els))
             real = canvas._grazing_terminal_legs
-            # ty: the measure stubbed to a constant to isolate what it
-            # contributes; deliberately not the real signature, restored below.
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
             canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
             try:
                 plain, _ = canvas.reroute_scene(copy.deepcopy(els))
@@ -21652,8 +21664,10 @@ class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
         els, ops = self._batch()
         real = canvas._grazing_terminal_legs
         if not graze:
-            # ty: the measure stubbed to a constant to isolate what it
-            # contributes; deliberately not the real signature, restored below.
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
             canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
         try:
             return canvas.apply_ops(copy.deepcopy(els),
@@ -21736,8 +21750,10 @@ class TestWhyTheGrazeGuardStopsAtRerouteScene(Base):
             doc, _ = canvas.validate_scene(json.loads(path.read_text()), name)
             els = canvas.normalize_scene_doc(doc)["elements"]
             real = canvas._grazing_terminal_legs
-            # ty: the measure stubbed to a constant to isolate what it
-            # contributes; deliberately not the real signature, restored below.
+            # ty: MONKEYPATCH — the measure stubbed to a constant to isolate
+            # what it contributes, restored below. Not about the
+            # lambda's shape: ty declares a module-level `def` as THAT
+            # function, so any reassignment is rejected (measured).
             canvas._grazing_terminal_legs = lambda p: 0  # ty: ignore[invalid-assignment]
             try:
                 plain, _ = canvas.reroute_scene(copy.deepcopy(els))

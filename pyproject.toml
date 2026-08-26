@@ -147,14 +147,17 @@ suppress-dummy-args = true       # _ and __ need no annotation
 # WHY BOTH PREDECESSORS WENT. mypy's green was largely vacuous: it skips the
 # bodies of untyped functions by default and canvas.py carries the `ANN` debt
 # above, so `uvx mypy` printed "Success: no issues found" while
-# `--check-untyped-defs` printed 109 errors (measured 2026-08-25). pyright was
-# a `pyrightconfig.json` in no hook and in no document — a gate by convention.
+# `uvx mypy --check-untyped-defs` printed pages of errors it had been silent
+# about. Run both yourself rather than trusting a figure here — that count
+# falls whenever somebody annotates anything, which is exactly how the number
+# this sentence used to quote went stale inside its own branch. pyright was a
+# `pyrightconfig.json` in no hook and in no document — a gate by convention.
 #
-# ty CHECKS UNANNOTATED BODIES; mypy DID NOT. Proved by injecting one identical
-# error (`_probe: int = "not an int"`) into `_mermaid_refusal` twice, changing
-# only the signature: mypy said "Success: no issues found" over the unannotated
-# def and "Found 5 errors" over the annotated one, while ty reported it at the
-# same line both times. Two consequences. The swap is a COVERAGE GAIN today,
+# ty CHECKS UNANNOTATED BODIES; mypy DID NOT — binary, not a matter of degree,
+# which is why this claim gets no number. Inject one type error into an
+# unannotated def (the probe used `_probe: int = "not an int"` in
+# `_mermaid_refusal`): mypy answers "Success: no issues found" and ty reports
+# it on the line it sits on. Two consequences. The swap is a COVERAGE GAIN,
 # with none of the `ANN` debt above retired first. And `[tool.mypy]`'s two
 # commented-out "target state" lines — `disallow_untyped_defs` and
 # `disallow_incomplete_defs`, kept "to flip once the ANN debt is retired" —
@@ -191,24 +194,26 @@ exclude = [
 # suppressions. That file is deleted, so this is now the only place the
 # decision is written down:
 #
-#   pyright                                        ty            shared lines
-#   reportOptionalSubscript + reportIndexIssue  -> not-subscriptable   5 of 5
-#   reportOptionalMemberAccess                  -> unresolved-attribute   18
-#   reportOptionalIterable                      -> not-iterable       2 of 2
-#   reportOptionalOperand + reportOperatorIssue -> unsupported-operator      1
-#   reportArgumentType                          -> invalid-argument-type    5
+#   pyright                                        ty
+#   reportOptionalSubscript + reportIndexIssue  -> not-subscriptable
+#   reportOptionalMemberAccess                  -> unresolved-attribute
+#   reportOptionalIterable                      -> not-iterable
+#   reportOptionalOperand + reportOperatorIssue -> unsupported-operator
+#   reportArgumentType                          -> invalid-argument-type
 #
-# THE MAPPING IS BY INTENT, NOT BY EQUIVALENCE, and the right-hand column is
-# there so nobody re-derives that the hard way. Measured 2026-08-25 by running
-# both checkers over canvas.py with every suppression off and intersecting the
-# LINE NUMBERS per pair. Rows 1-3 hold up as translations — ty's
-# `not-subscriptable` lines are a strict subset of pyright's, pyright's
-# `reportOptionalIterable` lines are a strict subset of ty's, and the
-# member-access pair agrees on 18 lines of 28. Row 4 does not: 6 pyright lines
-# and 17 ty lines share exactly ONE, because ty's population there is dominated
-# by an inference pyright does not make (see the note below this block). Read
-# the list as "the same five failure shapes this repo had already ruled
-# uninteresting", never as "the same findings".
+# THE MAPPING IS BY INTENT, NOT BY EQUIVALENCE. Checked once, 2026-08-25, by
+# running both checkers over canvas.py with every suppression off and
+# intersecting the LINE NUMBERS per pair: three pairs behaved like
+# translations, one shared almost nothing, and the two tools' surviving
+# findings did not overlap at all. Read the list as "the same five failure
+# shapes this repo had already ruled uninteresting", never as "the same
+# findings".
+#
+# THE PER-ROW COUNTS THAT SAT HERE ARE GONE, deliberately, and the reason is
+# the reading itself: annotating ONE dict later in the same branch moved most
+# of them. A figure a routine repair silently falsifies is worse than no
+# figure, and this one shipped. Re-derive if you need it — clear each tool's
+# suppressions, run both over canvas.py, intersect the line numbers.
 #
 # All five describe one situation on this codebase: an Excalidraw element is
 # loose JSON, AGENTS.md § Type hints rules that `dict[str, Any]` is the correct
@@ -218,21 +223,26 @@ exclude = [
 # is a fact about the annotation, not about the code.
 #
 # ONE FINDING WAS LOST WITH pyright AND IS RECORDED RATHER THAN ABSORBED.
-# Under its real config pyright reported three diagnostics on canvas.py, two of
-# them artifacts of misparsing the module docstring as a 3.14 t-string. The
-# third was real: `mermaid_dropped_roles` returns `list(MERMAID_DROP_ROLES)`,
-# and because `list` is invariant that is `list[Literal[...]]` against a
-# declared `-> list[str]` (`reportReturnType`, canvas.py:26033). ty is silent
-# on it and so is mypy. So ty's residual findings and pyright's do not overlap
-# at all — they are different findings, not a re-spelling — and this one is a
-# genuine coverage loss from the swap, worth a look on its own merits.
+# Under its real config pyright had exactly one thing to say about canvas.py,
+# at base and still at this branch's head, and it is real:
+# `mermaid_dropped_roles` returns `list(MERMAID_DROP_ROLES)`, and because
+# `list` is invariant that is `list[Literal[...]]` against a declared
+# `-> list[str]` (`reportReturnType`, canvas.py:26033). ty is silent on it and
+# so is mypy, so it is a genuine coverage loss from the swap rather than the
+# same finding re-spelled — worth a look on its own merits. This sentence
+# once reported three, two of them t-string noise; that pair came from a
+# `pythonVersion` the probe set and `pyrightconfig.json` never did.
 #
 # THESE ARE OFF BECAUSE THE MODEL IS LOOSE, NOT BECAUSE THE FINDINGS ARE
-# UNINTERESTING. `unsupported-operator` in particular is over-suppressed today:
-# 16 of its 21 hits in canvas.py come from one unannotated module-level dict
-# and vanish when it is annotated (measured 2026-08-25; AGENTS.md § Known debt
-# names the two causes). Retire entries from this list as the ANN debt above is
-# paid; it is a burn-down like the ruff one, not a permanent exemption.
+# UNINTERESTING, and the list is a burn-down like the ruff one above rather
+# than a permanent exemption. Two one-line changes in this branch — the
+# `BASE_DEFAULTS` annotation and the `artifact_meta` cast — between them
+# retired the large majority of what these five were hiding in canvas.py, in
+# comparable shares; neither did it alone. The same move on the remaining
+# unannotated dicts is what pays the rest. Measure before you argue about it —
+# clear a rule from this table and run `uvx ty check`. No count here: the
+# sentence that used to carry one described a tree from before that
+# annotation landed, in the present tense, in a file that ships.
 # ---------------------------------------------------------------------------
 [tool.ty.rules]
 not-subscriptable = "ignore"
