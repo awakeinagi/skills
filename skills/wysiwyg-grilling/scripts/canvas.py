@@ -3955,15 +3955,32 @@ def _reconcile_ungroup_marks(new_els: list[dict[str, Any]],
     IT IS NOT A SECOND OPINION ON `_honour_ungroup`. That function
     decides what to DO about a gesture — strip the group, close it,
     narrate it — and still owns the user path. This only keeps the
-    stored bit honest about the picture, on every path a scene can
-    arrive by: `commit` is the single funnel, and its three authors are
-    `user`, `agent` and `out-of-session`.
+    stored bit honest about the picture.
+
+    TWO CALLERS, AND THE DIFFERENCE BETWEEN THEM IS WHAT EACH CAN KNOW.
+    `commit` calls it with the base state, so both halves can fire;
+    `Store.__init__` calls it at load with the scene as its own base, so
+    only the CLEAR half can. Two are needed because they cover different
+    ROUTES, and that was found the hard way: this docstring used to say
+    "`commit` is the single funnel, and its three authors are `user`,
+    `agent` and `out-of-session`", which is a universal about
+    reachability that does not survive a census. `catch_up` is the only
+    thing that reconciled a scene off disk, it has one caller, and only
+    `run_server` reaches it — so an agent applying ops offline read the
+    mark exactly as the disk held it. The lesson is worth more than the
+    line: the readers were all correct and the reconciler was correct,
+    and the defect was purely that one route reached the readers BEFORE
+    any reconciler ran. If a fifth defect exists here it is an ordering
+    question, not a missing site.
 
     Args:
         new_els: The incoming scene, mutated in place. Must be the RAW
-            list `commit` persists, not a normalized copy, or the mark
+            list the caller persists, not a normalized copy, or the mark
             reaches the record without reaching the file.
-        old_els: The base-state elements to read the delta against.
+        old_els: The base-state elements to read the delta against. Pass
+            `new_els` itself where there is no base — the delta is then
+            empty by construction and only the CLEAR half can fire,
+            which is all a bare disk load can honestly know.
     """
     old_ix = {e["id"]: e for e in old_els
               if isinstance(e, dict) and e.get("id")}
@@ -21778,6 +21795,35 @@ class Store:
             doc, _ = apply_migrations(doc, "artifact", f, self.p, self.log)
             doc = normalize_scene_doc(doc)
             self.scenes[aid] = doc["elements"]
+            # THE UNGROUP MARK IS MADE HONEST HERE, AT THE MOMENT A SCENE
+            # ENTERS MEMORY, and the reason is an ORDERING one rather
+            # than a missing site. `commit` also reconciles it, and every
+            # reader of the mark is correct; what was wrong was that one
+            # route reaches the readers BEFORE any reconciler runs.
+            # `catch_up` is the only thing that reconciled a scene off
+            # disk and it has exactly one caller, `start_catch_up`, which
+            # only `run_server` reaches — so with no server running,
+            # `cmd_apply`'s own "degraded path: no server — apply
+            # directly against the files" constructed a `Store`, called
+            # `apply_batch`, and the gate in `_close_widget_group` read
+            # the scene exactly as the disk held it. A user who put a
+            # widget back together with Ctrl+G in the desktop app had it
+            # taken apart again, silently, whenever the agent worked
+            # offline. Measured: server route SURVIVED, offline route
+            # REVERSED, byte-for-byte what the revision before this did.
+            #
+            # There are TWELVE `Store(...)` construction sites and eleven
+            # of them are CLI commands; binding this to the load rather
+            # than to any caller is what covers them without naming them.
+            #
+            # PASSED THE SCENE AS ITS OWN BASE, deliberately. That makes
+            # the delta empty by construction, so only the CLEAR half can
+            # fire — a group present means the drawing says "assembled"
+            # and the remembered gesture yields. It is all a bare disk
+            # load can honestly know: the SET half needs a previous
+            # revision to compare against, which is `catch_up`'s job and
+            # needs history this loop has not consulted.
+            _reconcile_ungroup_marks(self.scenes[aid], self.scenes[aid])
             self.artifact_meta[aid] = doc.get("wysiwyg", {})
             if doc.get("files"):
                 self.artifact_files[aid] = doc["files"]
@@ -22089,9 +22135,18 @@ class Store:
                 # disk scene verbatim, so a user who re-grouped a widget
                 # in the desktop app left MARK + GROUP sitting in the
                 # store together, and the next agent `mod` took their
-                # re-group apart again. `commit` is the one funnel every
-                # scene arrives through, which is why the rule lives here
-                # rather than beside any single caller.
+                # re-group apart again.
+                #
+                # THIS IS ONE OF TWO RECONCILIATION POINTS, NOT THE
+                # FUNNEL. The sentence that stood here said "`commit` is
+                # the one funnel every scene arrives through", which is
+                # false and was censused rather than read: `catch_up` has
+                # a single caller reachable only from `run_server`, so an
+                # agent applying ops with no server never passed through
+                # here at all. `Store.__init__` reconciles at LOAD for
+                # that route. This one still earns its place — it is the
+                # only one of the two that can see a BASE, so it is where
+                # the SET half can fire.
                 _reconcile_ungroup_marks(els, old)
                 if author == "user":
                     # mutate the RAW scene list itself — _write_artifact
