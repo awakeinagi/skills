@@ -2224,10 +2224,19 @@ def fit_label_in(container, lbl):
     declined wraps the client performs anyway, and `autoResize: False`
     bought nothing on this path.
 
-    Measured cost of the fiction over the frozen corpus: 14 bound labels
-    whose stored box says one line and whose drawn picture has two or
-    more — including on the AGENT'S OWN snapshot, which is the only view
-    it has of its drawing.
+    Measured cost of the fiction over the frozen corpus, and SAY WHICH
+    PREDICATE, because this sentence carried the other one's number.
+    It read "14 bound labels whose stored BOX says one line" — 14 is the
+    count of labels whose stored TEXT is one line while the drawn picture
+    has two or more. Ask the same question of the BOX and the answer is
+    FOUR, by three independent readings (box height in line-boxes, stored
+    height against drawn height, stored box lines against painted lines).
+    Ten of the 14 have a stored box of 2 to 4.23 line-boxes, so they are
+    not one-line boxes at all. The fiction is real and costs FOUR on the
+    reading these words state — including on the AGENT'S OWN snapshot,
+    which is the only view it has of its drawing. Fourteen is the text
+    reading and belongs to `client_wrap_width`, which now spells out both
+    predicates and their subset relation rather than trusting a total.
 
     So there is no walk any more, because there is no choice to make.
     The client's wrap width is a function of the container's width
@@ -3608,10 +3617,26 @@ def _rehost_duplicated_parts(new_els: list[dict[str, Any]],
         # `hosts[gids[0]]`, `owners` has length 2, and the line below is
         # the only thing choosing the copy over the original.
         #
-        # Proved by ablation rather than by reading: with `pick =
-        # owners`, `test_editing_group_duplicate_prefers_the_newly_
-        # minted_host` is the SOLE test in 1760 that goes red. The arm
-        # it guards — two hosts under one group — otherwise degrades to
+        # THE CODE CLAIM IS LIVE; THE ABLATION INSTRUCTION THAT STOOD
+        # HERE HAS EXPIRED, and the difference matters because a reader
+        # who runs the old one gets a green suite and concludes the belt
+        # is dead. It said: with `pick = owners`,
+        # `test_editing_group_duplicate_prefers_the_newly_minted_host`
+        # is the SOLE test in 1760 that goes red. True when written.
+        # ONE COMMIT LATER `_rigid_copy_hosts` landed as a second
+        # witness, and with `pick = owners` the tie-break falls to
+        # `host = None` and the rigid witness answers correctly — so
+        # that ablation now reddens NOTHING, measured, 10 of 10 green.
+        #
+        # What is still true is the reachability, and it is observed
+        # rather than argued: instrument the tie-break during that test
+        # and it reports `(len(owners), len(minted)) == (2, 1)` twice.
+        # Reached, and this line is what discriminates.
+        #
+        # SO NOTHING IN THE TREE NOW SEPARATES `minted or owners` FROM
+        # `owners`, and that is a coverage gap rather than a dead belt.
+        # It wants a pin from a curator, not a deletion. The arm it
+        # guards — two hosts under one group — otherwise degrades to
         # dropping a user's backlink, which is the expensive answer.
         minted = [o for o in owners if o not in old_ix]
         pick = minted or owners
@@ -13173,10 +13198,19 @@ def client_wrap_width(container):
            (`text_dims`' width > `client_wrap_width`)
 
     A is a STRICT SUBSET of B, and the two differ by exactly one
-    element: `wait-cutoff-label` in `edgar-late.excalidraw`, whose
-    stored text already carries the break the client would have made,
-    so B counts it and A does not. That single element is the whole
-    disagreement, and naming it is worth more than either count.
+    element: `wait-cutoff-label` in `edgar-late.excalidraw`. It is NOT,
+    as this paragraph first said, a label whose stored text already
+    carries the break — its text is `'In by cutoff?'`, one unbroken
+    line, and `client_wrapped_lines` returns it whole. It sits in B-minus-A
+    because `text_dims` reserves 2px of kerning headroom, taking 89 to
+    91 across a 90px cap: the server's estimate crosses where the
+    client's wrap does not. Naming it CORRECTLY is worth more than
+    either count — the first version named the right element for the
+    wrong reason, which is this paragraph's own subject one level down.
+
+    The relation is robust rather than lucky: the smallest margin in A
+    is +5px, so removing that 2px pad collapses B onto A at 14 == 14
+    rather than breaking A subset of B.
 
     The sentence that stood here said 15 labels "are ones THIS SERVER'S
     MODEL says the client re-wraps on load", which is B's number

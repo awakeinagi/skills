@@ -36458,9 +36458,11 @@ def _apex_pin_derivation() -> ast.FunctionDef:
             red whose subject has been deleted must say so rather than
             go on failing about a tree that no longer exists. Also if
             the source no longer parses to a plain `def`, which is the
-            same refusal one step later: a decorator this helper cannot
-            see through, or a method replaced by an assignment, would
-            otherwise be read as though it were the pin.
+            same refusal one step later: a method replaced by an
+            assignment, or an `async def`, would otherwise be read as
+            though it were the pin. NOT a decorated `def` — that still
+            parses to `ast.FunctionDef` and passes straight through, and
+            an earlier version of this clause claimed it did not.
     """
     owner = globals().get(_APEX_PIN_OWNER)
     method = getattr(owner, _APEX_PIN_METHOD, None) if owner else None
@@ -38238,9 +38240,10 @@ class TestCoverage(unittest.TestCase):
             for check in sorted(arrowed - lined):
                 with self.subTest(mutant=mid, check=check):
                     # `longMessage` off deliberately: with it on, unittest
-                    # prepends the whole NOUN_SCOPED dict — about 1200
-                    # characters — ahead of the sentence that says what to
-                    # do, so the actionable half arrives last. On a guard
+                    # prepends the whole NOUN_SCOPED dict, which is
+                    # over a thousand characters and grows with every
+                    # row — ahead of the sentence that says what to do,
+                    # so the actionable half arrives last. On a guard
                     # whose whole premise is that an agent READS these
                     # sentences and acts on them, burying the instruction
                     # behind the container is the same defect one level up.
@@ -39710,10 +39713,15 @@ SWEEP_BASES: tuple[tuple[str, Callable[[], list[dict]]], ...] = (
 # was large: "a builder 31 call sites share, most of them catalogue mutants
 # with pinned expectations — a five-line coverage gain paid for by
 # re-deriving the catalogue". All three clauses were wrong. The 31 is a
-# SUBSTRING count that sweeps in two other builders — `grep -oE
-# '[A-Za-z0-9_]*_chain\('` answers `_attach_chain(` 15, `_chain(` 13,
-# `_stub_chain(` 3 — and a word-boundary grep answers 13, one of which is
-# the `def`. So TWELVE call sites, every one of them a method of
+# SUBSTRING count that sweeps in two other builders. MEASURED AT
+# `272fc45`, the branch that published the 31, because this comment's own
+# text now contains each of those spellings and so inflates every grep it
+# prescribes by one when run HERE — a guard's instructions matching the
+# guard's own prose, which is the anchor-doctrine failure in
+# `skills/silence-is-a-bug/SKILL.md` §8 reproduced in-tree. At that sha:
+# `_attach_chain(` 15, `_chain(` 13, `_stub_chain(` 3. Do not grep for
+# them at the tip; walk the AST, which answers TWELVE at both ends, every
+# one of them a method of
 # `TestOperators`, and NONE of them a catalogue mutant. A reviewer then
 # performed the rejected repair and ran every class that can see it: the
 # real cost is ONE LINE of `EXPECTED_SKIPS`, and nothing is re-derived.
