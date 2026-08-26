@@ -715,6 +715,20 @@ def _control(sweep: Sweep, tier: str, render: bool) -> None:
             "the instrumentation changed the %s tier's population "
             "(%d -> %d): tests it silently dropped cannot notice anything"
             % (tier, pristine["total"], inert["total"]))
+    # `total` is `testsRun`, and unittest COUNTS A SKIP IN `testsRun`. So the
+    # check above holds exactly as well over a tier the patch turned entirely
+    # into skips as over one it left alone, and "the population did not move"
+    # would be reported about a run in which nothing executed. The two are
+    # separate messages because they are separate diseases: one loses tests,
+    # the other keeps them and stops running them.
+    if inert["skipped"] != pristine["skipped"]:
+        raise MortalityError(
+            "the instrumentation SKIPPED %d more %s-tier test(s) than the "
+            "unpatched copy (%d -> %d). `total` is `testsRun` and counts "
+            "skips, so the population check above cannot see this: a skipped "
+            "test observes nothing and reports it as agreement"
+            % (inert["skipped"] - pristine["skipped"], tier,
+               pristine["skipped"], inert["skipped"]))
     sweep.pristine[tier], sweep.inert[tier] = pristine, inert
 
 
@@ -829,6 +843,12 @@ class TestHarnessLiveness(unittest.TestCase):
                              "%s inert" % tier)
             self.assertEqual(built.inert[tier]["total"], pristine["total"],
                              "%s population moved under the patch" % tier)
+            # `total` is `testsRun`, which counts skips, so the line above
+            # is equally happy about a tier the patch stopped running.
+            self.assertEqual(
+                built.inert[tier]["skipped"], pristine["skipped"],
+                "%s tier: the patch SKIPPED tests the unpatched copy ran, "
+                "and a skipped test agrees with everything" % tier)
 
     def test_the_drop_counter_reads_zero_when_a_kill_bites_nothing(
             self) -> None:
@@ -907,6 +927,48 @@ class _Mortal(unittest.TestCase):
                          "the %r kill also moved OTHER checks, so its "
                          "witness list is not all its own" % check)
 
+    def assertRanUnderTheKill(self, check: str) -> None:
+        """Require the kill's run to have EXECUTED the tier it reports on.
+
+        THE SIBLING DRIVER ALREADY HAS THIS VERDICT and this one did not.
+        `guard_mutants.verdict` table-drives `("SKIPPED", {"run": 2,
+        "skipped": 2}, "every test it names was skipped")` precisely
+        because "it ran and passed" and "it never ran" are different
+        findings that a pass/fail channel spells the same way. Here the
+        only readers of a kill's report were `_bad` — failures, errors,
+        unexpected successes — and nothing at all read `skipped`, which
+        the driver has been writing the whole time.
+
+        So a kill that turns every test naming the check into a SKIP
+        leaves `_bad` empty and `witnesses` empty, and `assertMortal`
+        below announces "NOTHING notices it going blind" — a verdict
+        about the TESTS when the truth is about the RUN. That reads as a
+        detector nobody guards and would be repaired by writing a guard
+        for a detector that already had one.
+
+        `total` cannot stand in for this: it is `testsRun`, and unittest
+        counts a skip in `testsRun`, so a wholesale skip holds it exact.
+
+        Args:
+            check: The killed check.
+        """
+        built = sweep()
+        tier = "render" if check in _RENDER_KILLS else "model"
+        killed, inert = built.kills[check], built.inert[tier]
+        self.assertEqual(
+            killed["skipped"], inert["skipped"],
+            "the %r kill SKIPPED %d test(s) the inert run executed (%d -> "
+            "%d). Nothing ran, so nothing could observe anything: this is "
+            "not the detector going unguarded, it is the run going missing"
+            % (check, killed["skipped"] - inert["skipped"],
+               inert["skipped"], killed["skipped"]))
+        self.assertEqual(
+            killed["total"], inert["total"],
+            "the %r kill moved the tier's population (%d -> %d): tests that "
+            "were never collected cannot notice a detector dying, and their "
+            "absence is not evidence about it"
+            % (check, inert["total"], killed["total"]))
+
     def assertMortal(self, check: str) -> None:
         """Require `check`'s death to be noticed by a behavioural test.
 
@@ -914,6 +976,7 @@ class _Mortal(unittest.TestCase):
             check: The check to kill.
         """
         self.assertKillTookEffect(check)
+        self.assertRanUnderTheKill(check)
         seen = sweep().witnesses(check)
         self.assertTrue(seen, "NOTHING notices %r going blind: every test "
                               "that names it passes with the detector dead"

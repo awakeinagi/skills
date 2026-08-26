@@ -84,6 +84,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
 import canvas
+import pngdiff
 import test_mutants as tm
 from pngdiff import components, read_png_gray, tolerant_diff, tolerant_diff_mask
 from tests_helpers import el, ink_box
@@ -8242,6 +8243,77 @@ class TestRenderTierEvidence(unittest.TestCase):
                     obj, "RENDER_TIER[%r] names %s, but %r does not exist"
                          % (check, dotted, part))
             self.assertTrue(callable(obj), "%s is not callable" % dotted)
+
+
+class TestTheMirroredPngdiffDefaultsStillMatch(unittest.TestCase):
+    """`MIN_BLOB` and `INK_THRESHOLD` are hand-copies. Bind them.
+
+    THE DEFECT IS THAT NOTHING BOUND THEM. Two constants at the top of
+    this file carry comments claiming they mirror
+    `pngdiff.tolerant_diff`'s defaults, and every `tolerant_diff` /
+    `tolerant_diff_mask` call in this tier takes those defaults rather
+    than passing these values — then post-processes the result with
+    these copies (`_delta_components`'s `c["area"] < MIN_BLOB`, the
+    residual-blob filter, and every `p < INK_THRESHOLD` ink test).
+
+    So the two halves of one measurement were free to disagree. Move a
+    default in `pngdiff.py` and this tier diffs at the new floor and
+    filters at the old one, silently, with both comments still reading
+    as true — a mismatch that changes which blobs survive and therefore
+    which ablation findings are reported, not merely a stale number.
+
+    THE ROSTER IS DERIVED, NOT NAMED, and that is the point. Both
+    `tolerant_diff` and `tolerant_diff_mask` carry this pair, and the
+    ablation producers this tier's findings come from call the MASK
+    form. Pinning the one function the comments happen to name would
+    leave the one actually called free to drift — a second copy of the
+    subject making the absence of the first invisible. Asking the
+    module instead means a third function growing the same defaults is
+    covered on the day it appears.
+
+    Deliberately NOT gated, for the reason `TestRenderTierEvidence`
+    gives: reading a signature needs no browser, and a default is moved
+    in ordinary editing, where nobody has `MUTANTS_RENDER=1` set.
+    """
+
+    def mirrored(self) -> dict[str, int]:
+        """The tier's own copies, by the parameter each one mirrors.
+
+        Returns:
+            Parameter name mapped to this module's constant for it.
+        """
+        return {"ink_threshold": INK_THRESHOLD, "min_blob": MIN_BLOB}
+
+    def test_every_pngdiff_default_this_tier_copies_still_matches(
+            self) -> None:
+        """Each copied constant equals the default it claims to mirror."""
+        found = 0
+        for name, fn in sorted(vars(pngdiff).items()):
+            if getattr(fn, "__module__", None) != "pngdiff":
+                continue
+            params = inspect.signature(fn).parameters
+            for param, mine in self.mirrored().items():
+                default = params[param].default if param in params else None
+                if default is inspect.Parameter.empty or default is None:
+                    continue
+                found += 1
+                with self.subTest(function=name, parameter=param):
+                    self.assertEqual(
+                        default, mine,
+                        "pngdiff.%s's %s default is %r, but this tier "
+                        "post-processes its output at %r. Every call site "
+                        "here takes the default and then filters with the "
+                        "copy, so the diff and the filter are now running "
+                        "at different floors and the comment beside the "
+                        "constant is silently false"
+                        % (name, param, default, mine))
+        self.assertGreaterEqual(
+            found, 4,
+            "this pin found %d pngdiff default(s) to bind and expected at "
+            "least the four it was written for (`tolerant_diff` and "
+            "`tolerant_diff_mask`, each with `ink_threshold` and "
+            "`min_blob`). A signature that stops carrying them makes every "
+            "assertion above vacuous" % found)
 
 
 class TestRenderCache(unittest.TestCase):
