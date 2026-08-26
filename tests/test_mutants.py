@@ -17491,6 +17491,115 @@ def _entity_without_rows() -> list[dict]:
             *_composed_widget(grouped=False)]
 
 
+def _orphaned_widget_copy(with_ink: bool) -> list[dict]:
+    """A duplicated slider whose copy owns nothing, drawn or bare.
+
+    THE ONE DIFFERENCE BETWEEN THE POLES IS WHETHER THE INK IS THERE,
+    and that is the reader's whole distinction. `with_ink=True` is what
+    Ctrl+Shift+G, save, Ctrl+D, save really lands: `wc` renders as a
+    complete slider — a track across it and a thumb at its midpoint —
+    while no element names `wc` as its owner, because
+    `_rehost_duplicated_parts` drops the copy's backlinks and
+    `reconcile_composed`'s slider arm only RE-DERIVES parts that already
+    exist. `with_ink=False` is the same host with that ink gone: a truly
+    bare rectangle. A person shown the two tells them apart instantly.
+
+    HAND-BUILT, AND COPIED FROM A MEASURED SAVE. Every shape here is
+    what the real path emits for `{"kind": "slider", "width": 160,
+    "height": 48}` duplicated 300px right (measured 2026-08-25): track a
+    140-wide line at the host's y+34, thumb a 12x12 square at the
+    midpoint, both `role: decoration`, neither carrying `track_of` or
+    `thumb_of`. Moved to the origin and stripped of the router's
+    `routed` hash, which are the only edits — ownership is resolved by
+    `part_owner_id` from `customData` backlinks alone and never from an
+    id, so the ids are cosmetic and kept in the save's own spelling.
+
+    WHY SLIDER AND NOT `body`. Measured across all seven composed
+    scenes, this class splits exactly on which arm of
+    `reconcile_composed` a kind has: `body` (4 owned) and `kpi` (1
+    owned) MINT the copy fresh backlinked parts and are silent, while
+    `slider`, `toggle`, `image` (0 owned) and `checkbox` (0 unchecked, 1
+    checked) only re-derive and are reported. Slider is the smallest of
+    the four that are wrong — two parts, both drawn, none owned.
+
+    Args:
+        with_ink: Whether the copy's own track and thumb are drawn.
+
+    Returns:
+        The host `wc` alone, or `wc` with the two unowned decorations
+        that sit inside its box.
+    """
+    out = [el(id="wc", type="rectangle", x=0, y=0, width=160, height=48,
+              customData={"kind": "slider", "role": "node", "value": 50})]
+    if with_ink:
+        out += [el(id="w-trackc", type="line", x=10, y=34, width=140,
+                   height=0, points=[[0, 0], [140, 0]],
+                   strokeColor="#8d877a", strokeWidth=2,
+                   customData={"role": "decoration"}),
+                el(id="w-thumbc", type="rectangle", x=74, y=28, width=12,
+                   height=12, backgroundColor="#1e1e1e",
+                   customData={"role": "decoration"})]
+    return out
+
+
+def _saved_twice_part_ink_count() -> int:
+    """Part-shaped ink standing at the copy after two real user saves.
+
+    THE ONLY THING IN EITHER POLE THAT TOUCHES THE SAVE PATH, and it is
+    here because the poles deliberately do not. `_orphaned_widget_copy`
+    is hand-built, so it cannot notice a "repair" that empties the
+    finding by discarding unowned decoration on commit — the sentence
+    would become true by the picture being destroyed, and a hand-built
+    scene is blind to that by construction. This drives the real
+    gestures instead: mint a slider, ungroup it, save, duplicate host
+    and parts, save. Two decorations stood at the copy on 2026-08-25,
+    which is the number the ERROR under test calls zero.
+
+    Returns:
+        How many `role: decoration` elements are drawn at the copy's x
+        after the second commit.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-dup-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "wireframe"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "w", "kind": "slider",
+                "label": "W", "x": 0, "y": 0, "width": 160,
+                "height": 48}}]})
+
+        def save(scene: list[dict]) -> list[dict]:
+            """Commit as the browser does; return what landed.
+
+            Args:
+                scene: The elements the client would post.
+
+            Returns:
+                The stored scene after the commit.
+            """
+            store.commit(author="user", new_scenes={"f": list(scene)},
+                         base_revn=store.head_revn())
+            return [dict(e) for e in store.scenes["f"]]
+
+        ungrouped = save([dict(e, groupIds=[]) for e in store.scenes["f"]])
+        copied = list(ungrouped)
+        for src in [x for x in ungrouped
+                    if x["id"] == "w" or canvas.part_owner_id(x) == "w"]:
+            dup = copy.deepcopy(src)
+            dup["id"], dup["x"] = src["id"] + "c", src.get("x", 0) + 300
+            dup.pop("boundElements", None)
+            copied.append(dup)
+        return sum(1 for x in save(copied)
+                   if (x.get("customData") or {}).get("role") == "decoration"
+                   and x.get("x", 0) >= 250)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _settled_input_through_customdata() -> list[dict]:
     """A bare input, then its value settled the way the reference says.
 
@@ -22092,6 +22201,55 @@ _register(Mutant(
 # That last one is the pin's opinion and not an oversight — it documents
 # the trap without removing it, and the op layer still returns zero
 # errors for a three-op batch whose result the ERROR tier condemns.
+# Curator batch 46, 2026-08-25, subject two of the same review. WHAT THE
+# DRAWING GETS WRONG: nothing about the COUNT — `wc` really does own no
+# parts. What is wrong is that the ERROR's stated cause contradicts the
+# scene it fired on. The sentence says the host "renders as a bare
+# rectangle that says nothing about what it is" while the copy's track
+# and thumb are drawn inside its box, and on a product whose contract is
+# that the agent narrates its reading of the picture, an agent relaying
+# that tells the user their slider is an empty box while they are
+# looking at a slider.
+#
+# THE PAIR IS THE CONTRACT, AND IT NEEDS NO WORDING. Neither pole reads
+# the message. The mutant says the check must be quiet where the parts
+# are drawn; the neighbour says it must speak where they are not. Held
+# together, they assert the one thing a rewrite cannot supply: that this
+# check DISTINGUISHES the two pictures. It does not today — measured
+# 2026-08-25, the two scenes produce a byte-identical ERROR sentence,
+# which is why no honest rewording can be true of both.
+#
+# THE REPO ALREADY RULED THIS OUT OF SCOPE, which is why silence and not
+# a truer sentence is the right pole. `composed_host_gaps`' own
+# docstring carves the class out — "part-shaped decoration owned by
+# NOBODY ... That is a second instrument and it is not this one" — and
+# believed the carve-out automatic ("Floor against tagged parts reads
+# 5 == 5 and says nothing"). Measured, that holds for exactly the two
+# kinds whose `reconcile_composed` arm MINTS (`body` at 4 owned, `kpi`
+# at 1) and is FALSE for the four whose arms only re-derive: `slider`,
+# `toggle`, `image` at 0 owned with the ink drawn, and `checkbox` at 0
+# unchecked / 1 checked. The check fires on a class its author
+# documented as belonging to somebody else.
+#
+# WHO FLIPS IT: the WP that owns the paste gate, by making the
+# documented carve-out real — re-hosting the copy's backlinks in
+# `_rehost_duplicated_parts` so `wc` owns the ink drawn inside it, or
+# routing this class to the second instrument that docstring names. A
+# REWORDING DOES NOT FLIP IT, and that is the pin's opinion stated up
+# front rather than discovered later: a sentence hedged until it is true
+# of both pictures has not repaired the blindness, it has paid for the
+# lie with the information. If the owning WP disagrees, that is a
+# decision to take in the open.
+_register(Mutant(
+    "duplicated_widget_reported_as_bare",
+    build=lambda: _orphaned_widget_copy(with_ink=True),
+    op="unchanged", args={},
+    expect=Silence("composed_host_stripped"),
+    neighbour=Neighbour(lambda: _orphaned_widget_copy(with_ink=False),
+                        FindingSpec("composed_host_stripped", element="wc",
+                                    magnitude=(2, 0.0),
+                                    direction="missing"))))
+
 _register(Mutant(
     "composed_host_remedy_reproduces_itself",
     build=_input_after_taking_its_own_prescribed_remedy,
@@ -22967,6 +23125,33 @@ class TestMutantCatalogue(unittest.TestCase):
              and f["element"] == "e"], [],
             "an entity declared with no attributes has no rows to draw "
             "and must never be reported as stripped")
+
+    @unittest.expectedFailure
+    def test_mutant_duplicated_widget_reported_as_bare(self) -> None:
+        """A drawn slider is called a bare rectangle that says nothing."""
+        # TWO CLAIMS, and the second names the wrong repair this pole
+        # would otherwise sit green over. `_run` asserts the check is
+        # quiet where the parts are drawn. The cheapest way to make it
+        # quiet is to make the sentence TRUE instead — have the save
+        # path discard part-shaped decoration that names no owner — and
+        # this pin's own scene is hand-built, so it would never notice.
+        # That repair deletes a user's slider to settle an argument
+        # about a lint. So the second claim is measured through the
+        # real save path: the ink a duplicate lands with must still be
+        # there after another save. It is the same discipline the
+        # value-survival guard on `composed_host_remedy_reproduces_
+        # itself` carries, aimed at this subject's own nearest miss.
+        self._run("duplicated_widget_reported_as_bare")
+        self.assertEqual(_saved_twice_part_ink_count(), 2,
+                         "the duplicate's own track and thumb must "
+                         "survive the save path; a repair that makes "
+                         "'renders as a bare rectangle' true by erasing "
+                         "the ink has destroyed the picture to vindicate "
+                         "the sentence")
+
+    def test_neighbour_duplicated_widget_reported_as_bare(self) -> None:
+        """The same host with the ink really gone is reported, at 2."""
+        self._run_neighbour("duplicated_widget_reported_as_bare")
 
     @unittest.expectedFailure
     def test_mutant_composed_host_remedy_reproduces_itself(self) -> None:
@@ -25195,7 +25380,15 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"composed_host_remedy_reproduces_itself"}
+CATALOGUE_RED_IDS: set[str] = {"composed_host_remedy_reproduces_itself",
+                               "duplicated_widget_reported_as_bare"}
+# BOTH ARRIVED 2026-08-25 (curator batch 46), from one review of the branch
+# that landed `composed_host_stripped`, and they are two SUBJECTS and not a
+# pair — the boundary between them was measured, not assumed. The remedy one
+# is the op path: a finding whose prescribed repair reproduces it. The bare
+# one is the save path: a finding whose stated cause the picture refutes.
+# Re-issuing the host CLEARS the second and LOOPS on the first, which is the
+# measurement that says they are different defects with different fixes.
 # ARRIVED 2026-08-25 (curator batch 46), refilling this set the same day the
 # entry below emptied it, and against the very check that flip landed. It is
 # red for a reason no entry here has had before: the check FIRES, and what it
