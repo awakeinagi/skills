@@ -1,0 +1,23 @@
+run: R6
+subject_sha: 2fd9fcfafa28a35463ad231323a8094d1648c1ce
+subject_branch: fold-wp4
+worktree_clean_at_start: yes
+symlink: /home/cognizac/Projects/wysiwyg_grilling_skill.worktrees/capability_assessment/skills/wysiwyg-grilling
+suite_cases: 2058
+detectors: 37 total / 33 proven / 3 render-tier / 1 UNCOVERED (label_spills_past_body)
+arms: 1 (user ruling 2026-08-26)
+planned_turns: ~13-14 (user ruling: reach the unexercised union)
+subject_tree_sha (skills/wysiwyg-grilling): 1e528a0ddd270ff20c5d2496954f1a19010dc013
+
+--- CORRECTION, 2026-08-27, before turn 2 ---
+The agent did NOT load the symlinked worktree copy. A PLUGIN registration in
+~/.claude/settings.json ("wysiwyg-grilling@wysiwyg-grilling", path
+/home/cognizac/Projects/wysiwyg_grilling_skill) outranks the
+~/.claude/skills/<name> symlink. The skill actually exercised is the MAIN
+CHECKOUT at 171272e, clean.
+Impact on the run: NONE, and this was measured, not assumed. canvas.py at the
+two roots is AST-IDENTICAL with docstrings stripped (they differ by 2432 bytes
+of prose). Behavioural findings transfer to both trees.
+ACTUAL SUBJECT: /home/cognizac/Projects/wysiwyg_grilling_skill @ 171272e
+Caught by: the skill's own SERVER_CODE_STALE line, not by the protocol's
+symlink check -- which I ran, and which passed.
