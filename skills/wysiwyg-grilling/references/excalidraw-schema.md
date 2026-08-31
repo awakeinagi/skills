@@ -99,8 +99,14 @@ noise. Never read meaning into coordinates that large.
   "ungrouped": true }
 ```
 
-`role` drives narration semantics (label geometry never narrates; pin
-lifecycle facts; annotation facts). `kind: "button" | "nav"` makes wireframe
+`role` drives narration semantics (a label's POSITION never narrates — it is
+its container's to decide, and the loader re-centres it anyway; pin
+lifecycle facts; annotation facts). This used to read "label geometry never
+narrates", which was the differ's rule and not the product's: an attribute a
+`mod` op NAMES is narrated whatever the role, so `mod width` on a bound
+label says `resized` and `mod strokeColor` on one says `restyled`. What
+stays quiet is churn nobody asked for, and a coordinate the next load throws
+away. `kind: "button" | "nav"` makes wireframe
 `label_renamed` fire mapping tripwires — real labels on nav/buttons are
 load-bearing, not decoration.
 
