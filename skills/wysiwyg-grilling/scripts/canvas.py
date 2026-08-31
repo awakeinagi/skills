@@ -782,14 +782,19 @@ def validate_scene(doc, artifact_id):
         if c is None or c.get("type") in ("arrow", "line"):
             continue
         if _label_detached(el, c):
-            # A REPAIR IS ONLY FILED IF IT HAPPENED. `recenter_label`
-            # declines to move a pinned label, and this arm filed
-            # `repaired: True` regardless — telling the user the loader
-            # re-centred something it had deliberately left alone, on
-            # every load, forever. That is the same defect the refit arm
-            # below was fixed for (five labels re-reporting one repair
-            # across three projects); it reached here through a different
-            # decline. The position is the witness, not the call.
+            # A REPAIR IS ONLY FILED IF IT HAPPENED, and the witness
+            # outlives the case it was written for. It was added because
+            # `recenter_label` declines to move a PINNED label while this
+            # arm filed `repaired: True` regardless — telling the user
+            # the loader had re-centred something it deliberately left
+            # alone, on every load, forever (the same defect the refit
+            # arm below was fixed for: five labels re-reporting one
+            # repair across three projects). The pin is now answered by
+            # `_label_detached` itself, so that decline never reaches
+            # here; the OTHER one still does, because `recenter_label`
+            # writes the first text bound to `c` and a scene holding two
+            # of them leaves the second exactly where it was. The
+            # position is the witness, not the call.
             before = (el.get("x"), el.get("y"))
             recenter_label(kept, c)
             if (el.get("x"), el.get("y")) == before:
@@ -11906,25 +11911,48 @@ def _bound_label(el):
 
 
 def _label_detached(el, container):
-    """Is this bound label's box entirely off its container's?
+    """Will the loader re-glue this bound label to its container?
 
     THE GEOMETRY BEHIND ART-007, extracted 2026-08-31 because two layers
-    now need the same answer and a second copy of a four-term
-    disjunction is how the copies drift. `validate_scene` asks it at LOAD
-    to decide whether to re-glue; `label_position_sticks` asks it at SAVE
-    to decide whether the position being written is one the reader will
-    ever see. One reader, and the load repair keeps its own arm around
-    it — a container that is an arrow or a line is skipped there, because
-    the CLIENT re-derives that case and the server must not fight it.
+    need the same answer and a second copy of a four-term disjunction is
+    how the copies drift. `validate_scene` asks it at LOAD to decide
+    whether to re-glue; `label_position_sticks` asks it at SAVE to decide
+    whether the position being written is one the reader will ever see.
+    One reader, and the load repair keeps its own arm around it — a
+    container that is an arrow or a line is skipped there, because the
+    CLIENT re-derives that case and the server must not fight it.
+
+    THE QUESTION IS THE LOADER'S BEHAVIOUR AND NOT THE TWO BOXES, which
+    is why the pin is in here and not in one caller. The load repair runs
+    through `recenter_label`, and `recenter_label` HONOURS A PIN — so a
+    pinned label lying entirely off its container is not re-glued, on
+    that load or on any other. Answering the geometry alone made the two
+    callers disagree about the same element: the loader left it exactly
+    where it was (its own before/after witness already declined to file a
+    repair that had not happened) while the save concluded the coordinate
+    would be erased and said nothing about it. Measured 2026-08-31 over
+    588 cells: a pinned caption shoved 401px down is durable through a
+    fresh `Store` on both save doors, and 14 of 315 landed positions were
+    in no record — every one of them that column. This does NOT overturn
+    the declension recorded at `8983e1a`, which rules on the UNPINNED
+    +400 shove: that ruling's premise is "a +400 shove does not stick",
+    true wherever the loader is free to re-centre and false only here.
 
     Args:
         el: The bound label.
         container: The element it is bound to.
 
     Returns:
-        True when the two boxes do not touch at all, which is the state
-        the load-time repair re-centres out of existence.
+        True when the two boxes do not touch at all AND nothing stops the
+        loader re-centring them together — which is the state the
+        load-time repair re-centres out of existence.
     """
+    if pinned_to_canvas(el):
+        # The pin is the promise that this caption's position is the
+        # user's and not the container's. `recenter_label` keeps it, so
+        # the loader has nothing to re-glue and the coordinate on disk is
+        # the coordinate the reader sees for the life of the project.
+        return False
     return (el.get("x", 0) + el.get("width", 0) < container.get("x", 0) or
             el.get("x", 0) > container.get("x", 0) + container.get("width", 0)
             or el.get("y", 0) + el.get("height", 0) < container.get("y", 0)
@@ -11955,13 +11983,18 @@ def label_position_sticks(el, container):
         why `TestABoundArrowLabelCannotBeDraggedOffItsArrow` is a green
         pin over a write that IS in the file: measured 2026-08-31, that
         class's own scene is durable on disk at every delta.
-      * A DETACHED BOX. `validate_scene` re-centres a label lying
-        entirely outside its container on the next load, so the
-        coordinate is erased before anyone reads it. Measured on the
-        same scene: durable at `+8` and at `(+60, -40)`, erased at
-        `+400`. Durability is an OVERLAP question, not a structural
-        rule — which is the reading the R7 grid got wrong by sampling
-        one far coordinate and concluding the class was closed.
+      * A DETACHED BOX THE LOADER WILL RE-GLUE. `validate_scene`
+        re-centres a label lying entirely outside its container on the
+        next load, so the coordinate is erased before anyone reads it —
+        UNLESS the label is pinned, which is the one case the re-centring
+        declines and therefore the one case a detached coordinate is
+        permanent. That distinction lives in `_label_detached`, so the
+        loader and this rule cannot answer it differently; asked as
+        geometry alone it cost 14 of 315 landed positions their record.
+        Measured on the same scene: durable at `+8` and at `(+60, -40)`,
+        erased at `+400`. Durability is an OVERLAP question and not a
+        structural rule — which is the reading the R7 grid got wrong by
+        sampling one far coordinate and concluding the class was closed.
 
     Args:
         el: The bound label.
