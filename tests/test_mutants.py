@@ -27960,17 +27960,42 @@ def coverage_table() -> list[tuple[str, str, str]]:
 #
 # AND A THIRD JOINED IN THE SAME CHANGE, `...SitsWhereTheClientWillDrawIt`,
 # whose defect is PRE-EXISTING and older than any of this — identical on
-# `84c226d`. `recenter_label` anchors a top-aligned caption at
+# `84c226d`. `recenter_label` anchored a top-aligned caption at
 # `container.y + 6`; the shipped client anchors it at `container.y + 5`,
-# read out of the bundle rather than remembered. It is here because it is
+# read out of the bundle rather than remembered. It was here because it is
 # the same silence with a THIRD cause: every caption in every instrument in
-# this repo is `middle`, the one alignment on which the two rules agree
-# exactly. Not a rounding, not a missing axis — a whole population sitting
-# on the one value that cannot show the defect.
+# this repo is `middle` OVER A RECTANGLE, the one combination on which the
+# two rules agree exactly. Not a rounding, not a missing axis — a whole
+# population sitting on the one value that cannot show the defect.
+#
+# ALL THREE OF THOSE LEFT ON 2026-08-31, in one curator pass, and this is
+# the largest single drain this dict has had. `84f33fb` closed both live
+# classes at once — the displacement arm anchors on the container's TOP
+# EDGE, which is what the client anchors, and `recenter_label`'s vertical
+# anchor reads `BOUND_TEXT_PADDING` instead of a literal 6 — and `b5a791d`
+# followed. All three reported `unexpected success` on the head that
+# shipped, because a fixer may not un-decorate its own red.
+#
+# THE FLIP WAS NOT BELIEVED FROM THE COLOUR. Both replay-parity captures
+# were DARK when the fixes landed: they carried `584f4b3…` against a tree
+# hashing `2079426…`, so the `canvas_sha256` gate in both browser classes
+# fell through to the weak `facts != []` arm and the fact-for-fact
+# comparison ran in neither. They were re-recorded from live tabs before
+# these masks came off, by a curator rather than by the fixer — the rewrap
+# capture's `observed` went from three moved facts to one with
+# `population`, `stored_before`, `stored_after` and `posted` byte-identical,
+# which is two phantom captions disappearing under a browser's own witness.
+# A GREEN UNDER A DARK GATE IS THE SHAPE THIS FILE EXISTS TO REFUSE.
+#
+# WHAT IS NOT CLOSED, so the empty dict is not read as an all-clear.
+# `recenter_label` models no shape inset, so an ellipse's and a diamond's
+# captions still sit where the tab will not draw them at every alignment
+# including `middle` — reachable and narrated, 29 and 14 of 116 middle
+# cells driven through a real `Store`. That is unpinned on purpose: it is
+# a whole-placement-rule repair, seeded above this file's anchor class,
+# and no red here should prescribe it.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
-    "TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement": 2,
-    "TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt": 1}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -39084,24 +39109,36 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
             "is green the reds below can be satisfied by going mute "
             "about every bound caption: %s" % lost)
 
-    @unittest.expectedFailure
     def test_a_drag_the_size_of_the_remeasure_is_still_narrated(self) -> None:
-        """RED 2026-08-31: an 11px drag of a re-wrapped caption is swallowed.
+        """FLIPPED 2026-08-31 by `84f33fb`: the swallowed 11px drag is heard.
+
+        THE MASK CAME OFF FOR THE ONE REASON IT MAY. `84f33fb` made the
+        displacement arm anchor on the TOP EDGE the client itself
+        anchors — the one anchor the writer had — so a caption's own
+        re-measured height stops being multiplied into a predicted
+        vertical move and the drag it used to absorb lands outside the
+        prediction. The fixer left the decorator on because a fixer may
+        not un-decorate its own red; it reported `unexpected success`
+        until a curator checked every pole of this class, re-recorded
+        the capture from a live tab against the shipping head, and
+        confirmed the fact-for-fact replay comparison passes with the
+        `canvas_sha256` gate switched ON rather than falling through.
+
+        WHAT IT USED TO DO, kept because the class is the record of it.
+        The displacement arm predicted `old.y - dh/2 + carry`, so the
+        ONE drag whose size was exactly `round(-dh/2)` landed precisely
+        on the prediction and was read as the client's own bookkeeping.
+        The user dragged the caption down 11 pixels, it survived a
+        reload, and the record headlined `saved without changing
+        anything`. `84c226d` narrated it correctly, so it was never an
+        old silence — it arrived with the repair for the width arm and
+        left with the repair for the height one.
 
         THE RELATION IS WHAT IS PINNED and no coordinate literal appears
         in the assertion: the magnitude comes from the capture's own
         `absorbs`, which is `round(-dh/2)` of what a real tab measured.
         A caption a user drags and a fresh `Store` reads back where they
         left it is narrated, whatever that number happens to be.
-
-        WHAT IS FAILING, by mechanism. The displacement arm predicts
-        `old.y - dh/2 + carry`, so the ONE drag whose size is exactly
-        `round(-dh/2)` lands precisely on the prediction and is read as
-        the client's own bookkeeping. The user drags the caption down 11
-        pixels, it survives a reload, and the record headlines `saved
-        without changing anything`. `84c226d` narrates it correctly, so
-        this is not an old silence — it arrived with the repair for the
-        width arm.
 
         THE TERM IS NOT MERELY OVER-BROAD, IT IS FALSE. The capture this
         replays was recorded from a tab that changed three captions'
@@ -39116,39 +39153,35 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
         hears one direction and not the other, at the same magnitude, on
         the same element, is reporting arithmetic rather than a gesture.
 
-        IT FLIPS UNDER THREE REPAIRS AND PRESCRIBES NONE, measured by
+        IT FLIPPED UNDER A REPAIR IT NEVER NAMED, which is the property
+        this red was built to have. Three candidates were measured by
         monkeypatching each over `_label_position_rederived` from a
-        throwaway plugin, with every ungated pole of this class and its
-        sibling green and all three protected controls green in each
-        case. The grid column is what each costs the 735-cell grid, and
-        it is information for whoever repairs this rather than a
-        constraint from here:
+        throwaway plugin, each with every ungated pole of this class and
+        its sibling green — (1) drop the y term, grid 10/83 and 5/455;
+        (4) ask the client's own `computeBoundTextPosition`, grid 24/83
+        and 5/455; (5) key on the caption's TEXT rather than its size,
+        grid 10/83 and 5/455. What landed was NONE of the three:
+        `84f33fb` anchors the prediction on the container's TOP EDGE.
+        A red that flips under a repair absent from its own candidate
+        list is a red that pinned the relation and not a prescription.
 
-          (1) DROP THE Y TERM, keeping `-dw/2` on x, since the client
-              re-centres on width alone.          grid 10/83, 5/455
-          (4) ASK THE CLIENT'S OWN RULE. Excalidraw's
-              `computeBoundTextPosition` is the placement a tab uses;
-              a caption sitting on it was laid out, not dragged.
-                                                  grid 24/83, 5/455
-          (5) ASK THE TEXT, NOT THE SIZE. A caption whose string nobody
-              edited was not re-laid-out; a re-measure is a width event
-              and only the container's carry may move it on y.
-                                                  grid 10/83, 5/455
-
-        WHAT MUST NOT FLIP IT, measured the same way: candidate (D) from
-        the sibling red — the caption's OFFSET inside its container,
-        which keeps the same `-dh/2` on y and leaves both poles exactly
-        as they are; a per-axis comparison, which changes which
-        agreements count and not what is predicted; and going mute about
-        every bound caption, which the two controls above refuse.
+        WHAT MUST NOT HAVE FLIPPED IT, measured the same way: candidate
+        (D) from the sibling red — the caption's OFFSET inside its
+        container, which keeps the same `-dh/2` on y and leaves both
+        poles exactly as they are; a per-axis comparison, which changes
+        which agreements count and not what is predicted; and going mute
+        about every bound caption, which the two controls above refuse
+        and which stays refused now the mask is off.
         """
         cap = self._capture()
-        # ASKED BEFORE THE REPLAY and by assertion, because
-        # `expectedFailure` swallows errors as readily as failures and a
-        # missing capture would otherwise read as a healthy red.
+        # ASKED BEFORE THE REPLAY and by assertion, because this test was
+        # `expectedFailure` until 2026-08-31 and that decorator swallows
+        # errors as readily as failures — a missing capture would have
+        # read as a healthy red. Kept after the flip: the same assertion
+        # is what stops an absent capture reading as a healthy GREEN.
         self.assertNotEqual(
             cap, {},
-            "no browser capture exists, so this red has no subject. See "
+            "no browser capture exists, so this test has no subject. See "
             "the guard above, which fails ungated for this reason")
         subject = rewrap_subject(cap)
         self.assertNotEqual(
@@ -39180,51 +39213,63 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
             % (dy, subject["dh"], -dy,
                out["record"]["summary"].get("headline"), entry))
 
-    @unittest.expectedFailure
     def test_no_caption_of_an_untouched_box_is_narrated_after_a_rewrap(
             self) -> None:
-        """RED 2026-08-31: the same term narrates a caption nobody touched.
+        """FLIPPED 2026-08-31 by `84f33fb`: the rewrap phantom is gone.
 
         THE OTHER POLE OF ONE TERM, and it needs no drag at all. This is
         the sibling class's own invariant — a caption of a box nobody
         went near is not narrated as having moved — measured over the
         population that class's capture cannot hold. The user dragged
         one box; the box this caption belongs to was asserted in the
-        browser not to have moved before the save was taken.
+        browser not to have moved before the save was taken. Its mask
+        came off beside its opposite pole's, in one curator pass, after
+        the capture was re-recorded from a live tab against the shipping
+        head: the re-record took `observed` from three moved facts to
+        one, which is this very phantom disappearing under a browser's
+        own witness rather than under a replay's opinion.
 
-        WHY IT SURVIVED THE SIBLING'S REPAIR. The x arm is right here:
-        the tab widened the caption by 4 and posted it 2 to the left,
-        which is exactly `-dw/2`, and the prediction agrees to the
-        pixel. The y arm predicts `+11` for a caption the tab did not
-        move at all, and the two axes are compared AS A TUPLE — so one
-        axis being wrong throws the other axis's agreement away and the
-        record narrates a move on the most ordinary event there is: a
-        tab opening a drawing.
+        WHY IT SURVIVED THE SIBLING'S REPAIR AND NOT THIS ONE. The x arm
+        was already right: the tab widened the caption by 4 and posted
+        it 2 to the left, exactly `-dw/2`, and the prediction agreed to
+        the pixel. The y arm predicted `+11` for a caption the tab did
+        not move at all, and the two axes are compared AS A TUPLE — so
+        one axis being wrong threw the other axis's agreement away and
+        the record narrated a move on the most ordinary event there is:
+        a tab opening a drawing. `84f33fb` anchored the prediction on
+        the container's top edge, which is what the client anchors, so
+        the y arm stopped inventing a displacement and the tuple agrees.
 
-        THE SIBLING RED IS GREEN AND THIS CLASS IS WHY THAT IS NOT A
-        CLOSURE. `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved`
-        passes on its own capture, where every caption is one line in
-        both wraps. Its invariant is not closed; its POPULATION cannot
-        reach the failing case. A reader who takes the green there for
-        "phantom captions are fixed" is reading the twelfth closure of
-        this class.
+        THE SIBLING'S GREEN WAS NEVER THE CLOSURE, AND THIS ONE IS NOT
+        EITHER. `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved`
+        passed on its own capture — where every caption is one line in
+        both wraps — while this invariant failed here, because its
+        POPULATION could not reach the failing case. That is the reason
+        this class exists and the reason its green is worth more than
+        the sibling's was: this capture holds a `dh` of about -22. It is
+        still one capture. Twelve closures of this family have been
+        announced; this is a thirteenth green, over a wider population
+        than any of them, and it is not a proof that no population is
+        left. `recenter_label` remains wrong for an ellipse and a
+        diamond, named above this file's anchor class.
 
-        IT FLIPS UNDER FOUR REPAIRS AND PRESCRIBES NONE, measured the
-        same way as the pole above: (1) dropping the y term, (3) letting
-        the size term be a candidate rather than a commitment on each
-        axis, (4) asking the client's own placement rule, and (5) keying
-        on the caption's TEXT rather than its measured size. It also
-        flips under going mute about every caption — which is why it is
-        NOT this class's only red, and why the pole above and the two
-        controls are ungated.
+        IT FLIPPED UNDER A REPAIR IT NEVER NAMED. Four candidates were
+        measured the same way as the pole above — (1) dropping the y
+        term, (3) letting the size term be a candidate rather than a
+        commitment on each axis, (4) asking the client's own placement
+        rule, (5) keying on the caption's TEXT rather than its measured
+        size — and the repair that landed is none of them. It also flips
+        under going mute about every caption, which is why this was
+        never this class's only red, and why the opposite pole and the
+        two controls are ungated and stay so.
 
-        WHAT MUST NOT FLIP IT: candidate (D), which keeps the term, and
-        a per-axis comparison, which keeps it too.
+        WHAT MUST NOT HAVE FLIPPED IT: candidate (D), which keeps the
+        term, and a per-axis comparison, which keeps it too.
         """
         cap = self._capture()
         self.assertNotEqual(
             cap, {},
-            "no browser capture exists, so this red has no subject. See "
+            "no browser capture exists, so this test has no subject. See "
             "the guard above, which fails ungated for this reason")
         out = self._replay("red-over")
         pop = cap["population"]
@@ -39743,65 +39788,89 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
             "satisfied by going silent about bound captions, which is "
             "the one way it must never be satisfied: %s" % (9, lost))
 
-    @unittest.expectedFailure
     def test_a_caption_the_tab_laid_out_is_not_narrated_as_moved(
             self) -> None:
-        """RED 2026-08-31: the writer's `+6` against the client's `5`.
+        """FLIPPED 2026-08-31 by `84f33fb`: the writer's `6` became `5`.
+
+        THE MASK CAME OFF FOR THE ONE REASON IT MAY. `84f33fb` took
+        repair (a) below — `recenter_label`'s vertical anchor now reads
+        `BOUND_TEXT_PADDING`, the constant `canvas.py` already held at
+        the client's own value, instead of a literal 6. The fixer left
+        the decorator on because a fixer may not un-decorate its own
+        red; it reported `unexpected success` until a curator checked
+        every pole of this class.
 
         THE RELATION IS WHAT IS PINNED: a caption the TAB laid out, on a
         gesture aimed at its container, was not moved by anybody and may
         not be narrated as having moved. No coordinate literal appears
         in the assertion — the client's placement is computed from the
-        padding this test read out of the shipped bundle.
+        padding this test read out of the shipped bundle, so this green
+        survives a rebuild that changes the padding and fails loudly on
+        one that renames the symbol.
 
-        WHAT IS FAILING, and it is a constant rather than a rounding.
-        `recenter_label` writes a top-anchored caption at
+        WHAT WAS FAILING, and it was a constant rather than a rounding.
+        `recenter_label` wrote a top-anchored caption at
         `container.y + 6` and a bottom-anchored one at
         `container.y + height - h - 6`. The client's
         `computeBoundTextPosition` writes `container.y + Kn` and
         `container.y + height - h - Kn`, and `Kn` is 5. So the stored
-        caption is one pixel from where the tab will draw it; the first
-        layout the tab performs moves it there, and the record reports
+        caption sat one pixel from where the tab draws it; the first
+        layout the tab performed moved it there, and the record reported
         `Term nudged` about a caption nobody touched. On a resize the
-        number the record prints is wrong as well as the sentence: a
-        container grown 40px narrates its caption as having moved 41.
+        number the record printed was wrong as well as the sentence: a
+        container grown 40px narrated its caption as having moved 41.
 
-        `middle` IS SILENT AND THAT IS THE TELL. Both rules reduce to
-        `c.y + (c.height - h)/2` there, which is why every instrument in
-        this repo — whose captions are all `middle` — has been green
-        over this since the anchor was written. The pole above asserts
-        that agreement, so this red is about the two anchors and not
-        about the comparison.
+        `middle` WAS SILENT ON A RECTANGLE AND THAT WAS THE TELL — and
+        the qualification is the whole of it. On a RECTANGLE both rules
+        reduce to `c.y + (c.height - h)/2` and agree to the bit, which
+        is why every instrument in this repo, whose captions are all
+        `middle` over rectangles, was green from the day the anchor was
+        written. The pole above asserts that agreement and asserts it
+        for rectangles only. ON AN ELLIPSE AND A DIAMOND `middle` DOES
+        NOT AGREE: measured over 804 (height, caption-height) cells,
+        ellipse disagrees in 804 exactly and 201 after `_round_geom`,
+        diamond in 400 and 100 — and it is narrated, 29 and 14 of 116
+        cells driven through a real `Store`. That is a HALF-PIXEL
+        residual, not this anchor's pixel; see the note above this class
+        for why it is the `_round_geom` family and not a second anchor
+        bug. Stated because the unqualified version of this sentence is
+        the exact failure mode `test_the_wrap_width_the_repair_names_is
+        _a_superset` was added in this same wave to correct one level
+        over: a true claim about rectangles written as a claim about
+        containers.
 
-        PRE-EXISTING. Identical on `84c226d`, so it is not the height
-        wave's doing and not the displacement arm's.
+        PRE-EXISTING. Identical on `84c226d`, so it was never the height
+        wave's doing and never the displacement arm's.
 
-        IT FLIPS UNDER TWO REPAIRS AT DIFFERENT LAYERS AND PRESCRIBES
-        NEITHER, measured against patched copies with every pole of this
-        class green and all three protected controls green in each:
+        IT FLIPPED UNDER ONE OF TWO REPAIRS AT DIFFERENT LAYERS AND
+        PRESCRIBED NEITHER, both measured against patched copies with
+        every pole of this class green in each:
 
-          (a) THE PRODUCT LAYER. `recenter_label` anchors on
-              `BOUND_TEXT_PADDING` — which `canvas.py` already holds at
-              the client's own value — instead of on a literal 6. This
-              one changes the PICTURE: the caption is drawn where the
-              tab will draw it, which is the defect a reader actually
-              sees.
-          (b) THE RECORD LAYER. `_label_position_rederived` accepts the
-              CLIENT's own placement as a derivation beside the
-              writer's, so a caption sitting exactly where
-              `computeBoundTextPosition` puts one was laid out and not
-              dragged. This one leaves the picture alone and stops the
-              sentence.
+          (a) THE PRODUCT LAYER — what landed, in `84f33fb`.
+              `recenter_label` anchors on `BOUND_TEXT_PADDING`, which
+              `canvas.py` already held at the client's own value,
+              instead of on a literal 6. This one changes the PICTURE:
+              the caption is drawn where the tab will draw it, which is
+              the defect a reader actually sees.
+          (b) THE RECORD LAYER — still available and deliberately not
+              taken. `_label_position_rederived` accepts the CLIENT's
+              own placement as a derivation beside the writer's, so a
+              caption sitting exactly where `computeBoundTextPosition`
+              puts one was laid out and not dragged. This one leaves
+              the picture alone and stops the sentence.
 
-        They are not variants: (a) makes the drawing right and (b) makes
-        the record right, and a reviewer may reasonably want both. The
-        red is indifferent.
+        They were never variants: (a) makes the drawing right and (b)
+        makes the record right, and a reviewer may reasonably want both.
+        The red was indifferent and (a) is what shipped — so the record
+        layer still holds no second definition of where a bound caption
+        belongs, which is `recenter_label`'s own docstring's ruling
+        rather than an omission.
 
-        WHAT MUST NOT FLIP IT: going silent about bound captions, which
-        the drag pole above refuses at both signs; and widening the
-        agreement into a tolerance, which would accept the ellipse's
-        sixteen-pixel divergence as derived — that one is named above
-        this class and is a different repair.
+        WHAT MUST NOT HAVE FLIPPED IT: going silent about bound
+        captions, which the drag pole above refuses at both signs; and
+        widening the agreement into a tolerance, which would have
+        accepted the non-rectangular divergence as derived — that one is
+        named above this class and is a different repair.
         """
         assert_the_client_rules_were_read(self, self.rules)
         narrated = []
@@ -39816,16 +39885,26 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
                           "client_draws_it_at": client_caption_y(
                               self.rules, box, cap),
                           "record_says": (entry or {}).get("semantic")}))
+        # NO SERVER-SIDE LITERAL IN THIS MESSAGE. It named
+        # "`container.y + 6`" until 2026-08-31 and outlived the 6 by the
+        # length of one commit: `84f33fb` moved the writer onto
+        # `BOUND_TEXT_PADDING` and the sentence would have reported a
+        # constant that no longer exists, at the one moment anybody
+        # reads it. Both anchors are read from their own source.
         self.assertEqual(
             narrated, [],
             "%d of %d cells narrate a caption the TAB laid out as having "
             "moved. Compare `writer_put_it_at` with `client_draws_it_at` "
             "in each: `recenter_label` anchors a top caption at "
-            "`container.y + 6` and the shipped client anchors it at "
-            "`container.y + %g`, so the caption is stored one pixel from "
-            "where it is drawn and the first layout moves it. Cells: %s"
-            % (len(narrated), len(self.CASES) * 2, self.rules["padding"],
-               narrated))
+            "`container.y + %g` (canvas.BOUND_TEXT_PADDING) and the "
+            "shipped client anchors it at `container.y + %g` (read from "
+            "the bundle). Where those two differ the caption is stored "
+            "away from where it is drawn and the first layout moves it; "
+            "where they AGREE this is not the anchor at all and the "
+            "cause is elsewhere — check the shape, because the two rules "
+            "meet on `middle` for a rectangle only. Cells: %s"
+            % (len(narrated), len(self.CASES) * 2,
+               canvas.BOUND_TEXT_PADDING, self.rules["padding"], narrated))
 
 
 # ---------------------------------------------------------------------------

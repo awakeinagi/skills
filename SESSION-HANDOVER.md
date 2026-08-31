@@ -150,7 +150,7 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: `TestALandedLabelPositionNarratesThroughEitherDoor` (2), `TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement` (2), `TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt` (1)
+Non-catalog red classes: `TestALandedLabelPositionNarratesThroughEitherDoor` (2)
 
 A REAL BROWSER IS THE REFEREE FOR THE PHANTOM-CAPTION CLASS since
 2026-08-31, after ELEVEN closures argued it against a model of one.
@@ -681,7 +681,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**5 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**2 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
