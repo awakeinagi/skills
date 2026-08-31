@@ -13188,6 +13188,26 @@ def _tw_names(refs, cap=3):
 # nobody re-greps.
 EMPTY_SAVE_HEADLINE = "saved without changing anything"
 
+# The verb a `by_element` entry MINTED BY THE ROLLUP carries, and the one
+# thing it is allowed to say: a part of this element changed. The rollup
+# used to hand the host the PART's verb, so a bound label moving inside a
+# stationary box produced `{"id": "box", "verb": "moved",
+# "attrs_changed": [], "parts_changed": ["box-label"]}` — the empty-save
+# class with its sign reversed, a record asserting a change that did not
+# happen, and it arrived inside the fix for the other direction. `verb` is
+# the field SKILL.md tells an agent to read back, so that entry made the
+# agent say the panel moved while the user was looking at a panel that did
+# not.
+#
+# NOT A FACT NAME, deliberately, and so deliberately not in `SALIENCE`.
+# Nothing here mints a fact, changes `verb_counts` or reaches a headline:
+# a host whose part changed and which changed in no other way has no
+# sentence of its own to say, and inventing one would trade this
+# over-report for a louder one. An entry the host earns on its own — its
+# own `moved`, `resized` or `renamed` — is seeded from that fact FIRST and
+# keeps it, because `entry_for` only stamps a verb on the entry it mints.
+PART_CHANGED_VERB = "part_changed"
+
 SALIENCE = ["user_route_replaced",
             "rewired", "relationship_rewired", "rerouted",
             "actor_reassigned",
@@ -23127,11 +23147,23 @@ class Store:
         reader the rest of this repo rolls parts up with, and a bound
         label answers it too, so restyling `card-label` now names `card`
         as well.
-        The host takes the part's VERB and a `parts_changed` list, and
-        deliberately NOT the part's `attrs_changed`: no op named an
+        The host takes `PART_CHANGED_VERB` and a `parts_changed` list,
+        and deliberately NOT the part's `attrs_changed`: no op named an
         attribute on the host, and copying them up would trade one wrong
         list for another. Nothing here changes which facts are emitted,
         which verb is chosen for a fact, or any headline.
+
+        THE HOST TOOK THE PART'S VERB UNTIL 2026-08-31 and that is the
+        one line of this rollup that was a defect. `verb` is the field an
+        agent reads back, so a bound label moving inside a stationary box
+        minted `{"id": "box", "verb": "moved", "attrs_changed": [],
+        "parts_changed": ["box-label"]}` and the agent said the panel
+        moved — 8 of 46 entries over the label grid, both `moved` and
+        `resized` reachable. The rollup is the ruled property and stays;
+        what it says about the host is now a verb of the host's own, and
+        `parts_changed` already carries which part moved. A host that
+        earned a verb honestly keeps it: `entry_for` stamps only the
+        entry it mints, and the fact walk above runs first.
 
         Args:
             diff: This artifact's bucketed diff.
@@ -23194,7 +23226,7 @@ class Store:
             if not owner or owner == eid or (owner not in new_ix
                                              and owner not in old_ix):
                 continue
-            host = entry_for(owner, entries[eid]["verb"])
+            host = entry_for(owner, PART_CHANGED_VERB)
             if eid not in host["parts_changed"]:
                 host["parts_changed"].append(eid)
         for i, c in enumerate(diff["changes"]):
