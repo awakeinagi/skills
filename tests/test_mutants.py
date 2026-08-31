@@ -35853,6 +35853,301 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# TWO GATES ASKING ONE QUESTION IN TWO GRAMMARS. Filed by the
+# mutant-curator, 2026-08-31, out of the same review. The suppression is
+# `_geometry_derived`'s third arm and it reads `type == "text" and
+# containerId`; the durability half that UNDOES the suppression reads
+# `role_of(new) == "label"`. Bound text carrying no `customData.role` — what
+# native Excalidraw bound-text creation, a paste and an import all
+# produce — matches the first and not the second, so it falls between them
+# and the undo never reaches it.
+#
+# THE DOOR IS WHAT MAKES IT VISIBLE, and the asymmetry is the whole finding:
+# through the agent door a `mod` op NAMES the coordinate, provenance
+# un-derives it one layer earlier and the same scene narrates; through the
+# user door nothing is named, the role gate declines, and the record
+# headlines the empty-save sentence over a position that landed and
+# survived the reload. Same scene, same delta, same value on disk, two
+# different answers.
+# ---------------------------------------------------------------------------
+
+
+def stage_a_bound_label_without_its_role_tag(mod: Any, root: Path,
+                                             tagged: bool) -> Any:
+    """Stage the grid's scene, optionally stripping the label's role tag.
+
+    THE TAG IS REMOVED THROUGH THE USER DOOR and not by editing the file,
+    because the point is that this state is REACHABLE: a browser's own
+    bound-text creation, a paste and an import all mint `type: "text"`
+    with a `containerId` and no `customData.role`, and every one of them
+    arrives as an ordinary save. A scene hand-written into the artifact
+    file would leave open whether anything can produce it.
+
+    Args:
+        mod: The canvas module under test.
+        root: An empty directory to build the project in.
+        tagged: False strips `customData.role` off the bound label.
+
+    Returns:
+        The loaded `Store`, artifact `g` staged.
+    """
+    store = stage_one_labelled_box(mod, root)
+    if tagged:
+        return store
+    els = copy.deepcopy(store.scenes["g"])
+    for e in els:
+        if e.get("type") == "text" and e.get("containerId"):
+            e["customData"] = {"author": "user"}
+    store.commit(author="user", new_scenes={"g": els},
+                 base_revn=store.head_revn())
+    return store
+
+
+def role_tag_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
+    """Move a bound label with and without its role tag, through both doors.
+
+    Four intent cells and four carried cells. The carried half is the
+    neighbour: a repair that reaches the red by narrating every bound
+    text element's coordinate arrives there.
+
+    Args:
+        mod: The canvas module under test.
+        root: A directory each cell may take a fresh project root under.
+
+    Returns:
+        One dict per cell: whether the label was tagged, the door, the
+        role `role_of` answers, the position asked for and the one a
+        reload shows, whether they agree, the headline, and the
+        `by_element` entry naming the label.
+    """
+    cells: list[dict[str, Any]] = []
+    for tagged in (True, False):
+        for door in _LABEL_GRID_DOORS:
+            for condition, drop in (("alone", 30.0), ("host_moved", 0.0)):
+                cell_root = root / ("%s-%s-%s" % (tagged, door, condition))
+                store = stage_a_bound_label_without_its_role_tag(
+                    mod, cell_root, tagged)
+                was = next(e for e in store.scenes["g"]
+                           if e["id"] == "box-label")
+                start = (was.get("x"), was.get("y"))
+                record, asked = _LABEL_GRID_SAVES[door](
+                    mod, store, condition, drop)
+                after = mod.Store(mod.Project(cell_root)).scenes["g"]
+                label = next(e for e in after if e["id"] == "box-label")
+                disk = (label.get("x"), label.get("y"))
+                part = (record.get("artifacts") or {}).get("g") or {}
+                entries = {b["id"]: b for b in (part.get("by_element") or [])}
+                cells.append({
+                    "tagged": tagged, "door": door, "condition": condition,
+                    "drop": drop,
+                    # THE TAG THE SAVE SAW, not `role_of`'s answer and not
+                    # the reload's. Two of the candidate repairs move
+                    # each of those: `role_of` reading the binding, and
+                    # the loader stamping the tag. A premise keyed on
+                    # either would refuse a repair it had published as
+                    # acceptable, which is a pin prescribing a fix by the
+                    # back door. What this class is about is a save whose
+                    # INPUT carried no role, so that is what is read.
+                    "role_tag": (was.get("customData") or {}).get("role"),
+                    "role": mod.role_of(label),
+                    "asked": asked, "disk": disk, "durable": disk == asked,
+                    "shifted": disk != start,
+                    "headline": record["summary"]["headline"],
+                    "silent": (record["summary"]["headline"]
+                               == mod.EMPTY_SAVE_HEADLINE),
+                    "entry": entries.get("box-label")})
+    return cells
+
+
+class TestABoundLabelIsJudgedByItsBindingAndNotByItsRoleTag(
+        unittest.TestCase):
+    """The same landed move narrates the same way, tag or no tag.
+
+    THE INVARIANT: a `text` element bound to a container is judged as a
+    bound label by every layer that has an opinion about one. Strip
+    `customData.role` and the SUPPRESSION still applies —
+    `_geometry_derived` reads the type and the binding — so the undo must
+    apply too, or the record's answer depends on a tag that describes
+    nothing about the picture.
+
+    MEASURED 2026-08-31 on one labelled rectangle, `+30` down, durable on
+    disk after a fresh load in all four cells:
+
+        tagged   agent   'Alpha moved down'                 box-label(y)
+        tagged   user    'Alpha moved down'                 box-label(y)
+        untagged agent   'Alpha moved down'                 box-label(y)
+        untagged user    'saved without changing anything'  by_element []
+
+    STATED AS AN AGREEMENT, not as a direction, because the defect IS the
+    disagreement — and the direction is fixed separately by the ungated
+    pole below, which holds that the tagged label narrates through both
+    doors. Without that pole an agreement could be reached by silencing
+    both, which is the repair this class must never be able to prescribe.
+
+    WHY IT IS NOT AN AXIS OF THE GRID ABOVE. Folding the tag in would
+    make that red need a repair large enough to close two defects at
+    once, and whichever one its fixer thought of would have satisfied it.
+    One defect per red is what keeps a fix and its acceptance test in
+    different hands.
+    """
+
+    def setUp(self) -> None:
+        """Give each test its own root; every cell takes a project under it."""
+        self.root = Path(tempfile.mkdtemp(prefix="role-tag-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def test_the_untagged_label_is_still_a_bound_label_that_landed(
+            self) -> None:
+        """The premise, ungated: the cells exist and the state is reachable.
+
+        Three things the red below is vacuous without: the strip really
+        did leave the element without a stored role, the move really did
+        land in every cell, and the suppression really does still apply
+        to the untagged element — if `_geometry_derived` stopped
+        answering True for it there would be nothing to undo and no
+        defect here at all.
+
+        THE FIRST IS ASKED OF THE STORED SCENE AND NOT OF `role_of`,
+        which is a distinction this test got wrong on its first draft.
+        One of the honest repairs the red names is `role_of` answering
+        `label` for bound text; a premise keyed on its ANSWER differing
+        between the two halves goes red under exactly that repair, so
+        the pin would have been prescribing against a fix it had
+        published as acceptable. What must survive a repair is the
+        SCENE: one bound label with a role in its `customData` and one
+        without.
+        """
+        cells = role_tag_cells(canvas, self.root)
+        self.assertEqual(
+            sorted({(c["tagged"], c["role_tag"]) for c in cells},
+                   key=repr),
+            [(False, None), (True, "label")],
+            "the two halves of this grid no longer differ in the one "
+            "thing they are supposed to differ in — a stored "
+            "`customData.role` — so the red below is comparing a label "
+            "with itself. Roles `role_of` reports: %s"
+            % sorted({(c["tagged"], c["role"]) for c in cells}, key=repr))
+        self.assertEqual(
+            [(c["tagged"], c["door"], c["asked"], c["disk"])
+             for c in cells if c["drop"] and not c["durable"]], [],
+            "a cell did not land, so the red below is passing over it "
+            "rather than putting it")
+        store = stage_a_bound_label_without_its_role_tag(
+            canvas, self.root / "premise", tagged=False)
+        label = next(e for e in store.scenes["g"] if e["id"] == "box-label")
+        self.assertTrue(
+            canvas._geometry_derived(label),
+            "the untagged bound label is no longer suppressed by "
+            "`_geometry_derived`, so there is no suppression left for the "
+            "durability rule to undo and this class has lost its subject")
+
+    def test_a_tagged_bound_label_narrates_through_both_doors(self) -> None:
+        """The ground already won, ungated: the direction of the red.
+
+        The durability ruling of 2026-08-31 closed the single-change
+        cell on both doors for a label carrying its role tag. Held here
+        WITHOUT the mask so the agreement below cannot be reached by
+        silencing the tagged half — which is the one repair that would
+        satisfy an agreement assertion while making the product worse.
+        """
+        cells = role_tag_cells(canvas, self.root)
+        lost = [(c["door"], c["headline"]) for c in cells
+                if c["tagged"] and c["drop"] and c["durable"]
+                and not record_accounts_for_the_move(c["entry"], "y")]
+        self.assertEqual(
+            lost, [],
+            "a TAGGED bound label's landed move has stopped narrating on "
+            "%s. That is the durability repair regressing, and until it "
+            "is back the red below could be satisfied by silencing both "
+            "halves instead of raising the quiet one" % (lost,))
+
+    def test_a_carried_bound_label_narrates_on_neither_door(self) -> None:
+        """The neighbour, ungated: carrying is still the container's story.
+
+        Tagged or not, a label the container took along was positioned by
+        nobody. A repair that reaches the red by narrating every bound
+        text element's coordinate arrives here, and so does one that
+        widens the gate without widening the carve-out with it.
+        """
+        cells = role_tag_cells(canvas, self.root)
+        carried = [c for c in cells if not c["drop"] and c["shifted"]]
+        self.assertNotEqual(
+            carried, [],
+            "no cell carries a bound label without positioning it, so "
+            "this neighbour is vacuous — the host move has stopped "
+            "moving the label")
+        claimed = [(c["tagged"], c["door"], c["headline"]) for c in carried
+                   if record_accounts_for_the_move(c["entry"], "x")
+                   or record_accounts_for_the_move(c["entry"], "y")]
+        self.assertEqual(
+            claimed, [],
+            "%d of %d carried labels are narrated as having moved on "
+            "their own" % (len(claimed), len(carried)))
+
+    @unittest.expectedFailure
+    def test_the_role_tag_does_not_change_what_the_record_says(self
+                                                               ) -> None:
+        """RED 2026-08-31: the user door answers on the tag, not the binding.
+
+        The whole class in one assertion, and it is an AGREEMENT: for
+        each door, the record's account of a landed bound-label move is
+        the same whether or not the label carries `customData.role`. No
+        headline, coordinate or count is written down — the two halves
+        are compared to each other.
+
+        WHY THE AGENT DOOR AGREES AND THE USER DOOR DOES NOT. A `mod` op
+        names `x`/`y`, so `diff_scenes` puts them in `own` from
+        PROVENANCE before the role gate is ever consulted, and the move
+        is minted whatever `role_of` answers. A browser save names
+        nothing, every suppressor applies, and the one thing that would
+        undo `_geometry_derived`'s third arm is spelled in a different
+        grammar than the arm itself.
+
+        WHAT FLIPS IT, measured against patched copies with every
+        ungated pole above still green and the sibling grid's red still
+        red — two layers, so this red prescribes neither:
+
+          (U) THE GATE. The durability half asks the same question
+              `_geometry_derived`'s third arm asks (`type == "text"` with
+              a `containerId`) rather than a second one about a tag.
+          (W) THE READER. `role_of` answers `label` for bound text with
+              no explicit role, closing the gap in the one function both
+              gates go through.
+
+        AND ONE THAT DOES NOT, measured rather than reasoned, because it
+        is the repair a reader of the two gates reaches for first. (V)
+        THE LOADER — `validate_scene` stamping the role on bound text
+        that carries none — leaves this red RED, and correctly: the
+        load-time repair catalogue runs when a project is READ, and
+        `Store.commit` judges the scene already in memory. A session
+        that created the untagged label goes on saving it untagged until
+        somebody restarts. A partial repair leaving a red red is the pin
+        working; a COMPLETE one leaving it red would mean it had
+        prescribed a shape, and the two look identical from the colour.
+
+        WHAT MUST NOT FLIP IT: silencing the tagged half to reach the
+        agreement, which the ungated pole above refuses — measured, that
+        cheat leaves this red red AND takes three other classes with it.
+        """
+        cells = role_tag_cells(canvas, self.root)
+        landed = [c for c in cells if c["drop"] and c["durable"]]
+        by_door: dict[str, dict[bool, bool]] = {}
+        for c in landed:
+            by_door.setdefault(c["door"], {})[c["tagged"]] = (
+                record_accounts_for_the_move(c["entry"], "y"))
+        disagree = {door: answers for door, answers in by_door.items()
+                    if len(set(answers.values())) > 1}
+        self.assertEqual(
+            disagree, {},
+            "the record's account of a landed bound-label move depends "
+            "on a tag that describes nothing about the picture: %s "
+            "(True means the move was accounted for). Headlines: %s"
+            % (disagree,
+               [(c["door"], c["tagged"], c["headline"]) for c in landed
+                if c["door"] in disagree]))
+
+
+# ---------------------------------------------------------------------------
 # ONE COMPOSED-PART PREDICATE, THREE SITES, AND NO AUTHOR. Handed over by
 # the v0.9 coordinator, 2026-08-19: `_composed_part` was extracted by one
 # stream specifically to be the single reader of "does this element carry a
