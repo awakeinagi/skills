@@ -25702,6 +25702,26 @@ class TestMutantCatalogue(unittest.TestCase):
         # because the check returned on `rival is None`, so the only
         # thing it could have said about this glyph depended on a THIRD
         # element this scene does not have.
+        #
+        # WITNESSED BY REVERT, all four cells, on the tip that ships —
+        # the entry's prediction re-run against the repair rather than
+        # credited from the colour. Rows are the two halves of WP-A;
+        # cells are this mutant / the producer red
+        # `TestAMovedNodeDoesNotStrandItsPin`:
+        #
+        #   neither repair   RED  / RED     both reds are reachable
+        #   applier only     RED  / green   the check is the only thing
+        #                                   that can discharge THIS one
+        #   lint arm only    green/ green   the producer's disjunction is
+        #                                   satisfied by the check alone
+        #   both (shipped)   green/ green
+        #
+        # So the two repairs are not alternatives and neither red named
+        # the one that flipped it: this pole is untouchable from a write
+        # path, and the producer pole would have gone green on either.
+        # Both green controls (`_pin_at_a_legitimate_near_tie` here,
+        # `_pin_on_a_screen_stage` on the sibling) stayed green in all
+        # four configurations.
         self._run("pin_left_behind_by_its_moved_target")
 
     def test_neighbour_pin_left_behind_by_its_moved_target(self) -> None:
@@ -27194,9 +27214,19 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 # was one defect with two doors and it took two repairs: the applier carry
 # for the door an op comes through, and `pindrift`'s new absolute arm for
 # the door a user's own drag comes through, where no op exists to carry
-# anything. The producer red's disjunction is satisfied by the first alone
-# — which is why nothing in this dict can witness the second, and why the
-# catalogue sibling had to exist.
+# anything. The producer red's disjunction is satisfied by EITHER alone,
+# witnessed by reverting each half separately — the four-cell matrix is in
+# the catalogue sibling's own test method — which is why nothing in this
+# dict can witness the second, and why the catalogue sibling had to exist.
+#
+# THE CARRY IS WHAT THE PRODUCT NEEDED, and the check alone would have
+# satisfied both reds while leaving it broken. Measured on three corpus
+# flows re-laid through the real applier — every node given a fresh
+# `mod x,y`, which is exactly what `mermaid --relayout` issues: without the
+# carry four pin gaps go 0/8/8/8px to 1073.0/1482.6/552.8/1047.3px and the
+# standing lint files four pindrift warnings; with it every gap is
+# preserved to the pixel and the lint files none. WP-A acceptance
+# criterion 1 is that relation and not those literals.
 #
 # WHAT THE PAIR PROVED ABOUT ITSELF. The producer red was measured by its
 # author to flip under all three honest repairs and the catalogue red under
