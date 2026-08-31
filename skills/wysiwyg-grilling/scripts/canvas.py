@@ -10142,6 +10142,23 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
             # from a pin glyph to its target, so no gate holds the op
             # either — the node walks, the locked glyph stays, and the
             # standing `pin_drift` lint is what names the result.
+            #
+            # A ❓ ABOUT AN ARROW IS NOT CARRIED EITHER, and the scope
+            # limit is stated because nothing else states it. This adds
+            # the delta of the op that moved the TARGET, and an arrow is
+            # never that: an arrow bound to a moved node is RE-ROUTED by
+            # the F1 post-pass, not translated, so it has no delta to
+            # hand on — and a single delta is arguably ill-defined for a
+            # path whose two ends can move by different amounts, or one
+            # of which does not move at all. So `mod src y=600` re-routes
+            # the edge and leaves a ❓ about that edge where it was
+            # (measured: 2px off its target to 541px). NOT CLOSED AND
+            # DELIBERATELY SO: 0 of the corpus's 41 pins name an arrow or
+            # a line, `pindrift`'s relative arm reports the case when it
+            # happens — the glyph ends up hugging whichever node it was
+            # drawn beside and reads as that node's question — and it
+            # would take a placement rule for pins on paths that the
+            # product does not have.
             if dx or dy:
                 for p in els:
                     pcd = p.get("customData") or {}
