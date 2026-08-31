@@ -27906,9 +27906,37 @@ def coverage_table() -> list[tuple[str, str, str]]:
 #     carrying `role: "label"` and a `containerId`, both first-class
 #     public-schema values. The same commit guarded the SIBLING early
 #     return in that function, three lines up, and missed this one.
+#
+# ONE LEFT AND ONE JOINED on 2026-08-31 (mutant-curator, the browser-referee
+# wave), and the pair is worth reading together because they are the two
+# ways this dict is supposed to move.
+#
+#   * `...IsNotADerivedPosition` LEFT, so the dict loses a LINE — the
+#     twelfth time that has been the shape here. `3c9a615` landed the
+#     repair this red published as acceptable (the writer returns the label
+#     it moved, or None) and then left the decorator on, because a fixer
+#     may not un-decorate its own red. It sat reporting `unexpected
+#     success` until a curator checked all four cells.
+#   * `...IsNarratedAsHavingMoved` JOINED, and it is the first entry here
+#     whose subject is a REAL BROWSER. Its scene is not built in Python at
+#     all: `pin-untouched-captions.spec.ts` drags one of eight labelled
+#     boxes in a tab and records the verbatim `/api/save` body, and this
+#     tier replays that body through whatever `canvas.py` is in the tree.
+#     Eleven closures of this class were argued against a MODEL of a
+#     browser and the model was wrong by half a pixel every time.
+#
+#   * `...NarratesThroughEitherDoor` KEEPS BOTH REDS AND NEITHER WAS
+#     FLIPPED, which is the case this dict most needs recorded. Both had
+#     gone UNEXPECTEDLY GREEN and neither had been fixed: the grid's client
+#     door translated the stored x and then adjusted the width, where a
+#     browser re-centres on its own re-measure FIRST and translates SECOND,
+#     so the instrument could not produce the defect and called that a
+#     repair. Corrected, they read 25 of 83 and 5 of 455. A GREEN THAT
+#     ARRIVES WITHOUT A REPAIR IS AN INSTRUMENT FAILURE, and the only
+#     reason it was caught is that a real browser disagreed with the model.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALabelTheWriterDeclinedToTouchIsNotADerivedPosition": 1,
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved": 1}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -35405,6 +35433,45 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
 #     `1` is the label's own move, which really happened. What is left is
 #     an ambiguity in how a bound label is NAMED, which no detector or
 #     fact name owns and which needs a product ruling rather than a pin.
+#   * THE SECOND TEXT BOUND TO ONE CONTAINER (seeded 2026-08-31 by the
+#     mutant-curator, out of the browser-referee wave). `recenter_label`
+#     writes `next(t for t in els if type == "text" and containerId ==
+#     el["id"])` — the FIRST bound text — while `_label_detached` answers
+#     about whichever element it is HANDED. So the writer writes one label
+#     and the reader answers about any, and a second bound text shoved
+#     401px below its container is durable through a fresh `Store`,
+#     `_label_detached` says True, `label_position_sticks` therefore says
+#     False, and the record headlines `saved without changing anything`
+#     with `by_element []`. Reachable through `/api/save`, which writes
+#     the scene it is handed.
+#
+#     THE BRIEF THAT SENT THIS ASKED FOR A PIN "WITH THE FIRST LABEL
+#     PINNED", AND THE PIN IS NOT PART OF THE MECHANISM. Measured both
+#     ways: pinned or not, `recenter_label` reaches only the first text, so
+#     the second is never re-glued either way and the record is mute in
+#     both. That is a one-writer/one-reader asymmetry — the family
+#     `_bound_label` and `_label_detached` were extracted to close — and
+#     not the pin interaction the brief described.
+#
+#     SEEDED AND NOT PINNED, for three reasons. `validate_scene`'s own
+#     comment already NAMES this mechanism verbatim ("`recenter_label`
+#     writes the first text bound to `c` and a scene holding two of them
+#     leaves the second exactly where it was"), and the loader half is
+#     CORRECT — its before/after witness files no repair, because none
+#     happened. The relation a pin would assert is `narrated == durable`,
+#     which is exactly what `test_every_landed_label_position_is_named_by
+#     _its_own_record` already asserts and is already red at 5 of 455;
+#     a second class asserting the same relation at the same magnitude on
+#     the same axis is the duplicate this catalogue dedupes rather than
+#     collects. And folding it in as an eighth grid FIXTURE would turn the
+#     ungated `test_a_position_no_container_derives_is_the_savers_own` pole
+#     from green to a hard failure — not a declared red — which is the one
+#     way a curator must never reach a colour.
+#
+#     WHAT WOULD CHANGE THE VERDICT: a client that produces two texts
+#     bound to one container. Excalidraw's own model is one, and `add`
+#     mints one, so today only a hand-built payload reaches it. If one
+#     appears, this is a red and the measurement above is its scene.
 # ---------------------------------------------------------------------------
 _LABEL_GRID_CAPTION = "Alpha"
 # A rename whose measured width the SERVER'S OWN metrics settle, so the
@@ -36215,6 +36282,25 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
     here and neither was red before the ninth closure's fix, and a grid
     green on either head is not yet measuring the class.
 
+    THE GRID IS 735 CELLS SINCE 2026-08-31 AND IT CORROBORATES RATHER
+    THAN REFEREES. Two things changed and both were the instrument, not
+    the product. The client door was re-ordered — a tab re-centres a
+    caption on its own re-measure FIRST and translates SECOND, and this
+    door did it the other way round, which is why both reds below had
+    gone UNEXPECTEDLY GREEN. And `(0, 12)` joined the deltas, closing a
+    displacement arm that compared x only. On this head the reds now read
+    25 of 83 and 5 of 455.
+
+    WHAT THIS GRID STILL CANNOT SEE, said plainly so nobody reads its
+    number as the class's size. `_LABEL_GRID_CLIENT_REMEASURE` is a
+    single constant of -3, so every cell's re-centre is a HALF pixel —
+    and the captions a real browser gets narrated here are the ones whose
+    re-centre is WHOLE. A tab measured eight captions at 1.5, 1, 1, 0,
+    1.5, 0, 1, 1.5. So this grid models one parity of the class and the
+    browser sees both. `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHaving
+    Moved` is the referee for that reason; a model that has been wrong
+    eleven times does not get to be the referee for its own class.
+
     THE 37 ARE THE HALF PIXEL. `_round_geom` is `int(round(v))`, so a
     container whose `width - label_width` is odd stores its label a half
     pixel off the writer's answer permanently; nudge that container by an
@@ -36519,7 +36605,19 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
     @unittest.expectedFailure
     def test_a_carried_label_is_its_containers_story_and_not_its_own(
             self) -> None:
-        """RED 2026-08-31: 37 of 58 carried labels are narrated as moved.
+        """RED 2026-08-31: 25 of 83 carried labels are narrated as moved.
+
+        IT WENT GREEN AND IT WAS NOT FIXED. This red reported UNEXPECTED
+        SUCCESS from `3c9a615` until 2026-08-31, and the reason was the
+        instrument: `label_grid_client_scene` translated the stored x and
+        then adjusted the width, where a browser re-centres on its own
+        re-measure FIRST and translates SECOND. The door was posting an x
+        consistent with the width beside it, which is the one thing a
+        real tab never does, so the grid could not produce the defect and
+        called that a repair. Corrected, this head narrates 25 of 83.
+        The mutant-curator did not un-decorate it; see
+        `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved`, where a
+        real browser says 3 of 7 on the same mechanism.
 
         THE OVER-REPORT POLE, and on this head it is the live one. In
         these cells the co-change moved the label and NOBODY positioned
@@ -36572,8 +36670,20 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
 
         Measured: (P + ASK), (R + ASK) and (P-on-the-destination-only +
         HOLD) each take the count to 0; every single-sided repair leaves
-        a residual — P alone 10, R alone 10, HOLD alone 3 — because the
+        a residual — P alone 10, R alone 10, HOLD alone 31 — because the
         two mechanisms are independent.
+
+        `HOLD ALONE 3` IS WHAT THAT LINE SAID UNTIL 2026-08-31, and it
+        was wrong by an order of magnitude. Re-measured in situ — a
+        `604a7a0` tree, its own `canvas.py` and its own grid, which is
+        the only configuration the other three figures are comparable in
+        — HOLD alone leaves 31 of 58. The `3` is not reproducible from
+        any variant tried: P-on-destination-only + HOLD is 0 (as
+        published), P-everywhere + HOLD is 6, and HOLD alone is 31.
+        Recorded rather than quietly corrected because of which
+        direction the error ran: `3` made the displacement arm look
+        nearly sufficient on its own, which is an argument for shipping
+        half the pair, and the pair is the finding.
 
         ONE CANDIDATE MEASURED AND REJECTED, recorded so it is not tried
         again: a TOLERANCE on the displacement comparison
@@ -36618,7 +36728,16 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
     @unittest.expectedFailure
     def test_every_landed_label_position_is_named_by_its_own_record(
             self) -> None:
-        """RED 2026-08-31: 14 of 315 landed label positions are in no record.
+        """RED 2026-08-31: 5 of 455 landed label positions are in no record.
+
+        IT WENT GREEN AND IT WAS NOT FIXED, for the same instrument
+        reason as its sibling: `11dd48d` closed the PINNED column that
+        made up all 14, and the corrected client door then opened a
+        different five. They are `client / *-shape / label_renamed /
+        (3, 0)` — a caption renamed AND nudged three pixels in one save,
+        where the record carries the rename and not the nudge. The pin
+        column really is closed; this is the residual behind it, and it
+        was invisible while the door posted the wrong order.
 
         THE UNDER-REPORT POLE. A cell fails when the position the save
         asked for is the position a fresh `Store` reads back and the
@@ -37433,6 +37552,22 @@ class TestALabelTheWriterDeclinedToTouchIsNotADerivedPosition(
     coming back: it is a defect the ninth closure's FIX introduced, one
     line below a guard the same commit added for the sibling early
     return in the same function.
+
+    GREEN SINCE `3c9a615` (2026-08-31), FLIPPED BY THE MUTANT-CURATOR on
+    the same day, and the delay is the point rather than an oversight: a
+    fixer may not un-decorate its own red, so the decorator sat reporting
+    `unexpected success` until somebody who did not write the repair
+    checked it. THE REPAIR IS THE ONE THIS RED PUBLISHED AS ACCEPTABLE —
+    `recenter_label` returns the label it moved, or None, so the writer
+    reports its own decline instead of the caller re-asking in a copy of
+    the writer's selector. All four cells now narrate; the shape/user
+    cell reads `cap moved right-down` where it read `saved without
+    changing anything`.
+
+    THE CLASS STAYS AT THREE GREEN TESTS, and what it now holds is that
+    a writer that declined and a writer that agreed remain
+    distinguishable. Deleting the return value is what would divide them
+    again, and nothing else in the tree would notice.
     """
 
     def setUp(self) -> None:
@@ -37499,10 +37634,15 @@ class TestALabelTheWriterDeclinedToTouchIsNotADerivedPosition(
             "satisfied by silencing both halves instead of raising the "
             "quiet one" % (lost,))
 
-    @unittest.expectedFailure
     def test_a_landed_drag_of_a_label_nothing_re_derives_is_in_the_record(
             self) -> None:
-        """RED 2026-08-31: a non-text `role: "label"` vanishes on the user door.
+        """FLIPPED 2026-08-31: it was red; `3c9a615` closed it.
+
+        The mask came off in the curator's browser-referee change, not in
+        the fixer's — a fixer may not un-decorate its own red, and this
+        one reported `unexpected success` until somebody who did not
+        write the repair had checked that all four cells narrate and that
+        both poles above were still green.
 
         THE RELATION IS WHAT IS PINNED, and it is asserted with
         magnitude and direction: the record must account for the

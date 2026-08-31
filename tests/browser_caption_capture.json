@@ -136,9 +136,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 640,
    "x": 80,
    "y": 80
@@ -172,9 +170,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 90,
    "x": 200,
    "y": 300
@@ -208,9 +204,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 91,
    "x": 200,
    "y": 410
@@ -244,9 +238,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 92,
    "x": 200,
    "y": 520
@@ -280,9 +272,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 93,
    "x": 200,
    "y": 630
@@ -316,9 +306,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 94,
    "x": 200,
    "y": 740
@@ -352,9 +340,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 95,
    "x": 200,
    "y": 850
@@ -388,9 +374,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 96,
    "x": 200,
    "y": 960
@@ -424,9 +408,7 @@
    "strokeStyle": "solid",
    "strokeWidth": 1,
    "type": "rectangle",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "width": 97,
    "x": 200,
    "y": 1070
@@ -463,9 +445,7 @@
    "text": "Email landlord about the repair",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 225,
    "x": 288,
@@ -503,9 +483,7 @@
    "text": "Ship",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 33,
    "x": 228,
@@ -543,9 +521,7 @@
    "text": "Order",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 42,
    "x": 224,
@@ -583,9 +559,7 @@
    "text": "Cart",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 31,
    "x": 230,
@@ -623,9 +597,7 @@
    "text": "Basket",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 50,
    "x": 222,
@@ -663,9 +635,7 @@
    "text": "Checkout",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 68,
    "x": 213,
@@ -703,9 +673,7 @@
    "text": "Pay",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 27,
    "x": 234,
@@ -743,9 +711,7 @@
    "text": "Refund",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 53,
    "x": 222,
@@ -783,9 +749,7 @@
    "text": "Invoice",
    "textAlign": "center",
    "type": "text",
-   "updated": 1,
    "version": 1,
-   "versionNonce": 0,
    "verticalAlign": "middle",
    "width": 51,
    "x": 223,
@@ -829,8 +793,6 @@
      },
      "seed": 205806856,
      "version": 2,
-     "versionNonce": 550301566,
-     "updated": 1788187174491,
      "index": "a0"
     },
     {
@@ -865,9 +827,7 @@
       "author": "agent"
      },
      "version": 14,
-     "versionNonce": 308954978,
      "seed": 818621302,
-     "updated": 1788187176739,
      "index": "a1"
     },
     {
@@ -902,9 +862,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 1388203966,
      "seed": 1204558816,
-     "updated": 1788187174491,
      "index": "a2"
     },
     {
@@ -939,9 +897,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 2061374242,
      "seed": 1589987930,
-     "updated": 1788187174491,
      "index": "a3"
     },
     {
@@ -976,9 +932,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 941205502,
      "seed": 700611276,
-     "updated": 1788187174491,
      "index": "a4"
     },
     {
@@ -1013,9 +967,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 766729954,
      "seed": 933687151,
-     "updated": 1788187174491,
      "index": "a5"
     },
     {
@@ -1050,9 +1002,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 1088419902,
      "seed": 1084350457,
-     "updated": 1788187174491,
      "index": "a6"
     },
     {
@@ -1087,9 +1037,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 929641122,
      "seed": 1504218691,
-     "updated": 1788187174491,
      "index": "a7"
     },
     {
@@ -1124,9 +1072,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 888291454,
      "seed": 783269589,
-     "updated": 1788187174491,
      "index": "a8"
     },
     {
@@ -1166,8 +1112,6 @@
      },
      "seed": 1942597543,
      "version": 2,
-     "versionNonce": 2058260066,
-     "updated": 1788187174491,
      "index": "a9"
     },
     {
@@ -1206,9 +1150,7 @@
       "author": "agent"
      },
      "version": 14,
-     "versionNonce": 640617250,
      "seed": 741895392,
-     "updated": 1788187176739,
      "index": "aA"
     },
     {
@@ -1247,9 +1189,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 743600674,
      "seed": 172975956,
-     "updated": 1788187174491,
      "index": "aB"
     },
     {
@@ -1288,9 +1228,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 1306441982,
      "seed": 1000832457,
-     "updated": 1788187174491,
      "index": "aC"
     },
     {
@@ -1329,9 +1267,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 256105954,
      "seed": 500201085,
-     "updated": 1788187174491,
      "index": "aD"
     },
     {
@@ -1370,9 +1306,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 1574627646,
      "seed": 1484212467,
-     "updated": 1788187174491,
      "index": "aE"
     },
     {
@@ -1411,9 +1345,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 814862754,
      "seed": 2113946439,
-     "updated": 1788187174491,
      "index": "aF"
     },
     {
@@ -1452,9 +1384,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 929501566,
      "seed": 1340627418,
-     "updated": 1788187174491,
      "index": "aG"
     },
     {
@@ -1493,9 +1423,7 @@
       "author": "agent"
      },
      "version": 2,
-     "versionNonce": 594234722,
      "seed": 1772049006,
-     "updated": 1788187174491,
      "index": "aH"
     }
    ]

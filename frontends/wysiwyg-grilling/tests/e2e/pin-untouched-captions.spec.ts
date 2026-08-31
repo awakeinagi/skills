@@ -85,6 +85,31 @@ const scene = (page: import("@playwright/test").Page): Promise<El[]> =>
         };
       }));
 
+/* Excalidraw stamps a fresh `versionNonce` and `updated` on every element
+ * on every load, so two byte-identical runs of this spec wrote captures
+ * differing in 40 lines of pure churn. That is not cosmetic: the capture
+ * is TRACKED, and a re-record whose diff is 40 meaningless lines is a
+ * re-record nobody reads — which is how a real change in what the client
+ * posts would go through unnoticed. Neither field is in
+ * `DEFAULT_SIGNIFICANT_ATTRS` and dropping both was measured to leave the
+ * replayed record identical, fact for fact. */
+const CHURN = ["versionNonce", "updated"] as const;
+
+/** Strip the two fields Excalidraw re-stamps on every load.
+ *
+ * @param els - Elements as they came off the wire or off disk.
+ * @returns The same elements without the churn fields, so a re-record
+ *   diffs to nothing unless the client's behaviour actually moved.
+ */
+function stable(els: Array<Record<string, unknown>>
+): Array<Record<string, unknown>> {
+  return els.map((e) => {
+    const out = { ...e };
+    for (const f of CHURN) delete out[f];
+    return out;
+  });
+}
+
 /** Digest the built app bundle, so a capture cannot outlive the client
  * whose behaviour it is testimony about.
  *
@@ -246,8 +271,11 @@ test("is a caption of a box nobody touched narrated as having moved?",
         captions_moved_on_disk: captionsMovedOnDisk.map((id) => id + "-label"),
         remeasure: remeasured,
       },
-      stored_before: storedBefore,
-      posted: body,
+      stored_before: stable(storedBefore),
+      posted: { ...body, scenes: Object.fromEntries(
+        Object.entries(body.scenes as Record<string,
+          Array<Record<string, unknown>>>)
+          .map(([k, v]) => [k, stable(v)])) },
       observed: {
         headline: (record.summary || {}).headline,
         verb_counts: (record.summary || {}).verb_counts,

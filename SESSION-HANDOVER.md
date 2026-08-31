@@ -150,18 +150,32 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: `TestALandedLabelPositionNarratesThroughEitherDoor` (2), `TestALabelTheWriterDeclinedToTouchIsNotADerivedPosition` (1)
+Non-catalog red classes: `TestALandedLabelPositionNarratesThroughEitherDoor` (2), `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved` (1)
 
-REBUILT 2026-08-31 by the mutant-curator, on top of the TENTH closure and
-not on a revert of it, and the shape of the result is the only summary
-worth carrying forward: **the fix and the head before it fail at
-OPPOSITE POLES of one class.** Over one rebuilt grid — 588 cells, three
-doors (the browser's own save shape joined), seven container shapes,
-odd centring offsets and odd displacements throughout — the shipped fix
-narrates 37 of 58 carried labels that nobody positioned and leaves 14 of
-315 landed positions in no record; its predecessor scores 0 and 196 on
-the same builder. Neither head has closed the class, and a grid green on
-either one is not measuring it.
+A REAL BROWSER IS THE REFEREE FOR THE PHANTOM-CAPTION CLASS since
+2026-08-31, after ELEVEN closures argued it against a model of one.
+`pin-untouched-captions.spec.ts` drags one of eight labelled boxes in a
+tab and records the verbatim `/api/save` body; the model tier replays
+that body through whatever `canvas.py` is in the tree, so the pin runs
+in ordinary discovery in 0.08s and **cannot silently skip** — with the
+capture removed, four ungated tests fail by name and the first says
+`NO BROWSER HAS EVER SPOKEN ABOUT THIS CLASS`. Replay and browser were
+measured to agree element-for-element on three heads: `c2a261d` 0,
+`604a7a0` 2 (b4, b7), `fix-tenth` 3 (b1, b2, b6) — the two phantom sets
+DISJOINT, so neither head is nearer a repair than the other. The oldest
+head's zero is not a pass: it is mute, narrating nothing about any
+caption the client re-measured even when one is genuinely dragged 12px.
+
+THE 588-CELL GRID WAS THE INSTRUMENT THAT MISSED IT, and both its reds
+had gone unexpectedly green without being fixed: its client door
+translated the stored x and then adjusted the width, where a tab
+re-centres on its own re-measure FIRST and translates SECOND. Corrected,
+and with a durable pure-y delta added that closes a displacement arm
+comparing x only, it is 735 cells and reads 25 of 83 carried-but-narrated
+and 5 of 455 landed-but-mute. It corroborates; it does not referee —
+its single re-measure constant puts every cell on a half-pixel
+re-centre, and the captions a browser actually gets narrated are the
+ones whose re-centre is whole.
 
 WHAT THE NINTH GRID HELD FIXED, because that is what let the regression
 ship: every centring offset in it was a WHOLE pixel, every displacement
