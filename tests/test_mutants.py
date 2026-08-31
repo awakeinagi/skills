@@ -27509,7 +27509,20 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"as_user_move_strands_bound_arrows"}
+# REFILLED on 2026-08-30 (mutant-curator, assessment run R6 / r6-5) by a red
+# unlike every one below it: its subject is not the drawing and not a
+# detector, it is an INSTRUMENT. `x-as-user move` — the verb the assessment
+# drives every user gesture through — strands the arrows bound to the node
+# it drags, so it posts a picture a browser drag cannot produce and the
+# lint then reports a real defect in a scene only the driver could author.
+# The rival reading (the product failing to re-route on save) was refuted
+# by a Playwright drag before this was encoded, so the red accuses the
+# adapter and never the save path. THE VALUE WAS READ OFF THE GUARD: the
+# decorator went on, `mutants run` was used to lift the mask and confirm
+# red BY ASSERTION, and `test_the_catalogue_reds_are_the_ones_declared`
+# was run and its measured side transcribed. It drains when WP-B teaches
+# the verb to leave the referential state a real drag leaves.
 # EMPTY AGAIN on 2026-08-26 (leaf-1.1.6, the fixer), the day after it
 # refilled, and this time a REPAIR is what drained it — which is the
 # ordinary reason, and worth saying only because the drain directly
