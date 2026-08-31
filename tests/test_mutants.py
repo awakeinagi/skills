@@ -1645,6 +1645,37 @@ def move_node_onto_rank(scene: list[dict], node_id: str,
 
 
 @_operator
+def move_node(scene: list[dict], node_id: str, x: float,
+              y: float) -> list[dict]:
+    """Set a node down somewhere else and touch nothing else in the scene.
+
+    THE OPERATOR IS `mod x,y`, which is what `mermaid --relayout` issues:
+    its echo lines read `op 9 (mod x,y): rejection-log ... at (428,620)`,
+    one per node it re-lays. Modelling the re-layout as a destination
+    rather than a delta is therefore the faithful shape — dagre computes
+    where a node goes, not how far it travels.
+
+    DELIBERATELY NOT `move_node_onto_rank`, which is the other node-mover
+    here and would answer a different question. That one rewrites every
+    bound 2-point arrow's endpoints so a rank line appears, i.e. it moves
+    the node AND everything the repo already knows follows it. This one
+    moves the node alone, because the subject is what does NOT follow.
+
+    Args:
+        scene: The scene copy to mutate.
+        node_id: The element to move.
+        x: Its new `x`.
+        y: Its new `y`.
+
+    Returns:
+        The mutated scene, with exactly one element's origin rewritten.
+    """
+    node = next(e for e in scene if e["id"] == node_id)
+    node["x"], node["y"] = x, y
+    return scene
+
+
+@_operator
 def swap_endpoints(scene: list[dict], a_id: str, b_id: str) -> list[dict]:
     """Exchange two arrows' end bindings and absolute end points.
 
@@ -1739,6 +1770,7 @@ OPERATORS: dict = {
     "flip_direction": flip_direction,
     "rename_node": rename_node,
     "move_node_onto_rank": move_node_onto_rank,
+    "move_node": move_node,
     "swap_endpoints": swap_endpoints,
     "relabel": relabel,
     "unchanged": unchanged,
@@ -2011,6 +2043,23 @@ class TestOperators(unittest.TestCase):
             arr = next(e for e in out if e["id"] == aid)
             ys = {arr["y"] + p[1] for p in arr["points"]}
             self.assertEqual(ys, {centerline})
+
+    def test_move_node_moves_the_node_and_nothing_else(self) -> None:
+        """move_node rewrites one origin and leaves every sibling alone.
+
+        The second half is the load-bearing one. `move_node_onto_rank`
+        beside it drags the bound arrows with the node BY DESIGN, and an
+        operator meant to strand a bystander would be worthless if it
+        quietly did the same — the mutant it serves asserts that nothing
+        followed, and an operator that made things follow would prove
+        that by construction rather than by measurement.
+        """
+        out = OPERATORS["move_node"](_chain(), node_id="N", x=700, y=800)
+        moved = {e["id"]: (e.get("x"), e.get("y")) for e in out}
+        before = {e["id"]: (e.get("x"), e.get("y")) for e in _chain()}
+        self.assertEqual(moved["N"], (700, 800))
+        self.assertEqual({k: v for k, v in moved.items() if k != "N"},
+                         {k: v for k, v in before.items() if k != "N"})
 
     def test_swap_endpoints_exchanges_end_bindings_and_points(self) -> None:
         """swap_endpoints exchanges endBinding and the end points."""
