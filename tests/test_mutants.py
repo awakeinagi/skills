@@ -27810,6 +27810,30 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 # both without either red having named the fix that flipped it. Nothing
 # here was rewritten to match the repair: the only edits to the class were
 # the decorator and a paragraph recording which arm went quiet.
+#
+# A THIRD DOOR IS STILL OPEN, AND WP-A IS NOT COMPLETE. "Two doors" above
+# counts the doors that were CLOSED, not the doors that exist: the entry's
+# own problem statement names a Face B — geometry ALREADY ON DISK, which
+# `catch_up()` re-reads every session — and it is reached by neither an op
+# nor a drag, so neither repair can touch it. Re-measured after the
+# integration merge on `tests/fixtures/argus-r4-arm4`, this repo's own
+# promoted regression fixture: 5 of its 9 pins still sit where today's
+# `pin_spot` disagrees (two admin-console glyphs by 37.4px, three
+# dashboard glyphs by 55.3px), and the new absolute arm reaches NONE of
+# them, because a stale glyph is stale RELATIVE to the placer and not far
+# from its subject — their own gaps are 8.0/8.0/16.1/16.1/16.1px against
+# floors of 387/576/492/492/421px.
+#
+# CLOSING IT NEEDS LOAD-TIME RE-DERIVATION, WHICH WAS DELIBERATELY NOT
+# DONE, and the deferral is a judgement rather than an oversight: the
+# third honest repair this entry offered was "re-derive at load", and
+# re-deriving at load re-places EVERY pin on EVERY load — including the
+# ones a person nudged where they wanted them. That is the repair WP-A
+# acceptance criterion 3 forbids by name and the one
+# `test_moving_a_bystander_leaves_a_correct_pin_alone` is standing there
+# to catch. So Face B is open on purpose, with the cost of closing it
+# named; a reader who takes "both closed" above to mean "WP-A is done"
+# has read one sentence too few.
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -28333,7 +28357,11 @@ CATALOGUE_RED_IDS: set[str] = set()
 # author's. The floor is a reading of the picture and not a constant: past
 # a shape's corner-to-corner extent there is more empty canvas between the
 # question and its subject than the subject occupies, so nothing new needs
-# tuning and nothing new can go stale.
+# tuning and nothing new can go stale. WHAT THIS ARM DOES NOT REACH is
+# WP-A's Face B, the stale geometry already on disk — those glyphs are far
+# from where `pin_spot` would put them and NEAR their subjects, so no
+# absolute floor can see them; the `HAND_AUTHORED_RED_CLASSES` drain of
+# the same day says which repair was deferred and why.
 # REFILLED on 2026-08-30 by curator batch 47, from assessment run R6's
 # WP-A: `pindrift` returns on `rival is None`, so a ❓ whose target has
 # walked 1000px away with nothing else on the page is a glyph no check
