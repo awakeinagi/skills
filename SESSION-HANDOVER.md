@@ -150,7 +150,43 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: `TestAModThatReachesDiskIsNamedByItsOwnRecord` (1)
+Non-catalog red classes: *none*
+
+DRAINED AGAIN 2026-08-31, and this roster has now recorded one class
+arriving, leaving, arriving and leaving inside a single date stamp. The
+second drain is a DIFFERENT repair from the first, which is the only
+reason the pair is not a fix being re-applied: the first was PROVENANCE
+(an attribute a `mod` op named is not churn), the second is DURABILITY —
+a bound label's position narrates when it survives the reload, whoever
+moved it. The user ruled that rule and ruled OUT the obvious repair with
+it: "the move arm asks `authored`" is door-scoped and the rule is not,
+so a coordinate that landed through a door authoring nothing would have
+stayed silent under it.
+
+`label_position_sticks` is the predicate, and it is asked at TWO layers
+because they catch different cells. `diff_scenes` stops calling a bound
+label's position derived when nothing re-derived it — door-independent,
+so a user save is judged exactly as an op batch is — and the move arm of
+`semantic_facts` declines a position that will be overwritten, which is
+what stops an op-authored 400px shove narrating a coordinate ART-007
+erases on the next load. Measured on the pin's own scene: `+8` durable
+and narrated, `(+60,-40)` durable and narrated, `+400` erased and
+silent, a label carried by its container silent with its container's
+headline unchanged.
+
+TWO CORRECTIONS RIDE WITH IT, both of claims this handover made. A label
+whose own text changed is re-centred by `recenter_label`, and a first
+draft keyed on durability alone narrated a `moved` beside every
+`renamed` — caught by `TestTheUsersBringToFrontIsUndoneInSilence` at
+"(+3 more)" where it had measured "(+2 more)", and fixed by asking
+whether anything that re-derives the position moved. And the brief that
+ordered this work said the arrow-label green is safe because that write
+is erased; measured, it is NOT — `t1-label` on the user door is durable
+on disk at every delta. What makes silence honest there is the third
+premise that class already holds: the client re-derives an arrow label's
+drawn position from the arrow, so the coordinate never reaches the
+picture. The predicate reads that as a linear container, which is also
+why `validate_scene` skips one.
 
 REFILLED 2026-08-31 by the same class that drained it hours earlier — the
 shortest round trip this roster has recorded, and the reason is worth the
@@ -536,7 +572,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**1 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**0 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_

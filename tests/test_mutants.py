@@ -27822,8 +27822,30 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # repair won is NOT under the mask — it is held by a second, ungated test
 # in the same class, so a provenance regression fails loudly instead of
 # hiding inside an expected failure.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestAModThatReachesDiskIsNamedByItsOwnRecord": 1}
+#
+# EMPTIED AGAIN THE SAME DAY, and this dict has now recorded the same class
+# arriving, leaving, arriving and leaving inside one date stamp. The second
+# drain is a DIFFERENT repair from the first: the first was provenance (an
+# attribute an op named is not churn) and this one is DURABILITY (a bound
+# label's position narrates when it survives the reload, whoever moved it).
+# The user ruled the second rule and ruled OUT the obvious repair with it —
+# candidate D, "the move arm asks `authored`", is door-scoped and the rule
+# is not, so a coordinate that landed through a door authoring nothing
+# would have stayed silent under it.
+#
+# THE PIN'S OWN PREDICTION WAS HALF RIGHT, which is worth the line. Its
+# extension said the residual "MUST NOT BE AIMED" at provenance, and that
+# held: what closed it is `label_position_sticks`, asked of the save and
+# not of the door. What the extension did not foresee is that the rule
+# needs asking at TWO layers — the differ, so a user save is judged the
+# same way, and the move arm, because an op that NAMES `x` un-derives it
+# on provenance alone and would otherwise narrate a `+400` shove that
+# `validate_scene` erases on the next load.
+#
+# THE VALUE BELOW WAS READ OFF THE GUARD: the decorator came off first and
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
+# `measured {}` against the declared line.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -35035,10 +35057,43 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
             % (len([c for c in closed
                     if c["silent"] or not c["attributed"]]), len(closed)))
 
-    @unittest.expectedFailure
     def test_every_landed_mod_is_named_by_the_record_that_saved_it(
             self) -> None:
-        """RED AGAIN 2026-08-31: 2 of 102 landed cells save in silence.
+        """FLIPPED GREEN AGAIN 2026-08-31: 0 of 102 landed cells silent.
+
+        WHAT LANDED IS NEITHER D NOR E, and the difference is the whole
+        record of this flip. The user ruled the rule DURABILITY and not
+        provenance — "if the move stuck, the record says so" — which
+        rules D out by name: D asks `authored`, so a save through a door
+        that authors nothing would stay silent over a coordinate that
+        landed. What went in asks `label_position_sticks`, and it is
+        asked at BOTH layers because the two catch different cells: the
+        differ stops calling a label's position derived when nothing
+        re-derived it (door-independent, so a user save is judged the
+        same way), and the move arm declines a position that will be
+        overwritten (which is what stops an op-authored `+400` shove
+        narrating a coordinate `validate_scene` erases on the next load).
+
+        THE BOUNDARY, MEASURED ON THIS SCENE BEFORE AND AFTER, since the
+        pin's own history is a lesson about sampling one coordinate:
+        `card-label` +8 durable -> narrates; (+60,-40) durable ->
+        narrates; +400 erased -> silent; a label carried by its
+        container -> silent, and its container's headline is unchanged.
+
+        THE ARROW-LABEL GREEN IS UNTOUCHED, and NOT for the reason the
+        brief that ordered this work gave. That brief said the write
+        there is erased; measured, it is not — `t1-label` on the USER
+        door is durable on disk at every delta, including +400. What
+        makes silence honest is the third premise that class already
+        holds: the client re-derives an arrow label's drawn position
+        from the arrow and writes it back at the midpoint, so the
+        coordinate survives the server's reload and never reaches the
+        picture. `label_position_sticks` reads that as a linear
+        container, which is also why `validate_scene` skips one.
+
+        RE-RED EARLIER THE SAME DAY by a third-party review that found
+        the class alive on cells this grid could not offer it. Both
+        records stand, because the pair is the lesson.
 
         FLIPPED GREEN earlier the same day by the provenance repair, at 0
         of 68, and RE-RED hours later by a third-party review that found

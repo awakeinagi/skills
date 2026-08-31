@@ -781,10 +781,7 @@ def validate_scene(doc, artifact_id):
         c = by_id.get(cid)
         if c is None or c.get("type") in ("arrow", "line"):
             continue
-        if (el.get("x", 0) + el.get("width", 0) < c.get("x", 0) or
-                el.get("x", 0) > c.get("x", 0) + c.get("width", 0) or
-                el.get("y", 0) + el.get("height", 0) < c.get("y", 0) or
-                el.get("y", 0) > c.get("y", 0) + c.get("height", 0)):
+        if _label_detached(el, c):
             # A REPAIR IS ONLY FILED IF IT HAPPENED. `recenter_label`
             # declines to move a pinned label, and this arm filed
             # `repaired: True` regardless — telling the user the loader
@@ -11641,6 +11638,24 @@ def diff_scenes(old_els, new_els, significant_attrs=None, authored=None):
         attrs = []
         moved = None
         named = authored.get(eid) or frozenset()
+        # WHOSE VALUE IS THIS? `named` answers it from provenance — an op
+        # said so. `own` adds the one case that does not need an op: a
+        # bound label whose position STICKS is that label's own wherever
+        # the save came from, because the coordinate on disk is the
+        # coordinate the reader sees. Kept as a second name rather than
+        # folded into `named` because the two are different questions and
+        # only one of them has a door: the durability half is asked the
+        # same way of a user save, a reconciliation and an op batch.
+        new_cont = new_ix.get(new.get("containerId"))
+        old_cont = old_ix.get(old.get("containerId"))
+        new_cont = new_cont[1] if new_cont else None
+        old_cont = old_cont[1] if old_cont else None
+        own = set(named)
+        if role_of(new) == "label" \
+                and label_position_sticks(new, new_cont) \
+                and not _label_position_rederived(old, new, old_cont,
+                                                  new_cont):
+            own |= {"x", "y"}
         binding_changed = any(
             _norm_binding(old.get(b)) != _norm_binding(new.get(b))
             for b in ("startBinding", "endBinding"))
@@ -11664,7 +11679,7 @@ def diff_scenes(old_els, new_els, significant_attrs=None, authored=None):
             # gates BOTH the x/y gather two lines down AND the `derived`
             # stamp — un-deriving at the stamp alone would have left the
             # coordinate in `attrs` with no `move` op to narrate.
-            derived_geo = attr not in named and (
+            derived_geo = attr not in own and (
                 _geometry_derived(new) or _geometry_derived(old))
             if attr in ("x", "y", "width", "height", "angle", "points"):
                 if not geo_ok:
@@ -11705,7 +11720,7 @@ def diff_scenes(old_els, new_els, significant_attrs=None, authored=None):
         # coordinate down here instead of stamping it derived, so this
         # gate has to accept it or the move is recorded nowhere at all.
         if geo_ok and not binding_changed and \
-                (bool(named & {"x", "y"}) or
+                (bool(own & {"x", "y"}) or
                  (not _geometry_derived(new) and
                   not _geometry_derived(old))) and \
                 (old.get("x") != new.get("x") or
@@ -11836,6 +11851,136 @@ def _router_owns(el):
         to a derived attribute on it is the router's own churn.
     """
     return el.get("type") in ("arrow", "line") and server_owns_geometry(el)
+
+
+def _label_detached(el, container):
+    """Is this bound label's box entirely off its container's?
+
+    THE GEOMETRY BEHIND ART-007, extracted 2026-08-31 because two layers
+    now need the same answer and a second copy of a four-term
+    disjunction is how the copies drift. `validate_scene` asks it at LOAD
+    to decide whether to re-glue; `label_position_sticks` asks it at SAVE
+    to decide whether the position being written is one the reader will
+    ever see. One reader, and the load repair keeps its own arm around
+    it — a container that is an arrow or a line is skipped there, because
+    the CLIENT re-derives that case and the server must not fight it.
+
+    Args:
+        el: The bound label.
+        container: The element it is bound to.
+
+    Returns:
+        True when the two boxes do not touch at all, which is the state
+        the load-time repair re-centres out of existence.
+    """
+    return (el.get("x", 0) + el.get("width", 0) < container.get("x", 0) or
+            el.get("x", 0) > container.get("x", 0) + container.get("width", 0)
+            or el.get("y", 0) + el.get("height", 0) < container.get("y", 0)
+            or el.get("y", 0) > container.get("y", 0)
+            + container.get("height", 0))
+
+
+def label_position_sticks(el, container):
+    """Will the position this save gives a bound label be the one drawn?
+
+    THE RULE IS DURABILITY AND NOT PROVENANCE, ruled 2026-08-31: if the
+    move stuck, the record says so — whoever asked. Everything else on
+    the canvas that moves gets reported and labels were the exception,
+    which cost the R7 empty-save class its last two cells: `card-label`
+    nudged 8px lands in the artifact JSON, survives two further loads,
+    and the record said "saved without changing anything".
+
+    TWO THINGS UN-STICK A POSITION and this asks about both, because
+    either one makes the stored coordinate a number nobody will ever
+    see:
+
+      * A LINEAR CONTAINER. The client spreads
+        `getBoundTextElementPosition(arrow, label, map)` over an arrow
+        label's own x/y before drawing it and writes it back at the
+        midpoint on the next persist, so the displacement survives the
+        SERVER's reload and never reaches the picture. That is why
+        ART-007 skips arrow containers rather than fighting them, and
+        why `TestABoundArrowLabelCannotBeDraggedOffItsArrow` is a green
+        pin over a write that IS in the file: measured 2026-08-31, that
+        class's own scene is durable on disk at every delta.
+      * A DETACHED BOX. `validate_scene` re-centres a label lying
+        entirely outside its container on the next load, so the
+        coordinate is erased before anyone reads it. Measured on the
+        same scene: durable at `+8` and at `(+60, -40)`, erased at
+        `+400`. Durability is an OVERLAP question, not a structural
+        rule — which is the reading the R7 grid got wrong by sampling
+        one far coordinate and concluding the class was closed.
+
+    Args:
+        el: The bound label.
+        container: The element it is bound to, or None when it names
+            none or names one this scene does not hold — nothing
+            re-derives it then, so the position stands.
+
+    Returns:
+        True when the stored position is the drawn position.
+    """
+    if container is None:
+        return True
+    if container.get("type") in ("arrow", "line"):
+        return False
+    return not _label_detached(el, container)
+
+
+def _label_box(el):
+    """The four numbers `recenter_label` reads off an element.
+
+    Args:
+        el: Any element, or None.
+
+    Returns:
+        Its `(x, y, width, height)`, or None when there is no element.
+    """
+    if el is None:
+        return None
+    return (el.get("x"), el.get("y"), el.get("width"), el.get("height"))
+
+
+def _label_position_rederived(old, new, old_container, new_container):
+    """Did something OTHER than a positioning gesture move this label?
+
+    THE SECOND HALF OF THE DURABILITY RULING, and the half a first
+    implementation got wrong loudly enough to be worth naming here. "If
+    the move stuck, the record says so" is about a label somebody PUT
+    somewhere. `recenter_label` moves one for two other reasons, and
+    both survive a reload exactly as a positioning does, so durability
+    alone cannot tell them apart:
+
+      * ITS OWN RE-MEASURE. Rename `Cart` to `Basket` and `text_dims`
+        gives the label a new width, so re-centring lands it at a new
+        `x`. Keying on durability alone made every rename in the product
+        emit a `moved` fact beside the `renamed` one —
+        `TestTheUsersBringToFrontIsUndoneInSilence` caught it, at
+        "(+3 more)" where the class had measured "(+2 more)".
+      * ITS CONTAINER MOVING. A label carried by the box it belongs to
+        is that box's story, which is the v0.3 finding ("qty, cost basis
+        moved right" headlining a Position drag) one element type over.
+
+    Both are asked of the SAVE and not of the door, so this stays a
+    durability rule: a user drag, a reconciliation and an op batch are
+    all judged by whether anything that re-derives the position moved.
+
+    Args:
+        old: The label before the save.
+        new: The label after it.
+        old_container: Its container before, or None.
+        new_container: Its container after, or None.
+
+    Returns:
+        True when the label's own size changed or its container's box
+        did, so the new coordinate is `recenter_label`'s arithmetic
+        rather than anybody's intent.
+    """
+    if (old.get("width"), old.get("height"), old.get("text")) != \
+            (new.get("width"), new.get("height"), new.get("text")):
+        return True
+    return (old_container is not None and new_container is not None
+            and _label_box(old_container) != _label_box(new_container))
 
 
 def _geometry_derived(el):
@@ -12304,7 +12449,31 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
     for c in changes:
         if c["op"] == "move":
             el = new_ix.get(c["id"])
-            if el is None or role_of(el) == "label":
+            if el is None:
+                continue
+            # RULED 2026-08-31: if the move stuck, the record says so.
+            # This arm read `role_of(el) == "label"` and declined every
+            # one, which made a label the only thing on the canvas that
+            # could move, land, survive two reloads and be reported as
+            # nothing happening — the last two cells of the R7
+            # empty-save class. What replaces it is DURABILITY and not
+            # who asked: a coordinate the client or the loader is about
+            # to overwrite is worth no sentence whatever door it came
+            # through, and one that will be drawn where it was stored is
+            # worth one from every door.
+            #
+            # BOTH HALVES OF THE RULE ARE OWED and this is the second.
+            # The differ decides whether the coordinate is the label's
+            # OWN (nothing re-derived it) and this decides whether it
+            # SURVIVES — and the two catch different cells. An op that
+            # names `x` un-derives it on provenance alone, so a `mod`
+            # shoving a label 400px clear of its container reaches this
+            # line with a `move` change in hand; only the durability
+            # test stops it narrating a coordinate `validate_scene`
+            # erases on the next load. Measured: durable at `+8`,
+            # erased at `+400`, same element and same attribute.
+            if role_of(el) == "label" and not label_position_sticks(
+                    el, new_ix.get(el.get("containerId"))):
                 continue
             dx = c["to"][0] - c["from"][0]
             dy = c["to"][1] - c["from"][1]
