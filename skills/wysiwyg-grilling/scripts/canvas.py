@@ -11554,10 +11554,57 @@ def _anno_text(el):
     return " ".join((el.get("originalText") or el.get("text") or "").split())
 
 
-def diff_scenes(old_els, new_els, significant_attrs=None):
+def diff_scenes(old_els, new_els, significant_attrs=None, authored=None):
     """Bucketed diff (add/del/mod/move/reorder) with pre-built inverses.
-    Returns {changes, inverse, suppressed, sentinel_suppressed}."""
+
+    PROVENANCE BEATS SUPPRESSION, and `authored` is the whole of it. The
+    suppressors this differ consults — `_geometry_derived` and
+    `_text_metric_derived`, joined by the restyle arm of `semantic_facts`
+    one layer up — were each written about CHURN: a browser re-measuring
+    a text element, a container re-centring its bound label,
+    `reconcile_composed` re-deriving a widget's parts, a router following
+    its endpoints. Every one is right about the traffic it was written
+    for. None of them asks the question that separates churn from intent:
+    did somebody NAME this attribute?
+
+    Nobody did, on the paths those three were written for — a user save
+    and a load-time reconciliation arrive as two element lists and carry
+    no provenance at all. An op batch does. `{"op": "mod", "id":
+    "pin-report-page", "attrs": {"x": 110, "y": 778}}` moved a ❓ from
+    (512,604) to (110,778), the move survived a reload, and the record
+    headlined `EMPTY_SAVE_HEADLINE` with `by_element: []` — a positive
+    claim that nothing was even hidden. That class was repaired seven
+    times before this one, each time by excusing one more cell
+    (`link`, tidy, `locked`, a bound arrow label, an ink revert, a line
+    remeasure), and each return arrived through a cell nobody had
+    sampled. Curator batch R7 (2026-08-31) measured it as a grid instead:
+    28 cells, three suppressors, one missing question.
+
+    So an attribute an op named is never stamped `derived` here, whatever
+    the element is. That is deliberately NOT the same as "narrate it".
+    `semantic_facts` still declines to narrate a bound label's position,
+    so the cells that write a coordinate the loader throws away — a
+    container re-centres its label, and `card-label x` reads back 575
+    after being handed 111 — keep their silence through this change,
+    which is what `TestABoundArrowLabelCannotBeDraggedOffItsArrow`
+    holds as a green pin. The differ stops lying about where a value came
+    from; the verb layer keeps its own ruling about what is worth saying.
+
+    Args:
+        old_els: The baseline scene.
+        new_els: The scene being saved.
+        significant_attrs: Attribute allowlist; `DEFAULT_SIGNIFICANT_ATTRS`
+            when None.
+        authored: `{element_id: {attribute names}}` an op in this batch
+            named — provenance only `Store.apply_batch` holds. None on
+            every other write path, where nothing is authored and each
+            suppressor applies exactly as it did before.
+
+    Returns:
+        `{changes, inverse, sentinel_suppressed}`.
+    """
     sig = significant_attrs or DEFAULT_SIGNIFICANT_ATTRS
+    authored = authored or {}
     old_ix = {e["id"]: (i, e) for i, e in enumerate(old_els)}
     new_ix = {e["id"]: (i, e) for i, e in enumerate(new_els)}
     changes = []
@@ -11584,6 +11631,7 @@ def diff_scenes(old_els, new_els, significant_attrs=None):
             geo_ok = True
         attrs = []
         moved = None
+        named = authored.get(eid) or frozenset()
         binding_changed = any(
             _norm_binding(old.get(b)) != _norm_binding(new.get(b))
             for b in ("startBinding", "endBinding"))
@@ -11601,7 +11649,14 @@ def diff_scenes(old_els, new_els, significant_attrs=None):
                 ov, nv = _norm_binding(ov), _norm_binding(nv)
             if ov == nv:
                 continue
-            derived_geo = _geometry_derived(new) or _geometry_derived(old)
+            # An op named it, so it is intent and not churn (see this
+            # function's docstring). Folded into `derived_geo` rather
+            # than tested at the stamp below, because this one name
+            # gates BOTH the x/y gather two lines down AND the `derived`
+            # stamp — un-deriving at the stamp alone would have left the
+            # coordinate in `attrs` with no `move` op to narrate.
+            derived_geo = attr not in named and (
+                _geometry_derived(new) or _geometry_derived(old))
             if attr in ("x", "y", "width", "height", "angle", "points"):
                 if not geo_ok:
                     continue
@@ -11610,7 +11665,8 @@ def diff_scenes(old_els, new_els, significant_attrs=None):
                 if attr == "points" and binding_changed:
                     continue  # rewire re-route noise
                 entry = {"attr": attr, "from": ov, "to": nv}
-                if derived_geo or _text_metric_derived(attr, old, new):
+                if derived_geo or (attr not in named and
+                                   _text_metric_derived(attr, old, new)):
                     # kept for lossless replay, invisible to narration
                     entry["derived"] = True
                 attrs.append(entry)
@@ -11636,8 +11692,13 @@ def diff_scenes(old_els, new_els, significant_attrs=None):
             if ov == nv or _router_owns(new) or _router_owns(old):
                 continue
             attrs.append({"attr": attr, "from": ov, "to": nv})
+        # The second half of the same rule: the loop above handed a NAMED
+        # coordinate down here instead of stamping it derived, so this
+        # gate has to accept it or the move is recorded nowhere at all.
         if geo_ok and not binding_changed and \
-                not _geometry_derived(new) and not _geometry_derived(old) and \
+                (bool(named & {"x", "y"}) or
+                 (not _geometry_derived(new) and
+                  not _geometry_derived(old))) and \
                 (old.get("x") != new.get("x") or
                  old.get("y") != new.get("y")):
             moved = {"op": "move", "id": eid,
@@ -12102,10 +12163,28 @@ def kind_of(el):
     return (el.get("customData") or {}).get("kind") or el.get("type")
 
 
-def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
+def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
+                   authored=None):
     """Derive typed facts from a bucketed diff. Extended-tier artifacts get
-    universal facts only."""
+    universal facts only.
+
+    Args:
+        old_els: The baseline scene.
+        new_els: The scene being saved.
+        diff: `diff_scenes`' bucketed output over the two.
+        artifact_type: The artifact's declared type, for the per-type tables.
+        tier: Its tier; anything but `first-class` gets universal facts only.
+        consequences: `mark_consequences`' rollup of moves onto their cause.
+        authored: `{element_id: {attribute names}}` an op in this batch
+            named, or None on the write paths that carry no ops. Read by
+            the restyle arm ONLY — see it for why un-deriving in
+            `diff_scenes` cannot reach that one.
+
+    Returns:
+        The fact list.
+    """
     facts = []
+    authored = authored or {}
     old_ix = {e["id"]: e for e in old_els}
     new_ix = {e["id"]: e for e in new_els}
     old_labels = label_map(old_els)
@@ -12248,7 +12327,20 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences):
             if names & {"width", "height"}:
                 F("resized", c["id"], label=display_label(el, new_labels))
             styled = names & STYLE_ATTRS
-            if styled and el.get("type") != "text":
+            # THE THIRD SUPPRESSOR, AND THE ONE UN-DERIVING CANNOT REACH.
+            # It suppresses on the element's TYPE and never reads the
+            # `derived` flag at all, so `diff_scenes` handing it an
+            # authored `strokeColor` on a bound label changes nothing
+            # here — measured: provenance in the differ alone closes 14
+            # of the R7 class's 28 cells and stops dead. The type test
+            # dates to the v0 baseline with no rationale recorded, so it
+            # is NARROWED rather than removed: whatever text-element
+            # churn it was written to swallow, an attribute an op named
+            # is not that churn, and the 8 remaining cells were exactly
+            # a `mod strokeColor`/`mod opacity` landing on a text
+            # element and saving in silence.
+            if styled and (el.get("type") != "text" or
+                           styled & (authored.get(c["id"]) or frozenset())):
                 F("restyled", c["id"], attrs=sorted(styled), low_signal=True)
             if "link" in names:
                 # WP3 (r4-9): links_to changes produced NO fact, so a
@@ -22238,11 +22330,17 @@ class Store:
     def commit(self, author, new_scenes, base_revn=None, selection=None,
                user_note=None, fork_name=None, registry_ops=None,
                new_meta=None, reconciliation=False, extra_facts=None,
-               resolved_pins=None, new_files=None, min_round=None):
+               resolved_pins=None, new_files=None, min_round=None,
+               authored=None):
         """The one write path. new_scenes: {artifact_id: element list}
         (only changed artifacts need be present). `min_round` is a floor
         on the round this save is stamped with, for a caller that has
-        already advertised one. Returns the save record."""
+        already advertised one. `authored` is
+        `{artifact_id: {element_id: {attribute names}}}` an op in this
+        batch named — provenance only `apply_batch` holds, and the one
+        thing that tells a suppressor churn from intent; see
+        `diff_scenes`. Every other caller leaves it None and gets the
+        behaviour it always had. Returns the save record."""
         self._refuse_unstorable(new_scenes)
         with self.lock:
             head = self.head_revn()
@@ -22334,7 +22432,8 @@ class Store:
                 new_norm = [normalize_element(e) for e in els
                             if not e.get("isDeleted")]
                 new_norm_by_aid[aid] = new_norm
-                diff = diff_scenes(old, new_norm, sig)
+                diff = diff_scenes(old, new_norm, sig,
+                                   (authored or {}).get(aid))
                 if not diff["changes"] and aid in base_state and not \
                         (new_meta or {}).get(aid):
                     continue
@@ -22342,7 +22441,8 @@ class Store:
                 atype = ((new_meta or {}).get(aid) or {}).get(
                     "artifact_type") or self.artifact_type(aid)
                 facts = semantic_facts(old, new_norm, diff, atype,
-                                       self.tier_of(atype), consequences)
+                                       self.tier_of(atype), consequences,
+                                       (authored or {}).get(aid))
                 # intent facts the differ cannot see (e.g. `rerouted` from
                 # an explicit points mod — its attr entries are derived,
                 # so without this the batch narrates as an empty save)
@@ -24155,6 +24255,36 @@ class Store:
                 and ({"from", "to"} & set(o["attrs"]))
                 and o.get("id") in was
                 and not server_owns_geometry(was[o["id"]])]
+            # THE ONE DOOR PROVENANCE EXISTS BEHIND. A `mod` op names an
+            # element and the attributes it is changing; a user save and
+            # a load-time reconciliation arrive as two element lists and
+            # cannot say who asked for what. So the suppressors that
+            # decide an attribute is derived churn — `_geometry_derived`,
+            # `_text_metric_derived` and the restyle arm — are told what
+            # this batch NAMED, and stop calling those attributes
+            # somebody else's work. Read `diff_scenes` for the class this
+            # closes and the seven point repairs that preceded it.
+            #
+            # THE RAW KEYS, not a translation of them. Several `mod`
+            # attributes are aliases that write somewhere else entirely
+            # (`label` rewrites a bound text element, `strategic` sets
+            # fills, `kind`/`role`/`tooltip` land in `customData`), and
+            # an alias whose key matches no element attribute simply
+            # matches nothing in the differ. That under-reaches rather
+            # than over-claims, which is the right direction for a
+            # provenance record: this says "an op named `x` on this
+            # element", never "this element's `x` is the op's doing".
+            #
+            # The USER-SAVE DOOR IS STILL SILENT and this cannot reach
+            # it — `commit(author="user")` passes no `authored`, so
+            # nothing about the class above changes there. That half
+            # needs a browser readback and has no owner yet.
+            authored_attrs = {}
+            for o in ops:
+                if o.get("op") == "mod" and o.get("id") and \
+                        isinstance(o.get("attrs"), dict):
+                    authored_attrs.setdefault(o["id"], set()).update(
+                        o["attrs"])
             resolved_now = {o.get("id") for o in ops
                             if o.get("op") == "resolve_pin"}
             # a pin is resolved where it LIVES. `apply_ops` is handed one
@@ -24239,6 +24369,7 @@ class Store:
                     registry_ops=registry_ops,
                     new_meta=new_meta,
                     extra_facts={aid: reroutes} if reroutes else None,
+                    authored={aid: authored_attrs},
                     resolved_pins=resolved_now,
                     min_round=min_round)
             except (BatchError, StaleError):
