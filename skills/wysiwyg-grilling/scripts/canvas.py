@@ -30390,6 +30390,18 @@ def _x_user_carry_feet(els, moved, dx, dy):
     feet and touches nothing else, and `route_arrow` is deliberately not
     called: re-routing would flatten the hand path the client preserved.
 
+    IT DOES NOT REPRODUCE THE CLIENT'S FOOT ARITHMETIC, and saying it
+    did would be a stronger claim than the measurement carries. The
+    client RE-SEATS the foot on the binding intersection: over a node
+    moved (-33.33, -20) it moved the hand path's foot (-24.81, -14) and
+    a straight arrow's (-27.33, -17.25), and it re-seats the FAR foot
+    too — 6px, onto a node that never moved. This TRANSLATES the foot by
+    the node's delta instead, which keeps the stored attachment point
+    and gap exactly as the user left them, moves nothing bound to a node
+    the gesture did not touch, and stays on whole pixels where the
+    client's re-seat lands on thirds. Both leave the referential state
+    the acceptance asks for; only that state is claimed here.
+
     ARROWS ONLY, mirroring the client's `isBindingElement`, even though
     `lint_layout`'s endpoint check reads bound lines too. Measured the
     same way: a line carrying real bindings on disk reaches the client
