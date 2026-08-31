@@ -297,6 +297,19 @@ GUARDS: list[tuple[str, str, str, int, str]] = [
      "                    if False:", 1,
      "TestPinnedSurvivesTheBackDoors."
      "test_the_carry_itself_refuses_a_pinned_part"),
+    # THE ❓ CARRY, added with the mover itself (R6 WP-A, 2026-08-30). Its
+    # anchor is one line and one predicate, like the group carry's above,
+    # and the two are distinguishable by their argument (`p` against
+    # `other`) rather than by indentation — so neither entry can silently
+    # mutate the other's site the way `_SKIP_TIDY`'s two copies once did.
+    # Registered here in the same change that added the guard, on this
+    # instrument's own finding: verified before its test existed, deleting
+    # the predicate left every backend test green but the write census.
+    ("apply_ops.pin_carry",
+     "                    if pinned_to_canvas(p):",
+     "                    if False:", 1,
+     "TestPinnedSurvivesTheBackDoors."
+     "test_the_pin_carry_itself_refuses_a_locked_glyph"),
     ("apply_ops.del_cascade",
      '                      if i2 != el["id"] '
      "and pinned_to_canvas(index[i2])}",
