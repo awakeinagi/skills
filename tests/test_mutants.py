@@ -22128,6 +22128,266 @@ class TestThePinHugSurvivesItsOwnContainer(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE PRODUCER HALF OF R6 WP-A (curator batch 47, 2026-08-30, from
+# `capability-assessment-notes-optimizer_R6.md` WP-A, findings r6-1 and
+# r6-8 — filed under two slugs before they were understood to share one
+# root, and they are one defect).
+#
+# PIN PLACEMENT IS COMPUTED AT MINT TIME AND NEVER RE-DERIVED. Two faces,
+# measured on the R6 corpus:
+#
+#   A. `canvas.py mermaid --relayout` on `onboarding-intake` issues 14
+#      `mod x,y` ops and re-places none of the 3 pins. Their gaps to
+#      their own targets go 8/8/8px -> 748/1703/1419px, the oblique
+#      arrivals go 1/30 -> 7/28, and the artifact goes from 0 to 10
+#      LAYOUT_WARNINGs.
+#   B. `tests/fixtures/argus-r4-arm4` — this repo's own promoted
+#      regression fixture — carries 5 of its 9 pins at geometry today's
+#      `pin_spot` disagrees with (three dashboard glyphs by 55.3px, two
+#      admin-console glyphs by 37.4px). The load-time repair catalogue
+#      `ART-000`…`ART-012` is structural only — malformed JSON, dangling
+#      bindings, detached labels — so `catch_up()` re-reads the stale
+#      geometry every session.
+#
+# NOT A `CATALOGUE` ENTRY, and the reason is the whole design of this
+# class. A catalogue mutant hands an element list to the checks and
+# names the finding they must produce, so its red can only ever be
+# discharged by a CHECK — which would make it an argument for one of
+# WP-A's three repairs and against the other two. §8 of
+# `skills/silence-is-a-bug/SKILL.md` is explicit that this is the
+# expensive mistake: "the next person reads the red as 'my repair is
+# wrong', believes it, and rewrites a correct fix to satisfy a regex."
+#
+# SO THE ASSERTION IS A DISJUNCTION, and it is the acceptance criterion
+# WP-A actually states: after an operation moves a pin's target, EITHER
+# the pin's gap to that target is preserved OR something names the pin.
+# Each of the three honest repairs satisfies exactly one arm:
+#
+#   re-derive inside relayout / the applier -> the gap arm
+#   re-derive at load                       -> the gap arm
+#   teach `pindrift` the absolute question  -> the "something says so" arm
+#
+# THE RELATION AND NOT THE LITERALS. `gap_after <= gap_before` is the
+# whole geometric claim; 8, 999.2, 748/1703/1419 appear nowhere in an
+# assertion. That direction is deliberate rather than sloppy — a repair
+# may legitimately move the glyph CLOSER (into `pin_spot`'s own
+# inside-the-corner fallback, gap 0) and must never be told it made
+# things worse for doing so.
+#
+# THE ANCHOR IS THE PIN'S ID, never a sentence. The "something says so"
+# arm greps the store's load-time issues and every lint line for the
+# glyph's own id, so a repair is free to invent whatever wording and
+# whatever finding code it likes — including one that has no `DETECTORS`
+# row yet, which `collect_findings` could not have seen. That is the
+# reason this reads raw lint output rather than the normalized findings.
+#
+# IT DRIVES THE PRODUCT'S OWN DOORS, not a forged scene: `Store
+# .apply_batch` mints the node and the ❓ (so the base geometry is the
+# tool's own output, not a coordinate anybody chose), a second
+# `apply_batch` issues the `mod x,y` that `--relayout`'s echo lines
+# show it issuing, and a FRESH `Store` re-reads the project off disk so
+# the load door is crossed too. Measured through exactly this path: gap
+# 8.0 -> 999.2, `store.issues == []`, lint 0 errors / 0 warnings, and
+# neither of the two notes is about the pin.
+#
+# OWNER: whichever WP takes R6 WP-A. This red flips when ANY ONE of the
+# three repairs lands, which is the point of writing it this way.
+# ---------------------------------------------------------------------------
+
+
+class TestAMovedNodeDoesNotStrandItsPin(unittest.TestCase):
+    """A ❓ must follow the thing it asks about, or somebody must say so."""
+
+    def _minted(self, bystander: bool) -> tuple[canvas.Store, Path]:
+        """Mint a node and a ❓ about it through the real write path.
+
+        The `pin` op is what places the glyph — `pin_spot` runs inside
+        it — so the base geometry here is the product's own answer and
+        not a position this test chose. A hand-forged scene would let
+        the class pass over a placement nothing in the product would
+        ever produce.
+
+        `bystander` IS THE WHOLE DIFFERENCE BETWEEN THE TWO POLES, and
+        the first draft of this class got it wrong in a way worth
+        recording, because the mistake is the finding. It put `other` on
+        the page unconditionally, and the red PASSED: with the target
+        moved 1002px off, `other` at 181px became the nearest node and
+        `pindrift`'s relative arm spoke — about a pin it would have said
+        nothing about had the page been emptier. That is R6 WP-A's
+        second sentence reproduced by accident ("of the 3 stale glyphs
+        it reports one, and only because a neighbouring chart sits at
+        `rival_gap=0`"), and it is why the red's page carries the target
+        and nothing else.
+
+        Args:
+            bystander: Whether to add `other`, a second node the pin has
+                no relationship to. The silent-half control needs one to
+                move; the red must not have one, or the check is rescued
+                by geometry rather than by asking the right question.
+
+        Returns:
+            `(store, root)` — the loaded store and the project root, the
+            root being needed to re-open the project from disk later.
+        """
+        root = Path(tempfile.mkdtemp(prefix="mutants-pin-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        ops: list[dict[str, Any]] = [
+            {"op": "add", "element": {
+                "id": "step", "type": "rectangle", "x": 0, "y": 0,
+                "width": 100, "height": 60, "label": "Step"}}]
+        if bystander:
+            ops.append({"op": "add", "element": {
+                "id": "other", "type": "rectangle", "x": 0, "y": 200,
+                "width": 100, "height": 60, "label": "Other"}})
+        ops.append({"op": "pin", "target": "step", "id": "q1",
+                    "question": "which one?"})
+        store.apply_batch({
+            "base_revn": 0, "artifact": "f",
+            "create": {"id": "f", "name": "F", "type": "flow"},
+            "ops": ops})
+        return store, root
+
+    @staticmethod
+    def _gap(store: canvas.Store) -> float:
+        """The ❓'s clearance from the node it asks about.
+
+        Args:
+            store: A store whose `f` artifact holds `step` and `q1`.
+
+        Returns:
+            `_rect_gap(q1, step)` — the product's own metric, which is
+            what `pindrift` and this class both read, so neither can
+            drift from the other.
+        """
+        ix = {e["id"]: e for e in store.scenes["f"]}
+        return canvas._rect_gap(ix["q1"], ix["step"])
+
+    @staticmethod
+    def _mentions(store: canvas.Store) -> list[str]:
+        """Every line any surface says about the ❓, by its id.
+
+        BY ID AND NOT BY PHRASE, which is the anchor decision this class
+        turns on: a repair may word its finding however it likes, invent
+        a new code, or file it as a load-time issue instead of a lint
+        line, and all of those still count as "somebody said so".
+
+        Args:
+            store: The store to interrogate — its load-time issues and
+                the lint over the artifact it holds.
+
+        Returns:
+            The matching lines, load-time issues first.
+        """
+        said = [json.dumps(i) for i in store.issues
+                if "q1" in json.dumps(i)]
+        lint = canvas.lint_layout(store.scenes["f"], artifact_type="flow")
+        return said + [ln for ln in
+                       lint["errors"] + lint["warnings"] + lint["notes"]
+                       if "q1" in ln]
+
+    def _move(self, store: canvas.Store, root: Path, node_id: str,
+              x: float, y: float) -> canvas.Store:
+        """Issue `--relayout`'s own op, then re-read the project off disk.
+
+        Both doors in one helper on purpose. The relayout writes through
+        `apply_batch` and the damage then persists, so a class that
+        stopped at the in-memory store would be blind to a repair that
+        lives in the loader — and the loader is where WP-A's Face B
+        says the repair may have to go.
+
+        Args:
+            store: The store to write through.
+            root: The project root, re-opened after the write.
+            node_id: The node to move.
+            x: Its new `x`.
+            y: Its new `y`.
+
+        Returns:
+            A freshly loaded `Store` reading the same project from disk.
+        """
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "f",
+            "ops": [{"op": "mod", "id": node_id, "attrs": {"x": x, "y": y}}]})
+        return canvas.Store(canvas.Project(root))
+
+    def test_the_mint_puts_the_pin_on_its_target(self) -> None:
+        """The premise: a freshly minted ❓ hugs, and nobody complains.
+
+        The error-red guard for the red below. That red's claim is "the
+        gap grew and nothing said so", and a mint that had stopped
+        placing pins near their targets — or a `pin` op that quietly
+        failed — would satisfy the same words while measuring nothing.
+        Asserted as a relation to `PIN_HUG_PX` rather than to the
+        number 8, so retuning the standoff is not a failure here.
+        """
+        store, _root = self._minted(bystander=False)
+        self.assertLessEqual(
+            self._gap(store), canvas.PIN_HUG_PX,
+            "the mint no longer places a ❓ within its own standoff of "
+            "the target, so the red below would be measuring a bad "
+            "mint rather than a stranded pin")
+        self.assertEqual(self._mentions(store), [])
+
+    @unittest.expectedFailure
+    def test_a_moved_target_either_takes_its_pin_or_is_reported(
+            self) -> None:
+        """Move the subject; the ❓ must follow it or be named.
+
+        R6 WP-A, both faces in one assertion. The disjunction is what
+        makes this fix-agnostic: re-deriving in the applier or at load
+        satisfies the first arm, teaching `pindrift` the absolute
+        question satisfies the second, and the red flips on any ONE of
+        the three. See this class's header for why a catalogue entry
+        could not have said that.
+
+        THE PAGE CARRIES THE TARGET AND NOTHING ELSE, which is not
+        tidiness — see `_minted`. With any second node on it the check's
+        relative arm may speak by accident, and a red that a bystander
+        can satisfy is not a red about this defect.
+
+        Measured through this exact path on 2026-08-30: 8.0 -> 1002.0px,
+        `store.issues == []`, and no lint line names the glyph.
+        """
+        store, root = self._minted(bystander=False)
+        before = self._gap(store)
+        after = self._move(store, root, "step", 736, 820)
+        grew = self._gap(after)
+        if grew <= before:
+            return                      # the pin followed: nothing to say
+        self.assertNotEqual(
+            self._mentions(after), [],
+            "the ❓ went from %.1fpx to %.1fpx off the node it asks "
+            "about — the node moved and the glyph did not — and no "
+            "load-time issue and no lint line mentions it. Either arm "
+            "closes this: re-derive the placement (in the applier, or "
+            "at load), or give the check the absolute question"
+            % (before, grew))
+
+    def test_moving_a_bystander_leaves_a_correct_pin_alone(self) -> None:
+        """The silent half: a correctly placed ❓ must not be disturbed.
+
+        WP-A acceptance criterion 3, and the pole a careless repair of
+        the red above would wreck — "a fix that re-places every pin on
+        every load would satisfy (1) and wreck this". `other` is not the
+        pin's target and not near it, so a write that moves it is an
+        edit this glyph has no business reacting to: the gap must be
+        unchanged to the pixel, and nothing may say a word.
+
+        Asserted as unchanged rather than as a bound, because a re-place
+        that happens to land within tolerance is still a glyph the user
+        did not move and did not ask to have moved.
+        """
+        store, root = self._minted(bystander=True)
+        before = self._gap(store)
+        after = self._move(store, root, "other", 400, 600)
+        self.assertEqual(self._gap(after), before)
+        self.assertEqual(self._mentions(after), [])
+
+
+# ---------------------------------------------------------------------------
 # THE ATTACH-SIDE FAMILY (curator batch for the spike program, 2026-08-16;
 # seeds from `.superpowers/sdd/2026-08-13-v0.9-work-packages/spike-attach.md`
 # §5 and `spike-anchor.md` §4/§6c). Three entries about one question the
@@ -26908,7 +27168,22 @@ def coverage_table() -> list[tuple[str, str, str]]:
 #
 # `{}` HERE IS DERIVED AND NOT ASSUMED: the decorators came off first,
 # and the guard reported `measured {}` against the declared pair.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    # Curator batch 47, 2026-08-30, from assessment run R6's WP-A. Pin
+    # placement is computed at mint time and never re-derived — not by
+    # the applier `--relayout` writes through, and not at load. The one
+    # red here is DELIBERATELY NOT A CATALOGUE ENTRY: a `FindingSpec`
+    # names a check, so a catalogue red could only be discharged by
+    # teaching `pindrift` the absolute question, and WP-A's acceptance
+    # criterion 4 requires the red to flip under more than one of the
+    # three honest repairs. It asserts a disjunction instead — the gap
+    # is preserved, or somebody names the glyph — and was measured to
+    # flip under all three (re-derive in the applier, re-derive at load,
+    # teach the check), with both green controls surviving each. The
+    # detector half is `pin_left_behind_by_its_moved_target` in
+    # `CATALOGUE_RED_IDS`, and the two are one defect from two sides.
+    "TestAMovedNodeDoesNotStrandItsPin": 1,
+}
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -28404,7 +28679,24 @@ def red_bearing_classes() -> dict[str, int]:
 # are repaired below: the guard shares ONE pairing predicate with the
 # gate that needs it, and proves its own discrimination on rows it builds
 # rather than on a population that is allowed to be empty.
-RULE8_EXEMPT: dict[str, str] = {}
+#
+# REFILLED 2026-08-30 (curator batch 47) with the fifth row's exact shape
+# arriving a second time, which is why that paragraph was worth keeping.
+RULE8_EXEMPT: dict[str, str] = {
+    "pin_left_behind_by_its_moved_target:neighbour":
+        "The mutant is RED, so rule 8 declines to count its own "
+        "`FindingSpec` — correctly: `pin_drift` emits nothing on that "
+        "scene today, and a check answering nothing would pass both "
+        "poles. The firing pole EXISTS and is asserted in every commit, "
+        "it is just in the sibling rather than in this entry — "
+        "`pin_drifts_onto_a_rival_node` is green and proves `pin_drift` "
+        "fires at 60px on the same family's geometry, which is the "
+        "arrangement doctrine §3 blesses for `diamond_facet_overfire`. "
+        "Delete this row when R6 WP-A lands and the red flips, in that "
+        "same change: the pairing becomes real the moment the check "
+        "starts answering, and the fifth row above stood for four days "
+        "past its flip because nobody did.",
+}
 
 
 def rule_eight_paired(mutant: Mutant, slot: str, red: bool) -> bool:
