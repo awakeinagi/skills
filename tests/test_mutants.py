@@ -27934,9 +27934,32 @@ def coverage_table() -> list[tuple[str, str, str]]:
 #     repair. Corrected, they read 25 of 83 and 5 of 455. A GREEN THAT
 #     ARRIVES WITHOUT A REPAIR IS AN INSTRUMENT FAILURE, and the only
 #     reason it was caught is that a real browser disagreed with the model.
+#
+# ONE LEFT AND ONE JOINED AGAIN, hours later on 2026-08-31 (mutant-curator,
+# the height-axis wave), and this pair is the shape this dict exists to make
+# visible — because the line that left and the line that joined are the SAME
+# INVARIANT over two populations.
+#
+#   * `...IsNarratedAsHavingMoved` LEFT. `63fd1b6` took its capture's
+#     phantoms from 3 of 7 to 0, a live tab re-run confirmed it with
+#     `stored_before`, `posted` and `gesture` byte-identical, and the
+#     decorator came off. THAT GREEN IS ABOUT THE CAPTURE. Every caption in
+#     it is one line in both wraps, so the client changes each height by
+#     -0.4 and the term the same commit introduced is multiplied to zero.
+#   * `...IsNotAVerticalDisplacement` JOINED WITH TWO, and one of them is
+#     that very invariant, failing on this same head over a caption the
+#     client re-wraps from three lines to two. The other is its opposite
+#     sign: the same term absorbs a real 11px drag whole. ONE TERM, TWO
+#     SENTENCES, OPPOSITE POLES.
+#
+# SO A LINE LEFT THIS DICT WITHOUT THE CLASS BEING CLOSED, which has not
+# happened here before and is worth the paragraph. The width arm was
+# repaired and a height arm was opened in the same change, and three
+# instruments — the 735-cell grid, the sibling capture, the 101,310-cell
+# sweep — all reported no change because none of them has a `dh` axis.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
-    "TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved": 1}
+    "TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement": 2}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -36288,18 +36311,33 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
     caption on its own re-measure FIRST and translates SECOND, and this
     door did it the other way round, which is why both reds below had
     gone UNEXPECTEDLY GREEN. And `(0, 12)` joined the deltas, closing a
-    displacement arm that compared x only. On this head the reds now read
-    25 of 83 and 5 of 455.
+    displacement arm that compared x only. RE-MEASURED ON THIS HEAD,
+    2026-08-31: the reds read 10 of 83 and 5 of 455. The `25 of 83` this
+    paragraph carried was taken on `84c226d` and outlived it by one
+    commit — `63fd1b6` landed between the reading and the sentence.
 
     WHAT THIS GRID STILL CANNOT SEE, said plainly so nobody reads its
-    number as the class's size. `_LABEL_GRID_CLIENT_REMEASURE` is a
-    single constant of -3, so every cell's re-centre is a HALF pixel —
-    and the captions a real browser gets narrated here are the ones whose
-    re-centre is WHOLE. A tab measured eight captions at 1.5, 1, 1, 0,
-    1.5, 0, 1, 1.5. So this grid models one parity of the class and the
-    browser sees both. `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHaving
-    Moved` is the referee for that reason; a model that has been wrong
-    eleven times does not get to be the referee for its own class.
+    number as the class's size, and it is now TWO things.
+
+    THE PARITY. `_LABEL_GRID_CLIENT_REMEASURE` is a single constant of
+    -3, so every cell's re-centre is a HALF pixel — and the captions a
+    real browser gets narrated here are the ones whose re-centre is
+    WHOLE. A tab measured eight captions at 1.5, 1, 1, 0, 1.5, 0, 1,
+    1.5. So this grid models one parity of the class and the browser
+    sees both. `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved` is
+    the referee for that reason; a model that has been wrong eleven
+    times does not get to be the referee for its own class.
+
+    THE HEIGHT AXIS, AND THIS ONE IS AN ABSENCE RATHER THAN A BIAS.
+    `_label_grid_co_change` changes a caption's `width` under two of its
+    seven conditions and its `height` under NONE, so a rule keyed on
+    `dh` is multiplied by zero in all 735 cells. `63fd1b6` shipped such
+    a rule; this grid read 10 of 83 and 5 of 455 with it and the same
+    with it deleted, and reported that as no change. The population, not
+    the predicate — again. `TestTheHeightAClientRemeasuresIsNotAVertical
+    Displacement` carries that axis in its own browser capture rather
+    than here, because adding a condition would move both counts above
+    and this grid's numbers are quoted in four places.
 
     THE 37 ARE THE HALF PIXEL. `_round_geom` is `int(round(v))`, so a
     container whose `width - label_width` is odd stores its label a half
@@ -36605,7 +36643,7 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
     @unittest.expectedFailure
     def test_a_carried_label_is_its_containers_story_and_not_its_own(
             self) -> None:
-        """RED 2026-08-31: 25 of 83 carried labels are narrated as moved.
+        """RED 2026-08-31: 10 of 83 carried labels are narrated as moved.
 
         IT WENT GREEN AND IT WAS NOT FIXED. This red reported UNEXPECTED
         SUCCESS from `3c9a615` until 2026-08-31, and the reason was the
@@ -36614,10 +36652,16 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
         re-measure FIRST and translates SECOND. The door was posting an x
         consistent with the width beside it, which is the one thing a
         real tab never does, so the grid could not produce the defect and
-        called that a repair. Corrected, this head narrates 25 of 83.
-        The mutant-curator did not un-decorate it; see
-        `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved`, where a
-        real browser says 3 of 7 on the same mechanism.
+        called that a repair.
+
+        THE COUNT IS 10 AND NOT THE 25 THIS LINE CARRIED. Corrected on a
+        re-measure, 2026-08-31: the `25` was read on `84c226d` and
+        `63fd1b6` landed between the reading and the sentence, taking
+        the residual to 10. All ten are
+        `client / *-shape / label_{renamed,remeasured} / (0,0)`. The
+        figure moved because the product did, not because the grid did,
+        and it is re-derived rather than quoted for the reason recorded
+        above this class.
 
         THE OVER-REPORT POLE, and on this head it is the live one. In
         these cells the co-change moved the label and NOBODY positioned
@@ -37861,6 +37905,36 @@ def replay_browser_capture(mod: Any, root: Path,
         of untouched boxes the record narrates as having moved.
     """
     cap = browser_caption_capture()
+    return replay_a_capture(mod, root, cap,
+                            set((cap.get("gesture") or {})
+                                .get("untouched") or []), shove)
+
+
+def replay_a_capture(mod: Any, root: Path, cap: dict[str, Any],
+                     untouched: set[str],
+                     shove: tuple[str, int, int] | None = None
+                     ) -> dict[str, Any]:
+    """Post any browser capture's save through `mod` and read the record.
+
+    EXTRACTED WHEN THE SECOND CAPTURE ARRIVED, 2026-08-31. The two
+    captures differ in what their population field is CALLED and in
+    nothing about how a save is replayed, and a second hand copy of the
+    replay is a second chance to install the base revision differently
+    from the first — which would make the two classes' readings
+    incomparable while both looked healthy.
+
+    Args:
+        mod: The canvas module to replay through.
+        root: An empty directory to build the project in.
+        cap: The capture, already read.
+        untouched: The ids of containers nobody touched in the tab; a
+            `moved` about one of their captions is a phantom.
+        shove: `(element_id, dx, dy)` to apply to the posted scene on top
+            of what the client sent. None posts exactly what it sent.
+
+    Returns:
+        `{"record", "facts", "entries", "disk", "phantoms"}`.
+    """
     aid = cap["artifact"]
     project = mod.Project(root)
     project.ensure_tree()
@@ -37882,7 +37956,6 @@ def replay_browser_capture(mod: Any, root: Path,
     part = (record.get("artifacts") or {}).get(aid) or {}
     facts = [[f.get("fact"), f.get("element"), f.get("dx"), f.get("dy")]
              for f in (part.get("facts") or [])]
-    untouched = set(cap["gesture"]["untouched"])
     return {
         "record": record, "facts": facts,
         "entries": {b["id"]: b for b in (part.get("by_element") or [])},
@@ -37891,6 +37964,55 @@ def replay_browser_capture(mod: Any, root: Path,
         "phantoms": [f[1] for f in facts
                      if f[0] == "moved" and str(f[1]).endswith("-label")
                      and str(f[1])[:-len("-label")] in untouched]}
+
+
+def assert_a_capture_is_current_testimony(
+        case: unittest.TestCase, cap: dict[str, Any], app_build: str,
+        spec: str, keys: tuple[str, ...], where: str) -> None:
+    """The four clauses every browser capture in this file shares.
+
+    EXTRACTED WHEN THE SECOND CAPTURE ARRIVED, 2026-08-31, and extracted
+    rather than copied for the reason this repo keeps re-learning: two
+    hand copies of an absence guard drift, and the half that drifts is
+    the half nobody has watched fail. The POPULATION clauses stay with
+    each caller, because what makes a capture able to hold a defect is a
+    property of that defect and not of captures in general — which is
+    precisely how the first capture came to have no height axis.
+
+    Args:
+        case: The test case to assert through.
+        cap: A capture as its spec writes it, or `{}` for never-ran.
+        app_build: The app bundle hash this tree ships, passed in rather
+            than read, so a damaged-capture run can vary it.
+        spec: The spec file that is allowed to have written this capture.
+        keys: The top-level keys its own gate always writes.
+        where: The capture file's name, for the message that names the
+            command to re-record it.
+    """
+    case.assertNotEqual(
+        cap, {},
+        "NO BROWSER HAS EVER SPOKEN ABOUT THIS CLASS. The capture at %s "
+        "is absent, so the red below has no subject and this class is "
+        "proving nothing. Run: npm --prefix frontends/wysiwyg-grilling "
+        "exec -- playwright test %s" % (where, spec.split(".")[0]))
+    case.assertEqual(
+        cap.get("spec"), spec,
+        "the capture was not written by the spec this class is about, so "
+        "nothing here knows what gates it passed: %r" % cap.get("spec"))
+    missing = [k for k in keys if k not in cap]
+    case.assertEqual(
+        missing, [],
+        "the capture is missing %s, so it was written by something other "
+        "than the spec's own gate — which writes nothing at all when a "
+        "gate fails, precisely so a half-capture cannot exist" % missing)
+    case.assertEqual(
+        cap.get("app_build"), app_build,
+        "the capture is testimony about a DIFFERENT app bundle than this "
+        "tree ships (capture %r, tracked %r). What it records is the "
+        "CLIENT's own arithmetic, so a client that moved under it makes "
+        "every reading below history. Re-record: npm --prefix "
+        "frontends/wysiwyg-grilling exec -- playwright test %s"
+        % (cap.get("app_build"), app_build, spec.split(".")[0]))
 
 
 def assert_the_capture_can_hold_the_case(case: unittest.TestCase,
@@ -37907,7 +38029,17 @@ def assert_the_capture_can_hold_the_case(case: unittest.TestCase,
 
     SIX CLAUSES, one per way a capture has been able to go hollow, each
     raised by its own `assert` so a damaged capture names the clause that
-    caught it rather than merely failing.
+    caught it rather than merely failing. Four are shared with the
+    height-axis capture below; the two population clauses are this
+    defect's own.
+
+    AND A SEVENTH CLAUSE IS DELIBERATELY NOT HERE, named so nobody adds
+    it as an oversight repair. This capture's population has no HEIGHT
+    axis — every caption in it is one line in both wraps, so `dh` is
+    -0.4 nine times over — and a clause demanding one would fail
+    ungated over a capture that is honest about the class it was
+    recorded for. `TestTheHeightAClientRemeasuresIsNotAVerticalDisplace
+    ment` is that population, in its own capture, with that clause.
 
     Args:
         case: The test case to assert through.
@@ -37916,32 +38048,10 @@ def assert_the_capture_can_hold_the_case(case: unittest.TestCase,
         app_build: The app bundle hash this tree ships, passed in rather
             than read, so a damaged-capture run can vary it.
     """
-    case.assertNotEqual(
-        cap, {},
-        "NO BROWSER HAS EVER SPOKEN ABOUT THIS CLASS. The capture at %s "
-        "is absent, so the red below has no subject and this class is "
-        "proving nothing. Run: npm --prefix frontends/wysiwyg-grilling "
-        "exec -- playwright test pin-untouched-captions"
-        % BROWSER_CAPTION_CAPTURE.name)
-    case.assertEqual(
-        cap.get("spec"), "pin-untouched-captions.spec.ts",
-        "the capture was not written by the spec this class is about, so "
-        "nothing here knows what gates it passed: %r" % cap.get("spec"))
-    missing = [k for k in ("stored_before", "posted", "observed", "gesture")
-               if k not in cap]
-    case.assertEqual(
-        missing, [],
-        "the capture is missing %s, so it was written by something other "
-        "than the spec's own gate — which writes nothing at all when a "
-        "gate fails, precisely so a half-capture cannot exist" % missing)
-    case.assertEqual(
-        cap.get("app_build"), app_build,
-        "the capture is testimony about a DIFFERENT app bundle than this "
-        "tree ships (capture %r, tracked %r). What it records is the "
-        "CLIENT's own arithmetic, so a client that moved under it makes "
-        "every reading below history. Re-record: npm --prefix "
-        "frontends/wysiwyg-grilling exec -- playwright test "
-        "pin-untouched-captions" % (cap.get("app_build"), app_build))
+    assert_a_capture_is_current_testimony(
+        case, cap, app_build, "pin-untouched-captions.spec.ts",
+        ("stored_before", "posted", "observed", "gesture"),
+        BROWSER_CAPTION_CAPTURE.name)
     gesture = cap.get("gesture") or {}
     case.assertNotEqual(
         gesture.get("captions_remeasured_by_client"), [],
@@ -38239,6 +38349,16 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
         size, because a repair that reported `abs()` would pass a
         magnitude check and still tell the reader the caption went the
         wrong way.
+
+        WHAT THIS POLE CANNOT SEE, measured and written down rather than
+        left to be rediscovered. It shoves on y over a capture in which
+        every caption's height changed by -0.4, and `63fd1b6`'s
+        displacement arm absorbs a y drag of exactly `round(-dh/2)` —
+        which on -0.4 is ZERO. So this pole was green over a rule that
+        swallows an eleven-pixel drag whole, and it was the pole written
+        to refuse exactly that. The magnitude is not the flaw; the
+        POPULATION is. `TestTheHeightAClientRemeasuresIsNotAVertical
+        Displacement` brings a capture in which a caption re-wraps.
         """
         cap = self._capture()
         remeasured = cap["gesture"]["captions_remeasured_by_client"]
@@ -38280,9 +38400,35 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
             "which is exactly how the predecessor scores zero: %s"
             % (_POSITIONED_SHOVE, lost))
 
-    @unittest.expectedFailure
     def test_no_caption_of_an_untouched_box_is_narrated(self) -> None:
-        """RED 2026-08-31: 3 of 7 untouched captions are narrated as moved.
+        """FLIPPED 2026-08-31 by `63fd1b6`: 3 of 7 phantom captions to 0.
+
+        THE MASK CAME OFF FOR THE ONE REASON IT MAY, and the fix is
+        named: `63fd1b6` made the displacement arm predict the caption's
+        OWN stored coordinate moved by the client's re-centre and the
+        container's carry, so the half-pixel residual `_round_geom` bakes
+        into every odd centring cancels instead of deciding. The fixer
+        left the decorator on because a fixer may not un-decorate its own
+        red; it reported `unexpected success` until a curator checked all
+        five poles of this class and re-ran the browser. RE-RECORDED
+        DELIBERATELY on 2026-08-31: `stored_before`, `posted`,
+        `stored_after` and `gesture` came back BYTE-IDENTICAL and only
+        `observed` and `canvas_sha256` moved, so this green is a live
+        tab's own witness of the flip and not a replay's opinion of it.
+
+        AND THE GREEN IS ABOUT THIS CAPTURE, NOT ABOUT THIS INVARIANT.
+        Read that sentence before quoting the colour. Every caption in
+        the capture below is ONE LINE in both wraps, so the client
+        changes each one's height by -0.4 and `round(-dh/2)` is zero
+        nine times over. On a caption the client re-wraps from three
+        lines to two — 9 of 121 ordinary agent-authored boxes do —
+        `dh` is about -22 and this same invariant FAILS on this same
+        head: see `test_no_caption_of_an_untouched_box_is_narrated_after
+        _a_rewrap` in `TestTheHeightAClientRemeasuresIsNotAVertical
+        Displacement`, which is red now. The width arm was repaired and
+        a height arm was opened in the same change. A reader who takes
+        this green for "phantom captions are closed" is reading the
+        twelfth closure of this class.
 
         THE RELATION IS WHAT IS PINNED and no coordinate literal appears
         in the assertion: a caption of a box nobody touched is not
@@ -38380,6 +38526,676 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
                cap["gesture"]["dragged"],
                cap["gesture"]["captions_moved_on_disk"],
                out["record"]["summary"].get("verb_counts"), out["facts"]))
+
+
+# ---------------------------------------------------------------------------
+# THE AXIS NO INSTRUMENT IN THIS TREE HAD. Filed by the mutant-curator,
+# 2026-08-31, hours after the class above went green — and the two facts
+# belong in one paragraph, because the second is what the first is worth.
+#
+# `63fd1b6` REPAIRED THE WIDTH ARM AND OPENED A HEIGHT ONE. Its displacement
+# arm predicts the caption's new position as `old + (-d(size)/2) + carry` on
+# BOTH axes. On x that is measured and right: a tab re-centres a caption on
+# its own fresh text metrics, `dx == -(dw)/2` in eight of eight at load.
+# On y it describes nothing any client does. Measured in a live tab, in the
+# capture this class replays: `dy == 0.0000` in three captions of three
+# while `dh != 0` in three of three. A tab re-measures a caption's height
+# and leaves its `y` alone.
+#
+# WHY EVERY INSTRUMENT WAS SILENT, and this is the finding one level up.
+#
+#   * The 735-cell grid has NO `dh` AXIS. Read its own source:
+#     `_label_grid_co_change` changes a caption's `width` under two
+#     conditions and its `height` under none, so the term under test is
+#     multiplied by zero in all 735 cells. It reads 10 of 83 and 5 of 455
+#     with the term and without it.
+#   * The capture above has no `dh` axis either, for a subtler reason: it
+#     HAS one and it is too small. Every caption in it is one line in both
+#     wraps, so `dh` is -0.4 nine times over, `round(-dh/2)` is 0, and
+#     `_round_geom` takes the whole term away before anything can see it.
+#   * The fixer's 101,310-cell sweep names its own axes — container width,
+#     caption width, re-measure, drag — and `dh` is not among them.
+#
+# So the term was measured by three instruments that could not contain it,
+# and each reported no change. THIS IS THE FOURTH TIME IN THIS WAVE AN
+# INSTRUMENT HAS BEEN BLIND IN THE SAME WAY, which is why the guard below
+# is about the POPULATION and not about the capture's shape.
+#
+# WHAT IT COSTS THE READER, at both poles of one class and from one term.
+#
+#   * UNDER-REPORT. The term absorbs a real vertical drag of exactly
+#     `round(-dh/2)`. On the recorded caption that is 11 whole pixels: the
+#     user drags the caption down 11, a fresh `Store` reads it back where
+#     they left it, and the record says `saved without changing anything`.
+#     `84c226d` narrates it correctly, so this arrived with the repair.
+#   * OVER-REPORT. With no drag at all, the same term makes the predicate
+#     answer False about a caption of a box NOBODY TOUCHED — the invariant
+#     the class above exists for — because the y arm's disagreement
+#     invalidates the x arm's agreement in the tuple comparison. The tab
+#     merely opened, and the record says the caption moved.
+#
+# ONE TERM, TWO SENTENCES, OPPOSITE SIGNS. That is why both reds are here
+# and why neither may be dropped for the other: a repair that reaches
+# either alone is a repair this file has already accepted eleven times.
+# ---------------------------------------------------------------------------
+# Written by `pin-rewrapped-caption-drag.spec.ts`; see that file's header
+# for what each field is and which gate refuses to write it.
+#     npm --prefix frontends/wysiwyg-grilling exec -- \
+#         playwright test pin-rewrapped-caption-drag
+BROWSER_REWRAP_CAPTURE = (Path(__file__).parent
+                          / "browser_rewrap_capture.json")
+# A MINIMAL WELL-FORMED CAPTURE, used only to be DAMAGED, for the same
+# reason its sibling above has one: on a machine that has never run
+# Playwright there IS no recorded file, and a proof that the guard bites
+# must not be the first thing to fall over in the exact state the guard was
+# written for. It carries no scene; nothing replays it.
+_SYNTHETIC_REWRAP_CAPTURE: dict[str, Any] = {
+    "spec": "pin-rewrapped-caption-drag.spec.ts", "app_build": "synthetic",
+    "artifact": "text-clip", "stored_before": [], "posted": {},
+    "observed": {},
+    "population": {"captions": [{"id": "w0-label", "dh": -21.8, "dy": 0.0,
+                                 "absorbs": 11},
+                                {"id": "w1-label", "dh": -0.8, "dy": 0.0,
+                                 "absorbs": 0}],
+                   "rewrapped": ["w0-label"], "ordinary": ["w1-label"],
+                   "dragged": "w1", "drag_dx": 25, "untouched": ["w0"]}}
+
+
+def browser_rewrap_capture() -> dict[str, Any]:
+    """Read the browser's recorded testimony about the height axis.
+
+    Returns:
+        The capture as `pin-rewrapped-caption-drag.spec.ts` wrote it, or
+        `{}` when no run has ever written one — absent is a state the
+        guard REPORTS with the command that fixes it, never one anything
+        here crashes on, because a crash under a red's mask is
+        indistinguishable from a healthy failure.
+    """
+    if not BROWSER_REWRAP_CAPTURE.exists():
+        return {}
+    return json.loads(BROWSER_REWRAP_CAPTURE.read_text())
+
+
+def rewrap_subject(cap: dict[str, Any]) -> dict[str, Any]:
+    """The recorded caption whose re-measure is big enough to absorb a drag.
+
+    Args:
+        cap: A rewrap capture.
+
+    Returns:
+        Its first re-wrapped caption's measurement row, or `{}` when the
+        capture records none — which the guard is what reports.
+    """
+    pop = cap.get("population") or {}
+    ids = set(pop.get("rewrapped") or [])
+    return next((c for c in pop.get("captions") or []
+                 if c.get("id") in ids), {})
+
+
+def measured_height_axis(cap: dict[str, Any]) -> list[str]:
+    """Which captions the capture's OWN SCENES say the client re-wrapped.
+
+    THE SUMMARY IS A CLAIM AND THE SCENES ARE THE EVIDENCE, and this
+    function exists because the two can disagree. `population.rewrapped`
+    is written by the spec from what it measured in the tab; if a later
+    edit, a merge or a hand-patched capture leaves that list saying
+    "there is a height axis" over scenes that have none, every red below
+    passes over an empty set while the guard reads the list and nods.
+    The guard asks both.
+
+    Args:
+        cap: A rewrap capture; one carrying no scenes returns `[]`, and
+            the guard reads that as "cannot be cross-checked" rather than
+            as "empty".
+
+    Returns:
+        The ids of bound captions whose posted height differs from the
+        stored one by enough that `round(-dh/2)` is not zero.
+    """
+    aid = cap.get("artifact")
+    stored = {e["id"]: e for e in (cap.get("stored_before") or [])}
+    posted = ((cap.get("posted") or {}).get("scenes") or {}).get(aid) or []
+    out = []
+    for now in posted:
+        was = stored.get(now.get("id"))
+        if not was or now.get("type") != "text" \
+                or not now.get("containerId"):
+            continue
+        dh = (now.get("height") or 0) - (was.get("height") or 0)
+        if round(-dh / 2.0) != 0:
+            out.append(str(now["id"]))
+    return sorted(out)
+
+
+def assert_the_rewrap_capture_has_a_height_axis(
+        case: unittest.TestCase, cap: dict[str, Any], app_build: str) -> None:
+    """Assert this capture exists, is current, and HAS the axis.
+
+    SEVEN CLAUSES. Four are the shared testimony clauses; three are this
+    defect's own and they are the reason this function is not the one
+    above. The middle clause is the one this whole class was filed over:
+    a population in which no caption's height changed by enough to absorb
+    a whole pixel is the population every other instrument in this tree
+    already has, and a red measured over it passes INVISIBLY under its
+    own mask.
+
+    THE AXIS IS ASKED TWICE, of the spec's summary and of the capture's
+    own scenes, and they must agree. A summary that claims an axis the
+    scenes do not have is the same silence wearing the guard's clothes.
+
+    Args:
+        case: The test case to assert through.
+        cap: A capture as `pin-rewrapped-caption-drag.spec.ts` writes it,
+            or `{}` for the never-ran case.
+        app_build: The app bundle hash this tree ships, passed in rather
+            than read, so a damaged-capture run can vary it.
+    """
+    assert_a_capture_is_current_testimony(
+        case, cap, app_build, "pin-rewrapped-caption-drag.spec.ts",
+        ("stored_before", "posted", "observed", "population"),
+        BROWSER_REWRAP_CAPTURE.name)
+    pop = cap.get("population") or {}
+    claimed = [str(c) for c in (pop.get("rewrapped") or [])]
+    case.assertNotEqual(
+        claimed, [],
+        "THIS CAPTURE HAS NO HEIGHT AXIS. No caption in it had its height "
+        "changed by the client by enough to absorb a whole pixel, so the "
+        "term under test is multiplied by zero in every cell and both "
+        "reds below are universal claims over an empty set. That is the "
+        "population the 735-cell grid, the sibling capture and the "
+        "101,310-cell sweep all already have, and all three report no "
+        "change when the term is deleted")
+    case.assertNotEqual(
+        pop.get("ordinary"), [],
+        "no caption in this capture was left ALONE by the client, so the "
+        "control pole has nothing to speak about and a repair that went "
+        "mute about every caption would reach both reds unopposed")
+    measured = measured_height_axis(cap)
+    if cap.get("stored_before") or (cap.get("posted") or {}).get("scenes"):
+        case.assertEqual(
+            measured, sorted(claimed),
+            "the capture's summary and the capture's own SCENES disagree "
+            "about which captions the client re-wrapped (summary %s, "
+            "scenes %s). The summary is a claim the spec wrote down and "
+            "the scenes are what a replay actually reads, so a red below "
+            "would be measured over one population and gated on another"
+            % (sorted(claimed), measured))
+
+
+class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
+        unittest.TestCase):
+    """What the record says about a caption the client re-wrapped.
+
+    THE INVARIANT, at both poles and with no coordinate literal in
+    either: a caption's own re-measured HEIGHT is not a vertical gesture.
+    Nobody moved it, so nothing may be narrated; and when somebody DOES
+    move it, the size of their drag may not decide whether they are
+    heard.
+
+    WHY A SECOND BROWSER CAPTURE AND NOT A CELL IN AN EXISTING GRID.
+    Three instruments measured the term this class is about and all three
+    were multiplying it by zero — the grid because its client door never
+    changes a caption's height, the sibling capture because every caption
+    in it is one line in both wraps, the sweep because `dh` is not one of
+    its axes. The population, not the predicate, is what keeps being
+    wrong here; so this class brings its own, recorded from a tab that
+    really did re-wrap a caption from three lines to two.
+
+    HOW THIS CANNOT BE SILENTLY ABSENT. The browser runs in a
+    manual-stage hook and a skip reads as a green, which is the shape of
+    the defect being pinned — so the testimony is RECORDED in the wire
+    format and replayed here in the model tier, ungated, on every commit.
+    Nothing here skips. When no capture exists the guard FAILS and names
+    the command; when the population cannot hold the case it fails and
+    says which clause went hollow; when the app bundle has moved under
+    it, it fails as stale. Watched failing in all of those before any
+    colour below was believed.
+    """
+
+    def setUp(self) -> None:
+        """Give each test its own root; the replay takes a project under it."""
+        self.root = Path(tempfile.mkdtemp(prefix="rewrap-capture-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _capture(self) -> dict[str, Any]:
+        """The recorded capture, or a named failure saying none exists.
+
+        Reading `cap["population"]` off `{}` raises a `KeyError` that
+        says nothing about browsers, and an error is invisible under a
+        red's mask. Absence is turned into a sentence at the one place
+        every test here goes through.
+
+        Returns:
+            The capture as the spec wrote it.
+        """
+        cap = browser_rewrap_capture()
+        self.assertNotEqual(
+            cap, {},
+            "no browser capture exists at %s, so this test has no "
+            "subject — it is not passing and not failing about captions. "
+            "Run: npm --prefix frontends/wysiwyg-grilling exec -- "
+            "playwright test pin-rewrapped-caption-drag"
+            % BROWSER_REWRAP_CAPTURE.name)
+        return cap
+
+    def _replay(self, name: str, shove: tuple[str, int, int] | None = None
+                ) -> dict[str, Any]:
+        """Replay the capture through the tree's own `canvas.py`.
+
+        Args:
+            name: A directory name, so each replay gets a fresh project.
+            shove: `(id, dx, dy)` applied on top of what the tab posted.
+
+        Returns:
+            What `replay_a_capture` returns.
+        """
+        cap = self._capture()
+        return replay_a_capture(
+            canvas, self.root / name, cap,
+            set((cap.get("population") or {}).get("untouched") or []), shove)
+
+    def test_the_browser_spoke_and_its_population_has_a_height_axis(
+            self) -> None:
+        """The vacuity guard, ungated: absence is a failure, never a pass."""
+        assert_the_rewrap_capture_has_a_height_axis(
+            self, browser_rewrap_capture(), tracked_app_build())
+
+    def _guard_says(self, cap: dict[str, Any], app_build: str) -> str | None:
+        """What the axis guard says about a damaged capture.
+
+        Args:
+            cap: A damaged capture.
+            app_build: The tracked app build to judge it against.
+
+        Returns:
+            The assertion message the guard raised, or None when it
+            raised nothing — which is a SURVIVOR and the finding.
+        """
+        try:
+            assert_the_rewrap_capture_has_a_height_axis(self, cap, app_build)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
+    def test_the_axis_guard_notices_a_population_without_the_axis(
+            self) -> None:
+        """The guard, watched failing — including the missing-axis case.
+
+        THIS IS THE MUTANT THE WHOLE CLASS WAS FILED OVER. Three
+        instruments in this tree measured a term whose population could
+        not contain it and all three reported no change. The clause that
+        would have caught that is `THIS CAPTURE HAS NO HEIGHT AXIS`, and
+        a clause nobody has watched fire is decoration — so it is fired
+        here, twice, from both directions: a capture whose summary admits
+        it has no axis, and one whose summary CLAIMS an axis its own
+        scenes do not have. The second is the more dangerous shape,
+        because it reads as healthy.
+
+        Each mutant is required to fail on the clause it targets rather
+        than merely to fail: a mutant that trips a different assertion
+        has proved that assertion twice and the intended one not at all.
+        """
+        good = _SYNTHETIC_REWRAP_CAPTURE
+        build = good["app_build"]
+        self.assertIsNone(
+            self._guard_says(good, build),
+            "the UNDAMAGED synthetic capture does not pass the guard, so "
+            "every mutant below would fail for that reason instead of "
+            "the one it targets and this demonstration would be green "
+            "over nothing")
+        flat = dict(good, stored_before=[
+            {"id": "w0-label", "type": "text", "containerId": "w0",
+             "height": 44, "width": 100, "x": 0, "y": 0}],
+            posted={"scenes": {"text-clip": [
+                {"id": "w0-label", "type": "text", "containerId": "w0",
+                 "height": 43.2, "width": 104, "x": 0, "y": 0}]}})
+        mutants: list[tuple[str, dict[str, Any], str, str]] = [
+            ("the spec has never run on this machine",
+             {}, build, "NO BROWSER HAS EVER SPOKEN"),
+            ("a capture from some other probe",
+             dict(good, spec="pin-untouched-captions.spec.ts"), build,
+             "not written by the spec this class is about"),
+            ("a half-written capture",
+             {k: v for k, v in good.items() if k != "posted"}, build,
+             "the capture is missing"),
+            ("the app bundle moved under the capture",
+             good, "a-rebuilt-frontend", "DIFFERENT app bundle"),
+            ("A POPULATION WITH NO HEIGHT AXIS",
+             dict(good, population=dict(good["population"], rewrapped=[])),
+             build, "THIS CAPTURE HAS NO HEIGHT AXIS"),
+            ("every caption re-wrapped, so no control is left",
+             dict(good, population=dict(good["population"], ordinary=[])),
+             build, "left ALONE by the client"),
+            ("a summary claiming an axis the SCENES do not have",
+             flat, build, "own SCENES disagree")]
+        verdicts = [(name, want, self._guard_says(cap, ab))
+                    for name, cap, ab, want in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, want, (said or "")[:160])
+                 for name, want, said in verdicts
+                 if said is not None and want not in said]
+        self.assertEqual(
+            (survived, [w[:2] for w in wrong]), ([], []),
+            "the axis guard did not notice %s, and answered the wrong "
+            "clause for %s. A survivor is the finding: that clause is "
+            "decoration, and this class joins the three instruments that "
+            "measured this term over a population it cannot appear in. "
+            "Detail: %s" % (survived, [w[0] for w in wrong], wrong))
+
+    def test_the_replay_lands_the_geometry_the_browser_landed(self) -> None:
+        """The replay is the browser's save, not a scene of its own.
+
+        Everything below reads a record this tier produced from a
+        captured request, which is worth nothing unless it is the record
+        the BROWSER produced from the same request. On the head the
+        capture was taken against that is asserted exactly, fact for
+        fact. Off that head the load-bearing half survives any
+        `canvas.py` change: THE GEOMETRY THE REPLAY LANDS ON DISK MUST BE
+        THE GEOMETRY THE BROWSER'S OWN SAVE LANDED. A repair to the
+        record layer may change what is NARRATED and may not change what
+        is STORED.
+        """
+        cap = self._capture()
+        out = self._replay("same")
+        landed = {k: tuple(v)
+                  for k, v in (cap.get("stored_after") or {}).items()}
+        self.assertNotEqual(
+            landed, {}, "the capture records no post-save geometry, so "
+                        "the one head-stable half of this test is vacuous")
+        drifted = {eid: (xy, out["disk"].get(eid))
+                   for eid, xy in landed.items()
+                   if out["disk"].get(eid) != xy}
+        self.assertEqual(
+            drifted, {},
+            "the replay's save landed different geometry than the "
+            "browser's did, from the very same request body — so this is "
+            "the replay measuring some other scene: %s" % drifted)
+        if cap.get("canvas_sha256") == canvas_digest():
+            self.assertEqual(
+                out["facts"], [list(f) for f in cap["observed"]["facts"]],
+                "the replay disagrees with the browser about the record "
+                "THIS canvas.py produced from the very request the "
+                "browser sent: replay %s, browser %s"
+                % (out["facts"], cap["observed"]["facts"]))
+        else:
+            self.assertNotEqual(
+                out["facts"], [],
+                "the replay produced no record at all from a real "
+                "browser's save. The capture is against another "
+                "canvas.py (%s), so the exact comparison is off, but a "
+                "save that narrates nothing about a %spx drag is not a "
+                "repair" % ((cap.get("canvas_sha256") or "undated")[:12],
+                            cap["population"]["drag_dx"]))
+
+    def test_the_record_still_names_the_box_the_user_dragged(self) -> None:
+        """The neighbour that refuses silence bought by breaking narration.
+
+        Both reds below are reachable by suppressing the artifact,
+        emptying `by_element` or deleting the fact layer. Every one of
+        those arrives here first, in the same captured save, on the one
+        gesture the user really made — asserted with MAGNITUDE AND
+        DIRECTION, read off the capture's own measured drag so an honest
+        re-record does not have to come back and edit this.
+        """
+        cap = self._capture()
+        pop = cap["population"]
+        out = self._replay("dragged")
+        named = [f for f in out["facts"]
+                 if f[0] == "moved" and f[1] == pop["dragged"]]
+        self.assertNotEqual(
+            named, [],
+            "the record does not name the box the user dragged, so both "
+            "reds below are now reachable by going silent — the one way "
+            "they must never be reachable. Facts: %s" % out["facts"])
+        self.assertEqual(
+            [named[0][2], named[0][3]], [pop["drag_dx"], 0],
+            "the record names the dragged box with a displacement the "
+            "browser did not make: it dragged %s purely horizontally by "
+            "%s and the record says (%s, %s)"
+            % (pop["dragged"], pop["drag_dx"], named[0][2], named[0][3]))
+
+    def test_the_same_caption_dragged_the_other_way_is_narrated(self) -> None:
+        """The live half: the check speaks about this very caption.
+
+        THE NEIGHBOUR IS THE SAME ELEMENT AT THE SAME MAGNITUDE, and
+        that is what makes the red below a finding rather than an
+        opinion. The absorption is one-sided: the term predicts
+        `-dh/2`, so a drag of `+round(-dh/2)` lands exactly on the
+        prediction and a drag of the same size the other way does not.
+        This pole holds the direction that is heard. Together the two
+        say: you spoke about a caption dragged eleven pixels up and went
+        mute about the same caption dragged eleven pixels down, which
+        cannot be a property of any gesture.
+
+        ASSERTED WITH MAGNITUDE AND DIRECTION, never by existence: a
+        record that reports `abs()` would pass an existence check and
+        still tell the reader the caption went the wrong way.
+        """
+        cap = self._capture()
+        subject = rewrap_subject(cap)
+        self.assertNotEqual(
+            subject, {},
+            "the capture records no re-wrapped caption, so this pole "
+            "has no subject; the guard above is what reports that")
+        who, dy = subject["id"], -int(subject["absorbs"])
+        out = self._replay("neighbour", (who, 0, dy))
+        posted = next(e for e in cap["posted"]["scenes"][cap["artifact"]]
+                      if e["id"] == who)
+        want = (canvas._round_geom(posted["x"]),
+                canvas._round_geom(posted["y"] + dy))
+        self.assertEqual(
+            out["disk"][who], want,
+            "the %dpx drag did not survive a reload, so this pole is "
+            "about a position nobody kept: disk %s, asked %s"
+            % (dy, out["disk"][who], want))
+        entry = out["entries"].get(who)
+        self.assertTrue(
+            record_accounts_for_the_move(entry, "y"),
+            "a caption dragged %dpx landed and is in no record, so the "
+            "check is not speaking about this element at all and the red "
+            "below would be red for the wrong reason. Entry: %s"
+            % (dy, entry))
+        said = ((entry.get("semantic") or {}).get("moved") or {}).get("dy")
+        self.assertEqual(
+            said, dy,
+            "the record narrates the wrong vertical displacement for a "
+            "%dpx drag: it says %s" % (dy, said))
+
+    def test_an_ordinary_captions_drag_is_narrated_in_both_directions(
+            self) -> None:
+        """The control: captions the client left alone are heard either way.
+
+        The neighbour above proves the check speaks about the re-wrapped
+        caption in ONE direction. This proves it speaks about the
+        captions in the same save that the client did NOT re-wrap, in
+        BOTH — so a reader of the red below cannot conclude that bound
+        captions are simply never narrated here, and a repair that goes
+        mute about captions wholesale is refused before it arrives.
+        """
+        cap = self._capture()
+        pop = cap["population"]
+        subject = rewrap_subject(cap)
+        self.assertNotEqual(
+            pop.get("ordinary"), [],
+            "no caption in this capture was left alone by the client, so "
+            "this control is vacuous; the guard above reports that")
+        posted = {e["id"]: e
+                  for e in cap["posted"]["scenes"][cap["artifact"]]}
+        lost = []
+        for who in pop["ordinary"]:
+            for sign in (1, -1):
+                dy = int(subject["absorbs"]) * sign
+                out = self._replay("control-%s%d" % (who, sign), (who, 0, dy))
+                want = (canvas._round_geom(posted[who]["x"]),
+                        canvas._round_geom(posted[who]["y"] + dy))
+                if out["disk"][who] != want:
+                    lost.append((who, dy, "did not land", out["disk"][who]))
+                    continue
+                entry = out["entries"].get(who)
+                said = ((entry.get("semantic") or {}).get("moved")
+                        or {}).get("dy")
+                if said != dy:
+                    lost.append((who, dy, "narrated", said))
+        self.assertEqual(
+            lost, [],
+            "a caption the client did NOT re-wrap was dragged, landed, "
+            "and the record did not say so correctly. Until this control "
+            "is green the reds below can be satisfied by going mute "
+            "about every bound caption: %s" % lost)
+
+    @unittest.expectedFailure
+    def test_a_drag_the_size_of_the_remeasure_is_still_narrated(self) -> None:
+        """RED 2026-08-31: an 11px drag of a re-wrapped caption is swallowed.
+
+        THE RELATION IS WHAT IS PINNED and no coordinate literal appears
+        in the assertion: the magnitude comes from the capture's own
+        `absorbs`, which is `round(-dh/2)` of what a real tab measured.
+        A caption a user drags and a fresh `Store` reads back where they
+        left it is narrated, whatever that number happens to be.
+
+        WHAT IS FAILING, by mechanism. The displacement arm predicts
+        `old.y - dh/2 + carry`, so the ONE drag whose size is exactly
+        `round(-dh/2)` lands precisely on the prediction and is read as
+        the client's own bookkeeping. The user drags the caption down 11
+        pixels, it survives a reload, and the record headlines `saved
+        without changing anything`. `84c226d` narrates it correctly, so
+        this is not an old silence — it arrived with the repair for the
+        width arm.
+
+        THE TERM IS NOT MERELY OVER-BROAD, IT IS FALSE. The capture this
+        replays was recorded from a tab that changed three captions'
+        heights and moved none of them vertically: `dh != 0` in three of
+        three and `dy == 0.0000` in three of three, asserted in the
+        browser before the capture was written. There is no client that
+        moves a re-measured caption on the y axis, so there is nothing
+        for this term to be predicting.
+
+        THE ASYMMETRY IS THE TELL, and the neighbour above holds it: the
+        same caption dragged 11px UP is narrated correctly. A rule that
+        hears one direction and not the other, at the same magnitude, on
+        the same element, is reporting arithmetic rather than a gesture.
+
+        IT FLIPS UNDER THREE REPAIRS AND PRESCRIBES NONE, measured by
+        monkeypatching each over `_label_position_rederived` from a
+        throwaway plugin, with every ungated pole of this class and its
+        sibling green and all three protected controls green in each
+        case. The grid column is what each costs the 735-cell grid, and
+        it is information for whoever repairs this rather than a
+        constraint from here:
+
+          (1) DROP THE Y TERM, keeping `-dw/2` on x, since the client
+              re-centres on width alone.          grid 10/83, 5/455
+          (4) ASK THE CLIENT'S OWN RULE. Excalidraw's
+              `computeBoundTextPosition` is the placement a tab uses;
+              a caption sitting on it was laid out, not dragged.
+                                                  grid 24/83, 5/455
+          (5) ASK THE TEXT, NOT THE SIZE. A caption whose string nobody
+              edited was not re-laid-out; a re-measure is a width event
+              and only the container's carry may move it on y.
+                                                  grid 10/83, 5/455
+
+        WHAT MUST NOT FLIP IT, measured the same way: candidate (D) from
+        the sibling red — the caption's OFFSET inside its container,
+        which keeps the same `-dh/2` on y and leaves both poles exactly
+        as they are; a per-axis comparison, which changes which
+        agreements count and not what is predicted; and going mute about
+        every bound caption, which the two controls above refuse.
+        """
+        cap = self._capture()
+        # ASKED BEFORE THE REPLAY and by assertion, because
+        # `expectedFailure` swallows errors as readily as failures and a
+        # missing capture would otherwise read as a healthy red.
+        self.assertNotEqual(
+            cap, {},
+            "no browser capture exists, so this red has no subject. See "
+            "the guard above, which fails ungated for this reason")
+        subject = rewrap_subject(cap)
+        self.assertNotEqual(
+            subject, {},
+            "the capture records no re-wrapped caption, so this red has "
+            "nothing to drag; the guard above reports that")
+        who, dy = subject["id"], int(subject["absorbs"])
+        out = self._replay("red-under", (who, 0, dy))
+        posted = next(e for e in cap["posted"]["scenes"][cap["artifact"]]
+                      if e["id"] == who)
+        want = (canvas._round_geom(posted["x"]),
+                canvas._round_geom(posted["y"] + dy))
+        self.assertEqual(
+            out["disk"][who], want,
+            "the drag did not survive a reload, so this red is about a "
+            "position nobody kept and it is red for the wrong reason: "
+            "disk %s, asked %s" % (out["disk"][who], want))
+        entry = out["entries"].get(who)
+        said = ((entry or {}).get("semantic") or {}).get("moved") or {}
+        self.assertEqual(
+            (record_accounts_for_the_move(entry, "y"), said.get("dy")),
+            (True, dy),
+            "a caption the user dragged %+dpx landed on disk and the "
+            "record does not say so. Its client-measured height changed "
+            "by %s, so the displacement arm predicted exactly this drag "
+            "and read it as the client's own bookkeeping — the same "
+            "caption dragged %+dpx IS narrated, which is not a property "
+            "any gesture has. Headline: %r. Entry: %s"
+            % (dy, subject["dh"], -dy,
+               out["record"]["summary"].get("headline"), entry))
+
+    @unittest.expectedFailure
+    def test_no_caption_of_an_untouched_box_is_narrated_after_a_rewrap(
+            self) -> None:
+        """RED 2026-08-31: the same term narrates a caption nobody touched.
+
+        THE OTHER POLE OF ONE TERM, and it needs no drag at all. This is
+        the sibling class's own invariant — a caption of a box nobody
+        went near is not narrated as having moved — measured over the
+        population that class's capture cannot hold. The user dragged
+        one box; the box this caption belongs to was asserted in the
+        browser not to have moved before the save was taken.
+
+        WHY IT SURVIVED THE SIBLING'S REPAIR. The x arm is right here:
+        the tab widened the caption by 4 and posted it 2 to the left,
+        which is exactly `-dw/2`, and the prediction agrees to the
+        pixel. The y arm predicts `+11` for a caption the tab did not
+        move at all, and the two axes are compared AS A TUPLE — so one
+        axis being wrong throws the other axis's agreement away and the
+        record narrates a move on the most ordinary event there is: a
+        tab opening a drawing.
+
+        THE SIBLING RED IS GREEN AND THIS CLASS IS WHY THAT IS NOT A
+        CLOSURE. `TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved`
+        passes on its own capture, where every caption is one line in
+        both wraps. Its invariant is not closed; its POPULATION cannot
+        reach the failing case. A reader who takes the green there for
+        "phantom captions are fixed" is reading the twelfth closure of
+        this class.
+
+        IT FLIPS UNDER FOUR REPAIRS AND PRESCRIBES NONE, measured the
+        same way as the pole above: (1) dropping the y term, (3) letting
+        the size term be a candidate rather than a commitment on each
+        axis, (4) asking the client's own placement rule, and (5) keying
+        on the caption's TEXT rather than its measured size. It also
+        flips under going mute about every caption — which is why it is
+        NOT this class's only red, and why the pole above and the two
+        controls are ungated.
+
+        WHAT MUST NOT FLIP IT: candidate (D), which keeps the term, and
+        a per-axis comparison, which keeps it too.
+        """
+        cap = self._capture()
+        self.assertNotEqual(
+            cap, {},
+            "no browser capture exists, so this red has no subject. See "
+            "the guard above, which fails ungated for this reason")
+        out = self._replay("red-over")
+        pop = cap["population"]
+        self.assertEqual(
+            out["phantoms"], [],
+            "%d of %d captions of boxes NOBODY TOUCHED are narrated as "
+            "having moved, on a save whose only gesture was %spx away. "
+            "The client re-wrapped %s when the tab opened, changing its "
+            "height and not its position; the record reads that height "
+            "as a vertical move. Facts: %s"
+            % (len(out["phantoms"]), len(pop["untouched"]), pop["drag_dx"],
+               pop["rewrapped"], out["facts"]))
 
 
 # ---------------------------------------------------------------------------

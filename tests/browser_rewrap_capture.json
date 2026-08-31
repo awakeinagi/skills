@@ -1,0 +1,567 @@
+{
+ "recorded": "2026-08-31",
+ "spec": "pin-rewrapped-caption-drag.spec.ts",
+ "app_build": "0fa7fdc22f8cf8b977c7fa9eb48ee6a7f699bb90",
+ "canvas_sha256": "584f4b34443086fd2ace95964a00eb4541c70efe9b5e66556c02702ba6f45c1a",
+ "artifact": "text-clip",
+ "population": {
+  "captions": [
+   {
+    "id": "reported-row-label",
+    "container": "reported-row",
+    "stored_h": 22,
+    "client_h": 21.6,
+    "dh": -0.3999999999999986,
+    "stored_y": 89,
+    "client_y": 89,
+    "dy": 0,
+    "stored_w": 225,
+    "client_w": 213,
+    "dw": -12,
+    "absorbs": 0
+   },
+   {
+    "id": "w0-label",
+    "container": "w0",
+    "stored_h": 65,
+    "client_h": 43.2,
+    "dh": -21.799999999999997,
+    "stored_y": 328,
+    "client_y": 328,
+    "dy": 0,
+    "stored_w": 106,
+    "client_w": 110,
+    "dw": 4,
+    "absorbs": 11
+   },
+   {
+    "id": "w1-label",
+    "container": "w1",
+    "stored_h": 44,
+    "client_h": 43.2,
+    "dh": -0.7999999999999972,
+    "stored_y": 523,
+    "client_y": 523,
+    "dy": 0,
+    "stored_w": 98,
+    "client_w": 94,
+    "dw": -4,
+    "absorbs": 0
+   }
+  ],
+  "rewrapped": [
+   "w0-label"
+  ],
+  "ordinary": [
+   "reported-row-label",
+   "w1-label"
+  ],
+  "dragged": "w1",
+  "drag_dx": 25,
+  "untouched": [
+   "w0"
+  ]
+ },
+ "stored_before": [
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "reported-row-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 40,
+   "id": "reported-row",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 205806856,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "version": 1,
+   "width": 640,
+   "x": 80,
+   "y": 80
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "w0-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 120,
+   "id": "w0",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 125750626,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "version": 1,
+   "width": 120,
+   "x": 200,
+   "y": 300
+  },
+  {
+   "angle": 0,
+   "backgroundColor": "transparent",
+   "boundElements": [
+    {
+     "id": "w1-label",
+     "type": "text"
+    }
+   ],
+   "customData": {
+    "author": "agent",
+    "role": "node"
+   },
+   "fillStyle": "solid",
+   "frameId": null,
+   "groupIds": [],
+   "height": 90,
+   "id": "w1",
+   "isDeleted": false,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1887043060,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "type": "rectangle",
+   "version": 1,
+   "width": 160,
+   "x": 200,
+   "y": 500
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "reported-row",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 22,
+   "id": "reported-row-label",
+   "isDeleted": false,
+   "lineHeight": 1.35,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Email landlord about the repair",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1942597543,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Email landlord about the repair",
+   "textAlign": "center",
+   "type": "text",
+   "version": 1,
+   "verticalAlign": "middle",
+   "width": 225,
+   "x": 288,
+   "y": 89
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "w0",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 65,
+   "id": "w0-label",
+   "isDeleted": false,
+   "lineHeight": 1.35,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Email landlord about the repair",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 409162671,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Email landlord about the repair",
+   "textAlign": "center",
+   "type": "text",
+   "version": 1,
+   "verticalAlign": "middle",
+   "width": 106,
+   "x": 207,
+   "y": 328
+  },
+  {
+   "angle": 0,
+   "autoResize": true,
+   "backgroundColor": "transparent",
+   "boundElements": [],
+   "containerId": "w1",
+   "customData": {
+    "author": "agent",
+    "role": "label"
+   },
+   "fillStyle": "solid",
+   "fontFamily": 6,
+   "fontSize": 16,
+   "frameId": null,
+   "groupIds": [],
+   "height": 44,
+   "id": "w1-label",
+   "isDeleted": false,
+   "lineHeight": 1.35,
+   "link": null,
+   "locked": false,
+   "opacity": 100,
+   "originalText": "Reconcile the statement",
+   "roughness": 1,
+   "roundness": null,
+   "seed": 1041520667,
+   "strokeColor": "#1e1e1e",
+   "strokeStyle": "solid",
+   "strokeWidth": 1,
+   "text": "Reconcile the statement",
+   "textAlign": "center",
+   "type": "text",
+   "version": 1,
+   "verticalAlign": "middle",
+   "width": 98,
+   "x": 231,
+   "y": 523
+  }
+ ],
+ "stored_after": {
+  "reported-row": [
+   80,
+   80
+  ],
+  "w0": [
+   200,
+   300
+  ],
+  "w1": [
+   225,
+   500
+  ],
+  "reported-row-label": [
+   294,
+   89
+  ],
+  "w0-label": [
+   205,
+   328
+  ],
+  "w1-label": [
+   258,
+   523
+  ]
+ },
+ "posted": {
+  "base_revn": 2,
+  "scenes": {
+   "text-clip": [
+    {
+     "fillStyle": "solid",
+     "strokeWidth": 1,
+     "strokeStyle": "solid",
+     "roughness": 1,
+     "opacity": 100,
+     "angle": 0,
+     "strokeColor": "#1e1e1e",
+     "backgroundColor": "transparent",
+     "groupIds": [],
+     "frameId": null,
+     "roundness": null,
+     "boundElements": [
+      {
+       "id": "reported-row-label",
+       "type": "text"
+      }
+     ],
+     "link": null,
+     "locked": false,
+     "isDeleted": false,
+     "id": "reported-row",
+     "type": "rectangle",
+     "x": 80,
+     "y": 80,
+     "width": 640,
+     "height": 40,
+     "customData": {
+      "role": "node",
+      "author": "agent"
+     },
+     "seed": 205806856,
+     "version": 2,
+     "index": "a0"
+    },
+    {
+     "fillStyle": "solid",
+     "strokeWidth": 1,
+     "strokeStyle": "solid",
+     "roughness": 1,
+     "opacity": 100,
+     "angle": 0,
+     "strokeColor": "#1e1e1e",
+     "backgroundColor": "transparent",
+     "groupIds": [],
+     "frameId": null,
+     "roundness": null,
+     "boundElements": [
+      {
+       "id": "w0-label",
+       "type": "text"
+      }
+     ],
+     "link": null,
+     "locked": false,
+     "isDeleted": false,
+     "id": "w0",
+     "type": "rectangle",
+     "x": 200,
+     "y": 300,
+     "width": 120,
+     "height": 120,
+     "customData": {
+      "role": "node",
+      "author": "agent"
+     },
+     "version": 2,
+     "seed": 125750626,
+     "index": "a1"
+    },
+    {
+     "fillStyle": "solid",
+     "strokeWidth": 1,
+     "strokeStyle": "solid",
+     "roughness": 1,
+     "opacity": 100,
+     "angle": 0,
+     "strokeColor": "#1e1e1e",
+     "backgroundColor": "transparent",
+     "groupIds": [],
+     "frameId": null,
+     "roundness": null,
+     "boundElements": [
+      {
+       "id": "w1-label",
+       "type": "text"
+      }
+     ],
+     "link": null,
+     "locked": false,
+     "isDeleted": false,
+     "id": "w1",
+     "type": "rectangle",
+     "x": 225,
+     "y": 500,
+     "width": 160,
+     "height": 90,
+     "customData": {
+      "role": "node",
+      "author": "agent"
+     },
+     "version": 14,
+     "seed": 1887043060,
+     "index": "a2"
+    },
+    {
+     "fillStyle": "solid",
+     "strokeWidth": 1,
+     "strokeStyle": "solid",
+     "roughness": 1,
+     "opacity": 100,
+     "angle": 0,
+     "strokeColor": "#1e1e1e",
+     "backgroundColor": "transparent",
+     "groupIds": [],
+     "frameId": null,
+     "roundness": null,
+     "boundElements": [],
+     "link": null,
+     "locked": false,
+     "isDeleted": false,
+     "id": "reported-row-label",
+     "type": "text",
+     "x": 294,
+     "y": 89,
+     "width": 213,
+     "height": 21.6,
+     "text": "Email landlord about the repair",
+     "originalText": "Email landlord about the repair",
+     "fontSize": 16,
+     "fontFamily": 6,
+     "textAlign": "center",
+     "verticalAlign": "middle",
+     "lineHeight": 1.35,
+     "containerId": "reported-row",
+     "autoResize": true,
+     "customData": {
+      "role": "label",
+      "author": "agent"
+     },
+     "seed": 1942597543,
+     "version": 2,
+     "index": "a3"
+    },
+    {
+     "fillStyle": "solid",
+     "strokeWidth": 1,
+     "strokeStyle": "solid",
+     "roughness": 1,
+     "opacity": 100,
+     "angle": 0,
+     "strokeColor": "#1e1e1e",
+     "backgroundColor": "transparent",
+     "groupIds": [],
+     "frameId": null,
+     "roundness": null,
+     "boundElements": [],
+     "link": null,
+     "locked": false,
+     "isDeleted": false,
+     "id": "w0-label",
+     "type": "text",
+     "x": 205,
+     "y": 328,
+     "width": 110,
+     "height": 43.2,
+     "text": "Email landlord\nabout the repair",
+     "originalText": "Email landlord about the repair",
+     "fontSize": 16,
+     "fontFamily": 6,
+     "textAlign": "center",
+     "verticalAlign": "middle",
+     "lineHeight": 1.35,
+     "containerId": "w0",
+     "autoResize": true,
+     "customData": {
+      "role": "label",
+      "author": "agent"
+     },
+     "version": 2,
+     "seed": 409162671,
+     "index": "a4"
+    },
+    {
+     "fillStyle": "solid",
+     "strokeWidth": 1,
+     "strokeStyle": "solid",
+     "roughness": 1,
+     "opacity": 100,
+     "angle": 0,
+     "strokeColor": "#1e1e1e",
+     "backgroundColor": "transparent",
+     "groupIds": [],
+     "frameId": null,
+     "roundness": null,
+     "boundElements": [],
+     "link": null,
+     "locked": false,
+     "isDeleted": false,
+     "id": "w1-label",
+     "type": "text",
+     "x": 258,
+     "y": 523,
+     "width": 94,
+     "height": 43.2,
+     "text": "Reconcile the\nstatement",
+     "originalText": "Reconcile the statement",
+     "fontSize": 16,
+     "fontFamily": 6,
+     "textAlign": "center",
+     "verticalAlign": "middle",
+     "lineHeight": 1.35,
+     "containerId": "w1",
+     "autoResize": true,
+     "customData": {
+      "role": "label",
+      "author": "agent"
+     },
+     "version": 14,
+     "seed": 1041520667,
+     "index": "a5"
+    }
+   ]
+  },
+  "selection": [
+   "text-clip#w1"
+  ]
+ },
+ "observed": {
+  "headline": "Reconcile the statement moved right (+2 more)",
+  "verb_counts": {
+   "moved": 3
+  },
+  "facts": [
+   [
+    "moved",
+    "w1",
+    25,
+    0
+   ],
+   [
+    "moved",
+    "w0-label",
+    -2,
+    0
+   ],
+   [
+    "moved",
+    "w1-label",
+    27,
+    0
+   ]
+  ]
+ }
+}
