@@ -19917,13 +19917,16 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # question and its subject than the subject occupies.
         #
         # MEASURED OVER THE 41 CORPUS PINS, and the denominator is the
-        # point: own-gaps run 0px (5 pins), 8px (28), 16.1px (3), and
-        # then nothing at all until 126/190/222px (3) — all three of
-        # which the RELATIVE arm already reports. So this arm adds no
-        # line to any drawing the repo owns, and that is a fact about
-        # the corpus and not evidence that it is inert: the mutant
-        # reaches it at 1000px against a 116.6px diagonal, and Face A's
-        # 748/1703/1419px sit far past every diagonal on that page.
+        # point: 40 have a target in their own scene (the 41st is
+        # `pin-cutoff`, skipped four lines up), and their own-gaps run
+        # 0px (5), 8px (28), 16.1px (3), 19.7px (1), and then nothing at
+        # all until 126/190/222px (3) — all three of which the RELATIVE
+        # arm already reports. So this arm adds no line to any drawing
+        # the repo owns, and that is a fact about the corpus and not
+        # evidence that it is inert: the mutant reaches it at 1000px
+        # against a 116.6px diagonal, and a corpus flow re-laid through
+        # `apply_ops` reaches it at 1073/1483/553/1047px the moment the
+        # ❓ carry above is taken out.
         reach = math.hypot(tgt.get("width", 0), tgt.get("height", 0))
         stranded = own > reach
         crowded = rival is not None and own - rival_gap >= PIN_HUG_PX
