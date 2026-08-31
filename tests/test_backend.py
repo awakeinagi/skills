@@ -6829,7 +6829,7 @@ class TestV03ServerFixes(Base):
         self.seed_entity()
         self.store.tidy("research-domain")
         ent, lbl = self.entity_and_label()
-        self.assertEqual(lbl["y"] - ent["y"], 6)
+        self.assertEqual(lbl["y"] - ent["y"], canvas.BOUND_TEXT_PADDING)
 
     def test_tidy_noop_does_not_commit(self):
         self.seed_entity()
@@ -7066,7 +7066,11 @@ class TestComposedKindsAndTooltips(Base):
         ix = self.by_id()
         lbl = ix["shelf-label"]
         self.assertEqual(lbl["verticalAlign"], "top")
-        self.assertEqual(lbl["y"], ix["shelf"]["y"] + 6)
+        # the anchor is the CLIENT's bound-text padding, not a literal:
+        # a top caption stored anywhere else is moved by the tab's first
+        # layout and narrated as a move nobody made
+        self.assertEqual(lbl["y"],
+                         ix["shelf"]["y"] + canvas.BOUND_TEXT_PADDING)
         # mod verticalAlign flips it
         self.store.apply_batch({
             "base_revn": 1, "artifact": "admin-wireframe",

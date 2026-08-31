@@ -2946,9 +2946,10 @@ def _compose_attribute_rows(el, els, rows, existing_ids):
 
     The label is re-aligned AFTER the container is grown, and the order
     is load-bearing rather than incidental: `recenter_label` pins a
-    `top` label to `y + 6`, which does not depend on the height, but the
-    ROWS do, and a caller that grew the box afterwards would leave the
-    name measured against a box that no longer exists.
+    `top` label to the container's own `y` plus the client's bound-text
+    padding, which does not depend on the height, but the ROWS do, and a
+    caller that grew the box afterwards would leave the name measured
+    against a box that no longer exists.
 
     Args:
         el: The entity element. Mutated: gains the composition group id
@@ -2995,7 +2996,8 @@ def _compose_attribute_rows(el, els, rows, existing_ids):
     if label is not None:
         # the name belongs in the header band, not in the middle of a box
         # whose middle is now an attribute. `recenter_label` owns what
-        # "top" means (`y + 6`) for entities, titled panels and sliders
+        # "top" means — the client's own bound-text padding below the
+        # container's `y` — for entities, titled panels and sliders
         # alike, so this asks it rather than writing the number again.
         label["verticalAlign"] = "top"
         recenter_label(els, el)
@@ -9234,6 +9236,36 @@ def recenter_label(els, el):
     chances to miss one; guarding the single writer is why the promise
     holds. The container still moves — only the caption stays put.
 
+    THE VERTICAL ANCHOR IS THE CLIENT'S PADDING, NOT A LITERAL, and it
+    was a literal 6 against the client's 5 until 2026-08-31. The tab
+    draws a bound caption wherever `computeBoundTextPosition` puts one,
+    and for `top` that is `container.y + BOUND_TEXT_PADDING` exactly —
+    read out of the shipped bundle, where the same constant already
+    supplies this file's wrap widths. One pixel is invisible in the
+    picture and loud in the record: the caption was STORED a pixel from
+    where it is DRAWN, so the tab's first re-layout moved it and the
+    save narrated `Term nudged` about a caption nobody touched, with the
+    number wrong too (a container grown 40px narrated 41). It could only
+    ever be seen on `top` and `bottom`; on `middle` both rules reduce to
+    `c.y + (c.height - h)/2` and agree exactly, and every caption in
+    every instrument in this repo was `middle`.
+
+    THE ANCHOR IS THE PRODUCT'S ANSWER AND NOT THE RECORD'S. The reader
+    (`_label_position_rederived`) asks THIS function where a caption
+    belongs, so making it agree with the client fixes the drawing and
+    the sentence with one number. Teaching the reader the client's rule
+    instead would have left the picture wrong and put a second
+    definition of "where a bound caption belongs" in the file, which is
+    the two-grammars defect `_bound_label` was extracted to close.
+
+    STILL WRONG FOR AN ELLIPSE AND A DIAMOND, and knowingly so: the
+    client insets a non-rectangular container's coordinates as well
+    (`width/2 * (1 - sqrt(2)/2)` for an ellipse, `width/4` for a
+    diamond), and this function models neither, so a top caption in a
+    160x120 ellipse is written at `c.y + 5` and drawn at `c.y + 22.57`.
+    That is a different repair — the shape's inset, not the padding —
+    and it is unpinned.
+
     IT SAYS WHETHER IT WROTE, added 2026-08-31 and ignored by every one
     of those call sites. `_recentred_to` asks this function where a label
     belongs so that the record can tell a carry from a placement, and a
@@ -9268,12 +9300,13 @@ def recenter_label(els, el):
             # top-anchored labels (entities, titled panels) stay pinned to
             # the header band — centering them buries the term under its
             # attribute rows (v0.3 assessment bug)
-            label["y"] = el["y"] + 6
+            label["y"] = el["y"] + BOUND_TEXT_PADDING
         elif va == "bottom":
             # bottom-anchored labels (KPI tiles: big value above, small
             # name below) stay pinned to the footer band
             label["y"] = el["y"] + max(el.get("height", 0) -
-                                       label.get("height", 0) - 6, 4)
+                                       label.get("height", 0) -
+                                       BOUND_TEXT_PADDING, 4)
         else:
             label["y"] = el["y"] + max((el.get("height", 0) -
                                         label.get("height", 0)) / 2, 4)
@@ -12147,6 +12180,25 @@ def _label_position_rederived(old, new, old_container, new_container):
     `dx == -(clientWidth - storedWidth)/2` in eight of eight. So the
     prediction is the caption's OWN stored coordinate, moved by both.
 
+    THE RE-MEASURE IS A WIDTH EVENT AND NOT A SIZE EVENT, which the same
+    arm got wrong on the y axis for one commit. A caption whose height
+    the client changed does not move: `pin-rewrapped-caption-drag.spec.ts`
+    re-wraps one from three lines to two and reads `dh != 0` in three of
+    three with `dy == 0.0000` in three of three. The client's own code
+    says why, and it is not a property of these three captions.
+    `getAdjustedDimensions` — the load path this app takes, through
+    `restoreElements({refreshDimensions: true})` — resolves the new
+    coordinate with `adjustXYWithRotation({s: true, e: …, w: …})`: the
+    SOUTH side is the one that moves and there is no `n`, so at angle 0
+    the caption's top edge is nailed down and its new height grows
+    downwards. The horizontal flags are the ones that carry the
+    alignment, and `-(dw)/2` is the `textAlign: center` case both sides
+    of that pair being set. A `-(dh)/2` on y was predicting a vertical
+    re-centring no client performs, and it failed at both poles at once:
+    a caption nobody touched read as moved because one wrong axis
+    invalidates a right one inside the tuple, and a drag of exactly
+    `round(-dh/2)` landed on the prediction and was read as bookkeeping.
+
     ASKING ONLY THE TRANSLATION IS WHAT MADE THE PARITY DECIDE. A save
     that re-measured fell through to the destination arm, and that arm
     reconstructs an ABSOLUTE centre — which loses the permanent half
@@ -12236,15 +12288,17 @@ def _label_position_rederived(old, new, old_container, new_container):
     # coordinate. The containers are read for their positions only, so
     # the container's resize never enters — a tab re-lays-out a caption
     # when the resize happens IN it, which is the destination arm's case,
-    # and merely re-posts the caption on any other save. The size term is
-    # the caption's own, halved, because a centred box that grows by `dw`
-    # keeps its centre by moving `dw/2` the other way.
+    # and merely re-posts the caption on any other save. The width term
+    # is the caption's own, halved, because a centred box that grows by
+    # `dw` keeps its centre by moving `dw/2` the other way. THERE IS NO
+    # HEIGHT TERM: the client's re-measure anchors the caption's TOP
+    # edge and lets it grow downwards, so a re-wrap changes `height` and
+    # leaves `y` exactly where it was.
     dw = new.get("width", 0) - old.get("width", 0)
-    dh = new.get("height", 0) - old.get("height", 0)
     return ((_round_geom(old.get("x", 0) - dw / 2.0
                          + new_container.get("x", 0)
                          - old_container.get("x", 0)),
-             _round_geom(old.get("y", 0) - dh / 2.0
+             _round_geom(old.get("y", 0)
                          + new_container.get("y", 0)
                          - old_container.get("y", 0)))
             == (new.get("x", 0), new.get("y", 0)))
