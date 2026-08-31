@@ -34687,24 +34687,32 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
     referee; the eight this grid does not reach are duplicate label-role
     cells on a second labelled node and on an arrow's label.
 
-    WHAT FLIPS IT, and the asymmetry matters more than the colour. TWO
-    COMPLETE REPAIRS were measured against monkeypatched copies and both
-    take it to 0 failing cells with the neighbour green: (A) provenance
-    beats suppression at the point where each suppressor sits — the differ
-    stops stamping `derived` on an attribute an op named, and the restyle
-    arm stops suppressing a text element whose style an op named — and the
-    ordinary verb machinery says whatever it already says; (B) the
-    intent-fact channel `apply_batch` already uses for `rerouted` is
-    generalised to every named-and-landed attribute at `commit`, leaving
-    the differ untouched. They act at opposite ends of the pipeline and
-    produce different sentences, which is the evidence that this pin
-    prescribes neither. TWO PARTIAL REPAIRS correctly leave it RED:
-    dropping `"pin"` from `_geometry_derived`'s role tuple clears 2 of the
-    20, and rewriting the headline while leaving `by_element` empty clears
-    the sentence on all 20 and names nobody on any. A COMPLETE repair
-    leaving this red would mean it had prescribed a shape; a PARTIAL one
-    leaving it red is the pin doing its job, and the two look identical
-    from the colour.
+    WHAT FLIPS IT, and the asymmetry matters more than the colour. THREE
+    COMPLETE REPAIRS at three different layers were run against this class
+    with `canvas` rebound to a patched copy, and all three report an
+    unexpected success with the neighbour green. (A) THE DIFFER: provenance
+    beats suppression where each suppressor sits — the differ stops
+    stamping `derived` on an attribute an op named, and the restyle arm
+    stops suppressing a text element whose style an op named — and the
+    ordinary verb machinery says whatever it already says. (B) THE FACT
+    CHANNEL: the `extra_facts` route `apply_batch` already uses for
+    `rerouted` is generalised to every named-and-landed attribute, leaving
+    the differ untouched. (C) THE RECORD: the empty-save arm stops asking
+    "did the differ mint facts?" and asks "did this save change the file?",
+    rolling `by_element` off the change list it already carries — the shape
+    `catch_up`'s own guard already has. Three layers, three different
+    sentences, one flip: that is the evidence this pin prescribes none of
+    them.
+
+    TWO PARTIAL REPAIRS correctly leave it RED: dropping `"pin"` from
+    `_geometry_derived`'s role tuple clears 2 of the 20, and rewriting the
+    headline while leaving `by_element` empty clears the sentence on all 20
+    and names nobody on any. Un-deriving at the differ ALONE is partial too
+    and instructively so — it clears 14 and stops, because the restyle arm
+    suppresses on element type and never reads the `derived` flag at all.
+    A COMPLETE repair leaving this red would mean it had prescribed a
+    shape; a PARTIAL one leaving it red is the pin doing its job, and the
+    two look identical from the colour.
 
     WHAT THIS DOES NOT COVER, recorded as owed rather than implied. The
     AGENT-OP DOOR ONLY: `mod` ops are the one place provenance exists. The
