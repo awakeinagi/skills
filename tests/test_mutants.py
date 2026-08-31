@@ -35580,11 +35580,11 @@ def assert_the_label_grid_puts_the_case(case: unittest.TestCase,
     a damaged one.
 
     Args:
-        case: The test case to assert through.
+        case: The test case to assert through; every failure below is
+            raised by its own `assert...` call, which is what lets the
+            vacuity mutants read the clause that fired out of the
+            message.
         cells: The output of `label_grid_cells`.
-
-    Raises:
-        AssertionError: When the population cannot put the case.
     """
     put = {(c["door"], c["condition"]) for c in cells
            if c["drop"] and c["durable"]}
@@ -35713,6 +35713,22 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
         assert_the_label_grid_puts_the_case(
             self, label_grid_cells(canvas, self.root))
 
+    def _guard_says(self, cells: list[dict[str, Any]]) -> str | None:
+        """What the population guard says about a damaged cell list.
+
+        Args:
+            cells: A cell list with one axis removed.
+
+        Returns:
+            The assertion message the guard raised, or None when it
+            raised nothing — which is a SURVIVOR and the finding.
+        """
+        try:
+            assert_the_label_grid_puts_the_case(self, cells)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
     def test_the_population_guard_notices_a_grid_that_lost_a_door(
             self) -> None:
         """The vacuity mutant, watched failing before the red was believed.
@@ -35742,20 +35758,21 @@ class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
              [c for c in cells if c["condition"] == "alone"],
              "land no durable label position"),
             ("the non-durable pass deleted",
-             [c for c in cells if c["drop"] != 400.0],
+             # `< max(...)` and not `!= 400.0`: an equality against a
+             # float literal in a test is one edit of the delta tuple
+             # away from filtering nothing, and a mutant that damages
+             # nothing reports the guard silent over an intact grid.
+             [c for c in cells if c["drop"] < max(_LABEL_GRID_DROPS)],
              "no cell in this grid FAILS to land"),
             ("the carried pole deleted",
              [c for c in cells if c["drop"]],
              "no cell in which a label MOVED without anyone")]
-        survived, wrong = [], []
-        for name, damaged, expected in mutants:
-            try:
-                assert_the_label_grid_puts_the_case(self, damaged)
-            except AssertionError as caught:
-                if expected not in str(caught):
-                    wrong.append((name, expected, str(caught)[:200]))
-            else:
-                survived.append(name)
+        verdicts = [(name, expected, self._guard_says(damaged))
+                    for name, damaged, expected in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, expected, said[:200])
+                 for name, expected, said in verdicts
+                 if said is not None and expected not in said]
         self.assertEqual(
             (survived, [w[:2] for w in wrong]), ([], []),
             "the population guard did not notice %s, and answered the "
