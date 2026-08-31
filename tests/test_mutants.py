@@ -40214,8 +40214,9 @@ def bundle_citations() -> dict[str, list[str]]:
     """
     root = Path(__file__).resolve().parents[1]
     out: dict[str, list[str]] = {}
-    for path in sorted(root.glob("tests/*.py")) + [
-            root / "skills" / "wysiwyg-grilling" / "scripts" / "canvas.py"]:
+    for path in [*sorted(root.glob("tests/*.py")),
+                 root / "skills" / "wysiwyg-grilling" / "scripts"
+                 / "canvas.py"]:
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
