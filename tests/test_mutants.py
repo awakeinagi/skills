@@ -1757,8 +1757,20 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
         if path == "api/state":
             return app.api_state()
         if path.startswith("api/artifact/"):
-            return {"ok": True,
-                    "elements": app.store.scenes[path.rsplit("/", 1)[1]]}
+            # DEEP-COPIED, and this line was a reference until a
+            # fix-agnosticism probe caught it. A real read crosses a
+            # socket, so the driver edits a COPY and the server's own
+            # scenes stay put until the save lands. Handing back the
+            # live list let the driver mutate the store in place — the
+            # artifact came out the same, so the mutant's colour never
+            # moved, but a candidate repair that asks "which elements
+            # did this save move" then compares the posted scene against
+            # itself, finds nothing moved, and reads as a repair that
+            # does not work. A transport double that leaks state
+            # falsifies the fix, not the defect, which is the quietest
+            # way an instrument can be wrong.
+            return {"ok": True, "elements": copy.deepcopy(
+                app.store.scenes[path.rsplit("/", 1)[1]])}
         return app.handle_post("/" + path, payload or {})
     return transport
 
@@ -23752,11 +23764,38 @@ _register(Mutant(
 # leaves, about every connector in the scene, and a fifth gap of the same
 # shape lands on it without anyone having predicted the door.
 #
-# FLIPS WHEN the verb leaves no dangling binding behind — by carrying bound
-# arrows in the loop, by delegating to whatever re-routes them, or by
-# posting an op batch. THE FIX IS NOT THE CURATOR'S; see WP-B of
+# FIX-AGNOSTICISM, MEASURED AND NOT ARGUED (§8's own test: does it flip
+# under EVERY honest repair, or just one?). Three repairs were written as
+# throwaway monkeypatches — never into `canvas.py` — each re-`exec`ing the
+# shipped `cmd_x_as_user` with one branch changed, and the pair was read
+# off the patched tree:
+#
+#   tree                                     mutant   neighbour
+#   today                                    RED      green
+#   A  carry bound arrows in the move loop   green    green
+#   B  delegate to `route_arrow`             green    green
+#   C  re-route on the SAVE path instead     green    green
+#   X  `endpoint_gap` blinded                green    RED
+#
+# A and B are the two the finding named; C is the repair this red must NOT
+# prescribe against, since R6 refuted the reading that blames the save path
+# — it is here to prove the anchor does not reject it, not to endorse it.
+# Row X is the pair's discriminator: a check that stops answering satisfies
+# a `Silence`, so the mutant reads green (which trips the unexpected-success
+# alarm) and the NEIGHBOUR is what fails. A silence-only pairing here would
+# have reported a blinded `endpoint_gap` as health.
+#
+# THE FIX IS NOT THE CURATOR'S; see WP-B of
 # `capability-assessment-notes-optimizer_R6.md` for its acceptance, whose
-# silent half this catalogue does not yet pin (the report says why).
+# silent half this catalogue pins only in part — `TestOperators
+# .test_drag_as_user_moves_the_host_and_carries_its_label` holds the
+# measurable half (the drag must not move the far node, and must not buy
+# silence by dropping the binding). What is NOT pinned anywhere is the
+# other clause, that the verb must not start re-routing geometry the USER
+# authored: R6's browser control measured server-routed arrows only, so
+# what a real drag does to a hand-bent bound arrow is unmeasured, and a
+# pin written from reasoning about it would be an expectation with no
+# observation under it. That measurement is owed by whoever takes WP-B.
 _register(Mutant(
     "as_user_move_strands_bound_arrows",
     build=_as_user_stage,
