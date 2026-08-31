@@ -12257,6 +12257,44 @@ def _label_position_rederived(old, new, old_container, new_container):
     invalidates a right one inside the tuple, and a drag of exactly
     `round(-dh/2)` landed on the prediction and was read as bookkeeping.
 
+    "AT ANGLE 0" IS A QUALIFICATION THIS FUNCTION DOES NOT ENFORCE, and
+    saying so is the point of this paragraph — the sentence above was
+    honest and the code beneath it reads no `angle` at all. `mY`
+    (`adjustXYWithRotation`, index-KJTydiiR.js @560560) takes the final
+    vertical arm when `s` is set and `n` is not:
+
+        y += (y2_delta) * (1 - cos(angle))
+        x += (x_deltas) + (y2_delta) * sin(angle)
+
+    with `y2_delta = -dh/2`. Both height terms vanish at angle 0 and
+    only there, so on a rotated container the term this arm dropped
+    comes back on BOTH axes. Driven through a real `Store` at
+    0-355 degrees x six `dh` values: this head narrates a phantom in
+    313 of 432 cells and `84c226d` in 319 of 432, and at angle 0 the
+    two are 0 of 6 and 4 of 6.
+
+    A SEED AND NOT A RED, judged 2026-08-31 by the mutant-curator, and
+    the reason is the direction of that pair. THIS IS NOT A REGRESSION:
+    the shipped head is no worse than its predecessor anywhere in the
+    sweep and strictly better on the axis every drawing in this repo
+    actually sits on. Nothing rotated exists to protect — 0 of the 291
+    captioned shape containers in `tests/fixtures` carry a non-zero
+    `angle` — though `angle` IS reachable, through `add` and through
+    `mod`, so this is unreachable-in-practice rather than unreachable.
+    And a red whose population was rotated captions would flip under
+    exactly ONE repair, porting `mY`'s rotation arm, which makes it a
+    prescription rather than a pin. That is the same reason the ellipse
+    inset above `recenter_label` is a seed: a red that names its own fix
+    has stopped being a test of the check and become a design.
+
+    WHOEVER PICKS THIS UP should know the neighbouring fact, measured
+    and deliberately not chased here: `add` with `angle: 0.6` writes the
+    CONTAINER at 0.6 and its caption at 0. The client rotates a bound
+    caption with its container, so the two disagree before any of the
+    above is reached, and a rotation-aware displacement arm built on
+    today's writer would be predicting from a caption whose stored angle
+    is already wrong.
+
     ASKING ONLY THE TRANSLATION IS WHAT MADE THE PARITY DECIDE. A save
     that re-measured fell through to the destination arm, and that arm
     reconstructs an ABSOLUTE centre — which loses the permanent half

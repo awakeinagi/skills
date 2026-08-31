@@ -39810,10 +39810,31 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
                 ("%s renamed out of the bundle" % what,
                  [pattern.sub("/*renamed*/", whole, count=1)],
                  "0 of the tracked"))
+        # THE SYMBOL COMES OUT OF THE BUNDLE, NEVER OFF THIS LINE. This
+        # mutant spelled `Kn` twice as a literal, inside a class whose
+        # stated doctrine three screens up is ANCHORED ON STRUCTURE,
+        # NEVER ON MINIFIED NAMES. It fails safe and it fails WRONG: a
+        # rebuild that renames the padding makes the `re.sub` match
+        # nothing, the "damaged" bundle comes back byte-identical to the
+        # real one, the guard correctly says nothing about it, and this
+        # test reports a SURVIVOR — blaming the guard for the mutant's
+        # own breakage, at exactly the moment somebody is already
+        # debugging a rebuild.
+        symbol = _CLIENT_CONTAINER_COORDS.search(whole).group(1)
+        unassigned = re.sub(r"\b%s=%g\s*," % (re.escape(symbol), pad),
+                            "%s=%s_undefined," % (symbol, symbol), whole,
+                            count=1)
+        # AND THE DAMAGE MUST HAVE LANDED. `mutants seed` refuses to
+        # write a scene its operator did not change, for this reason: an
+        # unmutated mutant is silence in a new costume.
+        self.assertNotEqual(
+            unassigned, whole,
+            "the padding-assignment mutant changed nothing, so the case "
+            "below is the UNDAMAGED bundle wearing a mutant's name. The "
+            "padding symbol extracted from the bundle is %r and no "
+            "`%s=%g,` assignment was found to break" % (symbol, symbol, pad))
         mutants.append(
-            ("the padding symbol is assigned nowhere",
-             [re.sub(r"\bKn=%g\s*," % pad, "Kn=Kn_undefined,", whole,
-                     count=1)],
+            ("the padding symbol is assigned nowhere", [unassigned],
              "assigned by neither"))
         verdicts = [(name, want, self._guard_says(
             client_bound_text_rules(sources)))
