@@ -26869,16 +26869,23 @@ GEOMETRY_WRITERS: dict[str, tuple[int, str]] = {
                       "pinned_and_still_snaps_the_rest, test_tidys_router_"
                       "leaves_a_pinned_arrow_alone, test_a_pinned_part_"
                       "does_not_ride_its_owners_snap"),
-    "apply_ops": (5, "MIXED — the group carry is SELF-GUARDED (v0.9 fix "
-                     "round D1) and is TWO of the five sites; the other "
-                     "THREE (a slider thumb, a toggle thumb, an authored "
-                     "`points`) write the element an op named or a part "
-                     "re-derived from it, which the gate has already "
-                     "judged. Said 'the other four' until 2026-08-20, "
-                     "which counted the carry as one site because it "
-                     "reads as one rule. Dies with: test_the_carry_"
-                     "itself_refuses_a_pinned_part, test_the_cascade_"
-                     "itself_spares_a_pinned_element_and_says_so"),
+    "apply_ops": (7, "MIXED — TWO self-guarded carries of two sites each: "
+                     "the group carry (v0.9 fix round D1) and the ❓ carry "
+                     "(R6 WP-A, 2026-08-30), both asking the predicate "
+                     "before they add their delta. The other THREE (a "
+                     "slider thumb, a toggle thumb, an authored `points`) "
+                     "write the element an op named or a part re-derived "
+                     "from it, which the gate has already judged. The ❓ "
+                     "carry could NOT take that disposition: `_pin_kin` "
+                     "runs no edge from a glyph to its target, so no gate "
+                     "holds a `mod x` on a node whose question is pinned "
+                     "— it is self-guarded or it is unguarded. Said 'the "
+                     "other four' until 2026-08-20, which counted the "
+                     "group carry as one site because it reads as one "
+                     "rule. Dies with: test_the_carry_itself_refuses_a_"
+                     "pinned_part, test_the_pin_carry_itself_refuses_a_"
+                     "locked_glyph, test_the_cascade_itself_spares_a_"
+                     "pinned_element_and_says_so"),
 
     # --- UPSTREAM-GUARDED: the caller drops pinned before reaching here -
     "_stamp_contention": (3, "UPSTREAM — `contention_feet` drops pinned "
@@ -26937,6 +26944,44 @@ GEOMETRY_WRITERS: dict[str, tuple[int, str]] = {
                          "the CLI standing in for a drag, and a pin protects "
                          "position against the TOOL, never against the "
                          "person who set it"),
+    # Arrived 2026-08-30 with WP-B's repair, and the disposition is the
+    # caller's ruling MEASURED rather than inherited by argument. The
+    # question a pin can actually pose at this site is not whether a
+    # pinned NODE is moved — the loop above never reaches one — but
+    # whether a pinned ARROW's foot may be carried when the node it binds
+    # moves. Answered in a real tab, A/B on one seed with the arrow's
+    # `locked` as the only difference: both arms drag the node
+    # (100,300) -> (66.67,280) and re-seat the foot (260,340) ->
+    # (232.67,322.754), points [[0,0],[461.33,14.655]], byte-identical,
+    # and both leave the save button enabled. Excalidraw's `locked` stops
+    # the user selecting and dragging that element; it does not exempt it
+    # from the binding maintenance a bound node's move triggers. So the
+    # person's own hand moves a pinned foot IN THE PRODUCT, which is what
+    # makes the caller's "never against the person who set it" a fact
+    # here and not a plausible extension of it.
+    #
+    # THE OTHER THREE ARE FALSE, checked rather than passed over.
+    # GATE-COVERED would claim `pin_held_ops` refuses the op: it does not
+    # even on the agent path, because `_pin_kin`'s binding edge runs ONE
+    # WAY — pinned node out to its arrows, never a pinned arrow back to
+    # the nodes it lands on — so an agent `mod x/y` on a node whose bound
+    # arrow is pinned returns an EMPTY held set (measured), and the gate
+    # never sees the user path at all. UPSTREAM would claim the caller
+    # drops pinned first: it does not, and there is nothing for it to
+    # drop. SELF-GUARDED would be a lie the sibling test catches, since
+    # this body never names the predicate.
+    #
+    # WHAT EXEMPT DOES NOT CLAIM: that the pin is unreachable here. It is
+    # reachable and the foot moves. The claim is that a pin carries no
+    # authority over this gesture, and the client is the evidence.
+    "_x_user_carry_feet": (3, "EXEMPT — the same ruling as its only "
+                              "caller `cmd_x_as_user`, measured and not "
+                              "inherited: a real drag moves a LOCKED "
+                              "bound arrow's foot byte-identically to an "
+                              "unlocked one, so a pin cannot bind a write "
+                              "this gesture makes. See the comment above "
+                              "for why the other three dispositions are "
+                              "false"),
     # 5 -> 4 on 2026-08-20: the entity seeder's `out[1]["y"] = ...`
     # left this function when the attribute-row layout was folded
     # into `_compose_attribute_rows`, which re-aligns the label
@@ -27466,6 +27511,80 @@ class TestPinnedSurvivesTheBackDoors(Base):
         self.assertEqual((rule["x"], rule["y"]), (45, 125),
                          "the carry moved a pinned decoration")
         self.assertIn("did not travel with the group", "\n".join(house))
+
+    # ---- D1c: the ❓ carry (R6 WP-A) --------------------------------------
+    # A SIXTH DOOR OF THE SAME SHAPE, and it is new rather than found: the
+    # WP-A repair added a mover — a pin glyph travels with the node it asks
+    # about — and a mover that does not ask the predicate is exactly what
+    # D1–D5 are. Verified unobserved before these two existed: replacing
+    # its `pinned_to_canvas(p)` with `False` left all 1079 backend tests
+    # green apart from the geometry-write census, which is the "the lines
+    # were live but nothing observed their PRESENCE" reading this class'
+    # own header describes. `_pin_kin` runs no edge from a glyph to its
+    # target, so the gate cannot hold this op either: the mover is the only
+    # thing standing between a locked ❓ and a move nobody asked for.
+
+    def _glyph(self, scene, locked):
+        """Hang a ❓ on `payment` at the mint standoff, locked or not.
+
+        Args:
+            scene: The element list to append to, mutated in place.
+            locked: Whether the user has pinned the glyph to the canvas.
+
+        Returns:
+            The glyph's stored `(x, y)`, so the caller compares against
+            what it built rather than against a literal.
+        """
+        tgt = next(e for e in scene if e["id"] == "payment")
+        px, py = canvas.pin_spot(tgt, scene)
+        gw, gh, ginset = canvas.pin_glyph_box()
+        scene.append(mk_el(id="q-pay", type="text", x=px + ginset, y=py,
+                           width=gw, height=gh, text="❓", fontSize=20,
+                           locked=locked,
+                           customData={"role": "pin", "target": "payment",
+                                       "status": "open",
+                                       "question": "which card?"}))
+        return (px + ginset, py)
+
+    def test_the_pin_carry_itself_refuses_a_locked_glyph(self):
+        """A ❓ the user pinned does not ride its target's move.
+
+        Driven at `apply_ops` directly, for this class' standing reason:
+        the gate is not the mover, and a pass reached through a batch
+        proves the gate rather than the guard.
+        """
+        scene = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        before = self._glyph(scene, locked=True)
+        errors = []
+        out = canvas.apply_ops(
+            scene, [{"op": "mod", "id": "payment", "attrs": {"x": 900}}],
+            errors)
+        self.assertEqual(errors, [])
+        glyph = next(e for e in out if e["id"] == "q-pay")
+        self.assertEqual((glyph["x"], glyph["y"]), before,
+                         "the ❓ carry moved a glyph the user pinned")
+
+    def test_the_pin_carry_still_moves_an_unlocked_glyph(self):
+        """The control: without the lock the same op takes the ❓ with it.
+
+        Without this a guard that simply disabled the mover would pass
+        the test above — the direction the v0.9 verifier found already.
+        The assertion is on the GAP and not on the coordinates, which is
+        the property the repair actually promises.
+        """
+        scene = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        self._glyph(scene, locked=False)
+        ix = {e["id"]: e for e in scene}
+        before = canvas._rect_gap(ix["q-pay"], ix["payment"])
+        errors = []
+        out = canvas.apply_ops(
+            scene, [{"op": "mod", "id": "payment", "attrs": {"x": 900}}],
+            errors)
+        self.assertEqual(errors, [])
+        jx = {e["id"]: e for e in out}
+        self.assertEqual(jx["payment"]["x"], 900, "premise: the node moved")
+        self.assertEqual(canvas._rect_gap(jx["q-pay"], jx["payment"]), before,
+                         "the ❓ carry stopped working for unpinned glyphs")
 
     def test_the_carry_still_moves_an_unpinned_part(self):
         self._deco(locked=False)
