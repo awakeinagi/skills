@@ -34645,6 +34645,25 @@ _LANDED_MOD_NUDGES: dict[str, float] = {"x": 8, "y": 8, "width": 8,
                                         "height": 8}
 
 
+def _element_box(els: list[dict[str, Any]], eid: str
+                 ) -> tuple[Any, Any, Any, Any] | None:
+    """One element's box, for asking whether a container carried a label.
+
+    Args:
+        els: Any element list.
+        eid: The element to read.
+
+    Returns:
+        Its `(x, y, width, height)`, or None when the list has no such
+        element — a container named by a stale `containerId`, which is a
+        state `validate_scene` repairs and this reader must not raise on.
+    """
+    el = next((e for e in els if e["id"] == eid), None)
+    if el is None:
+        return None
+    return (el.get("x"), el.get("y"), el.get("width"), el.get("height"))
+
+
 def stage_every_suppressed_role(mod: Any, root: Path) -> Any:
     """Build one scene carrying an element under each suppressor.
 
@@ -34732,6 +34751,8 @@ def landed_mod_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
                 value = was + _LANDED_MOD_NUDGES[attr]
             if was == value:
                 continue
+            was_boxes = {e["id"]: _element_box([e], e["id"])
+                         for e in store.scenes["d"]}
             ops = [{"op": "mod", "id": eid, "attrs": {attr: value}}]
             record, _pin_only = store.apply_batch({
                 "base_revn": store.head_revn(), "artifact": "d",
@@ -34745,6 +34766,14 @@ def landed_mod_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
             part = record["artifacts"]["d"]
             named = {b["id"] for b in (part.get("by_element") or [])}
             family = {eid, mod.part_owner_id(after)} - {None}
+            # WHOSE MOVE WAS IT, asked of the container and not of the
+            # record. A checkbox reconciles its host to its shoved label,
+            # so `cb-label` lands durably with `cb` dragged along and the
+            # record narrates the HOST — a cell that can never put the
+            # class. See the fourth assertion of the liveness guard, which
+            # was satisfied by exactly those cells while the case it names
+            # had dropped out of the grid.
+            host = before.get("containerId")
             cells.append({
                 "element": eid, "role": mod.role_of(after), "attr": attr,
                 "from": was, "to": after.get(attr),
@@ -34754,6 +34783,9 @@ def landed_mod_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
                 "named": sorted(named),
                 "attributed": bool(named & family),
                 "echoed": any(eid in line for line in echo),
+                "host": host,
+                "host_box_changed": bool(host) and was_boxes.get(host)
+                != _element_box(reloaded.scenes["d"], host),
                 "reach": reach})
     return cells
 
@@ -34962,16 +34994,28 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
             "from a differ that has stopped speaking")
         self.assertNotEqual(
             [(c["element"], c["attr"], c["reach"]) for c in cells
-             if is_a_bound_labels_own_position(c)], [],
-            "no DURABLE bound-label position is in the grid, so the red "
-            "below is passing over a case it never puts. This is the "
-            "exact hole a third-party review found on 2026-08-31: the "
-            "absolute pass asks for x=110, which is far enough to take "
-            "the label off its container, `validate_scene`'s "
-            "detach-reglue arm erases the write, and the cell drops out "
-            "as non-durable. The referee is right and the stimulus never "
-            "arrives. If the nudge pass has stopped landing too, find a "
-            "delta that survives a reload before reading any colour here")
+             if is_a_bound_labels_own_position(c)
+             and not c["host_box_changed"]], [],
+            "no DURABLE bound-label position that its CONTAINER did not "
+            "follow is in the grid, so the red below is passing over a "
+            "case it never puts. This is the exact hole a third-party "
+            "review found on 2026-08-31: the absolute pass asks for "
+            "x=110, which is far enough to take the label off its "
+            "container, `validate_scene`'s detach-reglue arm erases the "
+            "write, and the cell drops out as non-durable. The referee is "
+            "right and the stimulus never arrives. If the nudge pass has "
+            "stopped landing too, find a delta that survives a reload "
+            "before reading any colour here.\n"
+            "THE `host_box_changed` CLAUSE IS THE SECOND REVIEW'S "
+            "CORRECTION, 2026-08-31, and without it this assertion was "
+            "VACUOUS: delete `_LANDED_MOD_NUDGES` — the literal state "
+            "this class was open in — and it stayed green on `cb-label`'s "
+            "two far cells alone. Those are durable because shoving a "
+            "checkbox's label reconciles the checkbox to it, so the HOST "
+            "moved, the host's move is what the record narrates, and no "
+            "bound label's own position was ever put to the pin. The "
+            "sentence above was true of the grid and false of the case, "
+            "which is this family's whole failure mode one level up")
 
     def test_a_mod_that_re_sends_the_stored_value_says_nothing_changed(
             self) -> None:
