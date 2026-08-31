@@ -27756,7 +27756,19 @@ def coverage_table() -> list[tuple[str, str, str]]:
 #
 # `{}` HERE IS DERIVED AND NOT ASSUMED: the decorators came off first,
 # and the guard reported `measured {}` against the declared pair.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# REFILLED 2026-08-31 by the mutant-curator out of assessment run R7, and
+# the dict gained a LINE for the reason every drain here loses one: the
+# class carries exactly one red. `TestAModThatReachesDiskIsNamedByItsOwn
+# Record` is the empty-save class measured as a CLASS — 20 of 68 landed
+# (element, attribute) cells save in silence — after seven point-sample
+# pins each named one id and one attribute literal and the class kept
+# returning through a cell nobody had sampled. THE VALUE BELOW WAS READ
+# OFF THE GUARD, as every entry here says to: `test_the_hand_authored_
+# red_classes_are_the_ones_that_exist` reported `measured
+# {'TestAModThatReachesDiskIsNamedByItsOwnRecord': 1}`.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestAModThatReachesDiskIsNamedByItsOwnRecord": 1}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -34485,6 +34497,346 @@ class TestTheEmptySaveGuardIsCoupledToItsOwnWording(unittest.TestCase):
             "the guard replaced one sentence claiming nothing happened "
             "with another one" % (record["summary"]["headline"],
                                   len(drifted)))
+
+
+# ---------------------------------------------------------------------------
+# THE EMPTY SAVE, MEASURED AS A CLASS AND NOT AS A CELL. Filed by the
+# mutant-curator out of assessment run R7, 2026-08-31, off an investigation
+# that reproduced it on one op — `{"op": "mod", "id": "pin-report-page",
+# "attrs": {"x": 110, "y": 778}}`. The move reached disk, `(512, 604)`
+# became `(110, 778)` and stayed there through a reload, and the record
+# headlined the empty-save sentence with `suppressed: 0` and
+# `by_element: []` — a positive assertion that nothing was even hidden.
+#
+# SEVEN POINT SAMPLES CAME BEFORE THIS ONE. `link` (r4-9), tidy, `locked`,
+# the bound-arrow-label class above, a revert-of-arrow-ink pin and a
+# line-decoration remeasure class each pinned ONE element id against ONE
+# attribute literal, and each was written by the hand that had just found
+# that cell. A cell nobody sampled is invisible to all seven, and every
+# return of this class arrived through a cell nobody had sampled. So this
+# one quantifies: it sweeps a grid of (element, attribute) cells and asserts
+# the property over every cell that LANDED, which is the only shape that can
+# be wrong about a cell its author never thought of.
+#
+# THREE INDEPENDENT SUPPRESSORS PRODUCE IT, which is why one repair to one
+# predicate cannot drain it. `_geometry_derived` answers True for a `label`
+# or `pin` role, for a composed part, and for an arrow or line carrying a
+# binding; `_text_metric_derived` answers True for width/height on text;
+# and the restyle arm of `semantic_facts` reads neither of them — it
+# suppresses on `el.get("type") != "text"` and no amount of un-deriving
+# reaches it. Each of the three is right about the churn it was written for.
+# What none of them asks is whether an OP NAMED the attribute.
+# ---------------------------------------------------------------------------
+_LANDED_MOD_SEED: list[dict[str, Any]] = [
+    {"op": "add", "element": {"id": "card", "type": "rectangle", "x": 500,
+                              "y": 600, "width": 200, "height": 100,
+                              "label": "Report"}},
+    {"op": "add", "element": {"id": "far", "type": "rectangle", "x": 900,
+                              "y": 600, "width": 200, "height": 100}},
+    {"op": "add", "element": {"type": "arrow", "id": "t1"},
+     "from": "card", "to": "far"},
+    {"op": "add", "element": {"id": "cb", "type": "rectangle", "x": 100,
+                              "y": 100, "width": 220, "height": 28,
+                              "label": "Cb", "kind": "checkbox",
+                              "checked": True}},
+    {"op": "pin", "id": "pin-report-page", "question": "Which page?",
+     "target": "card"},
+]
+# Two geometry attrs, two size attrs, two style attrs, and two that are
+# neither — `locked` and `link` are in the grid because they NARRATE today
+# on every element in it, which is what makes the grid's own liveness
+# assertable without a second scene.
+_LANDED_MOD_ATTRS: dict[str, Any] = {
+    "x": 110.0, "y": 770.0, "width": 320.0, "height": 60.0,
+    "strokeColor": "#123456", "locked": True, "link": "#d", "opacity": 55}
+
+
+def stage_every_suppressed_role(mod: Any, root: Path) -> Any:
+    """Build one scene carrying an element under each suppressor.
+
+    Five ops mint nine elements, and the count is the point: `card` brings
+    a container-bound label, the checkbox brings two composed parts and a
+    label of its own, `t1` is an arrow bound at both feet, and the ❓ is a
+    `pin` role. Between them every branch of the three suppressors has a
+    subject, and nothing else is on the page.
+
+    Args:
+        mod: The canvas module to build through, so a repaired copy can be
+            driven end to end rather than patched at one seam.
+        root: An empty directory to build the project in.
+
+    Returns:
+        The loaded `Store`, with artifact `d` staged.
+    """
+    project = mod.Project(root)
+    project.ensure_tree()
+    store = mod.Store(project)
+    store.apply_batch({
+        "base_revn": 0, "artifact": "d",
+        "create": {"id": "d", "name": "D", "type": "wireframe"},
+        "ops": copy.deepcopy(_LANDED_MOD_SEED)})
+    return store
+
+
+def landed_mod_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
+    """Post one `mod` per (element, attribute) and read the disk back.
+
+    A cell counts only when the value DIFFERS after a fresh `Store` has
+    re-read the project — which is a stricter referee than the store in
+    hand and deliberately so. Four cells of this grid write their new
+    coordinate into the artifact file and then lose it on the next load,
+    because a container re-centres its bound label; nothing durable
+    landed there, "saved without changing anything" is defensible about
+    them, and `TestABoundArrowLabelCannotBeDraggedOffItsArrow` above
+    holds that class as a green pin with the client premises behind it.
+    Reading the bytes rather than the reload would have put this pin in
+    contradiction with that one over exactly those four cells.
+
+    ATTRIBUTION IS ASKED OF THE MODULE, not decided here: a record may
+    name the element or the element `part_owner_id` says owns it, which
+    is the composite-host rollup this repo has ruled for elsewhere. Any
+    stricter test would prescribe a shape no repair has agreed to.
+
+    Args:
+        mod: The canvas module under test.
+        root: A directory each cell may take a fresh project root under.
+
+    Returns:
+        One dict per landed cell: the element and attribute, the value on
+        disk before and after, the headline, whether that headline is the
+        module's own empty-save sentence, the ids the record named, and
+        whether the intent echo named the element.
+    """
+    cells: list[dict[str, Any]] = []
+    ids = [e["id"] for e in
+           stage_every_suppressed_role(mod, root / "stage").scenes["d"]]
+    for eid in ids:
+        for attr, value in _LANDED_MOD_ATTRS.items():
+            cell_root = root / ("cell-%s-%s" % (eid, attr))
+            store = stage_every_suppressed_role(mod, cell_root)
+            before = next((e for e in store.scenes["d"] if e["id"] == eid),
+                          None)
+            if before is None or before.get(attr) == value:
+                continue
+            was = before.get(attr)
+            ops = [{"op": "mod", "id": eid, "attrs": {attr: value}}]
+            record, _pin_only = store.apply_batch({
+                "base_revn": store.head_revn(), "artifact": "d",
+                "ops": copy.deepcopy(ops)})
+            echo = mod.intent_echo(ops, store.scenes["d"])
+            reloaded = mod.Store(mod.Project(cell_root))
+            after = next((e for e in reloaded.scenes["d"] if e["id"] == eid),
+                         None)
+            if after is None or after.get(attr) == was:
+                continue
+            part = record["artifacts"]["d"]
+            named = {b["id"] for b in (part.get("by_element") or [])}
+            family = {eid, mod.part_owner_id(after)} - {None}
+            cells.append({
+                "element": eid, "role": mod.role_of(after), "attr": attr,
+                "from": was, "to": after.get(attr),
+                "headline": record["summary"]["headline"],
+                "silent": (record["summary"]["headline"]
+                           == empty_save_sentence(mod)),
+                "named": sorted(named),
+                "attributed": bool(named & family),
+                "echoed": any(eid in line for line in echo)})
+    return cells
+
+
+class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
+    """A `mod` op whose value lands may not save in silence.
+
+    THE INVARIANT, stated without naming an element or an attribute: for
+    every `mod` op in an applied batch, if the named element's named
+    attribute differs between the pre-batch scene and the post-batch scene
+    RE-READ FROM DISK, then the record's headline is not the empty-save
+    sentence and `by_element` names that element. The neighbour is the
+    same op re-sending the value already stored, which must still headline
+    the sentence — so the pin cannot be satisfied by a differ that merely
+    stops saying `saved_no_changes`.
+
+    DISK IS THE REFEREE, NEVER THE ECHO, and that choice is load-bearing.
+    `intent_echo` names the element on every one of these cells, so the
+    single response contradicts itself: `op 0 (mod x,y): pin-report-page at
+    (110,778)` sits three lines above `saved without changing anything`.
+    A pin that took the echo as its expectation would be reading the
+    subject's own answer back to it — the failure mode
+    `TestTheApexPinDerivesFromTheLabelAndNotFromItsFixture` is named for.
+    The echo is asserted here as EVIDENCE instead: the information is
+    already in the response, so no repair is blocked by missing data.
+
+    THE SENTENCE IS ASKED OF THE MODULE and never written down, because
+    `TestTheEmptySaveGuardIsCoupledToItsOwnWording` above already paid for
+    that lesson — a reword left a guard matching nothing and every test
+    that quoted the sentence moved with the reword.
+
+    MEASURED 2026-08-31 on this grid: 68 cells land, 20 of them silent,
+    and the same 20 are the ones `by_element` leaves unnamed — the two
+    halves fail together today, so neither half is carrying the red alone.
+    Over the investigation's wider scene the class is 28 cells by this
+    referee; the eight this grid does not reach are duplicate label-role
+    cells on a second labelled node and on an arrow's label.
+
+    WHAT FLIPS IT, and the asymmetry matters more than the colour. TWO
+    COMPLETE REPAIRS were measured against monkeypatched copies and both
+    take it to 0 failing cells with the neighbour green: (A) provenance
+    beats suppression at the point where each suppressor sits — the differ
+    stops stamping `derived` on an attribute an op named, and the restyle
+    arm stops suppressing a text element whose style an op named — and the
+    ordinary verb machinery says whatever it already says; (B) the
+    intent-fact channel `apply_batch` already uses for `rerouted` is
+    generalised to every named-and-landed attribute at `commit`, leaving
+    the differ untouched. They act at opposite ends of the pipeline and
+    produce different sentences, which is the evidence that this pin
+    prescribes neither. TWO PARTIAL REPAIRS correctly leave it RED:
+    dropping `"pin"` from `_geometry_derived`'s role tuple clears 2 of the
+    20, and rewriting the headline while leaving `by_element` empty clears
+    the sentence on all 20 and names nobody on any. A COMPLETE repair
+    leaving this red would mean it had prescribed a shape; a PARTIAL one
+    leaving it red is the pin doing its job, and the two look identical
+    from the colour.
+
+    WHAT THIS DOES NOT COVER, recorded as owed rather than implied. The
+    AGENT-OP DOOR ONLY: `mod` ops are the one place provenance exists. The
+    user-save door is silent in the same way and has no ops to read — from
+    two element lists alone, "the server derived this" and "a person
+    dragged this" are indistinguishable, and the client-bundle premises
+    that settled the bound-label class do not transfer, all three being
+    keyed on `containerId`, which a ❓ has none of. That half needs a
+    browser readback and is nobody's yet.
+
+    WHO FLIPS THIS: the work package that owns the differ and the fact
+    generator. When it lands, drop the `@unittest.expectedFailure` in the
+    same change, and read the failure message first — it prints the cells,
+    so a repair that closed some and not others is legible from it.
+    """
+
+    def setUp(self) -> None:
+        """Give each test its own root; every cell takes a project under it."""
+        self.root = Path(tempfile.mkdtemp(prefix="r7-landed-mod-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def test_the_grid_lands_a_change_under_every_suppressor_it_spans(
+            self) -> None:
+        """The premise, ungated: this grid really does reach the class.
+
+        Everything below says something about cells that LANDED, and all
+        of it would pass vacuously the day `add` stops minting labels,
+        `mod` starts refusing these attributes, or the load path starts
+        discarding them — an empty grid satisfies a universal claim. It
+        would pass invisibly, too: `expectedFailure` swallows errors, so a
+        grid that raised while being built would read as a healthy red.
+        This builds the same grid ungated and asserts what it is made of.
+
+        THE LIVENESS HALF IS THE SECOND ASSERTION. A differ that had
+        stopped speaking altogether would satisfy the red trivially in the
+        other direction, so the grid is required to contain a narrated
+        pole on the same elements in the same run: every landed `link`
+        mod narrates, which is the r4-9 repair and has been green since.
+        """
+        cells = landed_mod_cells(canvas, self.root)
+        self.assertEqual(
+            sorted({c["role"] for c in cells}),
+            ["decoration", "label", "node", "pin"],
+            "the staged scene no longer carries an element under every "
+            "suppressor this class spans, so the sweep below is measuring "
+            "a smaller grid than it claims — re-derive the seed")
+        self.assertGreaterEqual(
+            len(cells), 40,
+            "only %d cells landed; the grid has collapsed and every "
+            "universal claim below is passing over almost nothing"
+            % len(cells))
+        self.assertEqual(
+            [(c["element"], c["headline"]) for c in cells
+             if c["attr"] == "link" and c["silent"]], [],
+            "a landed `link` mod is narrating as an empty save on this "
+            "very scene. That is the r4-9 repair coming undone, and until "
+            "it is back the red below cannot tell a suppressed change "
+            "from a differ that has stopped speaking")
+
+    def test_a_mod_that_re_sends_the_stored_value_says_nothing_changed(
+            self) -> None:
+        """The neighbour, ungated: the sentence is still true where it is.
+
+        The other pole, and the one that stops the red being satisfied by
+        deleting a true sentence. A `mod` that re-sends the coordinates
+        the ❓ already carries changes nothing, and the record says so.
+        Measured against a copy whose `headline_for` simply never returns
+        the empty-save sentence, this test goes RED while every cell of
+        the red below goes green — which is the whole reason it is here.
+
+        Both halves in one assertion: that nothing moved and that the
+        record said nothing moved. Either alone is ordinary.
+        """
+        store = stage_every_suppressed_role(canvas, self.root / "nb")
+        pin = next(e for e in store.scenes["d"]
+                   if e["id"] == "pin-report-page")
+        record, _pin_only = store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "d",
+            "ops": [{"op": "mod", "id": "pin-report-page",
+                     "attrs": {"x": pin["x"], "y": pin["y"]}}]})
+        now = next(e for e in store.scenes["d"]
+                   if e["id"] == "pin-report-page")
+        self.assertEqual(
+            ((now["x"], now["y"]), record["summary"]["headline"]),
+            ((pin["x"], pin["y"]), empty_save_sentence(canvas)),
+            "a mod that re-sent the stored coordinates either moved the "
+            "❓ or stopped saying nothing changed. If it stopped saying "
+            "it, the empty-save sentence has been deleted rather than "
+            "made honest, and the red below is now green for the one "
+            "reason it must never be green")
+
+    def test_the_response_names_the_element_it_declines_to_narrate(
+            self) -> None:
+        """The evidence, ungated: the same response already names it.
+
+        `intent_echo` walks the ops and reports each one's observable
+        consequence against the final scene, so every cell of this grid
+        arrives at the agent with its element named in one channel and
+        denied in another. Asserted over EVERY landed cell rather than
+        over the silent ones, so it keeps meaning something after a
+        repair drains the red — and asserted here rather than used as the
+        red's expectation, which is the distinction the class docstring
+        turns on.
+        """
+        cells = landed_mod_cells(canvas, self.root)
+        self.assertEqual(
+            [(c["element"], c["attr"]) for c in cells if not c["echoed"]],
+            [], "the intent echo has stopped naming elements whose mod "
+                "landed, so the self-contradiction this class documents "
+                "is now a plain omission — which is a different finding "
+                "and a worse one")
+
+    @unittest.expectedFailure
+    def test_every_landed_mod_is_named_by_the_record_that_saved_it(
+            self) -> None:
+        """RED: 20 of 68 landed cells save in silence.
+
+        The whole class in one assertion. A cell fails when the record
+        headlines the empty-save sentence over a change that reached disk,
+        or when `by_element` — documented in SKILL.md and
+        ops-reference.md as a surface agents READ, and asserted by no
+        other test in this tree — names neither the element nor its owner.
+
+        THE RELATION IS WHAT IS PINNED, never one scene's arithmetic: no
+        literal count appears in the assertion, so an honest repair that
+        changes what the grid contains does not have to come back and
+        edit this. The magnitude is printed by the message.
+        """
+        cells = landed_mod_cells(canvas, self.root)
+        failing = [c for c in cells if c["silent"] or not c["attributed"]]
+        self.assertEqual(
+            [(c["element"], c["attr"]) for c in failing], [],
+            "%d of %d landed cells were saved in silence. Silent: %d. "
+            "Unnamed by `by_element`: %d. Each of these reached disk and "
+            "survived a reload, and the same response named the element "
+            "in its intent echo. Cells: %s"
+            % (len(failing), len(cells),
+               sum(1 for c in failing if c["silent"]),
+               sum(1 for c in failing if not c["attributed"]),
+               [(c["element"], c["attr"], c["from"], c["to"])
+                for c in failing]))
 
 
 # ---------------------------------------------------------------------------

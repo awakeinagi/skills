@@ -150,7 +150,23 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: *none*
+Non-catalog red classes: `TestAModThatReachesDiskIsNamedByItsOwnRecord` (1)
+
+REFILLED 2026-08-31 by the mutant-curator out of assessment run R7, and it
+gained a LINE for the same reason the drain below lost one — the class
+carries exactly one red. It is the empty-save class measured as a CLASS
+rather than as a cell: for every `mod` op whose named attribute differs
+after the scene is re-read FROM DISK, the record may not headline the
+empty-save sentence and `by_element` must name that element. 20 of 68
+landed cells fail that today, under three independent suppressors, and the
+neighbour — the same op re-sending the value already stored — must go on
+saying nothing changed. Seven point-sample pins came before it, each
+naming one element id and one attribute literal, and the class returned
+every time through a cell nobody had sampled. Two structurally different
+COMPLETE repairs were measured green against monkeypatched copies and two
+PARTIAL ones correctly leave it red; the user-save door is the same
+silence and is NOT covered, having no ops to read. Owner: the work package
+that owns the differ and the fact generator.
 
 DRAINED 2026-08-30, hours after it refilled, and it lost a LINE and not a
 number because the class carried exactly one red.
@@ -465,7 +481,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**0 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**1 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
