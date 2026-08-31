@@ -2,7 +2,7 @@
  "recorded": "2026-08-31",
  "spec": "pin-untouched-captions.spec.ts",
  "app_build": "0fa7fdc22f8cf8b977c7fa9eb48ee6a7f699bb90",
- "canvas_sha256": "20794262486fe1109beab869f6aea2d56d7a9c72e56152bafec4ef3a264ae1b9",
+ "canvas_sha256": "eb460cea2e211d1dd8194b92d70f76e33227aff33719eab8596c2fc6ed3ff82b",
  "artifact": "text-clip",
  "gesture": {
   "dragged": "b0",
