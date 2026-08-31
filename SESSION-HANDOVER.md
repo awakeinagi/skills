@@ -150,7 +150,33 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: *none*
+Non-catalog red classes: `TestAModThatReachesDiskIsNamedByItsOwnRecord` (1)
+
+REFILLED 2026-08-31 by the same class that drained it hours earlier — the
+shortest round trip this roster has recorded, and the reason is worth the
+paragraph. A third-party review found the empty-save class ALIVE on cells
+the pin's own grid could not offer it. The grid asked for `x: 110` on a
+bound label stored at 575; that is far enough to take the label off its
+container, so `validate_scene`'s detach-reglue arm (ART-007) erased the
+write, the reload showed the old value, and the disk referee correctly
+dropped the cell as non-durable. The referee was never wrong — the
+STIMULUS never arrived. At `was + 8` the same op lands durably across two
+further loads and the record still headlines the empty-save sentence with
+`by_element: []`: the R7 signature verbatim, inside the pin's own stated
+invariant, identical before and after the repair.
+
+THE REPAIR WAS NOT MIS-AIMED AND THIS IS NOT A REGRESSION.
+`semantic_facts`' move arm declines `role_of(el) == "label"` BEFORE it
+consults `authored`, and that decline is door-independent, so no amount of
+provenance reaches the residual. What the pin got wrong was its SAMPLE —
+the same defect it exists to end one level down: seven point samples named
+an element id, and the grid that replaced them named a coordinate.
+DURABILITY IS AN OVERLAP TEST, NOT A STRUCTURAL RULE: the same label at
+the same attribute is durable at `+8` and erased at `±400`. Two repairs
+were measured green against the extension (the move arm asking `authored`;
+`by_element` rolled off the change list), a headline-only repair leaves it
+red, and the ground the provenance repair DID win is held by a second,
+ungated test in the same class so a regression cannot hide under the mask.
 
 DRAINED 2026-08-31, the day after it refilled, and it lost a LINE and not a
 number because the class carried exactly one red.
@@ -510,7 +536,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**0 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**1 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
