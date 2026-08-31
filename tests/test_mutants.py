@@ -2385,6 +2385,90 @@ class TestOperators(unittest.TestCase):
             "`endpoint_gap` without re-routing anything, so the mutant "
             "beside this would flip green on a non-repair")
 
+    def test_drag_as_user_carries_the_foot_and_not_the_authored_path(
+            self) -> None:
+        """A drag moves a bound foot; the bends the user placed stay put.
+
+        THE CLAUSE `as_user_move_strands_bound_arrows` CANNOT SEE, and
+        the reason it cannot is its scene: that mutant drags a node
+        bound to a straight, two-point, server-routed arrow, so a
+        "repair" that delegated to `route_arrow` satisfies it — the
+        arrow meets both shapes afterwards and `endpoint_gap` stays
+        silent — while quietly flattening every hand-authored path in
+        reach. The fixer who wrote `_x_user_carry_feet` said so and
+        declined to pin it, on the ground that an acceptance test for
+        one's own fix should not come from the same hands. Written by
+        the curator instead, 2026-08-30, from R6's browser control.
+
+        WHAT IT ENCODES WAS MEASURED, NOT REASONED. Real Chromium
+        against the checked-in web build, a node bound to a five-point
+        `routed: "authored"` path, dragged: the bound start foot
+        follows, the three interior waypoints are absolutely unchanged,
+        nothing is re-elbowed, `routed` is left alone, and the save
+        lints to zero errors and zero warnings. Those are the four
+        assertions below, in that order.
+
+        ANCHORED ON THE ARTIFACT, NOT ON `canvas.py`'s TEXT
+        (`skills/silence-is-a-bug/SKILL.md` §8, whose own lesson is an
+        anchor too narrow to see a class). Nothing here greps a helper
+        name, a call site or a docstring; the operator runs the shipped
+        verb and this reads the elements `Store.commit` wrote. So the
+        pin survives the helper being renamed, inlined, moved to the
+        save path, or replaced by an op batch — and it survives the foot
+        being computed a DIFFERENT way, which is not hypothetical: the
+        client re-seats the foot on the binding intersection rather than
+        translating it rigidly, so `landed[0]` is asserted only to have
+        MOVED and to still meet its node. A repair that grew that
+        fidelity would be more faithful than today's and must not turn
+        this red.
+
+        WHAT IT DOES REJECT, deliberately and with the measurement
+        behind it: any repair that re-routes an authored path (row B of
+        the catalogue entry's matrix), and any repair that leaves an
+        authored arrow's foot behind — which is row C's fate on this
+        scene, since `server_owns_geometry` exempts `authored` from
+        every routing pass, so a save-path re-route carries the
+        two-point arrow and strands this one. That is a true red about
+        an incomplete repair, not a prescription: the browser measured
+        the foot following on a hand-bent path too.
+
+        The interior comparison is against the scene as BUILT, never
+        against the coordinates one drag happened to produce, so an
+        honest change to this stage's geometry does not falsify it.
+        """
+        dx, dy = -40, -24
+        before = _as_user_authored_stage()
+        src0 = next(e for e in before if e["id"] == "src")
+        authored = instruments._abs_points(
+            next(e for e in before if e["id"] == "e1"))
+        out = OPERATORS["drag_as_user"](
+            _as_user_authored_stage(), node_id="src", dx=dx, dy=dy)
+        by_id = {e["id"]: e for e in out}
+        landed = instruments._abs_points(by_id["e1"])
+        self.assertEqual((by_id["src"]["x"], by_id["src"]["y"]),
+                         (src0["x"] + dx, src0["y"] + dy),
+                         "the drag never landed, so every assertion below "
+                         "is a statement about a scene nothing touched")
+        self.assertEqual(landed[1:-1], authored[1:-1],
+                         "a waypoint the user placed by hand moved. This "
+                         "verb may carry a bound foot; it may not re-route "
+                         "the path that foot hangs from, and no lint says "
+                         "a word when it does")
+        self.assertEqual(
+            (by_id["e1"].get("customData") or {}).get("routed"), "authored",
+            "`routed` stopped saying `authored`, so the next routing pass "
+            "now owns geometry the user authored and will flatten it for "
+            "real, on a save nobody connected to this drag")
+        self.assertNotEqual(landed[0], authored[0],
+                            "the bound foot stayed where its node no longer "
+                            "is — the stranding this verb was repaired for, "
+                            "reached one arrow class over")
+        # `endpoint_gap`'s own liveness is not assumed: `_as_user_stranded`
+        # makes it fire at 40px outside, ungated, in every commit.
+        mism = Silence("endpoint_gap").matches(collect_findings(out))
+        self.assertIsNone(mism, "the carried foot did not land on the node "
+                          "it binds: %s" % mism)
+
 
 class TestDetectorsAgainstRealLint(unittest.TestCase):
     """Regexes parse canvas.py's actual lint prose, not synthetic strings."""
@@ -18961,6 +19045,53 @@ def _as_user_stranded() -> list[dict]:
     return _as_user_stage(dx=-40, dy=-24)
 
 
+def _as_user_authored_stage() -> list[dict]:
+    """Two nodes joined by a five-point path the USER bent by hand.
+
+    THE SCENE `_as_user_stage` CANNOT BE, which is the whole reason it
+    is a second builder rather than a flag on that one. Its arrow is
+    straight, two-point and server-routed, so there is nothing authored
+    there to destroy: a repair that re-routed every bound arrow reads
+    GREEN over it while flattening geometry no router is allowed to
+    touch. Measured under exactly that repair, this arrow comes back a
+    three-point elbow with `routed` re-stamped to a signature — and
+    `collect_findings` says what it says today, which is nothing. No
+    detector owns "a hand path was straightened", so the pin that uses
+    this stage asserts geometry and is not a catalogue entry.
+
+    SHAPED FROM R6's BROWSER CONTROL, minimized to what carries the
+    clause. The real tab held `alpha -> beta` straight and `alpha ->
+    gamma` bent over five points; the straight arrow, the third node and
+    both labels are gone because the bent one is the whole subject. What
+    is kept is what was measured: `customData.routed == "authored"`
+    (what `mod points` stamps), `roundness` None and axis-aligned legs
+    (what `mod points` leaves behind), and a detour that turns AWAY from
+    the target before doubling back — so no route the router would elect
+    can reproduce these waypoints by luck, and a flattening cannot pass
+    by coincidence.
+
+    At rest the scene is clean on errors, warnings AND notes, so any
+    finding after a drag is attributable to the drag.
+
+    Returns:
+        Three elements: `src`, `dst`, and authored arrow `e1` running
+        (180,180) -> (180,300) -> (60,300) -> (60,400) -> (400,400) in
+        absolute coordinates, bound at both ends.
+    """
+    src = el(id="src", type="rectangle", x=100, y=100, width=160,
+             height=80, customData={"role": "node"},
+             boundElements=[{"id": "e1", "type": "arrow"}])
+    dst = el(id="dst", type="rectangle", x=400, y=360, width=160,
+             height=80, customData={"role": "node"},
+             boundElements=[{"id": "e1", "type": "arrow"}])
+    arr = el(id="e1", type="arrow", x=180, y=180, width=340, height=220,
+             points=[[0, 0], [0, 120], [-120, 120], [-120, 220], [220, 220]],
+             startBinding={"elementId": "src", "focus": 0, "gap": 0},
+             endBinding={"elementId": "dst", "focus": 0, "gap": 0},
+             customData={"role": "edge", "routed": "authored"})
+    return [src, dst, arr]
+
+
 # ---------------------------------------------------------------------------
 # The day-one catalogue. Each entry pairs a scene the drawing gets WRONG
 # today with a neighbour that must read right today; the mutant tests below
@@ -23779,10 +23910,18 @@ _register(Mutant(
 #
 #   tree                                     mutant   neighbour
 #   today                                    RED      green
-#   A  carry bound arrows in the move loop   green    green
+#   A  carry each bound FOOT in the loop     green    green
 #   B  delegate to `route_arrow`             green    green
 #   C  re-route on the SAVE path instead     green    green
 #   X  `endpoint_gap` blinded                green    RED
+#
+# ROW A's LABEL IS CORRECTED, 2026-08-30 (the fixer noticed, the curator
+# transcribed): it read "carry bound arrows in the move loop", which taken
+# literally is a whole-arrow TRANSLATION — and that strands the far end and
+# fires `endpoint_gap` in this very scene, so it cannot be what was measured
+# green. What was patched was already endpoint-aware. The verdicts stand;
+# only the wording was loose, and it is corrected here rather than left to
+# be rebuilt on.
 #
 # A and B are the two the finding named; C is the repair this red must NOT
 # prescribe against, since R6 refuted the reading that blames the save path
@@ -23797,12 +23936,13 @@ _register(Mutant(
 # silent half this catalogue pins only in part — `TestOperators
 # .test_drag_as_user_moves_the_host_and_carries_its_label` holds the
 # measurable half (the drag must not move the far node, and must not buy
-# silence by dropping the binding). What is NOT pinned anywhere is the
-# other clause, that the verb must not start re-routing geometry the USER
-# authored: R6's browser control measured server-routed arrows only, so
-# what a real drag does to a hand-bent bound arrow is unmeasured, and a
-# pin written from reasoning about it would be an expectation with no
-# observation under it. That measurement is owed by whoever takes WP-B.
+# silence by dropping the binding). The other clause — that the verb must
+# not start re-routing geometry the USER authored — was pinned nowhere at
+# the time this was written, and deliberately so: R6's browser control had
+# measured server-routed arrows only, so a pin about a hand-bent arrow
+# would have been an expectation with no observation under it. That
+# measurement was owed by whoever took WP-B. It has since been taken, and
+# the clause IS pinned; see the last paragraph.
 #
 # THE DEBT WAS PAID AND THE RED IS FLIPPED, 2026-08-30, by row A —
 # `_x_user_carry_feet`, called from the move loop with the ids that loop
@@ -23817,6 +23957,35 @@ _register(Mutant(
 # scoped the population: a LINE carrying real bindings on disk reaches the
 # client with them stripped, so the driver mirrors `isBindingElement` and
 # carries arrows only. Both are in the fixer's commit message.
+#
+# AND THE AUTHORED CLAUSE IS PINNED, 2026-08-30, by `TestOperators
+# .test_drag_as_user_carries_the_foot_and_not_the_authored_path` — written
+# by the curator because the fixer declined to write the acceptance test
+# for its own fix. IT IS NOT A CATALOGUE ENTRY, and the reason is worth
+# recording rather than re-litigating: a mutant's expectation is a
+# `FindingSpec` or a `Silence`, and NO detector emits anything when a hand
+# path is straightened. Measured, not assumed — under row B this entry's
+# own pair stays green AND `collect_findings` returns the same single
+# `crossings_count` row it returns today, so a lint-shaped expectation
+# would have been a silence with nothing behind it. The pin asserts the
+# geometry instead, over its own three-element stage
+# (`_as_user_authored_stage`), and the row-B matrix extends by one column:
+#
+#   tree   mutant  neighbour  carries_its_label  authored-path pin
+#   today  green   green      green              green
+#   A' *   green   green      green              green
+#   B      green   green      green              RED (interiors)
+#   none   RED     green      green              RED (foot stranded)
+#
+#   * A' is a NEW row, not in the matrix above: carry the foot, then
+#     re-seat it on the binding intersection the way the client actually
+#     does instead of translating it rigidly. It is the honest repair that
+#     is MORE faithful than today's, and it is in the table to prove the
+#     new pin does not prescribe today's arithmetic.
+#
+# Row B is the whole point: three tests green, one red, and the red is the
+# only thing in the repo that would have noticed a hand-authored path being
+# flattened by a "repair".
 _register(Mutant(
     "as_user_move_strands_bound_arrows",
     build=_as_user_stage,
