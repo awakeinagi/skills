@@ -23803,6 +23803,20 @@ _register(Mutant(
 # what a real drag does to a hand-bent bound arrow is unmeasured, and a
 # pin written from reasoning about it would be an expectation with no
 # observation under it. That measurement is owed by whoever takes WP-B.
+#
+# THE DEBT WAS PAID AND THE RED IS FLIPPED, 2026-08-30, by row A —
+# `_x_user_carry_feet`, called from the move loop with the ids that loop
+# translated. The owed measurement was taken first, in a real tab, because
+# it decides between A and B: a node bound to a five-point hand-authored
+# path (`routed: "authored"`) is dragged, and the client moves the bound
+# FOOT while every interior waypoint stays exactly where the user put it,
+# re-elbows nothing, and leaves the `routed` mark alone — even where that
+# leaves a server-routed arrow's signature stale, which the save path
+# accepts. So row B would have flattened geometry the client preserves,
+# and the repair moves feet and calls no router. A second measurement
+# scoped the population: a LINE carrying real bindings on disk reaches the
+# client with them stripped, so the driver mirrors `isBindingElement` and
+# carries arrows only. Both are in the fixer's commit message.
 _register(Mutant(
     "as_user_move_strands_bound_arrows",
     build=_as_user_stage,
@@ -25023,22 +25037,39 @@ class TestMutantCatalogue(unittest.TestCase):
         """An input robbed of its real value row is still reported."""
         self._run_neighbour("composed_host_remedy_reproduces_itself")
 
-    @unittest.expectedFailure
     def test_mutant_as_user_move_strands_bound_arrows(self) -> None:
         """A drag through the assessor's driver leaves `e1` 40px adrift.
 
-        RED BY ASSERTION, watched before the marker went on: `_run`
-        reports `expected silence on check='endpoint_gap' but it fired:
-        arrow e1 claims to bind feed ('Market Feed') but its start point
-        ends 40px away`. The scene is byte-clean before the drag on all
-        three lint channels, so that sentence is the drag's.
+        FLIPPED 2026-08-30 by WP-B, in the shape the entry's matrix
+        called A: `cmd_x_as_user`'s move loop now hands its moved set to
+        `_x_user_carry_feet`, which moves each bound foot by the node's
+        delta minus the arrow's own. Kept its red-era name, this file's
+        usual convention; what it asserts is now the verb's contract
+        rather than its absence.
+
+        RED BY ASSERTION while it was red, watched before the marker
+        went on: `_run` reported `expected silence on
+        check='endpoint_gap' but it fired: arrow e1 claims to bind feed
+        ('Market Feed') but its start point ends 40px away`. The scene
+        is byte-clean before the drag on all three lint channels, so
+        that sentence was the drag's.
 
         WHAT IS PINNED IS THE INSTRUMENT, not the picture and not the
         save path. A real browser drag of the same node leaves zero such
-        errors; only this driver reaches the state above. The colour is
-        therefore a statement about assessment infrastructure, and it
-        goes green when the verb stops manufacturing states no user can
-        reach — never by loosening the expectation.
+        errors; only this driver reached the state above. R6 refuted the
+        save-path reading before this was encoded, and the repair the
+        matrix lists as C — re-routing on the save path — is the one it
+        must never be read as prescribing.
+
+        THE FIX'S OWED MEASUREMENT LANDED WITH IT, and it is why the
+        repair moves feet rather than calling a router. What a real drag
+        does to a HAND-BENT bound arrow was unmeasured when this was
+        written, and the entry says so. Measured since, in a real tab: a
+        node bound to a five-point `routed: "authored"` path is dragged,
+        the bound foot follows, every interior waypoint stays exactly
+        where the user put it, nothing is re-elbowed, and the `routed`
+        mark is left alone. `route_arrow` — the matrix's row B — would
+        have flattened that path, so it is not what landed.
         """
         self._run("as_user_move_strands_bound_arrows")
 
@@ -27555,7 +27586,18 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"as_user_move_strands_bound_arrows"}
+CATALOGUE_RED_IDS: set[str] = set()
+# DRAINED on 2026-08-30 (WP-B, the fixer), the same day it refilled, by the
+# repair the entry's matrix lists as A: `cmd_x_as_user`'s move loop now
+# hands its moved set to `_x_user_carry_feet`, and a bound foot keeps its
+# offset from the element it binds — the property, not a fourth named gap.
+# Row B, delegating to `route_arrow`, was measured and NOT taken: a real
+# browser drag of a node bound to a hand-authored five-point path moves the
+# foot and leaves every interior waypoint where the user put it, so a
+# router there would flatten geometry the client preserves. Row C stays
+# refuted. THE VALUE WAS READ OFF THE GUARD: the decorator was dropped
+# first, `test_the_catalogue_reds_are_the_ones_declared` was run, and it
+# reported `measured []`.
 # REFILLED on 2026-08-30 (mutant-curator, assessment run R6 / r6-5) by a red
 # unlike every one below it: its subject is not the drawing and not a
 # detector, it is an INSTRUMENT. `x-as-user move` — the verb the assessment
