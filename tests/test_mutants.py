@@ -35203,6 +35203,656 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE NINTH CLOSURE OF ONE CLASS, AND THE AXES EVERY PIN BEFORE THIS ONE
+# SAMPLED ACROSS. Filed by the mutant-curator, 2026-08-31, out of a review
+# that established the empty-save class has now been closed nine times
+# without being closed. Each closure recognised the class in prose and
+# implemented ONE INSTANCE of it, and each pin then sampled a population
+# that structurally could not contain the failing cell.
+#
+# THE GRID ABOVE MEASURES A COLUMN THE BUG CANNOT APPEAR IN. It drives the
+# AGENT door and one attribute per save, and it scores 102 of 102. The same
+# question asked on the USER door scores 26 of 171, and on saves where
+# anything else changed in the same save it scores 0 of 137. Neither figure
+# is a criticism of that grid's referee — it is a fact about its axes, and
+# the two axes it is missing are the two this one is built on:
+#
+#   * THE DOOR. `mod` ops carry provenance and a browser save carries none.
+#     Every suppressor in the differ was written for churn arriving without
+#     ops, so the door that authors nothing is the door they all apply to.
+#   * THE CO-CHANGE. `_label_position_rederived`'s STATED property is
+#     honest — "a label re-centred by its own re-measure or carried by its
+#     container was not positioned by anyone" — and its implementation asks
+#     "did the container's box change AT ALL / did the label's size or text
+#     change AT ALL", so it swallows an independent reposition that merely
+#     SHARES A SAVE with one of those. The browser changes a bound label's
+#     `width` on every save it makes, because the client's text metrics
+#     disagree with the server's stored `text_dims`, so the co-change arm
+#     is not an edge case: it is the ordinary case.
+#
+# THE REFEREE IS ASKED-VALUE DURABILITY AND NOT A DIFF. The grid above asks
+# whether an attribute DIFFERS from before; this asks whether the value the
+# save asked for is the value a fresh `Store` reads back, which is the
+# question the class is actually about — "did what I asked for land, and is
+# it what the reader sees after a reload?". The +400 pass is in the grid to
+# keep that referee honest in the other direction: it does NOT land (ART-007
+# re-centres a detached label at the next load), it drops out of the
+# population, and a referee that had started accepting everything would be
+# caught by the guard below demanding a non-durable cell.
+#
+# ONE DEFECT PER RED. The role-less bound label and the host rollup's
+# borrowed verb are sibling classes below, not extra axes here: folding them
+# in would make every red need one repair big enough to close all three,
+# which is the shape that keeps producing a fix and its acceptance test from
+# one hand.
+# ---------------------------------------------------------------------------
+_LABEL_GRID_SEED: list[dict[str, Any]] = [
+    {"op": "add", "element": {"id": "box", "type": "rectangle", "x": 200,
+                              "y": 200, "width": 300, "height": 140,
+                              "label": "Alpha"}}]
+_LABEL_GRID_DOORS: tuple[str, ...] = ("agent", "user")
+# `alone` is the cell every previous pin sampled; the other four are the
+# co-change conditions, one per arm of `_label_position_rederived`'s "did
+# anything change at all" disjunction plus the container-move case the v0.3
+# assessment ruled on.
+_LABEL_GRID_CONDITIONS: tuple[str, ...] = ("alone", "host_moved",
+                                           "host_resized", "label_renamed",
+                                           "label_remeasured")
+# THREE DELTAS AND NOT ONE, which is the whole lesson of the pass above:
+# the same label at the same attribute is durable at `+8` and erased at
+# `+400`, so a grid built on a single coordinate literal concludes the
+# class is closed while it is open. `0` is the derived pole — the label
+# ends where the co-change carried it and nobody positioned it.
+_LABEL_GRID_DROPS: tuple[float, ...] = (0.0, 8.0, 30.0, 400.0)
+_LABEL_GRID_SHIFT = 50.0
+_LABEL_GRID_GROWTH = 40.0
+_LABEL_GRID_TEXT = "Beta!!"
+_LABEL_GRID_RENAME_WIDEN = 6.0
+_LABEL_GRID_REMEASURE_WIDEN = 4.0
+
+
+def stage_one_labelled_box(mod: Any, root: Path) -> Any:
+    """Build the smallest scene that can hold this class: one bound label.
+
+    Nothing else is on the page. The class needs a container-bound label
+    and a container whose own box can be moved or resized in the same
+    save, and every additional element would be a second story competing
+    for the record's headline — which is what makes a grid unreadable
+    long before it makes one wrong.
+
+    Args:
+        mod: The canvas module to build through, so a repaired copy can
+            be driven end to end rather than patched at one seam.
+        root: An empty directory to build the project in.
+
+    Returns:
+        The loaded `Store`, with artifact `g` staged.
+    """
+    project = mod.Project(root)
+    project.ensure_tree()
+    store = mod.Store(project)
+    store.apply_batch({
+        "base_revn": 0, "artifact": "g",
+        "create": {"id": "g", "name": "G", "type": "wireframe"},
+        "ops": copy.deepcopy(_LABEL_GRID_SEED)})
+    return store
+
+
+def label_grid_carried_scene(mod: Any, els: list[dict[str, Any]],
+                             condition: str) -> list[dict[str, Any]]:
+    """The scene the co-change ALONE produces, label carried, nobody moved.
+
+    THE DERIVED POLE IS BUILT BY THE PRODUCT AND NOT BY ARITHMETIC HERE.
+    `recenter_label` is this repo's single definition of where a carried
+    bound label belongs, and a hand copy of its formula in a test is a
+    second definition that drifts — so the pole is produced by calling
+    it. That is not a pin deriving its own expectation: the expectation
+    below is asked-value durability against a fresh `Store`, and this
+    function only shapes the NEIGHBOUR's input scene.
+
+    Args:
+        mod: The canvas module under test.
+        els: The staged scene; not mutated.
+        condition: One of `_LABEL_GRID_CONDITIONS`.
+
+    Returns:
+        A fresh element list with the co-change applied and the bound
+        label re-centred by the product's own writer.
+    """
+    els = copy.deepcopy(els)
+    ix = {e["id"]: e for e in els}
+    host, label = ix["box"], ix["box-label"]
+    if condition == "host_moved":
+        host["x"] = host["x"] + _LABEL_GRID_SHIFT
+    elif condition == "host_resized":
+        host["width"] = host["width"] + _LABEL_GRID_GROWTH
+    elif condition == "label_renamed":
+        label["text"] = label["originalText"] = _LABEL_GRID_TEXT
+        label["width"] = label["width"] + _LABEL_GRID_RENAME_WIDEN
+    elif condition == "label_remeasured":
+        # what the browser does on EVERY save of a bound label: its own
+        # text metrics disagree with the server's stored `text_dims`.
+        label["width"] = label["width"] + _LABEL_GRID_REMEASURE_WIDEN
+    mod.recenter_label(els, host)
+    return els
+
+
+def _label_grid_user_save(mod: Any, store: Any, condition: str, drop: float
+                          ) -> tuple[dict[str, Any], tuple[float, float]]:
+    """Post the whole scene the way `/api/save` does, and ask for `drop`.
+
+    Args:
+        mod: The canvas module under test.
+        store: The staged store.
+        condition: One of `_LABEL_GRID_CONDITIONS`.
+        drop: How far below the carried position to put the label; `0`
+            builds the derived pole, where nobody positioned it.
+
+    Returns:
+        `(record, asked_xy)` — the position the save asked the label to
+        hold.
+    """
+    els = label_grid_carried_scene(mod, store.scenes["g"], condition)
+    label = next(e for e in els if e["id"] == "box-label")
+    label["y"] = label["y"] + drop
+    record = store.commit(author="user", new_scenes={"g": els},
+                          base_revn=store.head_revn())
+    return record, (label["x"], label["y"])
+
+
+def _label_grid_agent_save(mod: Any, store: Any, condition: str, drop: float
+                           ) -> tuple[dict[str, Any], tuple[float, float]]:
+    """Drive the same cell through `apply_batch`, which carries provenance.
+
+    THE TWO DOORS DIFFER IN THE DERIVED POLE AND THE DIFFERENCE IS REAL,
+    not a convenience: a browser posts the carried coordinate because the
+    CLIENT did the carrying, and an op batch names only what changed and
+    lets `recenter_label` carry the label server-side. Posting the
+    carried coordinate as an op would make it authored, which is a
+    different cell and not this one.
+
+    Args:
+        mod: The canvas module under test.
+        store: The staged store.
+        condition: One of `_LABEL_GRID_CONDITIONS`.
+        drop: How far below the carried position to ask for the label.
+
+    Returns:
+        `(record, asked_xy)`.
+    """
+    was = {e["id"]: e for e in copy.deepcopy(store.scenes["g"])}
+    carried = {e["id"]: e for e in
+               label_grid_carried_scene(mod, store.scenes["g"], condition)}
+    ops: list[dict[str, Any]] = []
+    host = {k: carried["box"][k] for k in ("x", "width")
+            if carried["box"][k] != was["box"][k]}
+    if host:
+        ops.append({"op": "mod", "id": "box", "attrs": host})
+    if carried["box-label"].get("text") != was["box-label"].get("text"):
+        ops.append({"op": "mod", "id": "box-label",
+                    "attrs": {"text": carried["box-label"]["text"]}})
+    elif condition == "label_remeasured":
+        ops.append({"op": "mod", "id": "box-label",
+                    "attrs": {"width": carried["box-label"]["width"]}})
+    asked = (carried["box-label"]["x"], carried["box-label"]["y"] + drop)
+    if drop:
+        ops.append({"op": "mod", "id": "box-label",
+                    "attrs": {"x": asked[0], "y": asked[1]}})
+    if not ops:
+        # the `alone` derived pole: re-send the stored coordinates, which
+        # is the empty-save sentence's own true case.
+        ops.append({"op": "mod", "id": "box-label",
+                    "attrs": {"x": asked[0], "y": asked[1]}})
+    record, _pin_only = store.apply_batch({
+        "base_revn": store.head_revn(), "artifact": "g", "ops": ops})
+    return record, asked
+
+
+_LABEL_GRID_SAVES: dict[str, Any] = {"agent": _label_grid_agent_save,
+                                     "user": _label_grid_user_save}
+
+
+def label_grid_cells(mod: Any, root: Path,
+                     doors: tuple[str, ...] | None = None,
+                     drops: tuple[float, ...] | None = None
+                     ) -> list[dict[str, Any]]:
+    """Save one bound-label position per (door, condition, delta) cell.
+
+    Every cell gets its own project, its own staged scene and its own
+    fresh `Store` to read the answer back through — the referee is what
+    the NEXT session loads, never the store that just wrote.
+
+    Args:
+        mod: The canvas module under test.
+        root: A directory each cell may take a fresh project root under.
+        doors: The doors to drive, for the vacuity mutants below;
+            `_LABEL_GRID_DOORS` when None.
+        drops: The deltas to ask for; `_LABEL_GRID_DROPS` when None.
+
+    Returns:
+        One dict per cell: the door, condition and delta that built it,
+        the position asked for and the one a reload shows, whether the
+        two agree (`durable`), whether the label ended anywhere other
+        than where it started (`shifted`), the headline and whether it is
+        the empty-save sentence, the `by_element` entry naming the label,
+        the same for its container, and both elements' boxes before and
+        after.
+    """
+    cells: list[dict[str, Any]] = []
+    for door in (doors if doors is not None else _LABEL_GRID_DOORS):
+        for condition in _LABEL_GRID_CONDITIONS:
+            for drop in (drops if drops is not None else _LABEL_GRID_DROPS):
+                cell_root = root / ("%s-%s-%s" % (door, condition, drop))
+                store = stage_one_labelled_box(mod, cell_root)
+                before = {e["id"]: copy.deepcopy(e)
+                          for e in store.scenes["g"]}
+                record, asked = _LABEL_GRID_SAVES[door](
+                    mod, store, condition, drop)
+                after = {e["id"]: e for e in
+                         mod.Store(mod.Project(cell_root)).scenes["g"]}
+                label = after["box-label"]
+                disk = (label.get("x"), label.get("y"))
+                # a save that changed nothing carries no artifact part at
+                # all, which is a THIRD spelling of the empty save and
+                # must read as "named nobody", never as a KeyError under
+                # a mask that reports it as a healthy red.
+                part = (record.get("artifacts") or {}).get("g") or {}
+                entries = {b["id"]: b for b in (part.get("by_element") or [])}
+                cells.append({
+                    "door": door, "condition": condition, "drop": drop,
+                    "asked": asked, "disk": disk, "durable": disk == asked,
+                    "shifted": disk != (before["box-label"].get("x"),
+                                        before["box-label"].get("y")),
+                    "headline": record["summary"]["headline"],
+                    "silent": (record["summary"]["headline"]
+                               == mod.EMPTY_SAVE_HEADLINE),
+                    "entry": entries.get("box-label"),
+                    "host_entry": entries.get("box"),
+                    "boxes": {eid: (_element_box(list(before.values()), eid),
+                                    _element_box(list(after.values()), eid))
+                              for eid in ("box", "box-label")}})
+    return cells
+
+
+def record_accounts_for_the_move(entry: dict[str, Any] | None, axis: str
+                                 ) -> bool:
+    """Does this `by_element` entry account for a shift along `axis`?
+
+    TWO CHANNELS AND NOT ONE, deliberately, because the honest repairs
+    for this class sit at different layers and put the answer in
+    different places. A differ-layer repair mints a `move` change, so the
+    coordinate appears in `attrs_changed`; a fact-layer repair mints a
+    `moved` fact from the two element lists without the differ's help,
+    and `_by_element` seeds an entry from that fact with an empty
+    `attrs_changed`. Requiring `attrs_changed` alone would have made this
+    predicate PRESCRIBE the differ-layer repair, which is the failure
+    this whole family is about.
+
+    Args:
+        entry: The `by_element` entry for the element, or None when the
+            record named it nowhere.
+        axis: `"x"` or `"y"`.
+
+    Returns:
+        True when the record says, in either channel, that this element's
+        position changed along that axis.
+    """
+    if not entry:
+        return False
+    if axis in (entry.get("attrs_changed") or []):
+        return True
+    moved = (entry.get("semantic") or {}).get("moved") or {}
+    return bool(moved.get("d" + axis))
+
+
+def assert_the_label_grid_puts_the_case(case: unittest.TestCase,
+                                        cells: list[dict[str, Any]]) -> None:
+    """Assert this cell list can actually contain the defect.
+
+    THE BODY IS A FUNCTION OF THE CELL LIST so the vacuity mutants can
+    run it over a grid built with a door or a delta removed, which is
+    what the nine previous closures of this class were never asked. A
+    guard that only ever sees a healthy population proves nothing about
+    a damaged one.
+
+    Args:
+        case: The test case to assert through.
+        cells: The output of `label_grid_cells`.
+
+    Raises:
+        AssertionError: When the population cannot put the case.
+    """
+    put = {(c["door"], c["condition"]) for c in cells
+           if c["drop"] and c["durable"]}
+    case.assertEqual(
+        sorted(set(_LABEL_GRID_DOORS) - {d for d, _ in put}), [],
+        "a whole DOOR contributes no landed label move to this grid, so "
+        "every universal claim below is passing over the door it cannot "
+        "reach. That is the shape eight of this class's nine closures "
+        "had: the pin measured a column the bug does not live in. "
+        "Landed (door, condition) pairs: %s" % sorted(put))
+    case.assertEqual(
+        sorted({(d, c) for d in _LABEL_GRID_DOORS
+                for c in _LABEL_GRID_CONDITIONS} - put), [],
+        "these (door, co-change) cells land no durable label position, "
+        "so the red below never puts them: %s. Before reading any colour "
+        "here, find a delta that survives a reload — the grid above "
+        "asked for one coordinate literal, it happened to be far enough "
+        "to detach the label, ART-007 erased it, the cell dropped out as "
+        "non-durable and the class read as closed for a second time"
+        % sorted({(d, c) for d in _LABEL_GRID_DOORS
+                  for c in _LABEL_GRID_CONDITIONS} - put))
+    case.assertNotEqual(
+        [c for c in cells if c["drop"] and not c["durable"]], [],
+        "no cell in this grid FAILS to land, so the durability referee "
+        "is accepting everything and has stopped discriminating. The "
+        "+400 pass exists to be rejected: `validate_scene` re-centres a "
+        "label lying entirely off its container at the next load, so "
+        "that coordinate is not what the reader sees and silence about "
+        "it is defensible")
+    for door in _LABEL_GRID_DOORS:
+        carried = [c for c in cells if c["door"] == door
+                   and not c["drop"] and c["shifted"]]
+        case.assertNotEqual(
+            carried, [],
+            "the %s door contributes no cell in which a label MOVED "
+            "without anyone positioning it, so the neighbour below — the "
+            "pole that refuses a repair narrating every label position — "
+            "is vacuous on that door" % door)
+
+
+class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
+    """A bound label's position that survives the reload is in the record.
+
+    THE INVARIANT, stated without naming a door, a delta or a
+    co-change: when a save asks a bound label to hold a position and a
+    fresh `Store` reads that same position back, the record accounts for
+    the displacement — the label's own `by_element` entry names the axis
+    that moved, in `attrs_changed` or in a `moved` fact. The neighbour is
+    the same save with the label left exactly where the co-change carried
+    it, over which the record must NOT claim the label moved: that is the
+    container's story, and it is the pole that refuses a repair which
+    simply narrates every label coordinate.
+
+    WHY THE GRID IS THE DELIVERABLE AND THE RED HANGS OFF IT. Nine
+    closures of this class each recognised it in prose and pinned one
+    instance, and every return arrived through a cell nobody had
+    sampled — a `link`, tidy, `locked`, an arrow label, an ink revert, a
+    line remeasure, a coordinate literal. The population, not the
+    predicate, is what kept being wrong, so the axes are the subject:
+    door x co-change x delta, refereed by asked-value durability.
+
+    MEASURED 2026-08-31 ON THIS GRID: 40 cells, 30 of which ask a label
+    to hold a position and 20 of which land it. 12 of those 20 are
+    narrated and 8 are not, and the 8 are one shape — the USER door with
+    anything else in the same save. Through the AGENT door every
+    co-change narrates, because a
+    `mod` op names the coordinate and provenance un-derives it one layer
+    earlier; through the USER door nothing is named, every suppressor
+    applies, and `_label_position_rederived` answers True on the mere
+    PRESENCE of a size or container change in the same save.
+
+    THE BROWSER MAKES THAT SAVE ON EVERY SAVE, which is why the
+    `label_remeasured` row is the ordinary case and not an edge. The
+    client's text metrics disagree with the server's stored `text_dims`,
+    so a real browser posts a bound label with a `width` a few pixels off
+    the stored one every time; the review that filed this watched a
+    posted `x=297.5 width=41` against a stored `width=44` land on disk as
+    `x=298` and read back the same after a reload, under the headline
+    `saved without changing anything` with `verb_counts
+    {"saved_no_changes": 1}` and `by_element []`.
+
+    PINNED AT THE DOOR AND NOT IN A BROWSER, with the reason recorded
+    rather than left as an omission. The GESTURE is unreachable — the
+    client will not let a user drag bound text off its container — so a
+    Playwright spec would have to author the same post by hand, which is
+    what this does at a hundredth of the cost and without a browser in
+    the gate. What a browser WOULD add is evidence that the width delta
+    is real, and that evidence already exists in the review's transcript
+    and in `frontends/wysiwyg-grilling/tests/e2e`'s own bound-text specs.
+
+    WHAT THIS DOES NOT COVER, recorded as owed rather than implied. A
+    bound label carrying NO `customData.role` falls in a gap between two
+    gates and is the sibling class below; the host rollup's borrowed verb
+    is the second. Neither is folded in here, because a red that needs
+    one repair big enough to close three defects is a red that will be
+    satisfied by whichever one its fixer thought of.
+
+    THE ARROW-LABEL SILENCE IS NOT DEMANDED HERE and must not be. A
+    linear container is an honest carve-out, browser-verified: the client
+    re-derives an arrow label's drawn position from the arrow and writes
+    it back at the midpoint, so a stored 508 is drawn at 499.5 and the
+    coordinate never reaches the picture. This grid's container is a
+    rectangle for exactly that reason, and
+    `TestABoundArrowLabelCannotBeDraggedOffItsArrow` holds the other
+    case.
+    """
+
+    def setUp(self) -> None:
+        """Give each test its own root; every cell takes a project under it."""
+        self.root = Path(tempfile.mkdtemp(prefix="label-grid-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def test_the_grid_puts_a_landed_label_move_on_every_axis_it_spans(
+            self) -> None:
+        """The premise, ungated: this population can contain the defect.
+
+        Everything below is a universal claim over cells that LANDED, and
+        an empty grid satisfies a universal claim. It would satisfy it
+        INVISIBLY under the red's mask, too, since `expectedFailure`
+        swallows errors as readily as failures. So the population is
+        asserted before any colour is read: both doors present, every
+        (door, co-change) pair landing something, at least one cell that
+        does NOT land so the referee is still discriminating, and a
+        carried pole on each door so the neighbour is not vacuous.
+        """
+        assert_the_label_grid_puts_the_case(
+            self, label_grid_cells(canvas, self.root))
+
+    def test_the_population_guard_notices_a_grid_that_lost_a_door(
+            self) -> None:
+        """The vacuity mutant, watched failing before the red was believed.
+
+        THE GUARD ABOVE IS THE ONE THING STANDING BETWEEN THIS RED AND
+        THE FAILURE MODE IT WAS WRITTEN ABOUT, and a guard nobody has
+        seen fail is worth nothing — the grid above this one carried a
+        liveness assertion that stayed GREEN when its own extension pass
+        was deleted, which is the state that let this class close for the
+        eighth time. So the guard's body is a function of the cell list
+        and this runs it over two damaged populations.
+
+        FOUR MUTANTS FOR FOUR CLAUSES, and each is required to fail on
+        the clause it targets rather than merely to fail — a mutant that
+        trips a different assertion has proved that assertion twice and
+        the intended one not at all. The first two are HISTORICAL and not
+        invented: an agent-door-only grid is what every previous pin in
+        this family measured, and a single-change-only grid is the
+        population the eighth closure scored 59 of 59 against while the
+        same predicate scored 0 of 137 on co-change saves.
+        """
+        cells = label_grid_cells(canvas, self.root)
+        mutants: list[tuple[str, list[dict[str, Any]], str]] = [
+            ("the user door deleted",
+             [c for c in cells if c["door"] == "agent"], "a whole DOOR"),
+            ("co-change saves deleted",
+             [c for c in cells if c["condition"] == "alone"],
+             "land no durable label position"),
+            ("the non-durable pass deleted",
+             [c for c in cells if c["drop"] != 400.0],
+             "no cell in this grid FAILS to land"),
+            ("the carried pole deleted",
+             [c for c in cells if c["drop"]],
+             "no cell in which a label MOVED without anyone")]
+        survived, wrong = [], []
+        for name, damaged, expected in mutants:
+            try:
+                assert_the_label_grid_puts_the_case(self, damaged)
+            except AssertionError as caught:
+                if expected not in str(caught):
+                    wrong.append((name, expected, str(caught)[:200]))
+            else:
+                survived.append(name)
+        self.assertEqual(
+            (survived, [w[:2] for w in wrong]), ([], []),
+            "the population guard did not notice %s, and answered the "
+            "wrong clause for %s. A survivor is the finding: that clause "
+            "is decoration, and the red below is one grid edit away from "
+            "passing over nothing. Detail: %s" % (survived, wrong, wrong))
+
+    def test_a_carried_label_is_its_containers_story_and_not_its_own(
+            self) -> None:
+        """The neighbour, ungated: a derived position narrates nothing.
+
+        The pole that stops the red being satisfied by narrating every
+        bound-label coordinate. In these cells the co-change moved the
+        label and NOBODY positioned it — the container took it along, or
+        its own re-measure re-centred it — so a `moved` about the label
+        is the v0.3 finding one element type over ("qty, cost basis moved
+        right" headlining a Position drag) and a `moved` beside every
+        `renamed` is the regression
+        `TestTheUsersBringToFrontIsUndoneInSilence` caught the first time
+        this rule was written.
+
+        ASSERTED IN BOTH AXES because the two fail differently: a repair
+        keyed on durability alone narrates the carried `x`, and one that
+        predicts the re-centred position from the SERVER's `text_dims`
+        rather than the posted width narrates a phantom `x` on every
+        rename a browser makes.
+        """
+        cells = label_grid_cells(canvas, self.root)
+        carried = [c for c in cells if not c["drop"] and c["shifted"]]
+        claimed = [(c["door"], c["condition"], c["headline"])
+                   for c in carried
+                   if record_accounts_for_the_move(c["entry"], "x")
+                   or record_accounts_for_the_move(c["entry"], "y")]
+        self.assertEqual(
+            claimed, [],
+            "%d of %d carried labels are narrated as having moved on "
+            "their own. Nobody positioned these: the container carried "
+            "them, or their own re-measure re-centred them. A repair "
+            "that reaches the red below by narrating every bound-label "
+            "coordinate arrives here" % (len(claimed), len(carried)))
+
+    def test_the_empty_save_sentence_is_still_true_where_it_is(self) -> None:
+        """The other neighbour, ungated: a real no-op still says so.
+
+        Deleting the empty-save sentence would turn the red below green
+        without making one record honest, so the sentence's own true case
+        is asserted here. It is read as the CONSTANT
+        `canvas.EMPTY_SAVE_HEADLINE` and not through `headline_for`,
+        which is the producer: the grid above measured a copy whose
+        producer simply never returns the sentence and watched a
+        producer-derived neighbour PASS, because the expectation moved
+        with the cheat it existed to catch.
+        """
+        cells = label_grid_cells(canvas, self.root,
+                                 drops=(0.0,))
+        quiet = [c for c in cells if c["condition"] == "alone"]
+        self.assertEqual(
+            [(c["door"], c["shifted"], c["headline"]) for c in quiet],
+            [(door, False, canvas.EMPTY_SAVE_HEADLINE)
+             for door in _LABEL_GRID_DOORS],
+            "a save that asked for nothing either moved the label or "
+            "stopped saying nothing changed. If it stopped saying it, "
+            "the sentence has been deleted rather than made honest, and "
+            "the red below is now green for the one reason it must never "
+            "be green")
+
+    def test_the_cells_the_durability_repair_closed_are_still_closed(
+            self) -> None:
+        """The ground already won, ungated so a regression cannot hide.
+
+        The durability ruling of 2026-08-31 closed the single-change
+        AGENT-door cells, and the `alone` column on both doors. This
+        asserts those WITHOUT the mask, so the day that threading
+        regresses, a red that is masked by design cannot swallow it.
+
+        THE SUBSET IS NAMED BY SHAPE and not by a list of cells, so it
+        does not go stale when the grid gains a condition, and it does
+        not have to be edited when the residual is closed — it asserts a
+        subset and keeps passing.
+        """
+        cells = label_grid_cells(canvas, self.root)
+        won = [c for c in cells if c["drop"] and c["durable"]
+               and (c["door"] == "agent" or c["condition"] == "alone")]
+        lost = [(c["door"], c["condition"], c["drop"], c["headline"])
+                for c in won
+                if not record_accounts_for_the_move(c["entry"], "y")]
+        self.assertEqual(
+            lost, [],
+            "the durability repair has regressed on %d of the %d cells "
+            "it closed. These are not the residual the red below holds — "
+            "they landed and were narrated on 2026-08-31 and are not now"
+            % (len(lost), len(won)))
+
+    @unittest.expectedFailure
+    def test_every_landed_label_position_is_named_by_its_own_record(
+            self) -> None:
+        """RED 2026-08-31: 8 of 20 landed label moves save unaccounted.
+
+        The whole class in one assertion. A cell fails when the position
+        the save asked for is the position a fresh `Store` reads back and
+        the record's `by_element` does not account for the displacement
+        on the axis that moved — neither in `attrs_changed` nor in a
+        `moved` fact.
+
+        THE RELATION IS WHAT IS PINNED, never one scene's arithmetic.
+        `narrated == durable`, and no coordinate literal appears in the
+        assertion: an honest repair that changes what the grid contains
+        does not have to come back and edit this, and the magnitude is
+        printed by the message.
+
+        WHAT IS FAILING, by shape rather than by cell id: the USER door
+        with anything else in the same save. `_label_position_rederived`
+        answers True whenever the label's `width`, `height` or `text`
+        differs OR its container's box does, so an independent reposition
+        that merely SHARES A SAVE with one of those is swallowed whole.
+        All four co-changes reproduce it and the fourth is the one a
+        browser makes on every save it sends.
+
+        WHAT FLIPS IT, measured against patched copies of `canvas.py`
+        with the neighbours above still green, and three repairs at three
+        layers so this red prescribes none of them:
+
+          (R) THE PREDICTION. `_label_position_rederived` stops asking
+              "did anything change at all" and compares the saved
+              position to the one `recenter_label` would write for the
+              scene being saved. A label at that point was carried; one
+              anywhere else was positioned.
+          (S) THE DELTA. Same function, no call to the writer: the
+              position is derived when the label moved by exactly its
+              container's own displacement, or by half its own width
+              change, which is the arithmetic re-centring performs
+              without performing it.
+          (T) THE FACT CHANNEL. `diff_scenes` is left alone and
+              `Store.commit` hands `semantic_facts` an extra fact for a
+              bound label whose stored position differs from the carried
+              one — the `extra_facts` route `apply_batch` already uses
+              for `rerouted`.
+
+        WHAT MUST NOT FLIP IT, and the neighbours above are what refuse
+        them: dropping the carve-out entirely (every rename narrates a
+        `moved`), and rewriting the headline while `by_element` stays
+        empty (the record still names nobody).
+        """
+        cells = label_grid_cells(canvas, self.root)
+        landed = [c for c in cells if c["drop"] and c["durable"]]
+        unaccounted = [c for c in landed
+                       if not record_accounts_for_the_move(c["entry"], "y")]
+        self.assertEqual(
+            [(c["door"], c["condition"], c["drop"]) for c in unaccounted],
+            [],
+            "%d of %d landed label positions are in no record. Silent "
+            "headlines among them: %d. Each of these asked for a "
+            "coordinate, wrote it, and a fresh Store read the same "
+            "coordinate back — so it is what the reader sees. Cells: %s"
+            % (len(unaccounted), len(landed),
+               sum(1 for c in unaccounted if c["silent"]),
+               [(c["door"], c["condition"], c["drop"], c["asked"],
+                 c["headline"]) for c in unaccounted]))
+
+
+# ---------------------------------------------------------------------------
 # ONE COMPOSED-PART PREDICATE, THREE SITES, AND NO AUTHOR. Handed over by
 # the v0.9 coordinator, 2026-08-19: `_composed_part` was extracted by one
 # stream specifically to be the single reader of "does this element carry a
