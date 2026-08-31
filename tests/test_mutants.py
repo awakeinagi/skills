@@ -34820,8 +34820,10 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
     `_geometry_derived`'s role tuple clears 2 of the 20, and rewriting the
     headline while leaving `by_element` empty clears the sentence on all 20
     and names nobody on any. Un-deriving at the differ ALONE is partial too
-    and instructively so — it clears 14 and stops, because the restyle arm
-    suppresses on element type and never reads the `derived` flag at all.
+    and instructively so — it clears 14 OF THIS GRID'S 20, and 18 of the
+    wider scene's 28, because the restyle arm suppresses on element type
+    and never reads the `derived` flag at all. Both denominators are
+    written because one of them was later quoted against the other.
     A COMPLETE repair leaving this red would mean it had prescribed a
     shape; a PARTIAL one leaving it red is the pin doing its job, and the
     two look identical from the colour.
