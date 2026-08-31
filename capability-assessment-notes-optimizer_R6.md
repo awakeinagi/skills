@@ -812,3 +812,86 @@ this as a table with **in-session evidence**, not a bare PASS.
   wrap-coin fix, so they are not that.
 - **`so1-R6-1`** is a defect in *this method*, not the target: "check the
   symlink" inspects the one registration that does not win.
+
+---
+
+# CORRECTIONS — four errors in my own findings, found by the curators
+
+Filed by `curator-r6-pin-rederive` while building WP-A's reds, and **verified
+independently before being accepted**. All four are mine. They are appended
+rather than edited into place, because the record of a wrong figure is what
+stops the next run rebuilding on it.
+
+Three of the four are the same shape, and it is the shape this repo's own v0.9
+§3b table names: **the measurement that was easy to take displaced the one the
+claim was about.**
+
+### C-1 — "`--relayout` never says it detached three pins" is FALSE
+
+**Verified.** Re-run from a clean copy with cadence reset, the standing lint
+names it explicitly:
+
+```
+LAYOUT_WARNING=…: pin pin-intake-escalation asks about escalation
+  ('Escalated to a human') but is drawn 1944px from it
+```
+
+The *command* prints only `RELAYOUT=`, `MOVES=16`, `REVN=`. The *lint* speaks
+afterwards. I measured "0 → 10 warnings" and **never read what the ten were** —
+having counted them, I asserted their content.
+
+**This changes `r6-8`'s attribution from `tool-silent-shipped` to `tool-told`,
+delayed.** The defect stands and is still P1: a documented one-command feature
+takes a clean diagram to a broken one. But "and nothing tells you" was wrong,
+and that clause was doing rhetorical work the evidence did not support.
+
+The verification run also surfaced something worse than the pins, which I had
+not looked for: **10 of the 12 warnings are user-shaped arrows whose bindings
+the relayout stranded** — `a-banding-review`, `a-banding-refuse`,
+`a-identity-reject`, `a-sanctions-reject`, `a-review-reject`, both endpoints
+each. Relayout detaches *authored* geometry, not just glyphs.
+
+### C-2 — "78px" was Manhattan, presented as a distance
+
+`(512,304) → (476,346)` is `dx −36, dy +42`. **Euclidean 55.3px**; `36+42 = 78`.
+My probe computed `abs(dx)+abs(dy)` and I labelled the result a distance.
+
+A unit substitution, committed while writing up a run whose own §3b table lists
+*"an 8-bit colour / a float"* and *"a count of passes / milliseconds"* as the
+canonical instances. Three of the seven in that table die at the step *name the
+unit the claim is in before choosing how to measure it*.
+
+### C-3 — "3 of 9 fixture pins" was a partial count reported as a total
+
+**5 of 9.** The three dashboard glyphs at 55.3px, **plus** `pin-rerun-unit` and
+`pin-threshold-blast` on the admin console at 37.4px each. `pin-late-source`
+differs by 0.6px and is correctly excluded.
+
+I ran the `pin_spot` comparison **on one artifact** and wrote the result as a
+census of the fixture. A population substitution — the fourth axis in §3b.
+
+### C-4 — "move that chart 9px and the true positive goes silent" was never tested
+
+**False as stated.** The heatmap *overlaps* the glyph, so ±9px on any axis
+leaves `rival_gap = 0` and the finding stands. The curator swept it rather than
+reasoning about it.
+
+The substance holds, and it now has a real discriminator: **40px** of tile
+separation takes the nearest rival to 18.0px and the finding vanishes, while
+`pin-report-page`'s own gap stays 16.1px. Use 40px.
+
+I asserted 9px from the shape of the predicate without running it. That is a
+prediction laundered into a measurement by being written in the indicative —
+the escalation §3b describes, committed once rather than three times.
+
+### What this says about the run
+
+Every one of the four was caught by **someone recomputing a number they did not
+produce**. None was caught by my being careful; I was being careful. §3b's
+conclusion, restated by its own subject:
+
+> **This class has no floor you reach by being careful. It has one you reach by
+> having someone else recompute — including recomputing the summaries.**
+
+The briefs asked both curators to report anything contradicting them. Both did.
+That instruction cost one sentence and bought four corrections.
