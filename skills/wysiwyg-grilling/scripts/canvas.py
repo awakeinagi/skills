@@ -30357,6 +30357,88 @@ def _x_post(url: str, payload: dict[str, Any], what: str) -> dict[str, Any]:
             % (what, url, e), 5)
 
 
+def _x_user_carry_feet(els, moved, dx, dy):
+    """Keep each bound foot with the element it binds, as a drag does.
+
+    THE PROPERTY, NOT A FOURTH NAMED GESTURE. v0.8's WP6 existed to make
+    `x-as-user move` mirror the real client and enumerated three gaps by
+    name — rename re-measures, move translates decorations, delete
+    cascades groups. A `startBinding` peer is none of those, so the
+    fourth gap survived the work package written to close exactly it and
+    the driver posted pictures no browser drag can produce (R6, r6-5,
+    the SECOND instance of the class: the move loop's own comment
+    records the first). Stated as a rule instead: a foot keeps its
+    offset from the element it binds, whichever of the two the gesture
+    moved — so a fifth peer of the same shape needs no new clause here.
+
+    THE DELTA IS THE NODE'S MINUS THE ARROW'S OWN, which is the whole
+    arithmetic. A connector carried along as a group peer already
+    travelled and must not move twice; one that travelled while its far
+    node stayed put has that end pulled back onto it rather than dragged
+    off; one that stayed while its node moved has that foot follow.
+
+    WHAT A REAL DRAG DOES, MEASURED — the acceptance's second half is
+    that this must not start re-routing geometry the user authored, and
+    guessing would have swapped one infidelity for another. Dragging a
+    node bound to a HAND-BENT arrow (`customData.routed == "authored"`,
+    five points) in a real tab: the bound foot follows, every interior
+    waypoint stays exactly where the user put it, no leg is re-elbowed,
+    and the `routed` mark is left as it was — even where that leaves a
+    server-routed arrow's signature stale, which is the client's own
+    doing and the save path accepts. Excalidraw moves the bound POINTS
+    (`LinearElementEditor.movePoints`); it does not route. So this moves
+    feet and touches nothing else, and `route_arrow` is deliberately not
+    called: re-routing would flatten the hand path the client preserved.
+
+    ARROWS ONLY, mirroring the client's `isBindingElement`, even though
+    `lint_layout`'s endpoint check reads bound lines too. Measured the
+    same way: a line carrying real bindings on disk reaches the client
+    with `startBinding`/`endBinding` STRIPPED, so no drag can carry its
+    foot and a driver that carried one would be inventing a gesture
+    again. Such a scene already holds an ERROR naming the bound line.
+
+    Args:
+        els: The scene's elements, mutated in place.
+        moved: Ids the caller's move loop translated by `(dx, dy)`.
+        dx: The gesture's horizontal delta, in px.
+        dy: Its vertical delta.
+    """
+    for a in els:
+        if a.get("type") != "arrow":
+            continue
+        pts = [list(p) for p in (a.get("points") or [])]
+        if len(pts) < 2:
+            continue
+        own = (dx, dy) if a["id"] in moved else (0, 0)
+        touched = False
+        for key, head in (("startBinding", True), ("endBinding", False)):
+            tid = (a.get(key) or {}).get("elementId")
+            node = (dx, dy) if tid in moved else (0, 0)
+            fx, fy = node[0] - own[0], node[1] - own[1]
+            if not (fx or fy):
+                continue
+            touched = True
+            if head:
+                # `points` are offsets from `x`/`y`, so the head moves
+                # by moving the anchor and holding the rest of the path
+                # still in absolute terms — which is the shape the
+                # client's own normalization leaves behind.
+                a["x"] = a.get("x", 0) + fx
+                a["y"] = a.get("y", 0) + fy
+                for p in pts[1:]:
+                    p[0] -= fx
+                    p[1] -= fy
+            else:
+                pts[-1][0] += fx
+                pts[-1][1] += fy
+        if touched:
+            a["points"] = pts
+            # `points_extent`, for the reason its own docstring gives:
+            # the client runs `getSizeFromPoints` on load and would
+            # otherwise ship the repair back as a resize nobody made.
+            a["width"], a["height"] = points_extent(pts)
+
+
 def cmd_x_as_user(args):
     """Edit the canvas as the user, through the client's own save path.
 
@@ -30445,16 +30527,28 @@ def cmd_x_as_user(args):
         # its bound label — which manufactured half of r4-10 (the
         # "orphaned X strokes" observations came through here, not
         # through a real user gesture).
+        #
+        # And it went on manufacturing them, one class over, until R6
+        # (r6-5) measured this verb against an agent `mod x/y` on the
+        # same node and the same delta: identical narration, 0 errors on
+        # the agent's path and 2 on this one. What this loop carries is
+        # the set of things that TRAVEL. A bound arrow does not travel,
+        # it re-attaches — its feet keep pace with two nodes that may
+        # move independently — so it needs the pass below rather than a
+        # fifth clause in the condition here.
         el = ix.get(args.target)
         if el is None:
             die("ERROR=no element %r" % args.target, 2)
         gset = set(el.get("groupIds") or [])
+        moved = set()
         for other in els:
             grouped = gset and (set(other.get("groupIds") or []) & gset)
             if other is el or other.get("containerId") == el["id"] or \
                     other.get("frameId") == el["id"] or grouped:
                 other["x"] = other.get("x", 0) + args.dx
                 other["y"] = other.get("y", 0) + args.dy
+                moved.add(other["id"])
+        _x_user_carry_feet(els, moved, args.dx, args.dy)
     elif verb == "delete":
         # Parity with the real client: deleting a host takes its whole
         # group (Excalidraw selects groups); a part alone still works by
