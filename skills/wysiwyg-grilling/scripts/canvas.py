@@ -12126,35 +12126,81 @@ def _label_position_rederived(old, new, old_container, new_container):
         asks the displacement instead, so an offset the label already
         had survives a carry without becoming a sentence.
 
-    Neither arm is the other's fallback and the union is not two rules:
-    both say "`recenter_label` would have written this", one about the
-    value and one about the change.
+    Neither arm is the other's fallback, and they name two different
+    authors rather than one twice: the first says the WRITER put it
+    there, the second that nothing but the CLIENT's own bookkeeping did.
+    A position can be either without being the other, which is why one
+    of them alone has never been enough.
 
-    THE SECOND ARM ASKS THE CONTAINER AND NOT THE WRITER, corrected
-    2026-08-31 after the first implementation asked the writer twice and
-    subtracted the answers. `was` came out of the OLD label box and `now`
-    out of the NEW one, so the difference between them carried a
-    RE-CENTRING term for the label's own change of size — and a browser
-    re-measures a bound label's width on every save it sends, then
-    TRANSLATES the label by the container's displacement and nothing
-    else. So the prediction included a correction the client had never
-    applied, and the ordinary gesture — drag a box in a tab — narrated a
-    phantom `moved` about the caption. What a carry is, measured in a
-    real tab over eight drags (`rev9-label-carry-sweep.spec.ts`,
-    `dLabel == dBox` to floating point, eight of eight), is "the label
-    moved by exactly its container's own translation". That is what this
-    arm now asks, and it needs neither of the two boxes' widths, so a
-    re-measure cannot perturb it. A label re-centred by its own rename
-    under a STATIONARY container is not reached here at all — the
-    destination arm above answers it, which is why the pair is a pair.
+    THE SECOND ARM PREDICTS WHAT THE CLIENT POSTS, and it took a real
+    browser to settle what that is. It asked the writer twice and
+    subtracted the answers until 2026-08-31, which carried the
+    container's own RESIZE into the prediction; it then asked the
+    container's translation ALONE, which carried nothing and is half of
+    what a tab does. A tab does two things to a caption nobody touched,
+    in the same save and in this order — it re-centres the caption on its
+    own fresh text measurement by exactly `-(dw)/2`, and it TRANSLATES it
+    by its container's displacement. Both halves are measured, not
+    reasoned: `rev9-label-carry-sweep.spec.ts` over eight drags gives
+    `dLabel == dBox` to floating point when nothing was re-measured, and
+    `pin-untouched-captions.spec.ts` records eight captions at load with
+    `dx == -(clientWidth - storedWidth)/2` in eight of eight. So the
+    prediction is the caption's OWN stored coordinate, moved by both.
 
-    MEASURED over 588 cells (door x fixture x co-change x delta, refereed
-    by asked-value durability through a fresh `Store`): carried labels
-    narrated as having moved on their own go 37 of 58 to 0 of 58, and
-    landed positions in no record stay where the sibling repair leaves
-    them. Each arm alone is insufficient and the residuals are not the
-    same cells — rounding the destination alone leaves 10, asking the
-    container alone leaves 33.
+    ASKING ONLY THE TRANSLATION IS WHAT MADE THE PARITY DECIDE. A save
+    that re-measured fell through to the destination arm, and that arm
+    reconstructs an ABSOLUTE centre — which loses the permanent half
+    pixel `_round_geom` bakes into every caption whose
+    `container_width - label_width` is odd. Whether the writer's float
+    and the client's integer then round to the same pixel is decided by
+    the parity of that residual and by nothing else, which is why two
+    consecutive heads, on the same gesture with the same client, narrated
+    phantoms about DISJOINT sets of the same eight captions. Predicting
+    from the stored coordinate keeps the residual in the arithmetic, so
+    it cancels instead of deciding.
+
+    THE PREDICTION IS ROUNDED AND THAT IS NOT A TOLERANCE. The client
+    posts a float and `_round_geom` takes it to the pixel the store
+    keeps, so the prediction is put through the same function: this
+    reproduces the pipeline rather than allowing slack in it. A ±0.5
+    tolerance was measured on the same population and is a different
+    thing — it accepts positions nobody derived, and widening a
+    comparison is how the ninth closure grew its own sibling defect.
+
+    MEASURED over the 735-cell grid (door x fixture x co-change x delta,
+    refereed by asked-value durability through a fresh `Store`): carried
+    labels narrated as having moved on their own go 25 of 83 to 10 of 83,
+    landed positions in no record stay at 5 of 455, and over the browser's
+    recorded save phantom captions go 3 of 7 to 0 of 7. NO COUNT IS THE
+    ARGUMENT, because this class has been declared closed on a count ten
+    times, and because the two heads before this one narrated phantoms
+    about DISJOINT captions — a repair judged on the total would have been
+    accepted at either. The argument is a sweep of the mechanism over
+    every parity the client can reach: container width, caption width,
+    re-measure and drag, bounded by the client's own wrap width of
+    `container.width - 2 * BOUND_TEXT_PADDING`, and asked at BOTH poles
+    rather than one.
+
+        candidate            phantom /101,310   mute /653,952
+        before                        20,679          41,367
+        +-0.5 tolerance               11,496          50,550
+        either rounding               11,496          50,550
+        re-measure budget              6,912          84,768
+        this pair                          0          11,496
+
+    Every candidate that reached zero on the browser's one capture by
+    widening the DESTINATION arm instead is still parity-dependent here,
+    and each buys its phantoms by going MUTE more often than the head it
+    repairs — which is the trade this whole family keeps making. The
+    residual 11,496 is not this arm's: it is the destination arm's alone,
+    the already-ruled consequence that a caption dragged to exactly where
+    `recenter_label` would write it is silent.
+
+    Each arm alone is insufficient and their residuals are different
+    cells: the destination arm alone leaves 25 of the grid's 83 and
+    25,305 of the sweep, this arm alone leaves 40 of the 83 and 0 of the
+    sweep — because a rename through a door that calls `recenter_label`
+    lands on the absolute centre, and no displacement predicts that.
 
     Args:
         old: The label before the save.
@@ -12164,9 +12210,9 @@ def _label_position_rederived(old, new, old_container, new_container):
 
     Returns:
         True when the label ended where `recenter_label` would have put
-        it or moved by the displacement its container imposed, so the new
-        coordinate is the writer's arithmetic rather than anybody's
-        intent.
+        it, or where its container's translation and its own re-measure
+        together would have left it, so the new coordinate is arithmetic
+        rather than anybody's intent.
     """
     if new_container is None or pinned_to_canvas(new):
         # Nothing re-derives either one: a label whose container this
@@ -12186,15 +12232,22 @@ def _label_position_rederived(old, new, old_container, new_container):
         return True
     if old_container is None:
         return False
-    # THE CONTAINER'S OWN TRANSLATION, never a difference of two
-    # re-centrings. Both boxes are read for their positions only, so a
-    # label whose size changed in the same save — which is every save a
-    # browser sends — is judged by what its container did and not by what
-    # its own re-measure would have re-centred.
-    return ((new_container.get("x", 0) - old_container.get("x", 0),
-             new_container.get("y", 0) - old_container.get("y", 0))
-            == (new.get("x", 0) - old.get("x", 0),
-                new.get("y", 0) - old.get("y", 0)))
+    # THE CARRY AND THE RE-MEASURE, from the caption's OWN stored
+    # coordinate. The containers are read for their positions only, so
+    # the container's resize never enters — a tab re-lays-out a caption
+    # when the resize happens IN it, which is the destination arm's case,
+    # and merely re-posts the caption on any other save. The size term is
+    # the caption's own, halved, because a centred box that grows by `dw`
+    # keeps its centre by moving `dw/2` the other way.
+    dw = new.get("width", 0) - old.get("width", 0)
+    dh = new.get("height", 0) - old.get("height", 0)
+    return ((_round_geom(old.get("x", 0) - dw / 2.0
+                         + new_container.get("x", 0)
+                         - old_container.get("x", 0)),
+             _round_geom(old.get("y", 0) - dh / 2.0
+                         + new_container.get("y", 0)
+                         - old_container.get("y", 0)))
+            == (new.get("x", 0), new.get("y", 0)))
 
 
 def _geometry_derived(el):
