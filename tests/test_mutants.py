@@ -36148,6 +36148,205 @@ class TestABoundLabelIsJudgedByItsBindingAndNotByItsRoleTag(
 
 
 # ---------------------------------------------------------------------------
+# THE ROLLUP THAT CLOSED AN UNDER-REPORT OPENED AN OVER-REPORT. Filed by the
+# mutant-curator, 2026-08-31, out of the same review, and the shape is the
+# reason it is worth a class: the repair that made `by_element` name a
+# part's HOST beside it — a ruled property, and the right one — gave the
+# host entry the PART's verb. A bound label moving mints
+# `{"id": "box", "verb": "moved", "attrs_changed": [], "parts_changed":
+# ["box-label"], "semantic": {}}` while `facts` holds exactly one `moved`
+# and it is about the label. The box did not move.
+#
+# `verb` IS THE FIELD SKILL.md TELLS AGENTS TO READ, so this is not a
+# cosmetic: an agent relaying the record says the panel moved while the
+# user is looking at a panel that did not. That is the empty-save class
+# with its sign reversed — a record asserting a change that did not happen
+# rather than denying one that did — and it arrived inside the fix for the
+# other direction.
+# ---------------------------------------------------------------------------
+# The verbs whose truth a scene can settle without reading the record: a
+# `moved` is refuted by an unchanged position, a `resized` by an unchanged
+# box. No other verb is judged here, because no other one has an
+# arithmetic answer and a pin that guessed would be inventing a ruling.
+_GEOMETRY_VERB_EVIDENCE: dict[str, slice] = {"moved": slice(0, 2),
+                                             "resized": slice(2, 4)}
+
+
+def verb_claims_the_scene_refutes(cell: dict[str, Any]
+                                  ) -> list[tuple[str, str, Any, Any]]:
+    """Entries claiming a geometry verb their own boxes do not support.
+
+    ASKED OF THE SCENES AND NOT OF THE RECORD'S INTERNAL CONSISTENCY,
+    which is the difference between this and a predicate that would be
+    satisfied by a bigger lie. "The entry's verb appears in its own
+    `semantic`" is repaired by copying the part's facts onto the host —
+    the host would then claim a move AND carry the evidence for it — and
+    the record would be worse while the guard went green. What settles a
+    `moved` is whether the element's coordinates differ.
+
+    Args:
+        cell: One entry from `label_grid_cells`.
+
+    Returns:
+        `[(element_id, verb, before, after)]` for every entry whose verb
+        the before/after boxes refute; empty when the record's verbs are
+        all supported.
+    """
+    out = []
+    for eid, entry in (("box", cell["host_entry"]),
+                       ("box-label", cell["entry"])):
+        if not entry:
+            continue
+        evidence = _GEOMETRY_VERB_EVIDENCE.get(entry["verb"])
+        if evidence is None:
+            continue
+        was, now = cell["boxes"][eid]
+        if was is None or now is None or was[evidence] != now[evidence]:
+            continue
+        out.append((eid, entry["verb"], was[evidence], now[evidence]))
+    return out
+
+
+class TestAHostEntryDoesNotBorrowItsPartsVerb(unittest.TestCase):
+    """A record does not say an element moved when it did not move.
+
+    THE INVARIANT: for every `by_element` entry, if the verb is `moved`
+    the element's `(x, y)` differ between the scene before the save and
+    the scene after, and if it is `resized` its `(width, height)` do. No
+    other verb is judged — those two are the ones a scene can settle by
+    arithmetic, and a pin that ruled on the rest would be inventing a
+    ruling rather than checking one.
+
+    MEASURED 2026-08-31 over the label grid above: 46 `by_element`
+    entries, 8 of them claiming a verb the scenes refute. Every one is a
+    HOST entry with an empty `attrs_changed`, an empty `semantic` and a
+    populated `parts_changed` — a rollup entry wearing its part's verb.
+    Both verbs are reachable: `moved` when a bound label moves inside a
+    stationary box, `resized` when the label's own width is re-measured.
+
+    THE ROLLUP ITSELF IS RULED AND IS HELD GREEN HERE. "A part's host is
+    named beside it, never instead of it" settled a real under-report:
+    modding a slider's track named `track` and nothing else, and an
+    agent read that back as "the track changed" while the user was
+    looking at a slider. So the repair for this must keep naming the
+    host, and the ungated pole below refuses one that reaches green by
+    deleting the rollup.
+
+    THE SIGN IS WHAT MAKES IT A SIBLING of the two classes above rather
+    than an unrelated finding. They are about a record DENYING a change
+    that happened; this is the same record ASSERTING one that did not,
+    and it arrived inside the fix for the other direction. A save record
+    is trusted in one direction only when it is honest in both.
+    """
+
+    def setUp(self) -> None:
+        """Give each test its own root; every cell takes a project under it."""
+        self.root = Path(tempfile.mkdtemp(prefix="host-verb-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def test_the_grid_still_rolls_a_part_up_onto_its_host(self) -> None:
+        """The premise and the ruled property, ungated, in one place.
+
+        Two things the red below needs and one the product owes. The
+        grid must contain a save in which ONLY THE PART changed and the
+        host is named anyway — otherwise the red is passing over a
+        rollup that no longer happens, and the under-report the rollup
+        closed has quietly come back. And it must contain a host entry
+        whose geometry verb is TRUE, so the red cannot be satisfied by a
+        record that has stopped using those verbs at all.
+
+        "ONLY THE PART" IS LOAD-BEARING and two drafts of this test got
+        it wrong before the cheat was measured rather than reasoned
+        about. Asking for a populated `parts_changed` was satisfied by
+        cells where the host had changed on its own; adding "and the
+        host's box is unchanged" was satisfied by the RENAME cells,
+        because a bound label's rename is a fact about its CONTAINER by
+        design and the host is named through that. Both times the cheat
+        that reaches the red by DELETING the rollup passed this pole.
+
+        THE DISCRIMINATOR IS THE STIMULUS AND NOT THE RECORD: the
+        `alone` cells touch the label and nothing else, by construction,
+        so a host named there is named for exactly one reason. Asking it
+        of the record instead — an empty `semantic`, say — would have
+        gone red under the honest repair that gives the host a fact of
+        its own, which is a pole prescribing against a fix its own red
+        publishes as acceptable.
+        """
+        cells = label_grid_cells(canvas, self.root)
+        rolled = [(c["door"], c["condition"], c["drop"]) for c in cells
+                  if c["host_entry"] and c["condition"] == "alone"
+                  and c["shifted"]
+                  and c["host_entry"]["parts_changed"] == ["box-label"]]
+        self.assertNotEqual(
+            rolled, [],
+            "no save that touched ONLY a bound label names that label's "
+            "host, so the composite rollup ruled on 2026-08-31 has come "
+            "undone and the red below is passing over nothing. That "
+            "ruling closed a real under-report — modding a slider's "
+            "track named `track` and nothing else, which an agent reads "
+            "back as 'the track changed' while the user is looking at a "
+            "slider — so this is a finding of its own before it is a "
+            "vacuous red")
+        true_verbs = [(c["door"], c["condition"], c["host_entry"]["verb"])
+                      for c in cells if c["host_entry"]
+                      and c["host_entry"]["verb"] in _GEOMETRY_VERB_EVIDENCE
+                      and not verb_claims_the_scene_refutes(c)]
+        self.assertNotEqual(
+            true_verbs, [],
+            "no host entry in this grid carries a geometry verb its own "
+            "box supports, so the record has stopped using `moved` and "
+            "`resized` truthfully anywhere and the red below could be "
+            "reached by deleting them rather than by correcting them")
+
+    @unittest.expectedFailure
+    def test_no_entry_claims_a_verb_its_own_geometry_refutes(self) -> None:
+        """RED 2026-08-31: 8 of 46 entries claim a change that did not happen.
+
+        The whole class in one assertion, and it is a RELATION between
+        the record and the scenes: `narrated == measured`. No element id,
+        coordinate or count appears in it — an honest repair that changes
+        what the grid contains does not have to come back and edit this,
+        and the magnitude is printed by the message.
+
+        WHAT IS FAILING: `_by_element`'s host rollup calls
+        `entry_for(owner, entries[eid]["verb"])`, so the host's entry is
+        minted carrying the PART's verb. The host's own `attrs_changed`
+        stays empty — deliberately, and rightly, since no op named an
+        attribute on it — which leaves an entry asserting a move with
+        nothing behind it in either channel.
+
+        WHAT FLIPS IT, measured against patched copies with every
+        ungated pole above still green and both sibling reds still red:
+
+          (a) THE VERB. The rollup mints the host with a verb of its
+              own — one that means "a part of this changed" — instead of
+              borrowing the part's. `parts_changed` already carries which
+              part, so no information is lost.
+          (b) THE FACT. `semantic_facts` mints the host's fact and
+              `_by_element` seeds the entry from it as it seeds every
+              other entry, so the verb is supported by the same
+              machinery that supports all the others.
+
+        WHAT MUST NOT FLIP IT, and the pole above refuses it: dropping
+        the rollup so the host is not named at all. That trades this
+        over-report for the under-report the rollup was ruled to close.
+        """
+        cells = label_grid_cells(canvas, self.root)
+        refuted = [(c["door"], c["condition"], c["drop"], claim)
+                   for c in cells for claim in verb_claims_the_scene_refutes(c)]
+        entries = sum(1 for c in cells
+                      for e in (c["entry"], c["host_entry"]) if e)
+        self.assertEqual(
+            refuted, [],
+            "%d of %d `by_element` entries claim a verb their own "
+            "geometry refutes. `verb` is the field SKILL.md tells agents "
+            "to read back, so each of these is a record telling somebody "
+            "an element changed while the element did not. Claims "
+            "(element, verb, before, after): %s"
+            % (len(refuted), entries, refuted))
+
+
+# ---------------------------------------------------------------------------
 # ONE COMPOSED-PART PREDICATE, THREE SITES, AND NO AUTHOR. Handed over by
 # the v0.9 coordinator, 2026-08-19: `_composed_part` was extracted by one
 # stream specifically to be the single reader of "does this element carry a
