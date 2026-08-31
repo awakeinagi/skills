@@ -310,9 +310,32 @@ _LABEL_SPILL_RE = re.compile(
 # pin's OWN TARGET and not to the rival, because that is the number the
 # check is complaining about — a pin 8px from its target is fine and a
 # pin 126px from it is the finding, whatever happens to be nearer.
+#
+# THE RIVAL CLAUSE CAME OFF THE END on 2026-08-30 (R6 WP-A), and it is
+# the anchor lesson in `skills/silence-is-a-bug/SKILL.md` §8 rather than
+# a tidy-up. This used to require `and only \d+px from ` after the
+# magnitude, which reads as harmless — the live sentence has it — and
+# quietly made the RIVAL MANDATORY for anything a `FindingSpec` could
+# see. WP-A's whole content is that the check never asks the absolute
+# question, so every honest repair of it emits a sentence about a pin
+# with no rival to name: three spellings were written out and measured
+# ("nothing else is nearer", "alone on the page", one naming where
+# `pin_spot` would put it instead) and the old pattern matched NONE of
+# them. A red that stayed red under all three repairs would have been
+# enforcing a phrase, and its author would have learned that from
+# whoever's correct fix it rejected.
+#
+# WHAT IS LEFT IS THE SMALLEST INVARIANT PART, and what it chooses to
+# break under is worth stating: `element`, the word `asks about`, and
+# the magnitude given as `Npx from it`. Reword the subject clause and
+# this reports "no finding" rather than a mismatch — which is the failure
+# mode §8 is about — so a repair that renames those three pieces must
+# re-anchor this line in the same change. Widening is strictly safe for
+# the entries already here: the live sentence still matches, and every
+# `Silence("pin_drift")` in the catalogue got STRICTER, not looser.
 _PIN_DRIFT_RE = re.compile(
     r"pin (?P<element>[\w-]+) asks about [\w-]+.*? but is drawn "
-    r"(?P<mag>\d+)px from it and only \d+px from ")
+    r"(?P<mag>\d+)px from it")
 # The two arms of the text/node overlap loop (canvas.py), which v0.9 WP4
 # (Task 23) made role-BLIND: every free text is measured against every node,
 # and the role picks which sentence comes out. The regexes are deliberately
@@ -17678,6 +17701,69 @@ def _pin_on_a_screen_stage() -> list[dict]:
                            "status": "open", "question": "which one?"})]
 
 
+def _lone_pin_stage() -> list[dict]:
+    """A ❓ at the mint spot of the ONLY node on the page.
+
+    TWO ELEMENTS, and the count is the finding. `pindrift` walks the
+    scene for a `rival` — the nearest non-containing node other than the
+    pin's own target — and returns early on `rival is None`, so a scene
+    with nothing but a target and its question is a scene the check
+    cannot speak about at any distance. `_pin_stage` next door carries a
+    third element for exactly that reason; this one drops it, and
+    dropping it is the whole minimization.
+
+    THE GLYPH IS WHERE `pin_spot` PUTS IT, not merely near it: measured,
+    `pin_spot(step, scene)` returns `(108, -8)` and `marker_anchor(step,
+    dx=PIN_HUG_PX, dy=-PIN_HUG_PX, corner="tr")` returns the same, which
+    is the stored position below. So the base is not "a pin that happens
+    to look right" — it is the tool's own output, and the mutant's claim
+    is that moving the target underneath it is what makes it wrong.
+
+    Returns:
+        The two-element scene: the target `step`, then the pin `q1`.
+    """
+    return [el(id="step", type="rectangle", x=0, y=0, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="q1", type="text", x=108, y=-8, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
+                           "status": "open", "question": "which one?"})]
+
+
+def _pin_at_a_legitimate_near_tie() -> list[dict]:
+    """A correctly minted ❓ with a bystander 2px nearer than its target.
+
+    THE SILENT HALF OF WP-A, BUILT SO IT BITES TODAY. A `Silence` over a
+    scene where the check could not have spoken anyway proves nothing,
+    and the two-element base above is exactly such a scene — `rival is
+    None` short-circuits it before any distance is compared. This one
+    reaches the comparison and comes out quiet on the margin instead: the
+    pin sits 8px off `step` (`PIN_HUG_PX`, and `pin_spot` returns this
+    same `(108, -8)` with `near` in the scene, so the placer would mint
+    it here too), while `near` sits 2px away. `own - rival_gap` is 6
+    against a threshold of 8, so the check declines by 2px of margin.
+
+    WHAT IT REFUSES. Two repairs satisfy the mutant beside it and wreck
+    this: firing whenever a rival is nearer at all (margin 6 > 0), and
+    firing on any gap above zero (the minted standoff is 8). Both are
+    the shape WP-A acceptance criterion 3 names — "a fix that re-places
+    every pin on every load would satisfy (1) and wreck this" — and this
+    scene is where they come out.
+
+    Returns:
+        The three-element scene: the target `step`, the bystander
+        `near`, then the pin `q1`.
+    """
+    return [el(id="step", type="rectangle", x=0, y=0, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="near", type="rectangle", x=136, y=-8, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="q1", type="text", x=108, y=-8, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
+                           "status": "open", "question": "which one?"})]
+
+
 def _composed_widget(grouped: bool) -> list[dict]:
     """An entity body and THREE attribute rows, grouped with it or not.
 
@@ -22999,6 +23085,75 @@ _register(Mutant(
                        magnitude=(60, 0.10)),
     neighbour=Neighbour(_pin_on_a_screen_stage, Silence("pin_drift"))))
 
+# The OTHER POLE of the same check, and the one the sibling above cannot
+# reach. Found during assessment run R6 (WP-A, r6-1 + r6-8), 2026-08-30.
+#
+# WHAT THE DRAWING GETS WRONG. The ❓ asks about `step` and `step` has
+# walked 1000px away, leaving the glyph alone in a corner of the page
+# with nothing beside it. A reader has only position to go on — a pin
+# carries no line back to its subject — so the question now belongs to
+# nothing at all. `pindrift` says nothing, and its silence is
+# STRUCTURAL rather than a matter of degree: the loop takes `rival`, the
+# nearest non-containing node other than the target, and `continue`s on
+# `rival is None`. On a page whose only other shape IS the target there
+# is no rival at any distance, so the check has no sentence available at
+# 1000px that it did not also have at 8px.
+#
+# THE SIBLING ABOVE IS NOT THIS. It proves the check fires when a rival
+# is nearer, which is the relative question; this asks whether the check
+# ever puts the absolute one — "is this glyph anywhere near the thing it
+# is about?" — and the answer today is no. Same base geometry, one
+# element fewer, and the missing element is the finding.
+#
+# MEASURED ON THE R6 CORPUS, both faces of one cause. Face A: a
+# `mermaid --relayout` of `onboarding-intake` moves 14 nodes and
+# re-places none of the 3 pins, taking their gaps from 8/8/8px to
+# 748/1703/1419px. Face B: `tests/fixtures/argus-r4-arm4` carries 5 of
+# its 9 pins at geometry today's `pin_spot` disagrees with — the three
+# dashboard glyphs by 55.3px and two admin-console glyphs by 37.4px —
+# and `pindrift` names one of the nine. That one true positive is an
+# accident of the neighbours: separate the three tiles around
+# `pin-report-page` by 40px and the finding disappears while the pin's
+# own 16.1px gap is untouched, measured. A check whose verdict about A
+# turns on where C is drawn is the same class as this entry, arriving
+# from the other side.
+#
+# THE MAGNITUDE IS THE DISTANCE TO ITS OWN TARGET — 1000px, the leg
+# lengths being 600 and 800 so that the hypotenuse and both components
+# are three different numbers. The +/-5% band (950..1050) therefore
+# excludes 600 and 800 (either leg alone), 1400 (their sum), 1072.5
+# (centre to centre) and 1099.0 (how far the glyph would have to travel
+# to reach today's mint spot, which is a repair's number and not a
+# complaint's). It does NOT exclude 992, the gap with the 8px standoff
+# already subtracted, and no band could: at this range that is 0.8% and
+# it is not a reading anybody would take. No direction — `_PIN_DRIFT_RE`
+# has no `dir` group and this finding has no axis, matching the
+# `DETECTORS` row.
+#
+# WHAT FLIPS IT, and it is deliberately more than one repair (WP-A
+# acceptance criterion 4, `skills/silence-is-a-bug/SKILL.md` §8). Any
+# spelling that makes the check ask the absolute question flips this:
+# an outright floor on `own`; a disjunction keeping the relative arm and
+# adding one; or asking the placer, i.e. firing when the glyph is not
+# within tolerance of `pin_spot(target, els)`. All three were run
+# against a patched `lint_layout` and all three flip this mutant and
+# leave its neighbour quiet. What does NOT flip it is a producer-side
+# repair — re-deriving inside `--relayout`, or at load — and that is
+# correct rather than a prescription: this scene is an element list
+# handed straight to the lint, so a fix to a write path never touches
+# it, and a user who drags the node in the client reproduces it the same
+# afternoon. The producer half of WP-A is pinned separately, by
+# `TestAMovedNodeDoesNotStrandItsPin`, whose disjunction those two
+# repairs DO satisfy.
+_register(Mutant(
+    "pin_left_behind_by_its_moved_target",
+    build=_lone_pin_stage,
+    op="move_node", args={"node_id": "step", "x": 734, "y": 818},
+    expect=FindingSpec("pin_drift", element="q1",
+                       magnitude=(1000, 0.05)),
+    neighbour=Neighbour(_pin_at_a_legitimate_near_tie,
+                        Silence("pin_drift"))))
+
 
 def _border_run_past_a_bystander(bx: float) -> list[dict]:
     """A straight drop from `a` to `d` grazing bystander `b`'s left edge.
@@ -25267,6 +25422,20 @@ class TestMutantCatalogue(unittest.TestCase):
         """A screen is not a rival for the button drawn inside it."""
         self._run_neighbour("pin_drifts_onto_a_rival_node")
 
+    @unittest.expectedFailure
+    def test_mutant_pin_left_behind_by_its_moved_target(self) -> None:
+        """The ❓ is 1000px from its subject and the page holds nobody else."""
+        # RED BY INTENT. `pindrift` returns on `rival is None`, so the
+        # only thing it could have said about this glyph depends on a
+        # THIRD element that this scene does not have. See the entry for
+        # the three repairs measured to flip it and the one class of
+        # repair that deliberately does not.
+        self._run("pin_left_behind_by_its_moved_target")
+
+    def test_neighbour_pin_left_behind_by_its_moved_target(self) -> None:
+        """A minted ❓ with a bystander 2px nearer is not a drifted one."""
+        self._run_neighbour("pin_left_behind_by_its_moved_target")
+
     def test_mutant_border_run_reads_an_unbound_neighbour(self) -> None:
         """80px of drop lies on a box the arrow binds neither end to."""
         # Green: the detector reads I-7's widened population correctly.
@@ -27248,7 +27417,15 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"pin_left_behind_by_its_moved_target"}
+# REFILLED on 2026-08-30 by curator batch 47, from assessment run R6's
+# WP-A: `pindrift` returns on `rival is None`, so a ❓ whose target has
+# walked 1000px away with nothing else on the page is a glyph no check
+# has a sentence for. It is the ABSOLUTE arm that is missing, not a
+# threshold that is set wrong — the entry beside it proves the relative
+# arm fires and is right to. Owned by whichever WP takes WP-A; three
+# spellings of the repair were measured to flip it and are named in the
+# entry, so this arrives without prescribing one of them.
 # EMPTY AGAIN on 2026-08-26 (leaf-1.1.6, the fixer), the day after it
 # refilled, and this time a REPAIR is what drained it — which is the
 # ordinary reason, and worth saying only because the drain directly
