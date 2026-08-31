@@ -27767,8 +27767,37 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # OFF THE GUARD, as every entry here says to: `test_the_hand_authored_
 # red_classes_are_the_ones_that_exist` reported `measured
 # {'TestAModThatReachesDiskIsNamedByItsOwnRecord': 1}`.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestAModThatReachesDiskIsNamedByItsOwnRecord": 1}
+#
+# EMPTIED AGAIN on 2026-08-31, the day after it refilled, and the dict lost
+# a LINE rather than a number for the reason it gained one: the class
+# carried exactly one red. `TestAModThatReachesDiskIsNamedByItsOwnRecord`
+# left by repair (A) of the three it was measured green against, taken in
+# BOTH halves — `Store.apply_batch` collects the attributes each `mod` op
+# named, `Store.commit` hands them to `diff_scenes` and to
+# `semantic_facts`, and the two suppressors stop calling an authored
+# attribute somebody else's churn.
+#
+# THE CURATOR'S ASYMMETRY HELD, which is the thing worth keeping. That
+# class said in advance that a COMPLETE repair leaving it red would mean it
+# had prescribed a shape, while a PARTIAL one leaving it red is the pin
+# working — and that the two look identical from the colour. The fixer took
+# the one repair the class had explicitly warned was only half a repair
+# (un-deriving at the differ closes 14 of 20 and stops, because the restyle
+# arm reads element type and never the `derived` flag), owed the second
+# half, and the flip needed both. Nothing about the assertion moved.
+#
+# ALL 28 CELLS, NOT THE 20 THE GRID REACHES. The wider scene the class
+# names — a second labelled node and a labelled arrow — was re-measured
+# under the same disk referee before and after: 28 silent of 80 landed
+# becomes 0 of 80, and the 8 cells whose value does NOT survive a reload
+# still headline the sentence, which is the boundary this class shares
+# with `TestABoundArrowLabelCannotBeDraggedOffItsArrow`.
+#
+# THE VALUE BELOW WAS READ OFF THE GUARD, as every entry here says to: the
+# decorator came off first, and
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
+# `measured {}` against the declared line.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -34723,10 +34752,22 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
     keyed on `containerId`, which a ❓ has none of. That half needs a
     browser readback and is nobody's yet.
 
-    WHO FLIPS THIS: the work package that owns the differ and the fact
-    generator. When it lands, drop the `@unittest.expectedFailure` in the
-    same change, and read the failure message first — it prints the cells,
-    so a repair that closed some and not others is legible from it.
+    FLIPPED GREEN 2026-08-31, by repair (A) in both its halves and by a
+    different hand than the one that wrote this. `Store.apply_batch`
+    collects the attributes each `mod` op named and `Store.commit` hands
+    them to `diff_scenes` and to `semantic_facts`: the differ stops
+    stamping `derived` on an attribute an op named, and the restyle arm
+    stops suppressing a text element whose style an op named. Everything
+    above this paragraph is the record as it stood while the class was
+    red and is left standing, the measurements included.
+
+    ALL 28 CELLS OF THE WIDER CLASS CLOSED, not the 20 this grid reaches:
+    the eight duplicate label-role cells were re-measured on the wider
+    scene under the same referee, before and after, and they close too.
+    The eight cells that are NOT durable — `t1` width/height, and the x/y
+    of the three bound labels — still headline the sentence, which is the
+    boundary this class shares with
+    `TestABoundArrowLabelCannotBeDraggedOffItsArrow`.
     """
 
     def setUp(self) -> None:
@@ -34827,10 +34868,32 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
                 "is now a plain omission — which is a different finding "
                 "and a worse one")
 
-    @unittest.expectedFailure
     def test_every_landed_mod_is_named_by_the_record_that_saved_it(
             self) -> None:
-        """RED: 20 of 68 landed cells save in silence.
+        """FLIPPED GREEN 2026-08-31: 0 of 68 landed cells save in silence.
+
+        Was the red, at 20 of 68 on this grid and 28 by this referee over
+        the investigation's wider scene. What landed is repair (A) of the
+        three the class docstring measured, in BOTH its halves: an
+        attribute a `mod` op named is no longer stamped `derived` by the
+        differ, and the restyle arm no longer suppresses on element type
+        alone. `Store.apply_batch` collects `{element: {attrs}}` off the
+        batch's `mod` ops and `Store.commit` hands it to both — which is
+        why the user-save door, where no op exists, is untouched.
+
+        NOTHING WAS PRESCRIBED AND THE ASSERTION IS UNCHANGED: this body
+        is byte-identical to the red's, the decorator is all that came
+        off, and the repair the fixer chose is one of three this class
+        was measured green against.
+
+        THE EIGHT NON-DURABLE CELLS STAYED SILENT and that is the half
+        worth reading, because it needed no special case. `card-label`,
+        `far-label` and `t1-label` x/y still headline the empty-save
+        sentence after the change: `semantic_facts`' move arm already
+        declines to narrate a label's position, so un-deriving the
+        coordinate produces a `move` change with no fact behind it and
+        the record goes on saying nothing happened — which is what
+        `TestABoundArrowLabelCannotBeDraggedOffItsArrow` holds.
 
         The whole class in one assertion. A cell fails when the record
         headlines the empty-save sentence over a change that reached disk,
