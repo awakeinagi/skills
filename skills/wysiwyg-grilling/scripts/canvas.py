@@ -10045,6 +10045,13 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                 else 0
             dy = (el.get("y", 0) - old_y) if isinstance(old_y, (int, float)) \
                 else 0
+            # Everything this one op displaced by (dx, dy): the element it
+            # named, plus whatever the group carry below takes with it.
+            # Collected per-op rather than reusing `carried`, which
+            # accumulates across the whole batch under deltas that differ
+            # from op to op — the ❓ carry after the loop must add THIS
+            # op's delta to exactly the glyphs THIS op stranded.
+            travelled = {el["id"]}
             if (dx or dy) and el.get("groupIds"):
                 # EVERY GROUP MEMBER, NOT ONLY THE DECORATIONS. This loop
                 # used to carry a sibling only where its `role` was
@@ -10107,6 +10114,45 @@ def apply_ops(elements, ops, errors, pin_registry=None, known_pins=None,
                     # reintroduced through a door it could not see.
                     recenter_label(els, other)
                     carried.add(other["id"])
+                    travelled.add(other["id"])
+            # THE ❓ TRAVELS WITH THE NODE IT ASKS ABOUT (R6 WP-A). A pin
+            # carries no line back to its subject, so on the canvas it
+            # simply IS the question of whatever it sits beside —
+            # `pin_spot` owns that rule and enforced it at MINT time only,
+            # and nothing re-asked it afterwards. So `mermaid --relayout`,
+            # which is fourteen `mod x,y` ops and nothing else, took three
+            # `onboarding-intake` glyphs from 8/8/8px off their own targets
+            # to 748/1703/1419px and left them there, each now hanging
+            # beside whichever node the re-lay happened to move underneath
+            # it. Measured through this door.
+            #
+            # CARRIED BY THE DELTA, NOT RE-PLACED BY `pin_spot`, and the
+            # difference is the user's. Re-placing would drag a glyph a
+            # person had deliberately nudged back to the mint spot on the
+            # next unrelated node move — the "re-places every pin" repair
+            # WP-A's acceptance criterion 3 forbids. Adding the delta keeps
+            # the gap to the target EXACTLY what it was, whoever chose it,
+            # which is the property the acceptance criterion actually
+            # names. It is also what makes the silent half free: a pin
+            # whose target did not move is not in this loop at all.
+            #
+            # A PINNED ❓ IS NOT CARRIED, the same rule the group carry one
+            # loop up obeys: `locked` means the user placed this glyph and
+            # the tool does not move it. `_pin_kin` does not run an edge
+            # from a pin glyph to its target, so no gate holds the op
+            # either — the node walks, the locked glyph stays, and the
+            # standing `pin_drift` lint is what names the result.
+            if dx or dy:
+                for p in els:
+                    pcd = p.get("customData") or {}
+                    if role_of(p) != "pin" or p["id"] in travelled:
+                        continue
+                    if pcd.get("target") not in travelled:
+                        continue
+                    if pinned_to_canvas(p):
+                        continue
+                    p["x"] = p.get("x", 0) + dx
+                    p["y"] = p.get("y", 0) + dy
             # rewires, processed jointly so one mod may set from AND to.
             # A rewire that cannot bind is a hard validation error — the
             # v0 behavior (silently accept, route nothing) burned rounds:
@@ -19844,19 +19890,73 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
             d = _rect_gap(e, n)
             if rival_gap is None or d < rival_gap:
                 rival, rival_gap = n, d
-        if rival is None or own - rival_gap < PIN_HUG_PX:
+        # TWO ARMS, AND THE SECOND ONE IS WHY THIS BLOCK HAS A DISJUNCTION
+        # AT ALL (R6 WP-A, `pin_left_behind_by_its_moved_target`). The
+        # relative arm is unchanged and still the headline reading: a ❓
+        # nearer somebody else than its own subject reads as that
+        # somebody's question. What it could not ask is the ABSOLUTE
+        # question — "is this glyph anywhere near the thing it is about?"
+        # — and the silence was STRUCTURAL rather than a threshold set
+        # wrong: `rival` is the nearest OTHER node, so on a page whose
+        # only other shape is the target there is no rival at any
+        # distance, and the check had no sentence available at 1000px
+        # that it did not also have at 8px. A user dragging a node in the
+        # client reaches that state without any op being issued, which is
+        # why the applier's carry is not a substitute for this.
+        #
+        # THE FLOOR IS THE TARGET'S OWN DIAGONAL, which is a reading of
+        # the picture rather than a number chosen to make a test pass.
+        # `PIN_HUG_PX` cannot serve — it is the PLACEMENT tolerance, and
+        # firing a hair above it would condemn every glyph a person
+        # nudged, which is the "ask the placer" spelling this check
+        # deliberately does not take. What the absolute question needs is
+        # the distance at which a glyph stops reading as this shape's
+        # marker, and the only thing in the scene that says how far
+        # "beside" reaches for a shape is the shape: past its own
+        # corner-to-corner extent there is more empty canvas between the
+        # question and its subject than the subject occupies.
+        #
+        # MEASURED OVER THE 41 CORPUS PINS, and the denominator is the
+        # point: 40 have a target in their own scene (the 41st is
+        # `pin-cutoff`, skipped four lines up), and their own-gaps run
+        # 0px (5), 8px (28), 16.1px (3), 19.7px (1), and then nothing at
+        # all until 126/190/222px (3) — all three of which the RELATIVE
+        # arm already reports. So this arm adds no line to any drawing
+        # the repo owns, and that is a fact about the corpus and not
+        # evidence that it is inert: the mutant reaches it at 1000px
+        # against a 116.6px diagonal, and a corpus flow re-laid through
+        # `apply_ops` reaches it at 1073/1483/553/1047px the moment the
+        # ❓ carry above is taken out.
+        reach = math.hypot(tgt.get("width", 0), tgt.get("height", 0))
+        stranded = own > reach
+        crowded = rival is not None and own - rival_gap >= PIN_HUG_PX
+        if not (crowded or stranded):
             continue
         key = "pindrift:%s:%s" % (aid or "<artifact>", slugify(e["id"]))
         if waives and key in waives:
             continue
+        # ONE SITE FOR A TWO-ENDED FAULT, which is this function's
+        # standing judgement (49 -> 50, and again at `composed_host_gaps`'
+        # missing/surplus split): one finding about one pin, carrying one
+        # magnitude — the distance to its OWN target, in both readings —
+        # and the evidence picks the tail. The crowded reading wins where
+        # both hold, because it names a rival the reader can go and look
+        # at, which is strictly more than "it is far from its subject".
+        if crowded:
+            why = ("and only %dpx from %s, so on the canvas it reads as "
+                   "%s's question"
+                   % (round(rival_gap), name(rival["id"]),
+                      name(rival["id"])))
+        else:
+            why = ("— further than that %s is across (%dpx corner to "
+                   "corner), so on the canvas it reads as belonging to "
+                   "nothing" % (tgt.get("type"), round(reach)))
         warnings.append(
-            "pin %s asks about %s but is drawn %dpx from it and only "
-            "%dpx from %s, so on the canvas it reads as %s's question "
-            "(%r). Either the ❓ or the `target` is in the wrong place, "
+            "pin %s asks about %s but is drawn %dpx from it %s (%r). "
+            "Either the ❓ or the `target` is in the wrong place, "
             "and which one is a judgement this check cannot make — or "
             "record the decision with %s"
-            % (name(e["id"]), name(tgt["id"]), round(own),
-               round(rival_gap), name(rival["id"]), name(rival["id"]),
+            % (name(e["id"]), name(tgt["id"]), round(own), why,
                (cd.get("question") or "")[:60], waive_hint(key)))
     # shared attach points
     anchor_pts = {}
