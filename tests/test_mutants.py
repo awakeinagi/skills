@@ -27845,7 +27845,41 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # THE VALUE BELOW WAS READ OFF THE GUARD: the decorator came off first and
 # `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
 # `measured {}` against the declared line.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# REFILLED WITH THREE ON 2026-08-31 by the mutant-curator, out of a review
+# that established the empty-save class has now been closed NINE times
+# without being closed. Not three reds for one defect: three sibling
+# defects, one red each, and the separation is the point. A single red
+# spanning all three would be satisfied by whichever of the three its
+# fixer happened to think of, which is the shape that produced the eight
+# previous closures.
+#
+#   * `...NarratesThroughEitherDoor` is the class itself, measured on the
+#     axes it lives on rather than on one cell: door x co-change x delta,
+#     refereed by asked-value durability. The pin it replaces measures the
+#     agent door and single-change saves and scores 102/102; the same
+#     question scores 26/171 on the user door and 0/137 on co-change
+#     saves.
+#   * `...JudgedByItsBindingAndNotByItsRoleTag` is one gate asked in two
+#     grammars: `_geometry_derived` suppresses on `type == "text"` with a
+#     `containerId`, and the durability half that undoes it reads
+#     `role_of(new) == "label"`. Bound text a paste or an import made
+#     falls between them.
+#   * `...DoesNotBorrowItsPartsVerb` is the same defect with its SIGN
+#     REVERSED, and it arrived inside the fix for the other direction: the
+#     rollup that made `by_element` name a part's host beside it gave the
+#     host the part's verb, so a record says an element moved that did
+#     not.
+#
+# EACH FLIPS UNDER AT LEAST TWO HONEST REPAIRS AT DIFFERENT LAYERS, all
+# measured against patched copies with every ungated pole green — see each
+# red's own docstring for the matrix, including the repairs that must NOT
+# flip it and the one PARTIAL repair that correctly leaves the second red
+# red.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestABoundLabelIsJudgedByItsBindingAndNotByItsRoleTag": 1,
+    "TestAHostEntryDoesNotBorrowItsPartsVerb": 1,
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 1}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried

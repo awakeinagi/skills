@@ -296,14 +296,28 @@ PROBES: dict[str, dict[str, str]] = {
     # `Non-catalog red classes:` rather than any class name or count in
     # it, because the contents of a container that exists to change is
     # the anchor that has died five times above.
+    #
+    # AND FOUR OF THEM WERE NOT, WHICH THE PARAGRAPH ABOVE PREDICTED AND
+    # DID NOT PREVENT. They anchored on `Non-catalog red classes: *none*`
+    # — the label AND its contents — and on 2026-08-31 the roster took
+    # three classes and all four died at once, taking the whole file's
+    # run with them: the runner refuses to report a verdict when any
+    # anchor is dead, so eleven healthy probes went unrun too. Re-anchored
+    # by the mutant-curator the same day on the label alone, with each
+    # perturbation PREPENDED to whatever the line holds, so every one of
+    # them is now a real change at `*none*` and at any roster. The
+    # `*none*`-shaped injections lost that word from their `new` strings
+    # for the same reason; the SHAPE each probes — a phantom entry, an
+    # unreadable line, a bare name with a count, a bare name in prose —
+    # is unchanged and is what the `why` describes.
     "roster-phantom-class": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
         "file": "SESSION-HANDOVER.md",
         "why": "the roster names a class the live decorators do not carry "
                "— a flip nobody transcribed, the OVER-reporting pole the "
                "flip contract cannot see",
-        "old": "Non-catalog red classes: *none*",
-        "new": "Non-catalog red classes: `TestNobodyFlippedThis` (2)",
+        "old": "Non-catalog red classes:",
+        "new": "Non-catalog red classes: `TestNobodyFlippedThis` (2),",
     },
     "roster-deleted": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
@@ -318,10 +332,11 @@ PROBES: dict[str, dict[str, str]] = {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
         "file": "SESSION-HANDOVER.md",
         "why": "NON-DISCRIMINATION: the line survives but says something "
-               "the grammar cannot read. A reader that parsed this to an "
-               "empty roster would agree with it and with the truth alike",
-        "old": "Non-catalog red classes: *none*",
-        "new": "Non-catalog red classes: see the dict",
+               "the grammar cannot read — a backticked class carrying no "
+               "count. A reader that parsed this to an empty roster would "
+               "agree with it and with the truth alike",
+        "old": "Non-catalog red classes:",
+        "new": "Non-catalog red classes: `TestSeeTheDictInstead`,",
     },
     # THE OTHER POLE, and it is perturbed in the CODE rather than in the
     # prose because that is the only place it can happen: a red that
@@ -365,21 +380,21 @@ PROBES: dict[str, dict[str, str]] = {
     "roster-bare-name-after-none": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
         "file": "SESSION-HANDOVER.md",
-        "why": "the roster says *none* and then names classes with the "
+        "why": "the roster names classes in the ENTRY GRAMMAR with the "
                "BACKTICKS DROPPED — the line's own history after one "
                "reflow, invisible to every check that reads inside ticks",
-        "old": "Non-catalog red classes: *none*",
-        "new": "Non-catalog red classes: *none* — TestBatchPathIntegrity "
-               "(3), TestLoadFindingsReachTheAgent (4)",
+        "old": "Non-catalog red classes:",
+        "new": "Non-catalog red classes: TestBatchPathIntegrity "
+               "(3), TestLoadFindingsReachTheAgent (4),",
     },
     "roster-bare-name-in-prose": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
         "file": "SESSION-HANDOVER.md",
         "why": "the same hole reached through ordinary prose rather than "
-               "through the entry grammar: a named exception to *none* "
-               "that carries no parenthesised count at all",
-        "old": "Non-catalog red classes: *none*",
-        "new": "Non-catalog red classes: *none* (except "
+               "through the entry grammar: a named exception carrying no "
+               "parenthesised count at all",
+        "old": "Non-catalog red classes:",
+        "new": "Non-catalog red classes: (except "
                "TestLoadFindingsReachTheAgent, 4 reds)",
     },
     "roster-duplicate": {

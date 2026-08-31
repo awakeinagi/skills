@@ -150,7 +150,65 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: *none*
+Non-catalog red classes: `TestALandedLabelPositionNarratesThroughEitherDoor` (1), `TestABoundLabelIsJudgedByItsBindingAndNotByItsRoleTag` (1), `TestAHostEntryDoesNotBorrowItsPartsVerb` (1)
+
+REFILLED WITH THREE 2026-08-31 by the mutant-curator, hours after the
+second drain below, and the reason to read this paragraph before the
+ones under it is that both drains were honest and both were about a
+column the bug does not live in. A review established that this repo has
+now closed the empty-save class NINE times without closing it: nine
+recognitions of the class in prose, nine implementations of one instance,
+and nine pins whose population structurally could not contain the failing
+cell. The pin the second drain left green measures the AGENT door and
+SINGLE-CHANGE saves and scores 102/102. The same predicate scores 26/171
+on the user door and 0/137 where anything else changed in the same save.
+
+THE DELIVERABLE IS A GRID AND THE REDS HANG OFF IT. Its axes are the axes
+the defect lives on — door (agent | user) x co-change (alone | host moved
+| host resized | label renamed | label re-measured) x delta (0 | +8 | +30
+| +400) — and its referee is ASKED-VALUE DURABILITY: write the position,
+re-read it through a fresh `Store`, compare it to what was asked. The old
+referee asks whether a diff MENTIONS an attribute, which is a question
+about the diff; this asks whether what the reader will see is what
+somebody asked for, which is the question the class is about. 40 cells,
+30 ask a label to hold a position, 20 land it, 8 are in no record.
+
+THE THREE REDS ARE THREE DEFECTS AND NOT ONE CLASS SPLIT THREE WAYS. The
+first is the grid: `_label_position_rederived` answers True on the mere
+PRESENCE of a size, text or container change in the same save, so an
+independent reposition sharing a save with one of those is swallowed —
+and the browser changes a bound label's `width` on EVERY save it sends,
+because the client's text metrics disagree with the server's stored
+`text_dims`, so that is the ordinary case and not an edge. The second is
+one gate asked in two grammars: `_geometry_derived` suppresses on `type
+== "text"` with a `containerId` and the durability half that undoes it
+reads `role_of(new) == "label"`, so bound text a paste or an import made
+falls between them and the user door alone stays silent over it. The
+third is the same defect with its SIGN REVERSED and it arrived inside the
+fix for the other direction — the rollup that made `by_element` name a
+part's host beside it gave the host the PART's verb, so a record says an
+element moved that did not, in the field SKILL.md tells agents to read.
+
+WHY THREE AND NOT ONE: a red spanning all three would be satisfied by
+whichever of the three its fixer thought of, which is the shape that
+produced the eight previous closures. Each flips under at least two
+honest repairs at different layers, measured against patched copies of
+`canvas.py` with every ungated pole green and the other two reds still
+red; each names the repairs that must NOT flip it, and each of those was
+run rather than reasoned about. THE VACUITY GUARD IS A FUNCTION OF THE
+CELL LIST and is watched failing under four damaged populations, one per
+clause — two of them historical, being the agent-door-only grid every
+previous pin measured and the single-change-only grid the eighth closure
+scored 59/59 against.
+
+AND THE PIN BELOW WAS ITSELF VACUOUS, which is the finding that says the
+most about this family. Delete `_LANDED_MOD_NUDGES` — the literal state
+the class was open in earlier the same day — and its liveness guard
+stayed GREEN, satisfied by two `cb-label` cells that cannot put the case
+at all: shoving a checkbox's label reconciles the CHECKBOX to it, so the
+host moves and the host's move is what the record narrates. That guard
+now asks whether the container followed, and was watched failing under
+the same deletion.
 
 DRAINED AGAIN 2026-08-31, and this roster has now recorded one class
 arriving, leaving, arriving and leaving inside a single date stamp. The
@@ -572,7 +630,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**0 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**3 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
