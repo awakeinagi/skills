@@ -30548,6 +30548,22 @@ def cmd_x_as_user(args):
         # it re-attaches — its feet keep pace with two nodes that may
         # move independently — so it needs the pass below rather than a
         # fifth clause in the condition here.
+        #
+        # THAT SIGNATURE IS NOT ALWAYS A DEFECT, and since R6 WP-A the
+        # two readings live side by side on this very verb, so the rule
+        # has to be written down rather than re-derived each time. A
+        # divergence between the agent path and this one is THIS DRIVER'S
+        # BUG when it FABRICATES a state no browser drag can reach (the
+        # stranded arrow feet above), and it is CORRECT when it
+        # faithfully reproduces a state the client does reach. The ❓ is
+        # the correct case: the applier now carries a pin whose target an
+        # op displaced, while a real drag leaves the glyph standing —
+        # the client mints at `pinSpot` and never re-asks, and nothing
+        # in a pin element ties it to its target for Excalidraw to drag.
+        # So `mod x,y` lints to 0 pindrift warnings and `move` to 1 on
+        # one scene and one delta, and BOTH are right; before WP-A both
+        # were 0 and that was the defect. Judge a divergence by what a
+        # browser does, never by whether the two paths agree.
         el = ix.get(args.target)
         if el is None:
             die("ERROR=no element %r" % args.target, 2)
