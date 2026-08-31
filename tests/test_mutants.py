@@ -38127,15 +38127,38 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
 
         OFF THAT HEAD IT STILL ASSERTS, and does not skip, because a
         conditional that goes quiet on the ordinary case is this
-        lineage's own failure mode. What survives a `canvas.py` change is
-        weaker but real: the replay must produce a record at all, and
-        every phantom it reports must be a caption that actually moved on
-        disk. A replay narrating a caption that did not move would mean
-        it is measuring some other scene, and no repair to `canvas.py`
-        can make that legitimate.
+        lineage's own failure mode. The load-bearing half survives any
+        `canvas.py` change: THE GEOMETRY THE REPLAY LANDS ON DISK MUST BE
+        THE GEOMETRY THE BROWSER'S OWN SAVE LANDED, element for element.
+        A repair to the record layer may change what is NARRATED and may
+        not change what is STORED, so that assertion is live on every
+        head — and it is the one that says this replay is reconstructing
+        the browser's scene rather than some scene of its own. Beside it,
+        every phantom the replay reports must be a caption that actually
+        moved on disk.
+
+        OWED TO WHOEVER REPAIRS THIS: editing `canvas.py` turns the
+        fact-for-fact comparison off, because the capture then describes
+        another head. That is correct and it is not free — re-record the
+        capture once the repair lands, so the comparison comes back and a
+        browser has confirmed the head that ships.
         """
         cap = self._capture()
         out = replay_browser_capture(canvas, self.root / "same")
+        landed = {k: tuple(v) for k, v in (cap.get("stored_after") or {}).items()}
+        self.assertNotEqual(
+            landed, {}, "the capture records no post-save geometry, so the "
+                        "one head-stable half of this test is vacuous")
+        drifted = {eid: (xy, out["disk"].get(eid))
+                   for eid, xy in landed.items()
+                   if out["disk"].get(eid) != xy}
+        self.assertEqual(
+            drifted, {},
+            "the replay's save landed different geometry than the "
+            "browser's did, from the very same request body. A record "
+            "repair may change what is narrated and may not change what "
+            "is stored, so this is the replay measuring some other "
+            "scene: %s" % drifted)
         if cap.get("canvas_sha256") == canvas_digest():
             self.assertEqual(
                 out["facts"], [list(f) for f in cap["observed"]["facts"]],
@@ -38296,15 +38319,34 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
         lands on. A repair judged by the count alone would have been
         accepted at `604a7a0`.
 
-        ONE CANDIDATE MEASURED AND NOT ADOPTED, recorded because a red
-        that only its own author's fix satisfies is a specification of
-        that fix. A `+-0.5` tolerance on the UNROUNDED destination
-        comparison takes the browser probes to zero and costs one grid
-        cell. It is one repair among several and this red does not name
-        it: the pole above refuses any repair that reaches zero by going
-        quiet, the neighbour refuses one that reaches it by breaking
-        narration, and beyond those two the assertion is indifferent to
-        HOW the record stops describing a gesture nobody made.
+        IT FLIPS UNDER FOUR REPAIRS AND PRESCRIBES NONE, which is
+        `silence-is-a-bug` §8 and was measured rather than argued. Each
+        was monkeypatched over `_label_position_rederived` from a
+        throwaway plugin; each takes this red GREEN with all five poles
+        of this class and all three protected controls still green. They
+        are worded differently on purpose — none is a variation of
+        another — and their costs to the 735-cell grid differ, which is
+        information for whoever repairs this and not a constraint from
+        here:
+
+          (A) a `+-0.5` tolerance on the UNROUNDED destination
+              comparison — the reviewer's candidate.  grid 23/83, 5/455
+          (B) EITHER rounding of the writer's float is the writer's
+              answer; no tolerance anywhere.        grid 23/83, 5/455
+          (D) ask the caption's OFFSET inside its container and drop the
+              centring formula entirely — a re-measure moves that offset
+              by exactly half the width change and nothing else does.
+                                                    grid 40/83, 5/455
+          (E) keep both arms as shipped and add a re-measure BUDGET: a
+              caption whose own box changed size may drift by at most
+              half that change unplaced.            grid 16/83, 9/455
+
+        A red that flips under exactly one repair has specified that
+        repair, and the person whose correct fix it rejects learns it
+        from the rejection. Beyond the two poles — which refuse a zero
+        bought by going quiet, and one bought by breaking narration —
+        this assertion is indifferent to HOW the record stops describing
+        a gesture nobody made.
 
         WHAT MUST NOT FLIP IT: suppressing every bound caption's
         coordinate, which the positioned-caption pole above refuses and

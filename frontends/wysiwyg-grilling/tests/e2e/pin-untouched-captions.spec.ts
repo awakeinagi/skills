@@ -272,6 +272,14 @@ test("is a caption of a box nobody touched narrated as having moved?",
         remeasure: remeasured,
       },
       stored_before: stable(storedBefore),
+      // WHAT THE SAVE PUT ON DISK, which is the one thing about this
+      // save that a repair to the RECORD layer may never change. The
+      // model tier asserts its replay reproduces this geometry exactly,
+      // and that assertion stays live on every head — unlike the
+      // fact-for-fact comparison, which can only be made on the head the
+      // browser was driven against.
+      stored_after: Object.fromEntries(storedAfter.map(
+        (e: Record<string, unknown>) => [e.id, [e.x, e.y]])),
       posted: { ...body, scenes: Object.fromEntries(
         Object.entries(body.scenes as Record<string,
           Array<Record<string, unknown>>>)
