@@ -19924,40 +19924,37 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # the corpus and not evidence that it is inert: the mutant
         # reaches it at 1000px against a 116.6px diagonal, and Face A's
         # 748/1703/1419px sit far past every diagonal on that page.
-        stranded = own > math.hypot(tgt.get("width", 0),
-                                    tgt.get("height", 0))
+        reach = math.hypot(tgt.get("width", 0), tgt.get("height", 0))
+        stranded = own > reach
         crowded = rival is not None and own - rival_gap >= PIN_HUG_PX
         if not (crowded or stranded):
             continue
         key = "pindrift:%s:%s" % (aid or "<artifact>", slugify(e["id"]))
         if waives and key in waives:
             continue
-        # ONE SENTENCE PER PIN, and the crowded reading wins where both
-        # are true: it names a rival the reader can go and look at, which
-        # is strictly more than "it is far from its subject" tells them.
+        # ONE SITE FOR A TWO-ENDED FAULT, which is this function's
+        # standing judgement (49 -> 50, and again at `composed_host_gaps`'
+        # missing/surplus split): one finding about one pin, carrying one
+        # magnitude — the distance to its OWN target, in both readings —
+        # and the evidence picks the tail. The crowded reading wins where
+        # both hold, because it names a rival the reader can go and look
+        # at, which is strictly more than "it is far from its subject".
         if crowded:
-            warnings.append(
-                "pin %s asks about %s but is drawn %dpx from it and only "
-                "%dpx from %s, so on the canvas it reads as %s's question "
-                "(%r). Either the ❓ or the `target` is in the wrong place, "
-                "and which one is a judgement this check cannot make — or "
-                "record the decision with %s"
-                % (name(e["id"]), name(tgt["id"]), round(own),
-                   round(rival_gap), name(rival["id"]), name(rival["id"]),
-                   (cd.get("question") or "")[:60], waive_hint(key)))
+            why = ("and only %dpx from %s, so on the canvas it reads as "
+                   "%s's question"
+                   % (round(rival_gap), name(rival["id"]),
+                      name(rival["id"])))
         else:
-            warnings.append(
-                "pin %s asks about %s but is drawn %dpx from it — further "
-                "than that %s is across (%dpx corner to corner) — so on "
-                "the canvas it reads as belonging to nothing (%r). Either "
-                "the ❓ or the `target` is in the wrong place, and which "
-                "one is a judgement this check cannot make — or record "
-                "the decision with %s"
-                % (name(e["id"]), name(tgt["id"]), round(own),
-                   tgt.get("type"),
-                   round(math.hypot(tgt.get("width", 0),
-                                    tgt.get("height", 0))),
-                   (cd.get("question") or "")[:60], waive_hint(key)))
+            why = ("— further than that %s is across (%dpx corner to "
+                   "corner), so on the canvas it reads as belonging to "
+                   "nothing" % (tgt.get("type"), round(reach)))
+        warnings.append(
+            "pin %s asks about %s but is drawn %dpx from it %s (%r). "
+            "Either the ❓ or the `target` is in the wrong place, "
+            "and which one is a judgement this check cannot make — or "
+            "record the decision with %s"
+            % (name(e["id"]), name(tgt["id"]), round(own), why,
+               (cd.get("question") or "")[:60], waive_hint(key)))
     # shared attach points
     anchor_pts = {}
     for a in arrows:

@@ -22331,7 +22331,6 @@ class TestAMovedNodeDoesNotStrandItsPin(unittest.TestCase):
             "mint rather than a stranded pin")
         self.assertEqual(self._mentions(store), [])
 
-    @unittest.expectedFailure
     def test_a_moved_target_either_takes_its_pin_or_is_reported(
             self) -> None:
         """Move the subject; the ❓ must follow it or be named.
@@ -22350,6 +22349,18 @@ class TestAMovedNodeDoesNotStrandItsPin(unittest.TestCase):
 
         Measured through this exact path on 2026-08-30: 8.0 -> 1002.0px,
         `store.issues == []`, and no lint line names the glyph.
+
+        FLIPPED the same day by the WP-A fixer, on the FIRST arm: the
+        applier now adds a moving element's own (dx, dy) to every
+        unpinned ❓ whose `target` that op displaced, so the same path
+        measures 8.0 -> 8.0px and this returns at the `grew <= before`
+        line without reaching the assertion. The second arm is closed
+        too — `pindrift` gained an absolute floor at the target's own
+        diagonal — but nothing here can witness that any more, which is
+        the disjunction working as designed rather than a gap: the
+        catalogue sibling `pin_left_behind_by_its_moved_target` is the
+        pole that holds the check honest, and it hands its scene
+        straight to the lint where no applier repair can reach it.
         """
         store, root = self._minted(bystander=False)
         before = self._gap(store)
@@ -25682,14 +25693,15 @@ class TestMutantCatalogue(unittest.TestCase):
         """A screen is not a rival for the button drawn inside it."""
         self._run_neighbour("pin_drifts_onto_a_rival_node")
 
-    @unittest.expectedFailure
     def test_mutant_pin_left_behind_by_its_moved_target(self) -> None:
         """The ❓ is 1000px from its subject and the page holds nobody else."""
-        # RED BY INTENT. `pindrift` returns on `rival is None`, so the
-        # only thing it could have said about this glyph depends on a
-        # THIRD element that this scene does not have. See the entry for
-        # the three repairs measured to flip it and the one class of
-        # repair that deliberately does not.
+        # FLIPPED 2026-08-30 by the WP-A fixer, which took the second of
+        # the three repairs this entry measured: `pindrift` keeps its
+        # relative arm and gains an absolute one, floored at the TARGET'S
+        # OWN DIAGONAL (116.6px here, against a 1000px gap). Was red
+        # because the check returned on `rival is None`, so the only
+        # thing it could have said about this glyph depended on a THIRD
+        # element this scene does not have.
         self._run("pin_left_behind_by_its_moved_target")
 
     def test_neighbour_pin_left_behind_by_its_moved_target(self) -> None:
@@ -27168,22 +27180,30 @@ def coverage_table() -> list[tuple[str, str, str]]:
 #
 # `{}` HERE IS DERIVED AND NOT ASSUMED: the decorators came off first,
 # and the guard reported `measured {}` against the declared pair.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    # Curator batch 47, 2026-08-30, from assessment run R6's WP-A. Pin
-    # placement is computed at mint time and never re-derived — not by
-    # the applier `--relayout` writes through, and not at load. The one
-    # red here is DELIBERATELY NOT A CATALOGUE ENTRY: a `FindingSpec`
-    # names a check, so a catalogue red could only be discharged by
-    # teaching `pindrift` the absolute question, and WP-A's acceptance
-    # criterion 4 requires the red to flip under more than one of the
-    # three honest repairs. It asserts a disjunction instead — the gap
-    # is preserved, or somebody names the glyph — and was measured to
-    # flip under all three (re-derive in the applier, re-derive at load,
-    # teach the check), with both green controls surviving each. The
-    # detector half is `pin_left_behind_by_its_moved_target` in
-    # `CATALOGUE_RED_IDS`, and the two are one defect from two sides.
-    "TestAMovedNodeDoesNotStrandItsPin": 1,
-}
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+# EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
+# the dict lost a LINE rather than a number — the eleventh time that has
+# been the shape here, and this one was predictable: the class carried
+# exactly one red. `TestAMovedNodeDoesNotStrandItsPin` left with the WP-A
+# fixer's applier carry, which adds a moving element's own (dx, dy) to
+# every unpinned ❓ whose `target` that op displaced. Measured through the
+# class's own path, 8.0 -> 1002.0px became 8.0 -> 8.0px.
+#
+# BOTH HALVES OF THE CENSUS MOVED IN THE SAME CHANGE, and unlike the
+# 2026-08-26 drain below that is NOT because it was one repair twice. WP-A
+# was one defect with two doors and it took two repairs: the applier carry
+# for the door an op comes through, and `pindrift`'s new absolute arm for
+# the door a user's own drag comes through, where no op exists to carry
+# anything. The producer red's disjunction is satisfied by the first alone
+# — which is why nothing in this dict can witness the second, and why the
+# catalogue sibling had to exist.
+#
+# WHAT THE PAIR PROVED ABOUT ITSELF. The producer red was measured by its
+# author to flip under all three honest repairs and the catalogue red under
+# exactly the check-side spelling; taking one of each therefore flipped
+# both without either red having named the fix that flipped it. Nothing
+# here was rewritten to match the repair: the only edits to the class were
+# the decorator and a paragraph recording which arm went quiet.
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -27692,7 +27712,17 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"pin_left_behind_by_its_moved_target"}
+CATALOGUE_RED_IDS: set[str] = set()
+# EMPTY AGAIN on 2026-08-30, the same day it refilled, and drained by a
+# REPAIR: `pin_left_behind_by_its_moved_target` left when `pindrift` kept
+# its relative arm and gained an absolute one, floored at the TARGET'S OWN
+# DIAGONAL. That is the second of the three spellings its entry measured —
+# "a disjunction keeping the relative arm and adding one" — and the entry's
+# having offered three is what makes the choice the fixer's rather than the
+# author's. The floor is a reading of the picture and not a constant: past
+# a shape's corner-to-corner extent there is more empty canvas between the
+# question and its subject than the subject occupies, so nothing new needs
+# tuning and nothing new can go stale.
 # REFILLED on 2026-08-30 by curator batch 47, from assessment run R6's
 # WP-A: `pindrift` returns on `rival is None`, so a ❓ whose target has
 # walked 1000px away with nothing else on the page is a glyph no check
@@ -28682,21 +28712,15 @@ def red_bearing_classes() -> dict[str, int]:
 #
 # REFILLED 2026-08-30 (curator batch 47) with the fifth row's exact shape
 # arriving a second time, which is why that paragraph was worth keeping.
-RULE8_EXEMPT: dict[str, str] = {
-    "pin_left_behind_by_its_moved_target:neighbour":
-        "The mutant is RED, so rule 8 declines to count its own "
-        "`FindingSpec` — correctly: `pin_drift` emits nothing on that "
-        "scene today, and a check answering nothing would pass both "
-        "poles. The firing pole EXISTS and is asserted in every commit, "
-        "it is just in the sibling rather than in this entry — "
-        "`pin_drifts_onto_a_rival_node` is green and proves `pin_drift` "
-        "fires at 60px on the same family's geometry, which is the "
-        "arrangement doctrine §3 blesses for `diamond_facet_overfire`. "
-        "Delete this row when R6 WP-A lands and the red flips, in that "
-        "same change: the pairing becomes real the moment the check "
-        "starts answering, and the fifth row above stood for four days "
-        "past its flip because nobody did.",
-}
+# EMPTY AGAIN the same day, which is the row above doing exactly what it
+# told its reader to do. `pin_left_behind_by_its_moved_target:neighbour`
+# was deleted in the change that flipped that mutant, so the pairing it
+# excused became real in the same commit: the mutant's own `FindingSpec`
+# now records a finding `pin_drift` emits, and rule 8 counts it. The fifth
+# row stood four days past its flip because nobody did this; the sixth did
+# not last an afternoon, and the difference is that its reason string named
+# the moment to delete it.
+RULE8_EXEMPT: dict[str, str] = {}
 
 
 def rule_eight_paired(mutant: Mutant, slot: str, red: bool) -> bool:
