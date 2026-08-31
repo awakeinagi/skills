@@ -30202,18 +30202,35 @@ class TestTheEntityNameClearsItsOwnAttributeRows(unittest.TestCase):
         scene = _entity_rows_scene(seeded=True)
         label = next(e for e in scene if e["id"] == "E1-label")
         top, bottom = _row_band(scene, "E1-label")
-        # both numbers DERIVED from the rule rather than written
+        # all three numbers DERIVED from the rule rather than written
         # down, which is what let this pin survive `text_dims`
         # dropping its floor (F3, 2026-08-20): the name went 21px ->
         # 22px and the header band 32 -> 36 with it, and the only
-        # thing that needed saying was that they still move together
+        # thing that needed saying was that they still move together.
+        #
+        # `anchor` IS THE ONE THAT WAS NOT, and it cost this pin a
+        # second visit. It was a written-in 106 — the `100` of the
+        # scene plus a `6` typed here because `recenter_label` typed
+        # one too — until 2026-08-31, when that function started
+        # anchoring a `top` caption at the client's own
+        # `BOUND_TEXT_PADDING`. The shipped bundle draws a TOP-aligned
+        # bound text at `getContainerCoords(container).y`, which for a
+        # rectangle is `container.y + 5`, so the caption had been
+        # STORED a pixel above where it was DRAWN. The name band moved
+        # 106..128 -> 105..127 and the drawing is unchanged in kind:
+        # the rows are where they were (136..152, 156..172), so the
+        # name clears its first attribute by 9px of air where it
+        # cleared it by 8. The y=106 in this class's docstring is that
+        # date's witness and stays as history.
         band = canvas.text_dims(label["text"], label["fontSize"],
                                 label["lineHeight"])[1]
         header = max(32, -(-(11 + band) // 4) * 4)
+        anchor = 100 + canvas.BOUND_TEXT_PADDING
         self.assertEqual(
             (label.get("verticalAlign"), top, bottom,
              _row_band(scene, "E1-attr-1")),
-            ("top", 106, 106 + band, (100 + header, 100 + header + 16)),
+            ("top", anchor, anchor + band,
+             (100 + header, 100 + header + 16)),
             "the `add` path's own geometry has moved, so the poles below "
             "no longer differ by the label re-alignment alone")
 
