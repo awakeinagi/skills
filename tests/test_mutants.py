@@ -27957,9 +27957,20 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # repaired and a height arm was opened in the same change, and three
 # instruments — the 735-cell grid, the sibling capture, the 101,310-cell
 # sweep — all reported no change because none of them has a `dh` axis.
+#
+# AND A THIRD JOINED IN THE SAME CHANGE, `...SitsWhereTheClientWillDrawIt`,
+# whose defect is PRE-EXISTING and older than any of this — identical on
+# `84c226d`. `recenter_label` anchors a top-aligned caption at
+# `container.y + 6`; the shipped client anchors it at `container.y + 5`,
+# read out of the bundle rather than remembered. It is here because it is
+# the same silence with a THIRD cause: every caption in every instrument in
+# this repo is `middle`, the one alignment on which the two rules agree
+# exactly. Not a rounding, not a missing axis — a whole population sitting
+# on the one value that cannot show the defect.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
-    "TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement": 2}
+    "TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement": 2,
+    "TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt": 1}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -39196,6 +39207,595 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
             "as a vertical move. Facts: %s"
             % (len(out["phantoms"]), len(pop["untouched"]), pop["drag_dx"],
                pop["rewrapped"], out["facts"]))
+
+
+# ---------------------------------------------------------------------------
+# THE WRITER'S VERTICAL ANCHOR IS ONE PIXEL OFF THE CLIENT'S, AND IT IS
+# PRE-EXISTING. Filed by the mutant-curator, 2026-08-31, settled from the
+# SHIPPED BUNDLE rather than from a capture — because the bundle IS the
+# client and it is tracked in this repo.
+#
+# `recenter_label` writes a top-anchored caption at `container.y + 6`. The
+# client writes it at `container.y + BOUND_TEXT_PADDING`, and that constant
+# is 5. Read out of `skills/wysiwyg-grilling/scripts/web/assets/index-*.js`
+# by the extraction below, not remembered:
+#
+#     Kn = 5
+#     getContainerCoords(e)      -> {x: e.x + Kn, y: e.y + Kn}   (rectangle)
+#     getBoundTextMaxHeight(e)   -> e.height - Kn*2              (rectangle)
+#     computeBoundTextPosition   -> TOP    y = r.y
+#                                   BOTTOM y = r.y + (maxH - h)
+#                                   MIDDLE y = r.y + (maxH/2 - h/2)
+#
+# So for a rectangle the two agree EXACTLY on `middle` — both reduce to
+# `c.y + (c.height - h)/2` — and differ by exactly one pixel on `top` and on
+# `bottom`, in opposite directions. `BOUND_TEXT_PADDING = 5` already exists
+# in `canvas.py` and the writer's own x arm is derived correctly; only the
+# vertical anchor hardcodes a 6.
+#
+# WHY NOTHING CAUGHT IT: EVERY CAPTION IN EVERY INSTRUMENT IS `middle`, the
+# one alignment on which the two rules agree. The grid has `top` and
+# `bottom` FIXTURES, but its client door models a REPOST — translate and
+# re-measure the width — and never the RELAYOUT in which a tab uses the
+# absolute formula, so the constant is never compared. Decomposed over a
+# resize gesture: `top` 768/768 phantom, `bottom` 768/768, `middle` 0/768,
+# and identical on `84c226d`, so this is not the height wave's doing.
+#
+# REACHABLE FIVE WAYS, none of them exotic: `add` with an explicit
+# `verticalAlign`; `kind: "kpi"` (bottom); `kind: "slider"` (top);
+# `kind: "entity"` with `attributes` (top); and `mod ... verticalAlign`.
+#
+# TWO THINGS MEASURED AND DELIBERATELY NOT PINNED HERE, named so they are
+# not mistaken for oversights and not rediscovered as new.
+#
+#   * THE ELLIPSE IS WORSE AND IT IS A DIFFERENT CLASS. `recenter_label`
+#     ignores the client's elliptical inset entirely on y, so a
+#     top-anchored caption in a 160x120 ellipse is written at `c.y + 6`
+#     where the tab draws it at `c.y + 22.57` — sixteen pixels, not one.
+#     A red whose population held that would flip under NO repair to the
+#     constant, which would make it prescribe rewriting the writer whole.
+#     Pinning the rectangle keeps both layers' repairs available; the
+#     ellipse is a seed for whoever owns `recenter_label`.
+#   * `recenter_label` HAS NO `textAlign` BRANCH AT ALL, while the
+#     bundle's `computeBoundTextPosition` has three (`left -> r.x`,
+#     `right -> r.x + (maxW - w)`). Every server-written caption is
+#     `center`, where the two agree — but the tab's own alignment control
+#     resolves through a container's bound text, so a user can set one.
+#     Not measured; a seed, stated as one.
+# ---------------------------------------------------------------------------
+# The tracked client bundle. Several `index-*.js` ship; the one that
+# carries these three shapes is the app, and requiring exactly one to carry
+# them is itself a clause — two would mean the extraction is matching
+# something generic.
+_CLIENT_BUNDLES = (Path(__file__).resolve().parents[1] / "skills"
+                   / "wysiwyg-grilling" / "scripts" / "web" / "assets")
+# ANCHORED ON STRUCTURE, NEVER ON MINIFIED NAMES, which change on every
+# rebuild. Each pattern names the shape of one function and captures only
+# the symbol it needs; a bundle that no longer matches makes the guard fail
+# and say so, which is the staleness clause this class ships instead of a
+# build-stamp comparison.
+_CLIENT_CONTAINER_COORDS = re.compile(
+    r"=e=>\{let t=(\w+),n=\1;.{0,300}?\{x:e\.x\+t,y:e\.y\+n\}", re.S)
+_CLIENT_MAX_HEIGHT = re.compile(
+    r"=\(e,t\)=>\{let\{height:n\}=e;return .{0,200}?:n-(\w+)\*2\}", re.S)
+_CLIENT_VERTICAL_ARM = re.compile(
+    r"verticalAlign===[\w$]+\.TOP\?(\w+)=(\w+)\.y:"
+    r"[\w$]+\.verticalAlign===[\w$]+\.BOTTOM\?\1=\2\.y\+\((\w+)-[\w$]+"
+    r"\.height\):\1=\2\.y\+\(\3/2-[\w$]+\.height/2\)")
+
+
+def client_bound_text_rules(sources: list[str] | None = None
+                            ) -> dict[str, Any]:
+    """Read the client's own caption-placement rules out of the bundle.
+
+    NOT A MODEL OF THE CLIENT, THE CLIENT. Eleven closures of the
+    phantom-caption family were argued against a hand transcription of
+    Excalidraw's arithmetic and the transcription was wrong every time.
+    What is transcribed here is the SHAPE of three functions; every
+    number comes out of the shipped file, and a bundle that stops
+    matching the shape yields `{}` rather than a plausible answer.
+
+    Args:
+        sources: Bundle texts to search; the tracked `index-*.js` when
+            None. Passed in so the guard's own mutants can hand it a
+            bundle that has been damaged in one specific way.
+
+    Returns:
+        `{"padding", "bundle"}` when exactly one source carries all
+        three shapes with one consistent padding symbol, else `{}` with
+        the reason under `"why"`.
+    """
+    if sources is None:
+        sources = [p.read_text(encoding="utf-8", errors="replace")
+                   for p in sorted(_CLIENT_BUNDLES.glob("index-*.js"))]
+    found = []
+    for text in sources:
+        coords = _CLIENT_CONTAINER_COORDS.search(text)
+        height = _CLIENT_MAX_HEIGHT.search(text)
+        arm = _CLIENT_VERTICAL_ARM.search(text)
+        if not (coords and height and arm):
+            continue
+        if coords.group(1) != height.group(1):
+            return {"why": "the padding symbol differs between "
+                           "getContainerCoords (%r) and "
+                           "getBoundTextMaxHeight (%r), so one of the two "
+                           "shapes is matching something else"
+                           % (coords.group(1), height.group(1))}
+        value = re.search(r"\b%s=(\d+(?:\.\d+)?)\s*[,;]"
+                          % re.escape(coords.group(1)), text)
+        if not value:
+            return {"why": "the padding symbol %r is used by both shapes "
+                           "and assigned by neither" % coords.group(1)}
+        found.append(float(value.group(1)))
+    if len(found) != 1:
+        return {"why": "%d of the tracked bundles carry the client's "
+                       "caption-placement shapes; exactly one must"
+                       % len(found)}
+    return {"padding": found[0]}
+
+
+def client_caption_y(rules: dict[str, Any], container: dict[str, Any],
+                     label: dict[str, Any]) -> float:
+    """Where the tab lays a RECTANGLE's bound caption out vertically.
+
+    RECTANGLES ONLY, and the restriction is the point rather than a
+    simplification. The client insets an ellipse's and a diamond's
+    container coordinates as well, and `recenter_label` models neither —
+    a sixteen-pixel divergence that is a different class with a
+    different repair. See the comment above this function's class.
+
+    Args:
+        rules: What `client_bound_text_rules` read out of the bundle.
+        container: The rectangle the caption is bound to.
+        label: The caption, read for its `height` and `verticalAlign`.
+
+    Returns:
+        The `y` the client's `computeBoundTextPosition` produces.
+    """
+    pad = rules["padding"]
+    top = container.get("y", 0) + pad
+    inner = container.get("height", 0) - pad * 2
+    own = label.get("height", 0)
+    align = label.get("verticalAlign")
+    if align == "top":
+        return top
+    if align == "bottom":
+        return top + (inner - own)
+    return top + (inner / 2 - own / 2)
+
+
+def assert_the_client_rules_were_read(case: unittest.TestCase,
+                                      rules: dict[str, Any]) -> None:
+    """Assert the bundle still says what this class reads out of it.
+
+    THE STALENESS CLAUSE, and it is loud on purpose. Every number below
+    comes out of a minified file whose identifiers change on every
+    rebuild; a rebuild that renames them must make this class FAIL and
+    name the re-derivation, never quietly compare the server against a
+    client nobody read.
+
+    Args:
+        case: The test case to assert through.
+        rules: What `client_bound_text_rules` returned.
+    """
+    case.assertIn(
+        "padding", rules,
+        "THE CLIENT BUNDLE NO LONGER SAYS WHAT THIS CLASS READS. Every "
+        "figure here is extracted from the tracked `index-*.js` — the "
+        "padding constant, `getContainerCoords`, `getBoundTextMaxHeight` "
+        "and `computeBoundTextPosition`'s vertical arm — and one of them "
+        "stopped matching: %s. Re-derive the patterns against the new "
+        "bundle; do NOT relax them, because a pattern loose enough to "
+        "survive any rebuild is one that has stopped reading the client. "
+        "The shapes are documented above this class."
+        % rules.get("why", "no reason recorded"))
+    case.assertGreater(
+        rules["padding"], 0,
+        "the extracted padding is %r, which is not a padding — the "
+        "pattern matched something that is not the constant"
+        % rules["padding"])
+
+
+class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
+        unittest.TestCase):
+    """The writer's caption anchor, against the shipped client's own.
+
+    THE INVARIANT: a caption this product places is placed where the tab
+    that draws it places one. Where they disagree the tab moves the
+    caption the first time it lays it out, and the record narrates a
+    move nobody made — the v0.3 finding one element type over, arriving
+    through a constant rather than through a rounding.
+
+    PRE-EXISTING AND NOT THIS WAVE'S. Identical on `84c226d`, before the
+    displacement arm was touched at all.
+
+    WHY THE BUNDLE AND NOT A BROWSER. The client's arithmetic is a
+    property of a FILE this repo tracks, and reading it costs
+    milliseconds where driving a resize gesture in a tab costs a
+    manual-stage hook and a capture that stales. What a browser is
+    needed for is behaviour that is not in the source — which is what
+    the two capture-replay classes above are for. The hazard this trades
+    for is that a rebuild renames the symbols, and the guard below turns
+    that into a named failure rather than a silent one.
+    """
+
+    # Both parities of container height and caption height, so a cell
+    # cannot pass by an accident of rounding, and the three alignments —
+    # two that disagree with the client and one that agrees, which is
+    # what makes the comparison able to say either thing.
+    CASES: ClassVar[tuple[tuple[str, int, int], ...]] = tuple(
+        (align, ch, lh) for align in ("top", "middle", "bottom")
+        for ch, lh in ((120, 22), (121, 23), (90, 44)))
+
+    def setUp(self) -> None:
+        """Read the client's rules once per test; each asserts on them."""
+        self.rules = client_bound_text_rules()
+
+    def _box(self, height: int) -> dict[str, Any]:
+        """One container, positioned on round coordinates.
+
+        Args:
+            height: Its height, so both parities can be built.
+
+        Returns:
+            A rectangle element.
+        """
+        return {"id": "c", "type": "rectangle", "x": 200, "y": 100,
+                "width": 160, "height": height}
+
+    def _caption(self, align: str, height: int) -> dict[str, Any]:
+        """One bound caption, unplaced.
+
+        Args:
+            align: Its `verticalAlign`.
+            height: Its own height.
+
+        Returns:
+            A text element bound to `c`, with no position yet.
+        """
+        return {"id": "c-label", "type": "text", "containerId": "c",
+                "width": 90, "height": height, "verticalAlign": align,
+                "textAlign": "center", "text": "Term",
+                "originalText": "Term", "fontSize": 16,
+                "lineHeight": canvas.NUNITO_LINE_HEIGHT, "x": 0, "y": 0}
+
+    def _written(self, align: str, ch: int, lh: int
+                 ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """The scene as the product's own writer leaves it.
+
+        Args:
+            align: The caption's `verticalAlign`.
+            ch: The container's height.
+            lh: The caption's height.
+
+        Returns:
+            `(container, caption)` with the caption placed by
+            `recenter_label` — the product's single definition of where a
+            bound caption belongs, called rather than copied.
+        """
+        box, cap = self._box(ch), self._caption(align, lh)
+        scene = [box, cap]
+        canvas.recenter_label(scene, box)
+        return box, cap
+
+    def _narrated(self, align: str, ch: int, lh: int, resize: int
+                  ) -> dict[str, Any] | None:
+        """Save the tab's re-layout over the writer's own scene.
+
+        Args:
+            align: The caption's `verticalAlign`.
+            ch: The container's height before the resize.
+            lh: The caption's height.
+            resize: How much taller the user made the container.
+
+        Returns:
+            The caption's `by_element` entry, or None when the record
+            named it nowhere.
+        """
+        box, cap = self._written(align, ch, lh)
+        before = [copy.deepcopy(box), copy.deepcopy(cap)]
+        grown = dict(box, height=box["height"] + resize)
+        laid = dict(cap)
+        laid["y"] = client_caption_y(self.rules, grown, laid)
+        laid["x"] = grown["x"] + (grown["width"] - laid["width"]) / 2
+        root = Path(tempfile.mkdtemp(prefix="anchor-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({"base_revn": 0, "artifact": "a",
+                           "create": {"id": "a", "name": "A",
+                                      "type": "wireframe"}, "ops": []})
+        store.commit(author="user", new_scenes={"a": before},
+                     base_revn=store.head_revn())
+        live = canvas.Store(canvas.Project(root))
+        record = live.commit(author="user", new_scenes={"a": [grown, laid]},
+                             base_revn=live.head_revn())
+        part = (record.get("artifacts") or {}).get("a") or {}
+        return next((b for b in (part.get("by_element") or [])
+                     if b["id"] == "c-label"), None)
+
+    def test_the_bundle_still_says_what_this_class_reads(self) -> None:
+        """The staleness guard, ungated: an unread client is a failure."""
+        assert_the_client_rules_were_read(self, self.rules)
+
+    def _guard_says(self, rules: dict[str, Any]) -> str | None:
+        """What the staleness guard says about an unreadable bundle.
+
+        Args:
+            rules: A rules dict from a damaged bundle.
+
+        Returns:
+            The assertion message it raised, or None — a SURVIVOR.
+        """
+        try:
+            assert_the_client_rules_were_read(self, rules)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
+    def test_the_staleness_guard_notices_a_bundle_it_cannot_read(
+            self) -> None:
+        """The guard, watched failing, one mutant per extraction.
+
+        A guard nobody has seen fail is worth nothing, and this one is
+        the only thing standing between a renamed bundle and a class
+        that compares the server against a client it never read. Each
+        bundle below is the real one with exactly ONE of the three
+        shapes damaged, plus the two ways the shapes can be present and
+        still not mean what this class needs: a padding symbol the two
+        functions disagree about, and one nothing assigns.
+        """
+        real = [p.read_text(encoding="utf-8", errors="replace")
+                for p in sorted(_CLIENT_BUNDLES.glob("index-*.js"))]
+        self.assertNotEqual(
+            real, [], "no client bundle is tracked, so this whole "
+                      "demonstration has nothing to damage")
+        whole = next(t for t in real
+                     if "padding" in client_bound_text_rules([t]))
+        pad = client_bound_text_rules([whole])["padding"]
+        cut = [(_CLIENT_CONTAINER_COORDS, "getContainerCoords"),
+               (_CLIENT_MAX_HEIGHT, "getBoundTextMaxHeight"),
+               (_CLIENT_VERTICAL_ARM, "computeBoundTextPosition")]
+        mutants: list[tuple[str, list[str], str]] = [
+            ("no bundle is tracked at all", [], "0 of the tracked"),
+            ("two bundles carry the shapes", [whole, whole],
+             "2 of the tracked")]
+        for pattern, what in cut:
+            mutants.append(
+                ("%s renamed out of the bundle" % what,
+                 [pattern.sub("/*renamed*/", whole, count=1)],
+                 "0 of the tracked"))
+        mutants.append(
+            ("the padding symbol is assigned nowhere",
+             [re.sub(r"\bKn=%g\s*," % pad, "Kn=Kn_undefined,", whole,
+                     count=1)],
+             "assigned by neither"))
+        verdicts = [(name, want, self._guard_says(
+            client_bound_text_rules(sources)))
+            for name, sources, want in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, want, (said or "")[:200])
+                 for name, want, said in verdicts
+                 if said is not None and want not in said]
+        self.assertEqual(
+            (survived, [w[:2] for w in wrong]), ([], []),
+            "the staleness guard did not notice %s, and answered the "
+            "wrong clause for %s. A survivor is the finding: that "
+            "extraction is decoration, and this class is one frontend "
+            "rebuild away from measuring a client nobody read. Detail: "
+            "%s" % (survived, [w[0] for w in wrong], wrong))
+
+    def test_the_server_already_holds_the_clients_padding(self) -> None:
+        """The corroboration: the constant is here and it is right.
+
+        `BOUND_TEXT_PADDING` in `canvas.py` equals the padding the
+        client uses, and the wrap widths derived from it are correct.
+        That is what makes the red below a defect and not a difference
+        of opinion: the writer knows the number and does not use it for
+        the vertical anchor, where it writes a literal 6 instead.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        self.assertEqual(
+            float(canvas.BOUND_TEXT_PADDING), self.rules["padding"],
+            "the server's BOUND_TEXT_PADDING (%r) is not the client's "
+            "(%r), so the red below is about two products disagreeing "
+            "everywhere rather than about one anchor"
+            % (canvas.BOUND_TEXT_PADDING, self.rules["padding"]))
+
+    def test_the_wrap_width_the_repair_names_is_a_superset(self) -> None:
+        """`63fd1b6`'s wrap-width claim, narrowed to what is true.
+
+        That commit calls `container.width - 2 * BOUND_TEXT_PADDING`
+        "the client's own wrap width" without qualification. It is
+        `getBoundTextMaxWidth` for a RECTANGLE only: an ellipse's is
+        `round(w/2*sqrt(2)) - 10` and a diamond's `round(w/2) - 10`,
+        both narrower. The claim is therefore an over-statement of a
+        true thing — a superset for every shape the client supports, so
+        a sweep bounded by it reaches every caption the client can
+        produce and hides nothing. That is the sentence worth pinning,
+        and it is asserted here rather than left as a correction in a
+        review nobody re-reads.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        pad = self.rules["padding"]
+        narrower = []
+        for width in (120, 121, 160, 200, 640):
+            claimed = width - 2 * pad
+            for shape, real in (
+                    ("rectangle", width - 2 * pad),
+                    ("ellipse", math.floor(width / 2 * math.sqrt(2) + 0.5)
+                     - 2 * pad),
+                    ("diamond", math.floor(width / 2 + 0.5) - 2 * pad)):
+                if real > claimed:
+                    narrower.append((shape, width, real, claimed))
+        self.assertEqual(
+            narrower, [],
+            "the wrap width the repair's sweep was bounded by is NARROWER "
+            "than the client's own for %s, so that sweep never reached "
+            "captions the client can produce and its zero is over a "
+            "population smaller than it claimed" % narrower)
+
+    def test_a_middle_aligned_caption_lands_where_the_client_puts_it(
+            self) -> None:
+        """The agreeing pole: the two rules DO meet, and here is where.
+
+        Without this the red below would be a claim that the writer and
+        the client never agree, which is false and would make the whole
+        comparison suspect. On `middle` both reduce to
+        `c.y + (c.height - h)/2` and the agreement is exact at both
+        parities — so the disagreement below is about the ANCHOR and not
+        about the arithmetic around it.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        agree = [(align, ch, lh) for align, ch, lh in self.CASES
+                 if align == "middle"]
+        self.assertNotEqual(
+            agree, [], "no middle-aligned cell is in this population, so "
+                       "the agreeing pole is vacuous")
+        apart = []
+        for align, ch, lh in agree:
+            box, cap = self._written(align, ch, lh)
+            want = client_caption_y(self.rules, box, cap)
+            if cap["y"] != want:
+                apart.append((align, ch, lh, cap["y"], want))
+        self.assertEqual(
+            apart, [],
+            "the writer and the client disagree about a MIDDLE-aligned "
+            "caption too, so the red below is not about the top and "
+            "bottom anchors and this whole class needs re-deriving: %s"
+            % apart)
+
+    def test_a_caption_a_user_really_dragged_is_still_narrated(self) -> None:
+        """The live half: the check speaks when somebody really moved one.
+
+        The red below demands SILENCE, and silence is reachable by
+        breaking narration about bound captions outright. This pole is
+        the same container, the same alignment and the same save,
+        differing only in that a user put the caption somewhere — and it
+        is asserted with MAGNITUDE AND DIRECTION at both signs, because
+        a record that reports `abs()` passes an existence check and
+        still tells the reader the caption went the wrong way.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        lost = []
+        for align, ch, lh in self.CASES:
+            for shove in (9, -9):
+                box, cap = self._written(align, ch, lh)
+                before = [copy.deepcopy(box), copy.deepcopy(cap)]
+                dragged = dict(cap, y=cap["y"] + shove)
+                root = Path(tempfile.mkdtemp(prefix="anchor-drag-"))
+                self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+                project = canvas.Project(root)
+                project.ensure_tree()
+                store = canvas.Store(project)
+                store.apply_batch({"base_revn": 0, "artifact": "a",
+                                   "create": {"id": "a", "name": "A",
+                                              "type": "wireframe"},
+                                   "ops": []})
+                store.commit(author="user", new_scenes={"a": before},
+                             base_revn=store.head_revn())
+                live = canvas.Store(canvas.Project(root))
+                record = live.commit(
+                    author="user", new_scenes={"a": [box, dragged]},
+                    base_revn=live.head_revn())
+                part = (record.get("artifacts") or {}).get("a") or {}
+                entry = next((b for b in (part.get("by_element") or [])
+                              if b["id"] == "c-label"), None)
+                said = ((entry or {}).get("semantic") or {}).get("moved") \
+                    or {}
+                if said.get("dy") != shove:
+                    lost.append((align, ch, lh, shove, said.get("dy")))
+        self.assertEqual(
+            lost, [],
+            "a caption a user dragged %+dpx is not narrated with that "
+            "displacement. Until this pole is green the red below can be "
+            "satisfied by going silent about bound captions, which is "
+            "the one way it must never be satisfied: %s" % (9, lost))
+
+    @unittest.expectedFailure
+    def test_a_caption_the_tab_laid_out_is_not_narrated_as_moved(
+            self) -> None:
+        """RED 2026-08-31: the writer's `+6` against the client's `5`.
+
+        THE RELATION IS WHAT IS PINNED: a caption the TAB laid out, on a
+        gesture aimed at its container, was not moved by anybody and may
+        not be narrated as having moved. No coordinate literal appears
+        in the assertion — the client's placement is computed from the
+        padding this test read out of the shipped bundle.
+
+        WHAT IS FAILING, and it is a constant rather than a rounding.
+        `recenter_label` writes a top-anchored caption at
+        `container.y + 6` and a bottom-anchored one at
+        `container.y + height - h - 6`. The client's
+        `computeBoundTextPosition` writes `container.y + Kn` and
+        `container.y + height - h - Kn`, and `Kn` is 5. So the stored
+        caption is one pixel from where the tab will draw it; the first
+        layout the tab performs moves it there, and the record reports
+        `Term nudged` about a caption nobody touched. On a resize the
+        number the record prints is wrong as well as the sentence: a
+        container grown 40px narrates its caption as having moved 41.
+
+        `middle` IS SILENT AND THAT IS THE TELL. Both rules reduce to
+        `c.y + (c.height - h)/2` there, which is why every instrument in
+        this repo — whose captions are all `middle` — has been green
+        over this since the anchor was written. The pole above asserts
+        that agreement, so this red is about the two anchors and not
+        about the comparison.
+
+        PRE-EXISTING. Identical on `84c226d`, so it is not the height
+        wave's doing and not the displacement arm's.
+
+        IT FLIPS UNDER TWO REPAIRS AT DIFFERENT LAYERS AND PRESCRIBES
+        NEITHER, measured against patched copies with every pole of this
+        class green and all three protected controls green in each:
+
+          (a) THE PRODUCT LAYER. `recenter_label` anchors on
+              `BOUND_TEXT_PADDING` — which `canvas.py` already holds at
+              the client's own value — instead of on a literal 6. This
+              one changes the PICTURE: the caption is drawn where the
+              tab will draw it, which is the defect a reader actually
+              sees.
+          (b) THE RECORD LAYER. `_label_position_rederived` accepts the
+              CLIENT's own placement as a derivation beside the
+              writer's, so a caption sitting exactly where
+              `computeBoundTextPosition` puts one was laid out and not
+              dragged. This one leaves the picture alone and stops the
+              sentence.
+
+        They are not variants: (a) makes the drawing right and (b) makes
+        the record right, and a reviewer may reasonably want both. The
+        red is indifferent.
+
+        WHAT MUST NOT FLIP IT: going silent about bound captions, which
+        the drag pole above refuses at both signs; and widening the
+        agreement into a tolerance, which would accept the ellipse's
+        sixteen-pixel divergence as derived — that one is named above
+        this class and is a different repair.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        narrated = []
+        for align, ch, lh in self.CASES:
+            for resize in (0, 40):
+                entry = self._narrated(align, ch, lh, resize)
+                if record_claims_a_move(entry):
+                    box, cap = self._written(align, ch, lh)
+                    narrated.append(
+                        (align, ch, lh, resize,
+                         {"writer_put_it_at": cap["y"],
+                          "client_draws_it_at": client_caption_y(
+                              self.rules, box, cap),
+                          "record_says": (entry or {}).get("semantic")}))
+        self.assertEqual(
+            narrated, [],
+            "%d of %d cells narrate a caption the TAB laid out as having "
+            "moved. Compare `writer_put_it_at` with `client_draws_it_at` "
+            "in each: `recenter_label` anchors a top caption at "
+            "`container.y + 6` and the shipped client anchors it at "
+            "`container.y + %g`, so the caption is stored one pixel from "
+            "where it is drawn and the first layout moves it. Cells: %s"
+            % (len(narrated), len(self.CASES) * 2, self.rules["padding"],
+               narrated))
 
 
 # ---------------------------------------------------------------------------
