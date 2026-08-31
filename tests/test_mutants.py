@@ -35279,6 +35279,36 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
 # in would make every red need one repair big enough to close all three,
 # which is the shape that keeps producing a fix and its acceptance test from
 # one hand.
+#
+# ONE PIN DECLINED, RECORDED SO IT IS NOT RE-LITIGATED. The review that
+# filed these three also observed the +400 shove: the write IS live in
+# memory and in the artifact file for the rest of the session, the record
+# carries the `move` in `changes` while `by_element` is `[]`, and only the
+# NEXT load erases it — so "nothing changed" is arguably less honest than
+# "this position will be undone at load", which `label_position_sticks`
+# already knows at save time. It is NOT pinned here, for four reasons and
+# none of them is that it does not matter.
+#
+#   * IT IS WHAT THE RULING PRESCRIBES. "If the move stuck, the record says
+#     so" was ruled by the user on 2026-08-31, and a +400 shove does not
+#     stick. A red demanding narration there contradicts a live ruling, and
+#     a curator is not the one to overturn one.
+#   * IT WOULD PUT A GREEN PIN IN TENSION. `TestABoundArrowLabelCannotBe
+#     DraggedOffItsArrow` is the same shape with a different overwriter —
+#     the client re-derives the drawn position instead of the loader
+#     re-centring the stored one — and its silence is honest and
+#     browser-verified (stored 508, drawn 499.5). Pinning one and not the
+#     other demands a distinction the product does not draw, and drawing it
+#     is a product ruling.
+#   * THE HONEST COMPLAINT NEEDS A VERB NOTHING OWNS. "This will be undone
+#     at load" is a narration CATEGORY, not a truer sentence in an existing
+#     one, and no detector or fact name holds it today.
+#   * THE +400 CELLS ARE ALREADY DOING A JOB HERE. They are the referee's
+#     discriminating pole — the guard below requires a cell that does NOT
+#     land — and asserting they must also narrate would make that pole
+#     ambiguous about which claim it serves.
+#
+# It is a seed for whoever owns the record's vocabulary, not a red.
 # ---------------------------------------------------------------------------
 _LABEL_GRID_SEED: list[dict[str, Any]] = [
     {"op": "add", "element": {"id": "box", "type": "rectangle", "x": 200,
