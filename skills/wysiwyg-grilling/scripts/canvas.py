@@ -11651,7 +11651,7 @@ def diff_scenes(old_els, new_els, significant_attrs=None, authored=None):
         new_cont = new_cont[1] if new_cont else None
         old_cont = old_cont[1] if old_cont else None
         own = set(named)
-        if role_of(new) == "label" \
+        if _bound_label(new) \
                 and label_position_sticks(new, new_cont) \
                 and not _label_position_rederived(old, new, old_cont,
                                                   new_cont):
@@ -11853,6 +11853,41 @@ def _router_owns(el):
     return el.get("type") in ("arrow", "line") and server_owns_geometry(el)
 
 
+def _bound_label(el):
+    """Is this element a bound label to every layer that has an opinion?
+
+    ONE QUESTION, ONE GRAMMAR, extracted 2026-08-31 because it was being
+    asked in two and bound text fell between them. `_geometry_derived`
+    SUPPRESSES a bound label's coordinate churn on `type == "text"` with
+    a `containerId`; the durability rule that UNDOES that suppression
+    asked `role_of(el) == "label"`. Native Excalidraw bound-text
+    creation, a paste and an import all mint the first without the
+    second, so a `customData.role` that describes nothing about the
+    picture decided whether a landed move was in the record at all.
+    Measured on one labelled rectangle, `+30` down, durable on disk after
+    a fresh load: tagged narrated through both doors, untagged narrated
+    through the agent door (where a `mod` op names the coordinate and
+    provenance un-derives it a layer earlier) and saved as `saved without
+    changing anything` with `by_element []` through the user door.
+
+    A DISJUNCTION AND NOT THE BINDING TEST ALONE. The role is still the
+    answer for a label whose container this scene does not hold and for
+    anything a future writer tags without binding — dropping it would
+    narrow the durability rule while widening it, which is the shape of
+    the defect this closes.
+
+    Args:
+        el: The element being judged.
+
+    Returns:
+        True when the element is bound text or carries the `label` role,
+        which is what `_geometry_derived` suppresses and what the
+        durability rule un-suppresses.
+    """
+    return bool(role_of(el) == "label"
+                or (el.get("type") == "text" and el.get("containerId")))
+
+
 def _label_detached(el, container):
     """Is this bound label's box entirely off its container's?
 
@@ -12033,7 +12068,11 @@ def _geometry_derived(el):
         return True
     if role == "decoration" and _composed_part(cd):
         return True
-    if el.get("type") == "text" and el.get("containerId"):
+    if _bound_label(el):
+        # THE SAME READER THE DURABILITY RULE ASKS. This arm and that
+        # rule were two spellings of one question until 2026-08-31, and
+        # bound text carrying no `customData.role` matched this one and
+        # not that one — so the suppression applied and the undo did not.
         return True
     if el.get("type") in ("arrow", "line") and (
             _norm_binding(el.get("startBinding")) or
@@ -12472,7 +12511,7 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
             # test stops it narrating a coordinate `validate_scene`
             # erases on the next load. Measured: durable at `+8`,
             # erased at `+400`, same element and same attribute.
-            if role_of(el) == "label" and not label_position_sticks(
+            if _bound_label(el) and not label_position_sticks(
                     el, new_ix.get(el.get("containerId"))):
                 continue
             dx = c["to"][0] - c["from"][0]
