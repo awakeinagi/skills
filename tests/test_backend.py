@@ -26937,6 +26937,44 @@ GEOMETRY_WRITERS: dict[str, tuple[int, str]] = {
                          "the CLI standing in for a drag, and a pin protects "
                          "position against the TOOL, never against the "
                          "person who set it"),
+    # Arrived 2026-08-30 with WP-B's repair, and the disposition is the
+    # caller's ruling MEASURED rather than inherited by argument. The
+    # question a pin can actually pose at this site is not whether a
+    # pinned NODE is moved — the loop above never reaches one — but
+    # whether a pinned ARROW's foot may be carried when the node it binds
+    # moves. Answered in a real tab, A/B on one seed with the arrow's
+    # `locked` as the only difference: both arms drag the node
+    # (100,300) -> (66.67,280) and re-seat the foot (260,340) ->
+    # (232.67,322.754), points [[0,0],[461.33,14.655]], byte-identical,
+    # and both leave the save button enabled. Excalidraw's `locked` stops
+    # the user selecting and dragging that element; it does not exempt it
+    # from the binding maintenance a bound node's move triggers. So the
+    # person's own hand moves a pinned foot IN THE PRODUCT, which is what
+    # makes the caller's "never against the person who set it" a fact
+    # here and not a plausible extension of it.
+    #
+    # THE OTHER THREE ARE FALSE, checked rather than passed over.
+    # GATE-COVERED would claim `pin_held_ops` refuses the op: it does not
+    # even on the agent path, because `_pin_kin`'s binding edge runs ONE
+    # WAY — pinned node out to its arrows, never a pinned arrow back to
+    # the nodes it lands on — so an agent `mod x/y` on a node whose bound
+    # arrow is pinned returns an EMPTY held set (measured), and the gate
+    # never sees the user path at all. UPSTREAM would claim the caller
+    # drops pinned first: it does not, and there is nothing for it to
+    # drop. SELF-GUARDED would be a lie the sibling test catches, since
+    # this body never names the predicate.
+    #
+    # WHAT EXEMPT DOES NOT CLAIM: that the pin is unreachable here. It is
+    # reachable and the foot moves. The claim is that a pin carries no
+    # authority over this gesture, and the client is the evidence.
+    "_x_user_carry_feet": (3, "EXEMPT — the same ruling as its only "
+                              "caller `cmd_x_as_user`, measured and not "
+                              "inherited: a real drag moves a LOCKED "
+                              "bound arrow's foot byte-identically to an "
+                              "unlocked one, so a pin cannot bind a write "
+                              "this gesture makes. See the comment above "
+                              "for why the other three dispositions are "
+                              "false"),
     # 5 -> 4 on 2026-08-20: the entity seeder's `out[1]["y"] = ...`
     # left this function when the attribute-row layout was folded
     # into `_compose_attribute_rows`, which re-aligns the label
