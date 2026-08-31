@@ -27781,8 +27781,28 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
 # `mod x,y`, which is exactly what `mermaid --relayout` issues: without the
 # carry four pin gaps go 0/8/8/8px to 1073.0/1482.6/552.8/1047.3px and the
 # standing lint files four pindrift warnings; with it every gap is
-# preserved to the pixel and the lint files none. WP-A acceptance
-# criterion 1 is that relation and not those literals.
+# preserved to the pixel. WP-A acceptance criterion 1 is that relation and
+# not those literals.
+#
+# "AND THE LINT FILES NONE" IS WHAT THAT PARAGRAPH USED TO SAY, and it was
+# a property of three flows written as a property of the carry. THE CARRY
+# CLOSES THE ABSOLUTE DOOR, NOT THE RELATIVE ONE, which is the narrower
+# thing that is actually true. It preserves a pin's OWN gap exactly and
+# leaves the target's own diagonal alone, so `stranded = own > reach`
+# cannot change value across a re-lay at all; but a re-lay moves the pin's
+# NEIGHBOURS, so a glyph still hugging its target at 8px can find a
+# DIFFERENT node at 0px and `own - rival >= PIN_HUG_PX` fires, correctly.
+# Re-laid corpus-wide over every artifact holding a pin, both arms speak
+# with the carry off and only the relative one with it on — three warnings
+# survive the carry on top of the two the corpus carries at rest.
+#
+# THE ARM IS THE FACT TO KEEP AND THE COUNT IS NOT. Which artifacts
+# survive, and how many, is a property of the re-lay geometry chosen and
+# not of the corpus: two independent re-lays measured 19 and 22 warnings
+# with the carry off, both 5 with it on, and they did not agree on which
+# artifacts the survivors sat on. Nothing here should be quoted as a
+# corpus census; what reproduces on any re-lay is "absolute silent,
+# relative still speaking".
 #
 # WHAT THE PAIR PROVED ABOUT ITSELF. The producer red was measured by its
 # author to flip under all three honest repairs and the catalogue red under
