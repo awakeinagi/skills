@@ -27797,7 +27797,33 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # decorator came off first, and
 # `test_the_hand_authored_red_classes_are_the_ones_that_exist` reported
 # `measured {}` against the declared line.
-HAND_AUTHORED_RED_CLASSES: dict[str, int] = {}
+#
+# REFILLED THE SAME DAY BY THE SAME CLASS, hours after it drained, and the
+# shortest round trip this dict has recorded. A third-party review found
+# the class alive on cells the pin's own grid could not offer it: the grid
+# asked for `x: 110` on a bound label sitting at 575, which is far enough
+# to take the label off its container, so `validate_scene`'s detach-reglue
+# arm ERASED the write and the disk referee correctly dropped the cell as
+# non-durable. The referee was right and the STIMULUS never arrived. At
+# `was + 8` the write is durable across two further loads and the record
+# still headlines the empty-save sentence with `by_element: []`.
+#
+# NOT A REGRESSION, AND NOT A PARTIAL REPAIR EITHER. The provenance work
+# closed every cell it could reach; `semantic_facts`' move arm declines
+# `role_of(el) == "label"` BEFORE it consults `authored`, so no amount of
+# provenance reaches the residual and the fixer's repair was not
+# mis-aimed. What the pin got wrong was the SAMPLE, which is the same
+# defect it was written to end one level down: seven point samples named
+# an element id, and this grid named a coordinate.
+#
+# THE VALUE BELOW WAS READ OFF THE GUARD: `test_the_hand_authored_red_
+# classes_are_the_ones_that_exist` reported `measured
+# {'TestAModThatReachesDiskIsNamedByItsOwnRecord': 1}`. The ground the
+# repair won is NOT under the mask — it is held by a second, ungated test
+# in the same class, so a provenance regression fails loudly instead of
+# hiding inside an expected failure.
+HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestAModThatReachesDiskIsNamedByItsOwnRecord": 1}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -34578,6 +34604,23 @@ _LANDED_MOD_SEED: list[dict[str, Any]] = [
 _LANDED_MOD_ATTRS: dict[str, Any] = {
     "x": 110.0, "y": 770.0, "width": 320.0, "height": 60.0,
     "strokeColor": "#123456", "locked": True, "link": "#d", "opacity": 55}
+# THE SECOND PASS, AND THE REASON IT EXISTS IS A COORDINATE LITERAL.
+# Added 2026-08-31 after a third-party review found the class alive on
+# cells this grid could not offer it. `x: 110` is 465px from where a
+# bound label sits, which is far enough to take the label off its
+# container — and `validate_scene`'s detach-reglue arm (ART-007) then
+# ERASES the write. The cell reads as non-durable, drops out of the grid
+# by the referee below, and the case is never put. The referee was right
+# and the STIMULUS never arrived, which is the failure mode a grid is
+# supposed to be immune to and was not.
+#
+# `was + 8` is a nudge no arm undoes. It is a SECOND pass rather than a
+# replacement because the far values are the R7 signature itself (the ❓
+# at (110,778)) and because the two together straddle the durability
+# boundary: the same attribute, the same element, durable at one delta
+# and erased at the other, judged by one referee.
+_LANDED_MOD_NUDGES: dict[str, float] = {"x": 8, "y": 8, "width": 8,
+                                        "height": 8}
 
 
 def stage_every_suppressed_role(mod: Any, root: Path) -> Any:
@@ -34612,14 +34655,23 @@ def landed_mod_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
 
     A cell counts only when the value DIFFERS after a fresh `Store` has
     re-read the project — which is a stricter referee than the store in
-    hand and deliberately so. Four cells of this grid write their new
-    coordinate into the artifact file and then lose it on the next load,
-    because a container re-centres its bound label; nothing durable
-    landed there, "saved without changing anything" is defensible about
-    them, and `TestABoundArrowLabelCannotBeDraggedOffItsArrow` above
-    holds that class as a green pin with the client premises behind it.
-    Reading the bytes rather than the reload would have put this pin in
-    contradiction with that one over exactly those four cells.
+    hand and deliberately so. Some cells write their new coordinate into
+    the artifact file and then lose it on the next load, because a
+    container re-centres its bound label or the applier re-derives an
+    arrow's; nothing durable landed there, "saved without changing
+    anything" is defensible about them, and
+    `TestABoundArrowLabelCannotBeDraggedOffItsArrow` above holds that
+    class as a green pin with the client premises behind it. Reading the
+    bytes rather than the reload would have put this pin in contradiction
+    with that one.
+
+    DURABILITY IS AN OVERLAP TEST, NOT A STRUCTURAL RULE, which is what
+    the review of 2026-08-31 established and what the second pass exists
+    to reach. The same bound label at the same attribute is durable at
+    `+8` and erased at `+400`, so a grid that only ever asks for `+400`
+    concludes the class is closed while it is not. Both passes are judged
+    here by the one referee, so neither the boundary nor its location is
+    written down anywhere: a cell is in when the value survives a reload.
 
     ATTRIBUTION IS ASKED OF THE MODULE, not decided here: a record may
     name the element or the element `part_owner_id` says owns it, which
@@ -34633,21 +34685,31 @@ def landed_mod_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
     Returns:
         One dict per landed cell: the element and attribute, the value on
         disk before and after, the headline, whether that headline is the
-        module's own empty-save sentence, the ids the record named, and
-        whether the intent echo named the element.
+        module's own empty-save sentence, the ids the record named,
+        whether the intent echo named the element, and which pass put the
+        cell (`reach`: "far" for the absolute values, "near" for a nudge).
     """
     cells: list[dict[str, Any]] = []
     ids = [e["id"] for e in
            stage_every_suppressed_role(mod, root / "stage").scenes["d"]]
+    probes = ([(attr, value, "far")
+               for attr, value in _LANDED_MOD_ATTRS.items()]
+              + [(attr, None, "near") for attr in _LANDED_MOD_NUDGES])
     for eid in ids:
-        for attr, value in _LANDED_MOD_ATTRS.items():
-            cell_root = root / ("cell-%s-%s" % (eid, attr))
+        for attr, value, reach in probes:
+            cell_root = root / ("cell-%s-%s-%s" % (eid, attr, reach))
             store = stage_every_suppressed_role(mod, cell_root)
             before = next((e for e in store.scenes["d"] if e["id"] == eid),
                           None)
-            if before is None or before.get(attr) == value:
+            if before is None:
                 continue
             was = before.get(attr)
+            if reach == "near":
+                if not isinstance(was, (int, float)) or isinstance(was, bool):
+                    continue
+                value = was + _LANDED_MOD_NUDGES[attr]
+            if was == value:
+                continue
             ops = [{"op": "mod", "id": eid, "attrs": {attr: value}}]
             record, _pin_only = store.apply_batch({
                 "base_revn": store.head_revn(), "artifact": "d",
@@ -34669,8 +34731,29 @@ def landed_mod_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
                            == mod.EMPTY_SAVE_HEADLINE),
                 "named": sorted(named),
                 "attributed": bool(named & family),
-                "echoed": any(eid in line for line in echo)})
+                "echoed": any(eid in line for line in echo),
+                "reach": reach})
     return cells
+
+
+def is_a_bound_labels_own_position(cell: dict[str, Any]) -> bool:
+    """Is this cell a bound label's own x or y?
+
+    The residual the provenance repair does not reach, named by the shape
+    of the thing rather than by an element id: `semantic_facts`' move arm
+    declines `role_of(el) == "label"` before it consults provenance at
+    all, so an authored coordinate on a label produces a `move` change
+    with no fact behind it. Written as a predicate so the green below can
+    say what the repair DID close without either test carrying a list of
+    ids that would go stale the moment the scene gains an element.
+
+    Args:
+        cell: One entry from `landed_mod_cells`.
+
+    Returns:
+        True for a `label` role's own `x` or `y`.
+    """
+    return cell["role"] == "label" and cell["attr"] in ("x", "y")
 
 
 class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
@@ -34768,6 +34851,47 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
     of the three bound labels — still headline the sentence, which is the
     boundary this class shares with
     `TestABoundArrowLabelCannotBeDraggedOffItsArrow`.
+
+    RED AGAIN THE SAME DAY, and the paragraph above is why: "not durable"
+    was a property of THIS GRID'S COORDINATE LITERAL and not of the cell.
+    A third-party review put the same op at a nearby value and the class
+    was still there. `x: 110` is 465px from where `card-label` sits — far
+    enough to take the label off its container, so `validate_scene`'s
+    detach-reglue arm (ART-007) ERASES the write, the reload shows the
+    old value, and the referee correctly drops the cell. The referee was
+    never wrong; the stimulus never arrived. At `was + 8` the write is in
+    the artifact JSON, survives two further loads, and the record still
+    headlines the empty-save sentence with `by_element: []` — the R7
+    signature verbatim, inside this pin's own stated invariant, and
+    identical before and after the repair.
+
+    DURABILITY IS AN OVERLAP TEST, NOT A STRUCTURAL RULE, and the whole
+    hole is in that one sentence. Re-measured on the fixed head through
+    the AGENT door: `card-label` and `far-label` are durable at `+8` and
+    at `(+60, -40)` and erased at `±400`. So a grid that only ever offers
+    a far value concludes the class is closed while it is open, which is
+    the eighth rung this family keeps climbing — this time built from a
+    literal rather than from an element id.
+
+    THE ARROW-LABEL CASE IS A DOOR ASYMMETRY, and the brief that sent
+    this extension had it as a durability one. Measured both ways:
+    `t1-label` on the USER door is durable at every delta (that arm skips
+    arrow containers), which is `TestABoundArrowLabelCannotBeDraggedOff
+    ItsArrow`'s subject; on the AGENT door it is durable at NO delta,
+    because the applier re-derives an arrow's label placement and the
+    asked-for coordinate never reaches the artifact file at all (asked
+    (842,599), JSON (782,639)). This pin is the agent door, so the arrow
+    label contributes no cell to it and the scene was not grown to hold
+    one. A CONTAINER-bound label is the durable case, and it is the one
+    the grid now puts.
+
+    WHAT THE RESIDUAL IS, so the next fixer does not aim at provenance:
+    `semantic_facts`' move arm declines `role_of(el) == "label"` BEFORE
+    it consults `authored`, and the decline is door-independent. The
+    repair that closed the other 100 cells cannot reach it, and adding
+    more provenance will not either. What flips it is a ruling about
+    whether a label's position is ever the label's own story — see the
+    two repairs measured against this extension in the red's own record.
     """
 
     def setUp(self) -> None:
@@ -34812,6 +34936,18 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
             "very scene. That is the r4-9 repair coming undone, and until "
             "it is back the red below cannot tell a suppressed change "
             "from a differ that has stopped speaking")
+        self.assertNotEqual(
+            [(c["element"], c["attr"], c["reach"]) for c in cells
+             if is_a_bound_labels_own_position(c)], [],
+            "no DURABLE bound-label position is in the grid, so the red "
+            "below is passing over a case it never puts. This is the "
+            "exact hole a third-party review found on 2026-08-31: the "
+            "absolute pass asks for x=110, which is far enough to take "
+            "the label off its container, `validate_scene`'s "
+            "detach-reglue arm erases the write, and the cell drops out "
+            "as non-durable. The referee is right and the stimulus never "
+            "arrives. If the nudge pass has stopped landing too, find a "
+            "delta that survives a reload before reading any colour here")
 
     def test_a_mod_that_re_sends_the_stored_value_says_nothing_changed(
             self) -> None:
@@ -34868,32 +35004,76 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
                 "is now a plain omission — which is a different finding "
                 "and a worse one")
 
+    def test_the_cells_the_provenance_repair_closed_are_still_closed(
+            self) -> None:
+        """The ground already won, ungated so a regression cannot hide.
+
+        The repair of 2026-08-31 closed every landed cell except one
+        shape: a bound label's own position, which `semantic_facts`'
+        move arm declines before it consults provenance at all. This
+        asserts the rest — 100 of the grid's 102 landed cells — WITHOUT
+        the `expectedFailure` mask, so the day the provenance threading
+        regresses, a red that is masked by design cannot swallow it.
+
+        THE EXCLUSION IS A PREDICATE AND NOT A LIST OF IDS. It names the
+        residual by its shape (`is_a_bound_labels_own_position`), so this
+        test does not go stale when the scene gains an element, and it
+        does not have to be edited when the residual is closed — it
+        asserts a subset and keeps passing.
+        """
+        cells = landed_mod_cells(canvas, self.root)
+        closed = [c for c in cells if not is_a_bound_labels_own_position(c)]
+        self.assertEqual(
+            [(c["element"], c["attr"]) for c in closed
+             if c["silent"] or not c["attributed"]], [],
+            "the provenance repair has regressed on %d of the %d cells it "
+            "closed. These are not the residual the red below holds — "
+            "they are cells that were narrated on 2026-08-31 and are not "
+            "now"
+            % (len([c for c in closed
+                    if c["silent"] or not c["attributed"]]), len(closed)))
+
+    @unittest.expectedFailure
     def test_every_landed_mod_is_named_by_the_record_that_saved_it(
             self) -> None:
-        """FLIPPED GREEN 2026-08-31: 0 of 68 landed cells save in silence.
+        """RED AGAIN 2026-08-31: 2 of 102 landed cells save in silence.
 
-        Was the red, at 20 of 68 on this grid and 28 by this referee over
-        the investigation's wider scene. What landed is repair (A) of the
-        three the class docstring measured, in BOTH its halves: an
-        attribute a `mod` op named is no longer stamped `derived` by the
-        differ, and the restyle arm no longer suppresses on element type
-        alone. `Store.apply_batch` collects `{element: {attrs}}` off the
-        batch's `mod` ops and `Store.commit` hands it to both — which is
-        why the user-save door, where no op exists, is untouched.
+        FLIPPED GREEN earlier the same day by the provenance repair, at 0
+        of 68, and RE-RED hours later by a third-party review that found
+        the class alive on cells this grid could not offer it. Both
+        records stand, because the pair is the lesson: the grid's
+        absolute `x: 110` is far enough to take a bound label off its
+        container, `validate_scene`'s detach-reglue arm erases the write,
+        the cell reads as non-durable and drops out — so the pin was
+        measuring a case it never put. A `was + 8` pass puts it, and
+        `card-label` x/y land durably, survive two further loads, and
+        headline the empty-save sentence with `by_element: []`.
 
-        NOTHING WAS PRESCRIBED AND THE ASSERTION IS UNCHANGED: this body
-        is byte-identical to the red's, the decorator is all that came
-        off, and the repair the fixer chose is one of three this class
-        was measured green against.
+        THIS IS NOT A PROVENANCE GAP AND MUST NOT BE AIMED THERE.
+        `semantic_facts`' move arm declines `role_of(el) == "label"`
+        BEFORE provenance is consulted, and the decline is
+        door-independent — the reviewer proved it by handing the differ
+        maximal provenance on every door and watching the residual
+        survive. The line is drawn at "is it a label's position", never
+        at "did it land".
 
-        THE EIGHT NON-DURABLE CELLS STAYED SILENT and that is the half
-        worth reading, because it needed no special case. `card-label`,
-        `far-label` and `t1-label` x/y still headline the empty-save
-        sentence after the change: `semantic_facts`' move arm already
-        declines to narrate a label's position, so un-deriving the
-        coordinate produces a `move` change with no fact behind it and
-        the record goes on saying nothing happened — which is what
-        `TestABoundArrowLabelCannotBeDraggedOffItsArrow` holds.
+        WHAT THE REPAIR DID EARN is held by the ungated green above, so
+        this mask covers the residual and nothing else.
+
+        WHAT FLIPS THE RESIDUAL, measured against this extension with
+        `canvas` rebound to a patched copy, both reporting an unexpected
+        success with every ungated pole still green: (D) THE VERB LAYER —
+        the move arm asks `authored` before declining a label, which is
+        the same question the differ and the restyle arm were taught
+        earlier the same day, asked one layer later; and (E) THE RECORD
+        LAYER — `by_element` rolled off the change list and the headline
+        rewritten when nothing else named the element. Rewriting the
+        headline ALONE leaves this red red, and deleting the empty-save
+        sentence takes the NEIGHBOUR red instead of this. Repair D was
+        also run against
+        `TestABoundArrowLabelCannotBeDraggedOffItsArrow`, which is
+        untouched by it: that class saves through the USER door, and the
+        user door authors nothing.
 
         The whole class in one assertion. A cell fails when the record
         headlines the empty-save sentence over a change that reached disk,
