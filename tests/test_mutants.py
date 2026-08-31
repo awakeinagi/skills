@@ -27856,10 +27856,13 @@ def coverage_table() -> list[tuple[str, str, str]]:
 #
 #   * `...NarratesThroughEitherDoor` is the class itself, measured on the
 #     axes it lives on rather than on one cell: door x co-change x delta,
-#     refereed by asked-value durability. The pin it replaces measures the
-#     agent door and single-change saves and scores 102/102; the same
-#     question scores 26/171 on the user door and 0/137 on co-change
-#     saves.
+#     refereed by asked-value durability. The pin it extends measures the
+#     agent door and single-change saves; on a population of durable label
+#     MOVES that door scores 59/59 while the user door scores 26/171 and
+#     its co-change subset scores 0/137. (That pin's own 102/102 is a
+#     different denominator — its (element x attribute) cells — and the
+#     two are kept apart here because this family has already had one
+#     quoted against the other.)
 #   * `...JudgedByItsBindingAndNotByItsRoleTag` is one gate asked in two
 #     grammars: `_geometry_derived` suppresses on `type == "text"` with a
 #     `containerId`, and the durability half that undoes it reads
@@ -35245,11 +35248,17 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
 # that structurally could not contain the failing cell.
 #
 # THE GRID ABOVE MEASURES A COLUMN THE BUG CANNOT APPEAR IN. It drives the
-# AGENT door and one attribute per save, and it scores 102 of 102. The same
-# question asked on the USER door scores 26 of 171, and on saves where
-# anything else changed in the same save it scores 0 of 137. Neither figure
-# is a criticism of that grid's referee — it is a fact about its axes, and
-# the two axes it is missing are the two this one is built on:
+# AGENT door and one attribute per save, and it scores 102 of its own 102
+# cells. TWO DENOMINATORS ARE WRITTEN OUT HERE because this family has
+# already had one of them quoted against the other: 102 is that grid's
+# (element x attribute) cell count, and the figures below are a separate
+# population — 6 bound labels x 8 deltas x 5 co-change conditions, counting
+# only durable label MOVES. Re-derived here rather than transcribed. On
+# that population the agent door scores 59 of 59; the USER door scores 26
+# of 171; and the co-change subset of it — every cell where anything else
+# changed in the same save — scores 0 of 137. Neither reading is a
+# criticism of that grid's referee: it is a fact about its axes, and the
+# two axes it is missing are the two this one is built on:
 #
 #   * THE DOOR. `mod` ops carry provenance and a browser save carries none.
 #     Every suppressor in the differ was written for churn arriving without

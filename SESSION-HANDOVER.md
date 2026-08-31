@@ -160,8 +160,12 @@ now closed the empty-save class NINE times without closing it: nine
 recognitions of the class in prose, nine implementations of one instance,
 and nine pins whose population structurally could not contain the failing
 cell. The pin the second drain left green measures the AGENT door and
-SINGLE-CHANGE saves and scores 102/102. The same predicate scores 26/171
-on the user door and 0/137 where anything else changed in the same save.
+SINGLE-CHANGE saves. TWO DENOMINATORS, kept apart because this family has
+already had one quoted against the other: over its OWN (element x
+attribute) cells that pin scores 102/102, and over a population of
+durable label MOVES (6 bound labels x 8 deltas x 5 co-change conditions,
+re-derived rather than transcribed) the agent door scores 59/59 while the
+user door scores 26/171 and its co-change subset scores 0/137.
 
 THE DELIVERABLE IS A GRID AND THE REDS HANG OFF IT. Its axes are the axes
 the defect lives on — door (agent | user) x co-change (alone | host moved
