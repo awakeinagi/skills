@@ -150,12 +150,45 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: `TestALandedLabelPositionNarratesThroughEitherDoor` (1), `TestABoundLabelIsJudgedByItsBindingAndNotByItsRoleTag` (1), `TestAHostEntryDoesNotBorrowItsPartsVerb` (1)
+Non-catalog red classes: `TestALandedLabelPositionNarratesThroughEitherDoor` (2), `TestALabelTheWriterDeclinedToTouchIsNotADerivedPosition` (1)
 
-REFILLED WITH THREE 2026-08-31 by the mutant-curator, hours after the
-second drain below, and the reason to read this paragraph before the
-ones under it is that both drains were honest and both were about a
-column the bug does not live in. A review established that this repo has
+REBUILT 2026-08-31 by the mutant-curator, on top of the TENTH closure and
+not on a revert of it, and the shape of the result is the only summary
+worth carrying forward: **the fix and the head before it fail at
+OPPOSITE POLES of one class.** Over one rebuilt grid — 588 cells, three
+doors (the browser's own save shape joined), seven container shapes,
+odd centring offsets and odd displacements throughout — the shipped fix
+narrates 37 of 58 carried labels that nobody positioned and leaves 14 of
+315 landed positions in no record; its predecessor scores 0 and 196 on
+the same builder. Neither head has closed the class, and a grid green on
+either one is not measuring it.
+
+WHAT THE NINTH GRID HELD FIXED, because that is what let the regression
+ship: every centring offset in it was a WHOLE pixel, every displacement
+in it was EVEN, and its "user door" was a server-side reconstruction that
+called `recenter_label` and posted the writer's own float. A reviewer
+changed ONE setup literal — `GROWTH` 40 to 41 — with `canvas.py`
+untouched, and the shipped fix went 2/6 red. `_round_geom` is
+`int(round(v))`, so a container whose `width - label_width` is odd stores
+its label a half pixel off the writer's answer permanently and an odd
+nudge rounds one way before the move and the other way after. Over
+`tests/fixtures` that reaches 108 of 291 shape-bound labels at any odd
+nudge, and 70 at exactly one pixel — the other 38 do not move at all
+while their box does, which is the same arithmetic failing more quietly.
+0 of 291 on the predecessor.
+
+TWO OF THE THREE REDS BELOW DRAINED AND ONE DOUBLED. `cc0d2d0` closed
+the role-tag class and `9918ae1` closed the host-verb class; a review
+verified both and the masks are off. The third gained a second red at the
+other pole, and a FOURTH class arrived with the fix itself —
+`_recentred_to` cannot tell "the writer put it here" from "the writer
+declined to touch it", reachable through `/api/save` with a non-text
+element carrying `role: "label"` and a `containerId`. The same commit
+guarded the sibling early return in that function, three lines up.
+
+THE PARAGRAPHS BELOW DESCRIBE THE GRID THIS ONE REPLACED and are kept
+because the two drains they record were both honest and both were about
+a column the bug does not live in. A review established that this repo has
 now closed the empty-save class NINE times without closing it: nine
 recognitions of the class in prose, nine implementations of one instance,
 and nine pins whose population structurally could not contain the failing
