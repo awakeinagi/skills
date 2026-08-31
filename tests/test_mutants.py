@@ -34637,7 +34637,7 @@ def landed_mod_cells(mod: Any, root: Path) -> list[dict[str, Any]]:
                 "from": was, "to": after.get(attr),
                 "headline": record["summary"]["headline"],
                 "silent": (record["summary"]["headline"]
-                           == empty_save_sentence(mod)),
+                           == mod.EMPTY_SAVE_HEADLINE),
                 "named": sorted(named),
                 "attributed": bool(named & family),
                 "echoed": any(eid in line for line in echo)})
@@ -34669,7 +34669,16 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
     THE SENTENCE IS ASKED OF THE MODULE and never written down, because
     `TestTheEmptySaveGuardIsCoupledToItsOwnWording` above already paid for
     that lesson — a reword left a guard matching nothing and every test
-    that quoted the sentence moved with the reword.
+    that quoted the sentence moved with the reword. It is asked as the
+    CONSTANT, `canvas.EMPTY_SAVE_HEADLINE`, and NOT through that class's
+    `empty_save_sentence()` helper, which routes the question through
+    `headline_for` — the producer. The difference was measured, not
+    reasoned: against a copy whose `headline_for` simply never returns
+    the sentence, the producer-derived neighbour PASSED, because the
+    expectation moved with the cheat it was there to catch. The constant
+    is the one name the WP4 repair made producer and consumer share, so
+    reading it still follows a reword and does not follow a producer that
+    has stopped speaking.
 
     MEASURED 2026-08-31 on this grid: 68 cells land, 20 of them silent,
     and the same 20 are the ones `by_element` leaves unnamed — the two
@@ -34763,8 +34772,10 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
         deleting a true sentence. A `mod` that re-sends the coordinates
         the ❓ already carries changes nothing, and the record says so.
         Measured against a copy whose `headline_for` simply never returns
-        the empty-save sentence, this test goes RED while every cell of
-        the red below goes green — which is the whole reason it is here.
+        the empty-save sentence, this test goes RED while the headline
+        half of the red below goes green on every cell — which is the
+        whole reason it is here, and why it reads the CONSTANT rather
+        than asking the producer what it says today.
 
         Both halves in one assertion: that nothing moved and that the
         record said nothing moved. Either alone is ordinary.
@@ -34780,7 +34791,7 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
                    if e["id"] == "pin-report-page")
         self.assertEqual(
             ((now["x"], now["y"]), record["summary"]["headline"]),
-            ((pin["x"], pin["y"]), empty_save_sentence(canvas)),
+            ((pin["x"], pin["y"]), canvas.EMPTY_SAVE_HEADLINE),
             "a mod that re-sent the stored coordinates either moved the "
             "❓ or stopped saying nothing changed. If it stopped saying "
             "it, the empty-save sentence has been deleted rather than "
