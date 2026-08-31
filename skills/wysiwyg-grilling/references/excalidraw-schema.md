@@ -100,8 +100,12 @@ noise. Never read meaning into coordinates that large.
 ```
 
 `role` drives narration semantics (a label's POSITION never narrates — it is
-its container's to decide, and the loader re-centres it anyway; pin
-lifecycle facts; annotation facts). This used to read "label geometry never
+treated as its container's to decide; pin lifecycle facts; annotation facts).
+The clause that used to follow — "and the loader re-centres it anyway" — was
+measured false and dropped: the load-time ART-007 repair fires only on a
+label lying ENTIRELY OUTSIDE its container's box, and skips an arrow or line
+container altogether, so a bound label nudged 10px inside its container
+keeps that position through a reload. This used to read "label geometry never
 narrates", which was the differ's rule and not the product's: an attribute a
 `mod` op NAMES is narrated whatever the role, so `mod width` on a bound
 label says `resized` and `mod strokeColor` on one says `restyled`. What

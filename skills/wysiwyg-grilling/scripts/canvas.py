@@ -11582,13 +11582,22 @@ def diff_scenes(old_els, new_els, significant_attrs=None, authored=None):
 
     So an attribute an op named is never stamped `derived` here, whatever
     the element is. That is deliberately NOT the same as "narrate it".
-    `semantic_facts` still declines to narrate a bound label's position,
-    so the cells that write a coordinate the loader throws away — a
-    container re-centres its label, and `card-label x` reads back 575
-    after being handed 111 — keep their silence through this change,
-    which is what `TestABoundArrowLabelCannotBeDraggedOffItsArrow`
-    holds as a green pin. The differ stops lying about where a value came
-    from; the verb layer keeps its own ruling about what is worth saying.
+    `semantic_facts` still declines to narrate a bound label's POSITION,
+    so a `mod x` on a bound label keeps its silence through this change,
+    which is what `TestABoundArrowLabelCannotBeDraggedOffItsArrow` holds
+    as a green pin. The differ stops lying about where a value came from;
+    the verb layer keeps its own ruling about what is worth saying.
+
+    AND THE LOADER IS A NARROWER REFEREE THAN THAT SILENCE ASSUMES. The
+    R7 measurements justified it with "nothing durable lands anyway" —
+    hand `card-label` an `x` of 111 and a fresh `Store` reads back 575 —
+    which is true of the value that grid uses and not of the rule. The
+    load-time ART-007 repair fires only on a label lying ENTIRELY OUTSIDE
+    its container's box. Measured 2026-08-31 on the same scene:
+    `card-label x` 575 -> 585, ten pixels and still inside, SURVIVES the
+    reload. The differ is already telling the truth about that cell; what
+    happens to it downstream is `semantic_facts`' ruling, not this
+    function's.
 
     Args:
         old_els: The baseline scene.
@@ -12331,14 +12340,21 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
             # It suppresses on the element's TYPE and never reads the
             # `derived` flag at all, so `diff_scenes` handing it an
             # authored `strokeColor` on a bound label changes nothing
-            # here — measured: provenance in the differ alone closes 14
-            # of the R7 class's 28 cells and stops dead. The type test
-            # dates to the v0 baseline with no rationale recorded, so it
-            # is NARROWED rather than removed: whatever text-element
-            # churn it was written to swallow, an attribute an op named
-            # is not that churn, and the 8 remaining cells were exactly
-            # a `mod strokeColor`/`mod opacity` landing on a text
-            # element and saving in silence.
+            # here — measured on the R7 class's own 28-cell scene:
+            # provenance in the differ alone closes 18 and stops dead,
+            # and this arm closes the other 10. (The class's docstring
+            # and the handover say "14 of 20" and are about the pin's
+            # narrower 68-cell GRID, which reaches four of the five
+            # label-role elements; both numerators are right about their
+            # own denominator, and this comment carried the grid's onto
+            # the class's until it was re-measured on 2026-08-31.) The
+            # type test dates to the v0 baseline with no rationale
+            # recorded, so it is NARROWED rather than removed: whatever
+            # text-element churn it was written to swallow, an attribute
+            # an op named is not that churn, and all 10 remaining cells
+            # were a `mod strokeColor`/`mod opacity` landing on a text
+            # element and saving in silence — eight bound labels and the
+            # two on the ❓ glyph.
             if styled and (el.get("type") != "text" or
                            styled & (authored.get(c["id"]) or frozenset())):
                 F("restyled", c["id"], attrs=sorted(styled), low_signal=True)
@@ -22916,36 +22932,122 @@ class Store:
         self.referential_spent.update((aid, "registry"))
 
     def _by_element(self, diff, facts, consequences, new_els, old_els):
+        """The per-element rollup a save record carries, one per artifact.
+
+        THIS LIST IS WHAT THE AGENT READS BACK to say what it did, which
+        is why two under-reports in it were ruled defects on 2026-08-31
+        rather than left as cosmetics: an entry that lists less than
+        happened makes the agent describe its own change as smaller than
+        it was, and that is the empty-save class one surface further out.
+
+        `attrs_changed` COUNTS THE `move` OP, which it never did. The
+        differ gathers a changed `x`/`y` into a `move` change instead of
+        leaving it among a `mod`'s attrs, and this walk only ever read
+        `mod` — so `{"op": "mod", "attrs": {"x": …, "y": …, "link": …}}`
+        came back as `attrs_changed: ["link"]` with the coordinates
+        simply gone. That was already true of every ordinary node before
+        the provenance repair and became true of pins, bound labels and
+        bound arrows after it: the repair WIDENED a hole it did not dig,
+        and this closes the whole of it rather than the half it widened.
+
+        A PART'S HOST IS NAMED BESIDE IT, never instead of it. Entries
+        are seeded from facts and a part's edit mints a fact about the
+        PART, so modding a slider's track named `track` and nothing
+        else — the agent reads that back as "the track changed" while
+        the user is looking at a slider. `part_owner_id` is the same
+        reader the rest of this repo rolls parts up with, and a bound
+        label answers it too, so restyling `card-label` now names `card`
+        as well.
+        The host takes the part's VERB and a `parts_changed` list, and
+        deliberately NOT the part's `attrs_changed`: no op named an
+        attribute on the host, and copying them up would trade one wrong
+        list for another. Nothing here changes which facts are emitted,
+        which verb is chosen for a fact, or any headline.
+
+        Args:
+            diff: This artifact's bucketed diff.
+            facts: The semantic facts derived from it.
+            consequences: `mark_consequences`' rollup of moves onto the
+                structural change that caused them.
+            new_els: The scene being saved.
+            old_els: The baseline scene.
+
+        Returns:
+            One entry per element a fact named, plus one per composed
+            host whose part was named.
+        """
         new_ix = {e["id"]: e for e in new_els}
         old_ix = {e["id"]: e for e in old_els}
         labels_new = label_map(new_els)
         labels_old = label_map(old_els)
         entries = {}
-        for f in facts:
-            eid = f.get("element")
-            if not eid:
-                continue
+
+        def entry_for(eid, verb):
+            """This element's entry, minted on first mention.
+
+            Args:
+                eid: The element id.
+                verb: The verb to stamp if the entry is new; an existing
+                    entry keeps the one it already has.
+
+            Returns:
+                The entry dict, already in `entries`.
+            """
             el = new_ix.get(eid) or old_ix.get(eid) or {}
-            e = entries.setdefault(eid, {
+            return entries.setdefault(eid, {
                 "id": eid,
                 "kind": kind_of(el) if el else "unknown",
                 "label": display_label(el, labels_new if eid in new_ix
                                        else labels_old) if el else eid,
-                "verb": f["fact"],
+                "verb": verb,
                 "attrs_changed": [],
+                "parts_changed": [],
                 "ops": [],
                 "semantic": {},
                 "consequence_of": consequences.get(eid),
             })
+
+        for f in facts:
+            eid = f.get("element")
+            if not eid:
+                continue
+            e = entry_for(eid, f["fact"])
             e["semantic"][f["fact"]] = {k: v for k, v in f.items()
                                         if k not in ("fact", "element")}
+        # Over a SNAPSHOT of the keys: the loop mints host entries, and a
+        # host is not itself somebody's part in any composite this
+        # product builds — but iterating a dict being written to is a
+        # runtime error rather than a wrong answer, so it is not left to
+        # that being true.
+        for eid in list(entries):
+            el = new_ix.get(eid) or old_ix.get(eid) or {}
+            owner = part_owner_id(el)
+            if not owner or owner == eid or (owner not in new_ix
+                                             and owner not in old_ix):
+                continue
+            host = entry_for(owner, entries[eid]["verb"])
+            if eid not in host["parts_changed"]:
+                host["parts_changed"].append(eid)
         for i, c in enumerate(diff["changes"]):
             eid = c.get("id") or (c.get("element") or {}).get("id")
-            if eid in entries:
-                entries[eid]["ops"].append(i)
-                if c["op"] == "mod":
-                    entries[eid]["attrs_changed"].extend(
-                        a["attr"] for a in c["attrs"])
+            if eid not in entries:
+                continue
+            entries[eid]["ops"].append(i)
+            if c["op"] == "mod":
+                names = [a["attr"] for a in c["attrs"]]
+            elif c["op"] == "move":
+                # the coordinates the differ filed HERE instead of in a
+                # `mod`, and only the one that actually moved: a `move`
+                # is recorded when either changes, so naming both would
+                # report a `y` nobody touched.
+                names = [n for n, k in (("x", 0), ("y", 1))
+                         if c["from"][k] != c["to"][k]]
+            else:
+                continue
+            listed = entries[eid]["attrs_changed"]
+            for n in names:
+                if n not in listed:
+                    listed.append(n)
         return list(entries.values())
 
     # -- tripwires --------------------------------------------------------
