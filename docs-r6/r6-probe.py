@@ -48,7 +48,7 @@ def _cli(*args):
         out = subprocess.run([sys.executable, CANVAS, "--project", PROJECT] + list(args),
                              capture_output=True, text=True, timeout=120)
         return (out.stdout or "") + (out.stderr or "")
-    except Exception as exc:                        # noqa: BLE001 - report, never raise
+    except Exception as exc:
         return "CLI-FAILED: %r" % (exc,)
 
 
@@ -59,7 +59,7 @@ def census():
         None. Prints a table and a TOTAL row.
     """
     sys.path.insert(0, os.path.dirname(CANVAS))
-    import canvas                                   # the product's own predicate
+    import canvas  # the product's own predicate
     print("%-34s %5s %6s %6s %8s %7s" % ("artifact", "els", "arrows", "owned",
                                          "authored", "pinned"))
     tot = [0, 0, 0, 0, 0]
@@ -146,7 +146,7 @@ def lint_drift():
     try:
         with urllib.request.urlopen(url.rstrip("/") + "/api/state", timeout=15) as resp:
             state = json.loads(resp.read().decode("utf-8"))
-    except Exception as exc:                        # noqa: BLE001
+    except Exception as exc:
         print("server lint unreadable: %r" % (exc,))
         return
     served = state.get("lint") or state.get("findings") or state.get("checks")

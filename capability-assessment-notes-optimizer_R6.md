@@ -895,3 +895,68 @@ conclusion, restated by its own subject:
 
 The briefs asked both curators to report anything contradicting them. Both did.
 That instruction cost one sentence and bought four corrections.
+
+---
+
+# S-3 — promoting a run's project into `tests/fixtures/` is a CORPUS CHANGE, not a filing action
+
+**My error, caught by the suite only because a live value disagreed with itself.**
+
+`fixtures.md` says to promote the finished project the day the run ends, and
+R6's close did that: `tests/fixtures/argus-r6/`, verified to load, deliberately
+free of the `.pending`/nested-`project_knowledge` residue that makes the R4
+fixture read as `ARTIFACTS=0` (S-1). Every check I ran on it passed.
+
+**I did not re-run the full suite after promoting it.** Five tests fail:
+
+```
+TestTheCorpusKeepsItsTwoDeliberateFossils::test_exactly_these_two_artifacts_still_carry_legacy_routing
+TestEverySavedRecordAddressesItsOwnContents::test_every_frozen_save_records_hashes_to_its_stored_short_id
+TestLintCallsALineALine::test_the_corpus_carries_no_line_in_the_lint_population
+TestTheOscillatorIsTheRouter::test_nine_frozen_artifacts_never_settle
+TestShapeAwareLabelRoom::test_the_fitter_does_not_grow_a_box_that_has_the_room
+```
+
+Control: with the fixture removed, all five pass — 29 tests, OK.
+
+**`tests/fixtures/` is not an archive. It is a curated corpus whose population
+is itself pinned**, and the tests say so in their own docstrings:
+
+> *"The rebase left two artifacts fossilised, and this says why. v0.9
+> TASK-FOCUS-FOLLOWUP-B re-routed the frozen corpus through `Store.reroute` and
+> took every offer the gate made BUT TWO."*
+
+The intake flow R6 commissioned carries legacy routing — I measured that at T6
+and reported it as a `[C3]` result. Promoting it makes the corpus carry **four**
+deliberate fossils where a test pins exactly two, adds a `line` to a population
+pinned as line-free, and adds artifacts to a nine-artifact oscillator set.
+Every one of those tests is doing its job.
+
+**Resolution:** the corpus is left as it was. The R6 project is preserved at
+`docs-r6/fixture-argus-r6/` — tracked and durable, satisfying what `fixtures.md`
+is actually for (the project surviving the week) **without** joining the frozen
+population that checks are measured against. Promoting it properly is a
+deliberate act that re-decides four curated invariants, and it is not R6's to
+make on the way out of the door.
+
+**Two method corrections this buys:**
+
+1. **`fixtures.md`'s "promote the fixture the same day" is incomplete.** It
+   says nothing about the destination being a *measured* population. A run that
+   follows it literally breaks the tree, and every check it ran on the fixture
+   in isolation will have passed.
+2. **A promoted fixture needs the FULL suite, not a load check.** I verified the
+   fixture loaded, which is the check S-1 was about, and that is orthogonal to
+   the one that mattered.
+
+**How it was actually caught, because that is the transferable part.** Not by
+review, and not by care. The fold's `livedoc refresh` re-derived
+`unittest_suite_cases` to **2070** where the tree I had tested reported **2068**.
+Two tests I could not account for meant the thing I tested was not the thing I
+was folding. The census disagreeing with itself is what forced the re-run.
+
+`corpus_projects` had also moved 5 → 6 and `corpus_census` 24 → 30 artifacts in
+the same refresh — both loud, both mine, and I read them as *bookkeeping
+following the fixture* rather than as *the corpus population changing under four
+tests that pin it*. The signal was there one step before the failure and I
+filed it as noise.
