@@ -2089,11 +2089,36 @@ def _client_chop(token, inner, fs):
     """One token too wide for any line, split the way `z$` splits it.
 
     The shipped client breaks a word this file cannot. `z$`
-    (index-DpKP4sIE.js @274820, reached from `$$`) walks the token
-    CHARACTER BY CHARACTER accumulating per-glyph advances, and closes a
-    chunk the moment the next glyph would overrun the cap — so it never
-    hyphenates and never gives up, and a single glyph wider than the cap
-    takes a line of its own.
+    (index-KJTydiiR.js @274996, reached from `$$` @274753) walks the
+    token CHARACTER BY CHARACTER accumulating per-glyph advances, and
+    closes a chunk the moment the next glyph would overrun the cap — so
+    it never hyphenates and never gives up, and a single glyph wider
+    than the cap takes a line of its own.
+
+    EVERY BUNDLE CITATION IN THIS FILE IS A MINIFIED NAME IN A FILE
+    THAT IS REBUILT, and this one is the note the others point at.
+    They named `index-DpKP4sIE.js` until 2026-08-31, and that file had
+    stopped existing at `3f57a17` when the tree rebuilt to
+    `index-KJTydiiR.js`. THE DANGEROUS HALF IS NOT THE DANGLING NAME.
+    Four of the five symbols this file cited resolve, IN THE BUNDLE
+    THAT SHIPS, to real functions doing something else — `Yn` is
+    assigned nowhere, `_s` is an image-crop helper, `qg` draws an arc,
+    `yd` aliases `useLayoutEffect`, `ai` handles text editing. A reader
+    following one of those lands on working code and believes it. The
+    transcribed ARITHMETIC was re-derived against the shipped bundle
+    and was correct at every site, so what rotted was the address and
+    never the rule.
+
+    SO CITE THE SHAPE, AND TREAT THE NAME AS PERISHABLE. `z$`, `$$` and
+    `Wp.calculate` above happen to have survived this rebuild; that is
+    luck. The pattern worth copying is
+    `client_bound_text_rules` in `tests/test_mutants.py`, which reads
+    the client's caption rules out of the bundle by STRUCTURE and fails
+    loudly when a rebuild stops matching, rather than trusting a name.
+    `test_the_bundle_citations_name_a_file_that_exists` keeps the
+    filenames honest; nothing keeps the symbols honest, by choice —
+    a check that pinned minified names would fail on every rebuild and
+    be relaxed into uselessness by the third one.
 
     Per-character advances and not a re-measure of the accumulated
     string, because that is what `z$` does: its sibling `$$` re-measures
@@ -2604,18 +2629,22 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # after one freedraw joined them).
         #
         # THE FIELD SET IS THE CLIENT'S, READ OFF THE BUNDLE rather than
-        # guessed — `scripts/web/assets/index-QQVNNFtd.js`, and the two
+        # guessed — `scripts/web/assets/index-KJTydiiR.js`, and the two
         # sites disagree about what is optional, which is why the whole
-        # trio is written here:
+        # trio is written here. (Cited against `index-QQVNNFtd.js` until
+        # 2026-08-31; that file stopped existing at a rebuild and both
+        # shapes were re-derived against the one that ships, unchanged.
+        # See the citation note above `_client_chop`.)
         #
-        #   * `restoreElement`, `case "freedraw"` (offset 630243), is
-        #     `qs(e, {points: e.points, lastCommittedPoint: null,
+        #   * `restoreElement`, `case "freedraw"` (offset 630191), is
+        #     `xo(e, {points: e.points, lastCommittedPoint: null,
         #     simulatePressure: e.simulatePressure, pressures:
         #     e.pressures})` — it FORWARDS all three with no defaults of
         #     its own, so whatever is missing here is still missing after
         #     restore. (Contrast `case "line"`/`case "draw"` two clauses
-        #     down, which substitutes a two-point path for a bad one.)
-        #   * the path builder (offset 496985) is
+        #     down at 630428, which substitutes a two-point path for a
+        #     bad one.)
+        #   * the path builder (offset 496932) is
         #     `e.simulatePressure ? e.points : e.points.length ?
         #     e.points.map(([x, y], i) => [x, y, e.pressures[i]]) :
         #     [[0, 0, .5]]`. `points` is dereferenced on BOTH arms, so an
@@ -9246,9 +9275,12 @@ def recenter_label(els, el):
     where it is DRAWN, so the tab's first re-layout moved it and the
     save narrated `Term nudged` about a caption nobody touched, with the
     number wrong too (a container grown 40px narrated 41). It could only
-    ever be seen on `top` and `bottom`; on `middle` both rules reduce to
-    `c.y + (c.height - h)/2` and agree exactly, and every caption in
-    every instrument in this repo was `middle`.
+    ever be seen on `top` and `bottom` OF A RECTANGLE; on a rectangle's
+    `middle` both rules reduce to `c.y + (c.height - h)/2` and agree
+    exactly, and every caption in every instrument in this repo was
+    `middle` over a rectangle. THE SHAPE QUALIFIER IS LOAD-BEARING and
+    was missing from this sentence: on an ellipse and a diamond the two
+    rules do NOT meet on `middle` either — see below.
 
     THE ANCHOR IS THE PRODUCT'S ANSWER AND NOT THE RECORD'S. The reader
     (`_label_position_rederived`) asks THIS function where a caption
@@ -9258,13 +9290,39 @@ def recenter_label(els, el):
     definition of "where a bound caption belongs" in the file, which is
     the two-grammars defect `_bound_label` was extracted to close.
 
-    STILL WRONG FOR AN ELLIPSE AND A DIAMOND, and knowingly so: the
-    client insets a non-rectangular container's coordinates as well
-    (`width/2 * (1 - sqrt(2)/2)` for an ellipse, `width/4` for a
-    diamond), and this function models neither, so a top caption in a
-    160x120 ellipse is written at `c.y + 5` and drawn at `c.y + 22.57`.
-    That is a different repair — the shape's inset, not the padding —
-    and it is unpinned.
+    STILL WRONG FOR AN ELLIPSE AND A DIAMOND, AT EVERY ALIGNMENT, and
+    knowingly so. The client insets a non-rectangular container's
+    coordinates on both axes — vertically `height/2 * (1 - sqrt(2)/2)`
+    for an ellipse and `height/4` for a diamond (the width forms are the
+    x arm) — and it also gives bound text a shape-aware height budget,
+    `getBoundTextMaxHeight`, which is `round(h/2*sqrt(2)) - 2*pad` and
+    `round(h/2) - 2*pad` where a rectangle gets `h - 2*pad`. This
+    function models NEITHER, so a top caption in a 160x120 ellipse is
+    written at `c.y + 5` and drawn at `c.y + 22.57`.
+
+    THE FOLLOW-UP IS THE WHOLE PLACEMENT RULE, NOT THE INSET. This
+    paragraph said "the shape's inset, not the padding" and that
+    prescription is wrong: measured over 2412 cells per shape and
+    alignment, adding the inset alone closes `top`, leaves `bottom`
+    untouched at 2412/2412, and takes `middle` from 603/2412 to
+    2412/2412 — four times worse — because the writer's `(h - lh)/2`
+    and `h - lh - pad` are computed against the container's FULL height
+    while the client computes them against the shape-aware budget, so
+    the inset gets counted twice. Porting `computeBoundTextPosition`
+    whole — the inset AND the shape-aware max height AND its
+    `Math.round` — is 0/2412 in all nine cells. That is the repair, it
+    is unpinned, and no red prescribes it.
+
+    THE `middle` RESIDUAL IS THE HALF-PIXEL FAMILY AND NOT A SECOND
+    INSET BUG. On `middle` the `pad` cancels and the inset is exactly
+    half the unrounded max-height reduction, so the client's rule DOES
+    reduce to `(c.height - h)/2` plus `Math.round`'s residual halved —
+    bounded by 0.25px, and 0.0736px at h=120, not the 35px a
+    scales-with-height reading would predict. It is still reachable and
+    still narrated (29 of 116 middle cells for an ellipse, 14 for a
+    diamond, driven through a real `Store`); it is simply the same
+    half-pixel class as the rest of this wave, and a reader hunting a
+    missing inset there is hunting something already accounted for.
 
     IT SAYS WHETHER IT WROTE, added 2026-08-31 and ignored by every one
     of those call sites. `_recentred_to` asks this function where a label
@@ -14441,8 +14499,17 @@ def shape_band_width(el, y0, y1):
 # from, and `TestShapeAwareLabelRoom` still pins those four numbers.
 
 
-# THE CLIENT'S BOUND-TEXT PADDING. `Yn = 5` in the shipped bundle
-# (index-DpKP4sIE.js), applied on BOTH sides of every rule below.
+# THE CLIENT'S BOUND-TEXT PADDING. `Kn = 5` in the shipped bundle
+# (index-KJTydiiR.js @248728), applied on BOTH sides of every rule below —
+# and, since `recenter_label` was moved onto it, to the vertical anchor of
+# every bound caption this file writes.
+#
+# IT WAS CITED AS `Yn` IN A BUNDLE THAT NO LONGER EXISTS. `Yn` is assigned
+# NOWHERE in the shipped file; the padding has always been read correctly
+# and was attributed to a symbol that is not it. See the citation note
+# above `_client_chop` for why this class of rot is worse than a dangling
+# reference: four of the five symbols this file used to name resolve, in
+# the bundle that ships, to real functions that do something else.
 BOUND_TEXT_PADDING = 5
 
 
@@ -14485,19 +14552,25 @@ def client_wrap_width(container):
     defect this function exists to remove. `fit_label_in`'s docstring
     said "the client wraps bound text to the width we allot" and set
     `autoResize: False` to make that stick. The shipped bundle says
-    otherwise — `ai`, the redraw that runs whenever a container or its
-    text changes (index-DpKP4sIE.js @553053):
+    otherwise — `ri`, the redraw that runs whenever a container or its
+    text changes (index-KJTydiiR.js @553084):
 
-        i = t ? _s(t, e) : e.width
-        a.text = Id(e.originalText, Wt(e), i)
+        (t || !e.autoResize) && (
+            i = t ? js(t, e) : e.width,
+            a.text = Cd(e.originalText, Wt(e), i))
 
     `t` is the CONTAINER. When there is one, the wrap width is
-    `_s(container)` and the label's own stored `width` is not read at
+    `js(container)` and the label's own stored `width` is not read at
     all; `e.width` is reached only by an UNBOUND text. So a bound label
     is re-wrapped to this number on load, and the picture the user sees
     has the line count this returns — not the one we stored.
 
-    `_s` itself (@555833), with `Yn = 5`:
+    CITED AS `ai` UNTIL 2026-08-31, in the previous bundle, and `ai` in
+    the bundle that ships is the text-editing handler, not this. The
+    arithmetic below was re-derived against `js` and is unchanged; see
+    the citation note above `_client_chop`.
+
+    `js` itself (@555678), with `Kn = 5`:
 
         ellipse -> round(w / 2 * sqrt(2)) - 10
         diamond -> round(w / 2)           - 10
@@ -14568,10 +14641,20 @@ def client_wrap_width(container):
 def client_text_headroom(container):
     """Height a bound label may reach before the CLIENT grows the box.
 
-    `qg` in the shipped bundle (index-DpKP4sIE.js @555997), the height
+    `Kg` in the shipped bundle (index-KJTydiiR.js @555889), the height
     twin of `client_wrap_width` and shaped identically — a rhombus
     gives its bound text half its box in BOTH directions, not just
     across.
+
+    CITED AS `qg` UNTIL 2026-08-31, in the previous bundle, and `qg` in
+    the bundle that ships is an arc-drawing helper. The arithmetic was
+    re-derived against `Kg` and is unchanged; see the citation note
+    above `_client_chop`.
+
+    `Kg` IS ALSO `computeBoundTextPosition`'s HEIGHT BUDGET, which is
+    where the same number decides a caption's vertical PLACEMENT and
+    not only its growth. `recenter_label` models the rectangle arm of
+    that placement and neither shape arm — see its own docstring.
 
     Args:
         container: The container element.
@@ -14592,11 +14675,16 @@ def client_text_headroom(container):
 def client_grown_extent(extent, kind):
     """Extent the CLIENT grows a container to when its label outruns it.
 
-    `yd` (index-DpKP4sIE.js @555571). It is the inverse of
+    `bd` (index-KJTydiiR.js @555542). It is the inverse of
     `client_text_headroom` and it is NOT the `+16` this file used to
     grow by: on a diamond the client doubles, so a 40px two-line label
     takes a 200x80 rhombus to **100px** tall where we made it 56 and
     then drew a picture the browser did not.
+
+    CITED AS `yd` UNTIL 2026-08-31, in the previous bundle, and `yd` in
+    the bundle that ships is a `useLayoutEffect` alias. The arithmetic
+    was re-derived against `bd` and is unchanged; see the citation note
+    above `_client_chop`.
 
     Args:
         extent: The label extent that has to fit, in px.
@@ -15522,13 +15610,16 @@ def arrowhead_of(e: dict[str, Any], at_end: bool) -> str | None:
     `arrowhead_of({"type": "line"}, True)` answered `"arrow"`. Two
     independent things in the bundle say no, and either alone would
     settle it. `restoreElement` has a THIRD destructuring site,
-    `case "line": case "draw":` (offset 630480 of
-    `scripts/web/assets/index-QQVNNFtd.js`), where BOTH ends default to
+    `case "line": case "draw":` (offset 630428 of
+    `scripts/web/assets/index-KJTydiiR.js`), where BOTH ends default to
     `null`; and the shape generator draws heads inside
-    `if (e.type === "arrow")` (offset 503083, the destructuring it
-    guards at 503101), so a line's stored
+    `if (e.type === "arrow")` (offset 503007, the destructuring it
+    guards at 503029), so a line's stored
     `endArrowhead` is never read for painting at all — an EXPLICIT
-    `"arrow"` on a line draws nothing. The second is the stronger fact
+    `"arrow"` on a line draws nothing. (Cited against
+    `index-QQVNNFtd.js` until 2026-08-31; re-derived unchanged against
+    the bundle that ships — see the note above `_client_chop`.)
+    The second is the stronger fact
     and it is why this gates on the type rather than merely changing the
     default. `freedraw` (the bundle's legacy `draw`) is covered by the
     same gate.

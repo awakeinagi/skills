@@ -11621,14 +11621,20 @@ class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
 # instead of through the field name.
 #
 # THE ANCHOR IS THE VENDORED BUNDLE, not this repo's belief about the client.
-# `skills/wysiwyg-grilling/scripts/web/assets/index-DIydcWDi.js` carries the
+# `skills/wysiwyg-grilling/scripts/web/assets/index-KJTydiiR.js` carries the
 # destructuring twice, and both spellings are `= "arrow"`:
 #
-#   restoreElement, case "arrow":
+#   restoreElement, case "arrow" (offset 630865):
 #     let{startArrowhead:o=null,endArrowhead:h="arrow"}=e
-#   the shape generator, where the mark is actually emitted:
+#   the shape generator, where the mark is actually emitted (503029,
+#   guarded by `e.type==="arrow"` at 503007):
 #     let{startArrowhead:d=null,endArrowhead:u="arrow"}=e;
 #     if(d!==null){...} if(u!==null){...}
+#
+# CITED AGAINST `index-DIydcWDi.js` UNTIL 2026-08-31, which had stopped
+# existing at a rebuild. Both shapes were re-derived against the bundle that
+# ships and neither moved; see the citation note above `_client_chop` in
+# `canvas.py` for why a dangling bundle name is the mild half of that rot.
 #
 # A destructuring default fires on `undefined` and NEVER on an explicit
 # `null`, and the draw guard is a null test rather than a truthy one — which
@@ -15678,12 +15684,14 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
     to design; the fix read the client instead, and the field set below
     is now asserted BECAUSE the bundle decided it rather than because a
     test guessed. What the bundle says, at
-    `scripts/web/assets/index-QQVNNFtd.js`: `restoreElement`'s
-    `case "freedraw"` (offset 630243) forwards all three fields with no
-    defaults, and the path builder (offset 496985) dereferences `points`
+    `scripts/web/assets/index-KJTydiiR.js`: `restoreElement`'s
+    `case "freedraw"` (offset 630191) forwards all three fields with no
+    defaults, and the path builder (offset 496932) dereferences `points`
     on both of its arms and `pressures` only when `simulatePressure` is
-    falsy. Origin: spike-derivedframe §8, curated during curator batch
-    33, 2026-08-18; flipped 2026-08-18.
+    falsy. Cited against `index-QQVNNFtd.js` until 2026-08-31, a bundle
+    that had stopped existing; both shapes re-derived unchanged. Origin:
+    spike-derivedframe §8, curated during curator batch 33, 2026-08-18;
+    flipped 2026-08-18.
 
     STILL NOT ASSERTED, and still with an owner elsewhere: the client
     rendering NOTHING rather than what it can. This fix stops the
@@ -16955,10 +16963,15 @@ def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
                         font_size: int = 16) -> list[dict]:
     """A rhombus whose cap lands on a HALF PIXEL, carrying `text`.
 
-    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `_s`
-    (index-DpKP4sIE.js @555833, read verbatim) is `Math.round(n/2) -
-    Yn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
-    as `round(w / 2) - pad`. `Math.round` is half-UP — confirmed in a JS
+    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `js`
+    (index-KJTydiiR.js @555678, read verbatim) is `Math.round(n/2) -
+    Kn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
+    as `round(w / 2) - pad`. This said `_s` and `Yn` in a bundle that
+    stopped existing at `3f57a17`; both symbols resolve in the shipped
+    file to something else entirely (`_s` crops images, `Yn` is assigned
+    nowhere), and the arithmetic was re-derived unchanged — see the
+    citation note above `_client_chop` in `canvas.py`. `Math.round` is
+    half-UP — confirmed in a JS
     engine, not assumed, and `floor(x + 0.5)` reproduces it on every
     `w / 2` from 2 to 4000 — while Python's `round` is half-to-EVEN. So
     they part exactly where `w / 2` is a tie AND its floor is even,
@@ -35414,10 +35427,15 @@ class TestAModThatReachesDiskIsNamedByItsOwnRecord(unittest.TestCase):
 #   * ONE CONTAINER TYPE, ONE VERTICAL ALIGNMENT. `recenter_label` has four
 #     branches and the grid drove one. `top` and `bottom` are here, and they
 #     earn their place by disagreeing with the others: both write `y` from
-#     an integer offset (`+6`, `height - label_height - 6`), so they are
+#     an integer offset (`+ BOUND_TEXT_PADDING`,
+#     `height - label_height - BOUND_TEXT_PADDING`), so they are
 #     structurally immune to the rounding boundary on `y` and reachable only
-#     on `x`. An `ellipse` container is here because the container type was
-#     a monoculture and `_router_owns` gates on type.
+#     on `x`. THE OFFSET IS NAMED AND NOT SPELLED, because this sentence
+#     said `+6` and `- 6` and outlived those literals: `84f33fb` moved both
+#     branches onto the client's own constant, which is 5. What the cells
+#     rest on is that the offset is an INTEGER, and that survives the value
+#     changing. An `ellipse` container is here because the container type
+#     was a monoculture and `_router_owns` gates on type.
 #   * BOTH EARLY RETURNS OF `_label_position_rederived` WERE UNTESTED. The
 #     `pinned` and `orphan` fixtures reach them. Neither is decoration:
 #     `pinned` produced a live finding on both heads (below), and `orphan`
@@ -36322,6 +36340,99 @@ def assert_the_label_grid_puts_the_case(case: unittest.TestCase,
         "everywhere and the class is invisible. `GROWTH 40 -> 41` alone "
         "was enough to turn the shipped fix red on the grid this "
         "replaces")
+
+
+# ---------------------------------------------------------------------------
+# "ALL THREE PROTECTED CONTROLS GREEN" HAD NO REFERENT FOR A DAY. The phrase
+# entered at `604a7a0` and is quoted in four docstrings below as the
+# condition every candidate repair was measured under — and nothing named
+# WHICH three, so a reader re-measuring a candidate had to guess, and two
+# readers guessing differently would report the same word about different
+# evidence. That is the unverifiable-claim class this whole wave has been
+# correcting, one level up from the drawings.
+#
+# THIS ROSTER IS A RECONSTRUCTION AND IS MARKED AS ONE. It was derived by
+# the mutant-curator on 2026-08-31, not supplied by the phrase's author, by
+# taking every standing test the label and caption reds name in a `WHAT MUST
+# NOT FLIP IT` clause or in an acceptance criterion. Three is what that
+# derivation yields, which is why the count matches; the count matching is
+# corroboration and not proof. IF THIS LIST IS WRONG, CORRECT THE LIST —
+# that is the whole gain, because a wrong list is arguable and a bare
+# adjective is not.
+#
+# WHAT EACH ONE PROTECTS, since a control without a stated hazard is a name:
+#
+#   * `test_moving_a_bystander_leaves_a_correct_pin_alone` — the repair
+#     WP-A acceptance criterion 3 forbids by name: re-deriving every pin on
+#     every load, which re-places the ones a person nudged where they
+#     wanted them.
+#   * `TestABoundArrowLabelCannotBeDraggedOffItsArrow` — narrating every
+#     detached label's coordinate. That class's silence is honest and
+#     browser-verified (the client re-derives an arrow label's drawn
+#     position; a stored 508 is drawn at 499.5), so a repair that makes the
+#     record speak there has broken something true.
+#   * `TestTheUsersBringToFrontIsUndoneInSilence` — the ordering arm, which
+#     shares the record layer every candidate above patches.
+#
+# NOT ASSERTED GREEN HERE, deliberately: they are ordinary tests and the
+# suite already runs them, so a second assertion would be a copy that can
+# disagree with the original. What is asserted is that the names RESOLVE —
+# the failure this roster exists to prevent is a phrase pointing at nothing.
+PROTECTED_CONTROLS: tuple[str, ...] = (
+    "test_moving_a_bystander_leaves_a_correct_pin_alone",
+    "TestABoundArrowLabelCannotBeDraggedOffItsArrow",
+    "TestTheUsersBringToFrontIsUndoneInSilence")
+
+
+class TestTheProtectedControlsAreNamedAndReal(unittest.TestCase):
+    """The roster four docstrings rest on, kept pointing at real tests.
+
+    A control that has been renamed out of the file is a condition
+    nobody can re-measure, and the phrase would go on reading as though
+    somebody had.
+    """
+
+    def test_every_protected_control_resolves_to_a_test(self) -> None:
+        """The live half: each rostered name is a class or method here."""
+        src = Path(__file__).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        names = {n.name for n in ast.walk(tree)
+                 if isinstance(n, (ast.ClassDef, ast.FunctionDef))}
+        missing = [n for n in PROTECTED_CONTROLS if n not in names]
+        self.assertEqual(
+            missing, [],
+            "these protected controls are named and do not exist: %s. "
+            "Four docstrings say every candidate repair was measured "
+            "with them green, and that sentence is now unverifiable — "
+            "rename the entry or delete it with a reason" % missing)
+
+    def test_the_roster_matches_the_count_the_docstrings_quote(self) -> None:
+        """The other pole: the prose and the list may not drift apart.
+
+        The four docstrings say "all THREE protected controls". A roster
+        that grows or shrinks without those sentences moving leaves the
+        same unverifiable claim in a new size, so the number is checked
+        against the prose that quotes it rather than written twice.
+        """
+        words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
+        src = Path(__file__).read_text(encoding="utf-8")
+        # Only a COUNTING word counts. A bare `\w+` also matches this
+        # roster's own prose ("these protected controls", "%s protected
+        # controls") and reported the guard's own sentences as drift.
+        quoted = re.findall(
+            r"\b(%s)\s+protected controls" % "|".join(words.values()), src)
+        spoken = {w.lower() for w in quoted}
+        self.assertNotEqual(
+            spoken, set(),
+            "no docstring quotes a COUNT of protected controls any more, "
+            "so this roster is guarding a sentence nobody says — delete "
+            "it, or the phrase drifted to a spelling this cannot read")
+        self.assertEqual(
+            spoken, {words.get(len(PROTECTED_CONTROLS), "?")},
+            "the docstrings say %s protected controls and the roster "
+            "holds %d (%s). One of the two was edited alone"
+            % (sorted(spoken), len(PROTECTED_CONTROLS),
+               ", ".join(PROTECTED_CONTROLS)))
 
 
 class TestALandedLabelPositionNarratesThroughEitherDoor(unittest.TestCase):
@@ -39290,10 +39401,11 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
 # SHIPPED BUNDLE rather than from a capture — because the bundle IS the
 # client and it is tracked in this repo.
 #
-# `recenter_label` writes a top-anchored caption at `container.y + 6`. The
-# client writes it at `container.y + BOUND_TEXT_PADDING`, and that constant
-# is 5. Read out of `skills/wysiwyg-grilling/scripts/web/assets/index-*.js`
-# by the extraction below, not remembered:
+# `recenter_label` WROTE a top-anchored caption at `container.y + 6` until
+# `84f33fb`; it now writes `container.y + BOUND_TEXT_PADDING`, which is what
+# the client writes and that constant is 5. Read out of
+# `skills/wysiwyg-grilling/scripts/web/assets/index-*.js` by the extraction
+# below, not remembered:
 #
 #     Kn = 5
 #     getContainerCoords(e)      -> {x: e.x + Kn, y: e.y + Kn}   (rectangle)
@@ -39302,19 +39414,23 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
 #                                   BOTTOM y = r.y + (maxH - h)
 #                                   MIDDLE y = r.y + (maxH/2 - h/2)
 #
-# So for a rectangle the two agree EXACTLY on `middle` — both reduce to
-# `c.y + (c.height - h)/2` — and differ by exactly one pixel on `top` and on
-# `bottom`, in opposite directions. `BOUND_TEXT_PADDING = 5` already exists
-# in `canvas.py` and the writer's own x arm is derived correctly; only the
-# vertical anchor hardcodes a 6.
+# So FOR A RECTANGLE the two agree EXACTLY on `middle` — both reduce to
+# `c.y + (c.height - h)/2` — and differed by exactly one pixel on `top` and
+# on `bottom`, in opposite directions. THE QUALIFIER IS LOAD-BEARING AND WAS
+# MISSING HERE: this said "the two agree exactly on `middle`" flat, and it
+# is false for an ellipse and for a diamond, both of which the client insets
+# (see below). `BOUND_TEXT_PADDING = 5` already existed in `canvas.py` and
+# the writer's own x arm was derived correctly; only the vertical anchor
+# hardcoded a 6.
 #
-# WHY NOTHING CAUGHT IT: EVERY CAPTION IN EVERY INSTRUMENT IS `middle`, the
-# one alignment on which the two rules agree. The grid has `top` and
-# `bottom` FIXTURES, but its client door models a REPOST — translate and
-# re-measure the width — and never the RELAYOUT in which a tab uses the
-# absolute formula, so the constant is never compared. Decomposed over a
-# resize gesture: `top` 768/768 phantom, `bottom` 768/768, `middle` 0/768,
-# and identical on `84c226d`, so this is not the height wave's doing.
+# WHY NOTHING CAUGHT IT: EVERY CAPTION IN EVERY INSTRUMENT IS `middle` OVER
+# A RECTANGLE, the one combination on which the two rules agree. The grid
+# has `top` and `bottom` FIXTURES, but its client door models a REPOST —
+# translate and re-measure the width — and never the RELAYOUT in which a tab
+# uses the absolute formula, so the constant was never compared. Decomposed
+# over a resize gesture: `top` 768/768 phantom, `bottom` 768/768,
+# `middle` 0/768, and identical on `84c226d`, so it was not the height
+# wave's doing.
 #
 # REACHABLE FIVE WAYS, none of them exotic: `add` with an explicit
 # `verticalAlign`; `kind: "kpi"` (bottom); `kind: "slider"` (top);
@@ -39323,14 +39439,67 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
 # TWO THINGS MEASURED AND DELIBERATELY NOT PINNED HERE, named so they are
 # not mistaken for oversights and not rediscovered as new.
 #
-#   * THE ELLIPSE IS WORSE AND IT IS A DIFFERENT CLASS. `recenter_label`
-#     ignores the client's elliptical inset entirely on y, so a
-#     top-anchored caption in a 160x120 ellipse is written at `c.y + 6`
-#     where the tab draws it at `c.y + 22.57` — sixteen pixels, not one.
-#     A red whose population held that would flip under NO repair to the
+#   * THE ELLIPSE AND THE DIAMOND ARE STILL WRONG, AT EVERY ALIGNMENT.
+#     `recenter_label` models no shape inset, so a top-anchored caption in
+#     a 160x120 ellipse is written at `c.y + 5` where the tab draws it at
+#     `c.y + 22.57` — 17.57px, and the figure moved when the anchor did,
+#     which is why it is derived below rather than restated here. The
+#     client's own inset is `nY`'s shape term: `h/2*(1 - sqrt(2)/2)` for an
+#     ellipse, `h/4` for a diamond, added to `Kn` on BOTH axes.
+#
+#     THE FOLLOW-UP IS THE WHOLE PLACEMENT RULE, NOT THE INSET. This entry
+#     said "the shape's inset, not the padding" and that prescription is
+#     WRONG — measured over 2412 (height, caption-height, container-y)
+#     cells per shape and alignment, comparing `_round_geom` of each writer
+#     against `_round_geom` of `computeBoundTextPosition`:
+#
+#                          top          middle        bottom
+#       shipped        2412/2412      603/2412     2412/2412   (ellipse)
+#       A. inset only     0/2412     2412/2412     2412/2412
+#       B. ported whole      0/2412        0/2412        0/2412
+#
+#     Repair A closes `top` and QUADRUPLES `middle` — 603 to 2412 — and
+#     leaves `bottom` exactly where it was, because the writer's own
+#     `(h - lh)/2` and `h - lh - pad` are computed against the container's
+#     FULL height while the client computes them against
+#     `getBoundTextMaxHeight`, which is `round(h/2*sqrt2) - 2*Kn` for an
+#     ellipse and `round(h/2) - 2*Kn` for a diamond. Adding the inset
+#     without the shape-aware max height double-counts the shape. The real
+#     follow-up is `computeBoundTextPosition` ported whole: the inset AND
+#     the shape-aware max height AND its `Math.round`. That is repair B and
+#     it is 0/2412 in all nine cells.
+#
+#     A red whose population held this would flip under NO repair to the
 #     constant, which would make it prescribe rewriting the writer whole.
-#     Pinning the rectangle keeps both layers' repairs available; the
-#     ellipse is a seed for whoever owns `recenter_label`.
+#     Pinning the rectangle kept both layers' repairs available; this is a
+#     seed for whoever owns `recenter_label`, and it is a seed with the
+#     wrong prescription now deleted from it.
+#
+#   * THE `middle` CELLS ARE THE HALF-PIXEL FAMILY, NOT A SECOND INSET BUG,
+#     and this entry had the mechanism wrong even though the counts were
+#     right. It reasoned that `getBoundTextMaxHeight` being
+#     `round(h/2*sqrt2) - 2*pad` means `middle` "does not reduce to
+#     `(c.h - lh)/2`" — which predicts a divergence SCALING WITH `h`, 35px
+#     at `h = 120`. Measured, the max divergence is 0.249477px for an
+#     ellipse over 60..260 and exactly `{0, 0.25}` for a diamond.
+#
+#     IT DOES REDUCE, and the cancellation is exact. The client's middle is
+#     `c.y + Kn + inset + (Kg/2 - lh/2)` with `Kg = round(h/2*sqrt2) - 2Kn`,
+#     so the `+Kn` and the `-2Kn/2` cancel outright, and the inset
+#     `h/2 - h*sqrt2/4` is EXACTLY half the unrounded max-height reduction
+#     `(h - h*sqrt2/2)/2`. What survives is `Math.round`'s residual, halved:
+#     `(round(h*sqrt2/2) - h*sqrt2/2)/2`, bounded by 0.25. At `h = 120` that
+#     is 0.0736px, and `inset - reduction/2` is the same 0.0736 to the bit.
+#     So these cells are the same half-pixel `_round_geom` family this whole
+#     wave has been about, reached through a different arithmetic — and a
+#     reader who takes "16 pixels" for the middle gap will look for a
+#     missing inset that is already accounted for.
+#
+#     THE COUNTS THE WRONG MECHANISM PRODUCED ARE RIGHT, which is why it
+#     survived: ellipse `middle` 201/804 after `_round_geom` and 804/804
+#     exactly, diamond 100/804 and 400/804, narrated in 29 and 14 of 116
+#     cells driven through a real `Store`. Right answer, wrong reason,
+#     and the wrong reason is what a follow-up would have been built on.
 #   * `recenter_label` HAS NO `textAlign` BRANCH AT ALL, while the
 #     bundle's `computeBoundTextPosition` has three (`left -> r.x`,
 #     `right -> r.x + (maxW - w)`). Every server-written caption is
@@ -39905,6 +40074,267 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
             "meet on `middle` for a rectangle only. Cells: %s"
             % (len(narrated), len(self.CASES) * 2,
                canvas.BOUND_TEXT_PADDING, self.rules["padding"], narrated))
+
+
+# ---------------------------------------------------------------------------
+# THE CITATIONS ROTTED AND FOUR OF FIVE LANDED ON REAL FUNCTIONS. Filed by
+# the mutant-curator, 2026-08-31, during the closing pass of the caption
+# wave — found while re-deriving a figure, not by any check.
+#
+# This tree's Python cites the vendored Excalidraw bundle by FILENAME and
+# OFFSET in eleven places, because "read it out of the client" is this
+# repo's standing answer to "what does the tab actually do". EVERY ONE OF
+# THEM WAS DEAD: three distinct filenames, all replaced by rebuilds, most
+# recently to the one that ships at `3f57a17`. They are listed in
+# `RETIRED_BUNDLES` below and DELIBERATELY NOT SPELLED IN THIS PARAGRAPH —
+# a dead name written here is itself a citation, and it kept every entry
+# in that table permanently "used", which is what made the stale-exemption
+# guard below inert. That was found by damaging the real file and watching
+# that guard SURVIVE.
+#
+# THE DANGLING NAME IS THE MILD HALF. Four of the five symbols `canvas.py`
+# named resolve, IN THE BUNDLE THAT SHIPS, to real functions doing
+# something else: `Yn` is assigned nowhere (the padding is `Kn`), `_s`
+# crops images (the wrap width is `js`), `qg` draws an arc (the max height
+# is `Kg`), `yd` aliases `useLayoutEffect` (the growth is `bd`), and `ai`
+# handles text editing (the redraw is `ri`). Every transcribed ARITHMETIC
+# was re-derived against the shipped file and every one was correct — so
+# what rotted was the address and never the rule. A reader following one of
+# those lands on working code and has no way to know they are in the wrong
+# function.
+#
+# WHY THIS CHECK PINS FILENAMES AND NOT SYMBOLS. Minified names change on
+# every rebuild, so a check that pinned them would fail on every rebuild
+# and be relaxed into uselessness by the third one — which is the failure
+# mode `client_bound_text_rules` above avoids by reading the client's rules
+# by STRUCTURE. A filename is different: it is exact, it is cheap, it has
+# no false positives, and it is precisely the thing that went stale here.
+# Symbols stay unguarded ON PURPOSE, and this paragraph is where that
+# choice is recorded rather than left as a gap.
+#
+# WHAT IT CANNOT CATCH, said plainly. A citation whose file exists and
+# whose symbol has been reassigned to another function passes this check.
+# That is the exact defect above, and closing it needs the structural
+# extraction the caption class does — per site, at a cost this check does
+# not pay. What this buys is that the rot cannot happen SILENTLY: a rebuild
+# now fails loudly at every prose site that names the old file, which is
+# the moment to re-read the symbols beside it.
+_BUNDLE_CITATION = re.compile(r"index-[A-Za-z0-9_-]{8}\.js")
+_BUNDLE_ASSETS = (Path(__file__).resolve().parents[1] / "skills"
+                  / "wysiwyg-grilling" / "scripts" / "web" / "assets")
+
+# Bundle filenames tracked prose may still NAME although the file is gone,
+# each mapped to why. Same tactic as `ASPIRATIONAL` above: a legitimate
+# exception is declared with its reason, so it is distinguishable from an
+# oversight and the judgement is never silently re-made. Every entry here
+# is a HISTORICAL note recording what a citation used to say — delete the
+# note and the entry goes with it.
+RETIRED_BUNDLES: dict[str, str] = {
+    "index-DpKP4sIE.js":
+        "named once, in the citation note above `_client_chop`, as the "
+        "bundle whose five symbols rotted. The note is the record of the "
+        "rot and cannot be written without naming it.",
+    "index-QQVNNFtd.js":
+        "named in three retirement clauses (the freedraw field set, the "
+        "arrowhead line pole, this file's freedraw catalogue entry), each "
+        "recording what the site cited before 2026-08-31.",
+    "index-DIydcWDi.js":
+        "named in one retirement clause, on the arrowhead-default anchor "
+        "comment in this file.",
+}
+
+
+def dangling_citations(cited: dict[str, list[str]], present: set[str],
+                       retired: dict[str, str]) -> dict[str, list[str]]:
+    """Which cited bundles resolve to nothing and are not declared gone.
+
+    Split out from the assertion so the guard's own mutants can run the
+    REAL predicate over a damaged inventory. A demonstration that
+    re-implements the rule it is demonstrating proves the copy.
+
+    Args:
+        cited: What `bundle_citations` found, or a damaged stand-in.
+        present: Filenames that actually ship.
+        retired: The declared-gone table.
+
+    Returns:
+        `{filename: sites}` for every citation that resolves to nothing
+        without a written reason. Empty is the healthy answer.
+    """
+    return {name: sites for name, sites in sorted(cited.items())
+            if name not in present and name not in retired}
+
+
+def bundle_citations() -> dict[str, list[str]]:
+    """Every vendored-bundle filename tracked Python names, with its sites.
+
+    Reads the SOURCE rather than importing anything, because the
+    citations live in comments and docstrings and a comment is invisible
+    to every other instrument in this repo.
+
+    The pattern requires an 8-character vite hash, which is what skips
+    `index-AAAA.js` — a name `tests/test_mutants_render.py` WRITES as a
+    synthetic fixture rather than cites, and which must never be
+    expected to exist.
+
+    `RETIRED_BUNDLES`' OWN LINES ARE EXCLUDED, and that is not tidiness.
+    The table's KEYS are bundle filenames written in this very file, so
+    a scan that read them counted the exemption as a use of itself:
+    every retired name vouched for its own entry, and
+    `test_a_retired_bundle_that_nobody_names_is_a_stale_exemption` could
+    never fire. Found by damaging the real file and watching that guard
+    SURVIVE — which is the whole reason a guard gets watched. The span
+    comes from the AST rather than a marker comment, so it cannot drift
+    when the table is edited.
+
+    Returns:
+        `{bundle_filename: ["path:line", ...]}`, sorted, over tracked
+        `tests/*.py` and `canvas.py`.
+    """
+    root = Path(__file__).resolve().parents[1]
+    out: dict[str, list[str]] = {}
+    for path in sorted(root.glob("tests/*.py")) + [
+            root / "skills" / "wysiwyg-grilling" / "scripts" / "canvas.py"]:
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        skip: set[int] = set()
+        if path == Path(__file__).resolve():
+            for node in ast.walk(ast.parse(text)):
+                if (isinstance(node, ast.AnnAssign)
+                        and isinstance(node.target, ast.Name)
+                        and node.target.id == "RETIRED_BUNDLES"):
+                    skip = set(range(node.lineno,
+                                     (node.end_lineno or node.lineno) + 1))
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if lineno in skip:
+                continue
+            for hit in _BUNDLE_CITATION.findall(line):
+                out.setdefault(hit, []).append(
+                    "%s:%d" % (path.relative_to(root), lineno))
+    return out
+
+
+class TestTheBundleCitationsNameAFileThatExists(unittest.TestCase):
+    """The addresses this repo reads the client at, kept resolvable.
+
+    THE INVARIANT: every vendored-bundle filename tracked Python names
+    is either a file that ships, or a name declared retired in
+    `RETIRED_BUNDLES` with a reason. Nothing may cite an address that
+    resolves to nothing, and nothing may go stale quietly.
+
+    NOT A STYLE RULE. The citations are how this repo answers "what does
+    the client actually do" — five of them supply arithmetic
+    `canvas.py` executes. When the filename rots the reader is sent to a
+    file that is not there; when the symbols rot underneath it, as they
+    had, the reader is sent to a function that is not the one meant. The
+    second is out of this check's reach and the note above says so.
+    """
+
+    def test_every_cited_bundle_ships_or_is_declared_retired(self) -> None:
+        """The live half, ungated: no citation points at nothing."""
+        present = {p.name for p in _BUNDLE_ASSETS.glob("index-*.js")}
+        self.assertNotEqual(
+            present, set(),
+            "no vendored bundle is tracked at all, so this check has "
+            "nothing to resolve against and would pass vacuously if the "
+            "citations were all retired")
+        cited = bundle_citations()
+        self.assertNotEqual(
+            cited, {},
+            "no bundle citation was found in any tracked Python, which "
+            "means the pattern has stopped matching rather than that the "
+            "citations are gone — %d of them existed on 2026-08-31"
+            % 14)
+        dangling = dangling_citations(cited, present, RETIRED_BUNDLES)
+        self.assertEqual(
+            dangling, {},
+            "these bundle filenames are cited and do not exist: %s. The "
+            "tree ships %s. Either re-derive the citation against the "
+            "bundle that ships — AND RE-READ THE SYMBOL BESIDE IT, "
+            "because a rebuild renames those too and four of five last "
+            "time resolved to real functions doing something else — or, "
+            "if the mention is a deliberate historical record of what a "
+            "site used to say, add it to `RETIRED_BUNDLES` with that "
+            "reason." % (dangling, sorted(present)))
+
+    def test_a_retired_bundle_that_nobody_names_is_a_stale_exemption(
+            self) -> None:
+        """The other pole: the exemption table may not outlive its notes.
+
+        `RETIRED_BUNDLES` is a list of permissions, and a permission
+        nobody uses is an exemption that has stopped being watched — the
+        same failure `ASPIRATIONAL` above is shaped to prevent. When the
+        last historical note naming a dead bundle is deleted, its entry
+        goes with it, and this is what says so.
+        """
+        cited = bundle_citations()
+        unused = sorted(set(RETIRED_BUNDLES) - set(cited))
+        self.assertEqual(
+            unused, [],
+            "these bundles are declared retired and nothing names them: "
+            "%s. The entry outlived the note it was written for — delete "
+            "it, so the table stays a list of live judgements rather "
+            "than a place exemptions accumulate" % unused)
+
+    def test_the_check_notices_a_citation_it_cannot_resolve(self) -> None:
+        """The guard, watched failing, one mutant per way it can go blind.
+
+        A check nobody has seen fail is decoration, and this one had a
+        specific way of being useless: written as "does the string
+        `index-` appear", it would have been green throughout the entire
+        rot. Each case below is the real inventory with exactly one
+        thing wrong.
+        """
+        present = {p.name for p in _BUNDLE_ASSETS.glob("index-*.js")}
+        real = bundle_citations()
+        self.assertNotEqual(
+            real, {}, "no citation exists to damage, so this "
+                      "demonstration has no subject")
+        # Built rather than written, because a dead name spelled as a
+        # literal here IS a citation and this check would flag its own
+        # demonstration — which it did, on the first run.
+        ghost = "index-" + "Z" * 8 + ".js"
+        live = sorted(present)[0]
+        mutants: list[tuple[str, dict[str, list[str]], set[str],
+                            dict[str, str], bool]] = [
+            ("THE ROT ITSELF: a citation whose bundle stopped existing",
+             {ghost: ["canvas.py:1"]}, present, RETIRED_BUNDLES, True),
+            ("the rot, beside a healthy citation, so one good address "
+             "cannot vouch for a bad one",
+             {ghost: ["canvas.py:1"], live: ["canvas.py:2"]}, present,
+             RETIRED_BUNDLES, True),
+            ("a citation that DOES resolve — must not be flagged",
+             {live: ["canvas.py:2"]}, present, RETIRED_BUNDLES, False),
+            ("a dead name that is DECLARED retired — must not be flagged",
+             {ghost: ["canvas.py:1"]}, present, {ghost: "declared"}, False),
+            ("the assets directory emptied under a live citation",
+             {live: ["canvas.py:2"]}, set(), RETIRED_BUNDLES, True)]
+        missed = [name for name, cited, have, gone, want in mutants
+                  if bool(dangling_citations(cited, have, gone)) != want]
+        self.assertEqual(
+            missed, [],
+            "the resolution predicate answered wrong for %s. A survivor "
+            "here means this check is decoration and the citations are "
+            "unguarded again" % missed)
+        # AND THE EXEMPTION MUST NOT BE A BLANKET.
+        self.assertNotIn(
+            ghost, RETIRED_BUNDLES,
+            "an unknown bundle is declared retired, so the exemption "
+            "table is admitting names nobody wrote a note for")
+        # The pattern must not match the synthetic fixture the render
+        # tier WRITES, or this check would demand a file a test creates.
+        self.assertEqual(
+            _BUNDLE_CITATION.findall("(root / 'assets' / 'index-AAAA.js')"),
+            [],
+            "the citation pattern matches `index-AAAA.js`, which "
+            "`test_mutants_render.py` writes as a fixture rather than "
+            "cites — this check would demand that a synthetic name ship")
+        self.assertEqual(
+            _BUNDLE_CITATION.findall("see %s @555678" % live), [live],
+            "the citation pattern no longer matches a real citation, so "
+            "it would be green over any rot at all")
 
 
 # ---------------------------------------------------------------------------
