@@ -150,7 +150,36 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: `TestAModThatReachesDiskIsNamedByItsOwnRecord` (1)
+Non-catalog red classes: *none*
+
+DRAINED 2026-08-31, the day after it refilled, and it lost a LINE and not a
+number because the class carried exactly one red.
+`TestAModThatReachesDiskIsNamedByItsOwnRecord` left by repair (A) of the
+three it was measured green against, taken in BOTH halves: `apply_batch`
+collects the attributes each `mod` op named, `commit` hands them to
+`diff_scenes` and to `semantic_facts`, and neither suppressor calls an
+authored attribute somebody else's churn any more. PROVENANCE BEATS
+SUPPRESSION is the whole sentence — the three predicates were each written
+about client churn, each is right about the traffic it was written for, and
+none of them asked whether an op had NAMED the attribute.
+
+THE CLASS'S OWN WARNING IS WHY THE FLIP TOOK TWO EDITS AND NOT ONE. It said
+in advance that un-deriving at the differ ALONE closes 14 of 20 and stops,
+because the restyle arm suppresses on `el.get("type") != "text"` and never
+reads the `derived` flag; the fixer owed the second half and the red does
+not flip without it. Measured over the wider scene the class names, under
+the same re-read-from-disk referee: 28 silent of 80 landed became 0 of 80.
+
+THE EIGHT NON-DURABLE CELLS STAYED SILENT WITH NO SPECIAL CASE, which is
+the boundary shared with `TestABoundArrowLabelCannotBeDraggedOffItsArrow`.
+A bound label's x/y is written to the artifact file and thrown away by the
+loader when its container re-centres it, so nothing durable lands there and
+"saved without changing anything" is defensible — and `semantic_facts`'
+move arm already declines to narrate a label's position, so un-deriving the
+coordinate mints a `move` change with no fact behind it. The user-save door
+is untouched by construction: `commit(author="user")` passes no provenance,
+because two element lists cannot say who asked for what. That half still
+needs a browser readback and is still nobody's.
 
 REFILLED 2026-08-31 by the mutant-curator out of assessment run R7, and it
 gained a LINE for the same reason the drain below lost one — the class
@@ -481,7 +510,7 @@ differ again.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
-<!-- live:durable_red_counts -->**1 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
+<!-- live:durable_red_counts -->**0 / 0 / 0**<!-- /live:durable_red_counts --> for `test_mutants.py`, `test_mutants_render.py` and
 `test_backend.py` (the three numbers are a LIVE VALUE as of 2026-08-18 —
 `tests/livedoc.py refresh` writes them from the same grep the line above
 prints, and `TestCoverage.test_the_handover_transcribes_the_durable_red_
