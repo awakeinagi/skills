@@ -11962,18 +11962,28 @@ def label_position_sticks(el, container):
     return not _label_detached(el, container)
 
 
-def _label_box(el):
-    """The four numbers `recenter_label` reads off an element.
+def _recentred_to(el, container):
+    """Where `recenter_label` would leave this label under `container`.
+
+    THE PRODUCT'S OWN WRITER ANSWERS, never a copy of its formula here.
+    `recenter_label` is this repo's single definition of where a carried
+    bound label belongs — centred, or on the header/footer band for a
+    `verticalAlign`, or on `arrow_label_slot` for a linear container, and
+    nowhere at all for a pinned one — and a second copy of that
+    disjunction is how the copies drift. It is called on a COPY in a
+    one-element list, so nothing the caller holds is mutated.
 
     Args:
-        el: Any element, or None.
+        el: The bound label, read for its own box and its `containerId`.
+        container: The element it is bound to; may not be None.
 
     Returns:
-        Its `(x, y, width, height)`, or None when there is no element.
+        The `(x, y)` the writer would give it, which for a pinned label
+        is the position it already has.
     """
-    if el is None:
-        return None
-    return (el.get("x"), el.get("y"), el.get("width"), el.get("height"))
+    probe = dict(el)
+    recenter_label([probe], container)
+    return (probe.get("x"), probe.get("y"))
 
 
 def _label_position_rederived(old, new, old_container, new_container):
@@ -12000,6 +12010,51 @@ def _label_position_rederived(old, new, old_container, new_container):
     durability rule: a user drag, a reconciliation and an op batch are
     all judged by whether anything that re-derives the position moved.
 
+    THE PRESENCE OF A RE-MEASURE IS NOT THE QUESTION, and reading it as
+    one is how this class survived its ninth closure. Until 2026-08-31
+    this answered True the moment the label's `width`, `height` or `text`
+    differed or its container's box did — so an independent reposition
+    that merely SHARED A SAVE with one of those was swallowed whole. The
+    browser changes a bound label's `width` on every save it sends, its
+    own text metrics disagreeing with the stored `text_dims`, so that is
+    the ORDINARY case and not an edge: measured over door x co-change x
+    delta, refereed by re-reading through a fresh `Store`, 8 of 20 landed
+    label positions were in no record and all 8 were the user door with
+    anything else in the same save.
+
+    SO THE QUESTION IS THE DISPLACEMENT AND NOT THE STIMULUS: did this
+    label move by exactly the amount re-centring would have moved it? A
+    label that did was carried; one that ended anywhere else was put
+    there. Both re-derivations above answer True under it — a rename's
+    half-width shift and a container's carry are precisely what the
+    writer would have written.
+
+    TWO WAYS TO BE THE WRITER'S ANSWER, AND BOTH ARE NEEDED — measured,
+    because taking either alone breaks something the other holds.
+
+      * WHERE IT WOULD BE PUT. Every path inside this product that moves
+        a container calls `recenter_label` afterwards, so the label's new
+        coordinate IS the writer's output, to the bit. This is the arm
+        that keeps a rename quiet.
+      * BY HOW MUCH IT WOULD BE MOVED. The stored position is not always
+        the writer's own: `A-label` is created at `x=64` where
+        `recenter_label` answers `64.5`, and the CLIENT carries a bound
+        label by translating it, so a browser drag of the box posts
+        `64 + dx` against a prediction of `64.5 + dx`. On the destination
+        arm alone that half pixel narrates "the label moved" beside the
+        box's own move on the most ordinary gesture there is — the v0.3
+        finding ("qty, cost basis moved right" headlining a Position
+        drag) walking straight back in one element type over. This arm
+        asks the displacement instead, so an offset the label already
+        had survives a carry without becoming a sentence.
+
+    Neither arm is the other's fallback and the union is not two rules:
+    both say "`recenter_label` would have written this", one about the
+    value and one about the change. Measured on the door x co-change x
+    delta grid they agree on all 40 cells — every carried label there is
+    built by calling the writer — which is exactly why the second arm
+    has to be argued from a scene the grid does not contain.
+
     Args:
         old: The label before the save.
         new: The label after it.
@@ -12007,15 +12062,30 @@ def _label_position_rederived(old, new, old_container, new_container):
         new_container: Its container after, or None.
 
     Returns:
-        True when the label's own size changed or its container's box
-        did, so the new coordinate is `recenter_label`'s arithmetic
-        rather than anybody's intent.
+        True when the label ended where `recenter_label` would have put
+        it or moved by the displacement it would have imposed, so the new
+        coordinate is the writer's arithmetic rather than anybody's
+        intent.
     """
-    if (old.get("width"), old.get("height"), old.get("text")) != \
-            (new.get("width"), new.get("height"), new.get("text")):
+    if new_container is None or pinned_to_canvas(new):
+        # Nothing re-derives either one: a label whose container this
+        # scene does not hold is never re-centred, and a pinned label is
+        # the one case `recenter_label` returns without touching — which
+        # is exactly why its position can only ever be somebody's intent.
+        return False
+    now = _recentred_to(new, new_container)
+    if now == (new.get("x", 0), new.get("y", 0)):
         return True
-    return (old_container is not None and new_container is not None
-            and _label_box(old_container) != _label_box(new_container))
+    if old_container is None:
+        return False
+    was = _recentred_to(old, old_container)
+    # Both sides subtract the SAME two floats whenever the label is where
+    # the writer last left it, so the comparison is exact rather than
+    # exact-to-a-tolerance; a carry the client rounded differently falls
+    # to the narrating side, which is the direction to fail in.
+    return ((now[0] - was[0], now[1] - was[1])
+            == (new.get("x", 0) - old.get("x", 0),
+                new.get("y", 0) - old.get("y", 0)))
 
 
 def _geometry_derived(el):
