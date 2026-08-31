@@ -1812,7 +1812,7 @@ def drag_as_user(scene: list[dict], node_id: str, dx: float,
     """
     tmp = Path(tempfile.mkdtemp(prefix="mutants-as-user-"))
     project = canvas.Project(tmp)
-    real_http, app = canvas.http_json, None
+    app = None
     try:
         project.ensure_tree()
         store = canvas.Store(project)
@@ -1825,10 +1825,18 @@ def drag_as_user(scene: list[dict], node_id: str, dx: float,
         canvas.atomic_write(project.state_path,
                             json.dumps({"url": _AS_USER_URL, "pid": 0}))
         app = canvas.ServerApp(project)
-        canvas.http_json = _as_user_transport(app)
-        # The verb prints `REVN=`/`HEADLINE=` for its assessor; swallowed
-        # so a mutant run's own output stays readable.
-        with contextlib.redirect_stdout(io.StringIO()):
+        # `mock.patch.object` rather than assigning `canvas.http_json`,
+        # and the reason is the standing `ty` note in AGENTS.md: ty types
+        # a module-level `def` as that exact function, so ANY rebinding
+        # is rejected — an identical signature included — and the repo's
+        # other monkeypatch sites pay for it with suppressions. A patch
+        # object needs none, and restores on the way out even if the
+        # driver raises. The stdout redirect is beside it because the
+        # verb prints `REVN=`/`HEADLINE=` for its assessor, and a mutant
+        # run's own output should stay readable.
+        with mock.patch.object(canvas, "http_json",
+                               _as_user_transport(app)), \
+                contextlib.redirect_stdout(io.StringIO()):
             canvas.cmd_x_as_user(argparse.Namespace(
                 project=str(tmp), verb="move", artifact=_AS_USER_ARTIFACT,
                 target=node_id, dx=dx, dy=dy, text=None, note=None))
@@ -1836,7 +1844,6 @@ def drag_as_user(scene: list[dict], node_id: str, dx: float,
             (project.artifacts_dir / (_AS_USER_ARTIFACT + ".excalidraw"))
             .read_text(encoding="utf-8"))["elements"]
     finally:
-        canvas.http_json = real_http
         if app is not None:
             app.log_file.close()
         # Runtime state lives OUTSIDE the project root — `Project` keys it
