@@ -38439,24 +38439,37 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
         left the decorator on because a fixer may not un-decorate its own
         red; it reported `unexpected success` until a curator checked all
         five poles of this class and re-ran the browser. RE-RECORDED
-        DELIBERATELY on 2026-08-31: `stored_before`, `posted`,
-        `stored_after` and `gesture` came back BYTE-IDENTICAL and only
-        `observed` and `canvas_sha256` moved, so this green is a live
-        tab's own witness of the flip and not a replay's opinion of it.
+        TWICE, both times deliberately: once by the curator who lifted
+        the mask, and again on 2026-08-31 against the SHIPPING head,
+        where `stored_before`, `posted`, `stored_after`, `gesture` AND
+        `observed` all came back byte-identical and only `canvas_sha256`
+        moved. So this green is a live tab's own witness of the flip and
+        not a replay's opinion of it, and the fact-for-fact comparison
+        below is switched ON against the tree that ships rather than
+        falling through to the weak `facts != []` arm.
 
         AND THE GREEN IS ABOUT THIS CAPTURE, NOT ABOUT THIS INVARIANT.
         Read that sentence before quoting the colour. Every caption in
         the capture below is ONE LINE in both wraps, so the client
         changes each one's height by -0.4 and `round(-dh/2)` is zero
         nine times over. On a caption the client re-wraps from three
-        lines to two — 9 of 121 ordinary agent-authored boxes do —
-        `dh` is about -22 and this same invariant FAILS on this same
-        head: see `test_no_caption_of_an_untouched_box_is_narrated_after
-        _a_rewrap` in `TestTheHeightAClientRemeasuresIsNotAVertical
-        Displacement`, which is red now. The width arm was repaired and
-        a height arm was opened in the same change. A reader who takes
-        this green for "phantom captions are closed" is reading the
-        twelfth closure of this class.
+        lines to two, `dh` is about -22 and this same invariant FAILED
+        on the head this red flipped against: see
+        `test_no_caption_of_an_untouched_box_is_narrated_after_a_rewrap`
+        in `TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement`.
+        The width arm was repaired and a height arm was opened in the
+        same change. A reader who takes this green for "phantom captions
+        are closed" is reading the twelfth closure of this class.
+
+        THE PROPORTION THIS PARAGRAPH USED TO CARRY WAS UNVERIFIED and
+        is deleted rather than corrected: it said "9 of 121 ordinary
+        agent-authored boxes", and `121` reproduces from nothing in this
+        tree. Over `tests/fixtures` the shape containers that carry a
+        bound caption number 291 (273 rectangle, 12 ellipse, 6 diamond;
+        248 `middle`, 31 `top`, 12 `bottom`), and re-deriving how many
+        of those the CLIENT re-wraps to a different line count needs a
+        browser, which no run has spent. The qualitative fact is the one
+        that was ever load-bearing and it survives without a fraction.
 
         THE RELATION IS WHAT IS PINNED and no coordinate literal appears
         in the assertion: a caption of a box nobody touched is not

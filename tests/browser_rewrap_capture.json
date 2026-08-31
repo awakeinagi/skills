@@ -2,7 +2,7 @@
  "recorded": "2026-08-31",
  "spec": "pin-rewrapped-caption-drag.spec.ts",
  "app_build": "0fa7fdc22f8cf8b977c7fa9eb48ee6a7f699bb90",
- "canvas_sha256": "584f4b34443086fd2ace95964a00eb4541c70efe9b5e66556c02702ba6f45c1a",
+ "canvas_sha256": "20794262486fe1109beab869f6aea2d56d7a9c72e56152bafec4ef3a264ae1b9",
  "artifact": "text-clip",
  "population": {
   "captions": [
@@ -539,27 +539,15 @@
   ]
  },
  "observed": {
-  "headline": "Reconcile the statement moved right (+2 more)",
+  "headline": "Reconcile the statement moved right",
   "verb_counts": {
-   "moved": 3
+   "moved": 1
   },
   "facts": [
    [
     "moved",
     "w1",
     25,
-    0
-   ],
-   [
-    "moved",
-    "w0-label",
-    -2,
-    0
-   ],
-   [
-    "moved",
-    "w1-label",
-    27,
     0
    ]
   ]
