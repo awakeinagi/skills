@@ -1,0 +1,1970 @@
+{
+ "artifacts": {
+  "daily-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-compose-analyst",
+     "kind": "arrow",
+     "label": "all three",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-compose-analyst"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-compose-clients",
+     "kind": "arrow",
+     "label": "Brief + Deep-Dive",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-compose-clients"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "startBinding",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-edgar-enrich",
+     "kind": "arrow",
+     "label": "t-edgar-enrich",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-edgar-enrich"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "points",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-market-enrich",
+     "kind": "arrow",
+     "label": "t-market-enrich",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-market-enrich"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "height",
+      "points",
+      "startBinding",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-news-enrich",
+     "kind": "arrow",
+     "label": "t-news-enrich",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-news-enrich"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "points",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-portfolio-enrich",
+     "kind": "arrow",
+     "label": "t-portfolio-enrich",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-portfolio-enrich"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "startBinding",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-trigger-edgar",
+     "kind": "arrow",
+     "label": "t-trigger-edgar",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-trigger-edgar"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "points",
+      "startBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-trigger-market",
+     "kind": "arrow",
+     "label": "t-trigger-market",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-trigger-market"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "startBinding",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-trigger-news",
+     "kind": "arrow",
+     "label": "t-trigger-news",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-trigger-news"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "points",
+      "startBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "t-trigger-portfolio",
+     "kind": "arrow",
+     "label": "t-trigger-portfolio",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "t-trigger-portfolio"
+      }
+     },
+     "verb": "rerouted"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 133,
+       "to": 160
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 267,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         267,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         240,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "87cdc19c7f"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "9311fa8a42"
+       }
+      }
+     ],
+     "id": "t-trigger-market",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 187,
+       "to": 236
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 272,
+       "to": 327
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 217
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 23
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         217,
+         0
+        ],
+        [
+         217,
+         -23
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.342,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": 0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3fabbb11d7"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6aaaa8da57"
+       }
+      }
+     ],
+     "id": "t-trigger-edgar",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 133,
+       "to": 236
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 377
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 267,
+       "to": 217
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 23
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         217,
+         0
+        ],
+        [
+         217,
+         23
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.342,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "news-stream",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": -0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3db3d9e6ae"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "12bca18171"
+       }
+      }
+     ],
+     "id": "t-trigger-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 187,
+       "to": 160
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         213,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         240,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd22ddcc9"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "8f2b8e2a9f"
+       }
+      }
+     ],
+     "id": "t-trigger-portfolio",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "normalize",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "172fc1560c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "ad90620c5e"
+       }
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 560,
+       "to": 507
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 272,
+       "to": 304
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 267,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 21
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         21
+        ],
+        [
+         213,
+         21
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": -0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "normalize",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d361a74b29"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd4c8f079"
+       }
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 560,
+       "to": 507
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 400
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 0,
+       "to": 21
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -21
+        ],
+        [
+         213,
+         -21
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "news-stream",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": 0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "normalize",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": -0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1db0e3a03e"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f6edd3f15b"
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 267,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "normalize",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6d89123fab"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "5f1be05ae1"
+       }
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1840,
+       "to": 1760
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 320
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         -48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -48
+        ],
+        [
+         320,
+         -48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "0ba68c5d43"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f5c419de66"
+       }
+      }
+     ],
+     "id": "t-compose-analyst",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1760,
+       "to": 1840
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 384,
+       "to": 352
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         48
+        ],
+        [
+         320,
+         48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e26b896441"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "721894f093"
+       }
+      }
+     ],
+     "id": "t-compose-clients",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1981,
+       "to": 1694
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 280
+      }
+     ],
+     "id": "t-compose-analyst-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1814,
+       "to": 2101
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 360
+      }
+     ],
+     "id": "t-compose-clients-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "arrow": "t-compose-analyst",
+     "element": "t-compose-analyst",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-compose-clients",
+     "element": "t-compose-clients",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-edgar-enrich",
+     "element": "t-edgar-enrich",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-market-enrich",
+     "element": "t-market-enrich",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-news-enrich",
+     "element": "t-news-enrich",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-portfolio-enrich",
+     "element": "t-portfolio-enrich",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-trigger-edgar",
+     "element": "t-trigger-edgar",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-trigger-market",
+     "element": "t-trigger-market",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-trigger-news",
+     "element": "t-trigger-news",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "t-trigger-portfolio",
+     "element": "t-trigger-portfolio",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2101,
+       "to": 1814
+      },
+      {
+       "attr": "y",
+       "from": 360,
+       "to": 422
+      }
+     ],
+     "id": "t-compose-clients-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1694,
+       "to": 1981
+      },
+      {
+       "attr": "y",
+       "from": 280,
+       "to": 342
+      }
+     ],
+     "id": "t-compose-analyst-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1840,
+       "to": 1760
+      },
+      {
+       "attr": "y",
+       "from": 352,
+       "to": 384
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         48
+        ],
+        [
+         320,
+         48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "721894f093"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e26b896441"
+       }
+      }
+     ],
+     "id": "t-compose-clients",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1760,
+       "to": 1840
+      },
+      {
+       "attr": "y",
+       "from": 320,
+       "to": 352
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -48
+        ],
+        [
+         320,
+         -48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         -48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f5c419de66"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "0ba68c5d43"
+       }
+      }
+     ],
+     "id": "t-compose-analyst",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 267
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "normalize",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "5f1be05ae1"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6d89123fab"
+       }
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 507,
+       "to": 560
+      },
+      {
+       "attr": "y",
+       "from": 400,
+       "to": 432
+      },
+      {
+       "attr": "height",
+       "from": 21,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -21
+        ],
+        [
+         213,
+         -21
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "news-stream",
+        "focus": 0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "normalize",
+        "focus": -0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f6edd3f15b"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1db0e3a03e"
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 507,
+       "to": 560
+      },
+      {
+       "attr": "y",
+       "from": 304,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "from": 213,
+       "to": 267
+      },
+      {
+       "attr": "height",
+       "from": 21,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         21
+        ],
+        [
+         213,
+         21
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": -0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "normalize",
+        "focus": 0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd4c8f079"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d361a74b29"
+       }
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 213
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "normalize",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "ad90620c5e"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "172fc1560c"
+       }
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 160,
+       "to": 187
+      },
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 213
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         240,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         213,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "8f2b8e2a9f"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd22ddcc9"
+       }
+      }
+     ],
+     "id": "t-trigger-portfolio",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 236,
+       "to": 133
+      },
+      {
+       "attr": "y",
+       "from": 377,
+       "to": 432
+      },
+      {
+       "attr": "width",
+       "from": 217,
+       "to": 267
+      },
+      {
+       "attr": "height",
+       "from": 23,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         217,
+         0
+        ],
+        [
+         217,
+         23
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.342,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "news-stream",
+        "focus": -0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "12bca18171"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3db3d9e6ae"
+       }
+      }
+     ],
+     "id": "t-trigger-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 236,
+       "to": 187
+      },
+      {
+       "attr": "y",
+       "from": 327,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "from": 217,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "from": 23,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         217,
+         0
+        ],
+        [
+         217,
+         -23
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.342,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": 0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6aaaa8da57"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3fabbb11d7"
+       }
+      }
+     ],
+     "id": "t-trigger-edgar",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 160,
+       "to": 133
+      },
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 267
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         240,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         267,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "9311fa8a42"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "87cdc19c7f"
+       }
+      }
+     ],
+     "id": "t-trigger-market",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 28,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1934366
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 29,
+ "round": 6,
+ "saved_at": "2026-08-17T21:27:09Z",
+ "selection_at_save": [],
+ "short_id": "810ce6c",
+ "summary": {
+  "headline": "rerouted t-compose-analyst (+9 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "rerouted": 10
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "re-routed 10 legacy arrow(s): t-compose-analyst: path moves up to 408px; t-compose-clients: path moves up to 408px; t-edgar-enrich: 2-point path becomes 3-point; start re-aimed; t-market-enrich: path moves up to 27px; end re-aimed; t-news-enrich: 2-point path becomes 3-point; start re-aimed; t-portfolio-enrich: path moves up to 27px; end re-aimed; t-trigger-edgar: 2-point path becomes 3-point; start/end re-aimed; t-trigger-market: path moves up to 27px; start re-aimed; t-trigger-news: 2-point path becomes 3-point; start/end re-aimed; t-trigger-portfolio: path moves up to 27px; start re-aimed — revert this save to put the old geometry back"
+}

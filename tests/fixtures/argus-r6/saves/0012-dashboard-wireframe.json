@@ -1,0 +1,6330 @@
+{
+ "artifacts": {
+  "dashboard-wireframe": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "text"
+     ],
+     "consequence_of": null,
+     "id": "kpi-var-value",
+     "kind": "text",
+     "label": "2.4%",
+     "ops": [
+      42,
+      43
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 496,
+       "dy": 16,
+       "label": "2.4%",
+       "low_signal": true,
+       "spatial": "moved right-down"
+      },
+      "renamed": {
+       "from": "1.8%",
+       "to": "2.4%"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [
+      "text"
+     ],
+     "consequence_of": null,
+     "id": "kpi-run-value",
+     "kind": "text",
+     "label": "4/5",
+     "ops": [
+      44,
+      45
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 476,
+       "dy": 16,
+       "label": "4/5",
+       "low_signal": true,
+       "spatial": "moved right-down"
+      },
+      "renamed": {
+       "from": "5/5",
+       "to": "4/5"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "height",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "kpi-var",
+     "kind": "kpi",
+     "label": "VaR (95%, 1-day)",
+     "ops": [
+      50,
+      51
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "VaR (95%, 1-day)",
+       "screen": "Dashboard — as it is today"
+      },
+      "label_renamed": {
+       "from": "Portfolio VaR",
+       "to": "VaR (95%, 1-day)"
+      },
+      "moved": {
+       "dx": 496,
+       "dy": 16,
+       "label": "VaR (95%, 1-day)",
+       "spatial": "moved right-down"
+      },
+      "renamed": {
+       "from": "Portfolio VaR",
+       "to": "VaR (95%, 1-day)"
+      },
+      "resized": {
+       "label": "VaR (95%, 1-day)"
+      },
+      "tooltip_changed": {
+       "label": "VaR (95%, 1-day)",
+       "text": "The one KPI that is genuinely a pipeline output — it comes off the risk model.\n\n"
+      },
+      "value_changed": {
+       "from": "1.8%",
+       "label": "VaR (95%, 1-day)",
+       "to": "2.4%"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-portfolio-value-value",
+     "kind": "text",
+     "label": "$4.82M",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "$4.82M",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha-value",
+     "kind": "text",
+     "label": "+3.1%",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "+3.1%",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-sentiment-value",
+     "kind": "text",
+     "label": "62",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "62",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity-x1",
+     "kind": "line",
+     "label": "chart-equity-x1",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-equity-x1",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity-x2",
+     "kind": "line",
+     "label": "chart-equity-x2",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-equity-x2",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap-x1",
+     "kind": "line",
+     "label": "chart-heatmap-x1",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-heatmap-x1",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap-x2",
+     "kind": "line",
+     "label": "chart-heatmap-x2",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-heatmap-x2",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown-x1",
+     "kind": "line",
+     "label": "chart-drawdown-x1",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-drawdown-x1",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown-x2",
+     "kind": "line",
+     "label": "chart-drawdown-x2",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-drawdown-x2",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-portfolio-value",
+     "kind": "kpi",
+     "label": "Portfolio value",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Portfolio value"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha",
+     "kind": "kpi",
+     "label": "Alpha",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Alpha"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-sentiment",
+     "kind": "kpi",
+     "label": "Sentiment index",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Sentiment index"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-run-tile",
+     "kind": "text",
+     "label": "not on the real screen — wanted",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "annotated": {
+       "author": "agent",
+       "target": "kpi-run",
+       "text": "not on the real screen — wanted"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-equity",
+     "kind": "image",
+     "label": "Equity curve vs benchmark",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "image",
+       "label": "Equity curve vs benchmark"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-heatmap",
+     "kind": "image",
+     "label": "Sector heat map",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "image",
+       "label": "Sector heat map"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-drawdown",
+     "kind": "image",
+     "label": "Drawdown",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "image",
+       "label": "Drawdown"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-benchmark",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Where do the benchmark series and the portfolio-value history come from? Neither is a DataSource and neither is something a PipelineRun emits."
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-instrument-sector",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "What does an Instrument actually carry — is sector the only attribute, or is there a whole reference-data layer here?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-report-page",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "If reports open in place, is the PDF the artifact — or an export of a page?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-signals-value",
+     "kind": "text",
+     "label": "24",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "deleted": {
+       "low_signal": true,
+       "was": {
+        "kind": "text",
+        "label": "24"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-clusters-value",
+     "kind": "text",
+     "label": "3",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "deleted": {
+       "low_signal": true,
+       "was": {
+        "kind": "text",
+        "label": "3"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-risk-conviction-x1",
+     "kind": "line",
+     "label": "chart-risk-conviction-x1",
+     "ops": [
+      27
+     ],
+     "semantic": {
+      "deleted": {
+       "low_signal": true,
+       "was": {
+        "kind": "line",
+        "label": "chart-risk-conviction-x1"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-risk-conviction-x2",
+     "kind": "line",
+     "label": "chart-risk-conviction-x2",
+     "ops": [
+      28
+     ],
+     "semantic": {
+      "deleted": {
+       "low_signal": true,
+       "was": {
+        "kind": "line",
+        "label": "chart-risk-conviction-x2"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-var-trend-x1",
+     "kind": "line",
+     "label": "chart-var-trend-x1",
+     "ops": [
+      29
+     ],
+     "semantic": {
+      "deleted": {
+       "low_signal": true,
+       "was": {
+        "kind": "line",
+        "label": "chart-var-trend-x1"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-var-trend-x2",
+     "kind": "line",
+     "label": "chart-var-trend-x2",
+     "ops": [
+      30
+     ],
+     "semantic": {
+      "deleted": {
+       "low_signal": true,
+       "was": {
+        "kind": "line",
+        "label": "chart-var-trend-x2"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-signals",
+     "kind": "kpi",
+     "label": "Signals ≥ 0.70",
+     "ops": [
+      31
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "kpi",
+        "label": "Signals ≥ 0.70"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-clusters",
+     "kind": "kpi",
+     "label": "Insider clusters",
+     "ops": [
+      32
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "kpi",
+        "label": "Insider clusters"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-risk-conviction",
+     "kind": "image",
+     "label": "Risk × conviction",
+     "ops": [
+      33
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "image",
+        "label": "Risk × conviction"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-var-trend",
+     "kind": "image",
+     "label": "VaR vs 2.5% alert",
+     "ops": [
+      34
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "image",
+        "label": "VaR vs 2.5% alert"
+       }
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-run-health",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      39
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-risk-conviction-split",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      40
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "height",
+      "name"
+     ],
+     "consequence_of": null,
+     "id": "screen-dashboard",
+     "kind": "frame",
+     "label": "Dashboard — as it is today",
+     "ops": [
+      41
+     ],
+     "semantic": {
+      "reading_order_changed": {
+       "order": [
+        "Argus · Fri 7 Aug · run 06:04",
+        "Portfolio value",
+        "Alpha",
+        "VaR (95%, 1-day)",
+        "Sentiment index",
+        "Sources in",
+        "Equity curve vs benchmark",
+        "Sector heat map",
+        "Drawdown",
+        "Signals Digest",
+        "Weekly Brief",
+        "Risk Deep-Dive"
+       ],
+       "screen": "Dashboard — as it is today",
+       "was": [
+        "Argus · Fri 7 Aug · run 06:04",
+        "Portfolio VaR",
+        "Signals ≥ 0.70",
+        "Insider clusters",
+        "Sources in",
+        "Risk × conviction",
+        "VaR vs 2.5% alert",
+        "Signals Digest",
+        "Weekly Brief",
+        "Risk Deep-Dive"
+       ]
+      },
+      "renamed": {
+       "from": "Dashboard — morning",
+       "to": "Dashboard — as it is today"
+      },
+      "resized": {
+       "label": "Dashboard — as it is today"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest-value",
+     "kind": "text",
+     "label": "today",
+     "ops": [
+      46
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 204,
+       "label": "today",
+       "low_signal": true,
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "kpi-portfolio-value-value",
+     "id": "card-brief-value",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "ops": [
+      47
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "kpi-portfolio-value-value",
+       "dx": 188,
+       "dy": 204,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "kpi-portfolio-value-value",
+     "id": "card-deepdive-value",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "ops": [
+      48
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "kpi-portfolio-value-value",
+       "dx": 376,
+       "dy": 204,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "height",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "dash-header",
+     "kind": "nav",
+     "label": "Argus · Fri 7 Aug · run 06:04",
+     "ops": [
+      49
+     ],
+     "semantic": {
+      "resized": {
+       "label": "Argus · Fri 7 Aug · run 06:04"
+      },
+      "tooltip_changed": {
+       "label": "Argus · Fri 7 Aug · run 06:04",
+       "text": "**Unconfirmed.** You never described the chrome, so the run stamp is still my in"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "height",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "kpi-run",
+     "kind": "kpi",
+     "label": "Sources in",
+     "ops": [
+      52,
+      53
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Sources in",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 476,
+       "dy": 16,
+       "label": "Sources in",
+       "spatial": "moved right-down"
+      },
+      "resized": {
+       "label": "Sources in"
+      },
+      "tooltip_changed": {
+       "label": "Sources in",
+       "text": "**The one thing here that isn't as-is.** Doesn't exist on the real screen; you s"
+      },
+      "value_changed": {
+       "from": "5/5",
+       "label": "Sources in",
+       "to": "4/5"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "height",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "card-digest",
+     "kind": "kpi",
+     "label": "Signals Digest",
+     "ops": [
+      54,
+      55
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Signals Digest",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 0,
+       "dy": 204,
+       "label": "Signals Digest",
+       "spatial": "moved down"
+      },
+      "resized": {
+       "label": "Signals Digest"
+      },
+      "tooltip_changed": {
+       "label": "Signals Digest",
+       "text": "Opens in place — no download. Which means the Digest is a **page**, and the PDF "
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "card-brief",
+     "kind": "kpi",
+     "label": "Weekly Brief",
+     "ops": [
+      56,
+      57
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Weekly Brief",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 188,
+       "dy": 204,
+       "label": "Weekly Brief",
+       "spatial": "moved right-down"
+      },
+      "resized": {
+       "label": "Weekly Brief"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "card-deepdive",
+     "kind": "kpi",
+     "label": "Risk Deep-Dive",
+     "ops": [
+      58,
+      59
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Risk Deep-Dive",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": 376,
+       "dy": 204,
+       "label": "Risk Deep-Dive",
+       "spatial": "moved right-down"
+      },
+      "resized": {
+       "label": "Risk Deep-Dive"
+      }
+     },
+     "verb": "resized"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-portfolio-value"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-portfolio-value-grp"
+      ],
+      "height": 30,
+      "id": "kpi-portfolio-value-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "$4.82M",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 697100036,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "$4.82M",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 86,
+      "x": 175,
+      "y": 176
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-alpha"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-alpha-grp"
+      ],
+      "height": 30,
+      "id": "kpi-alpha-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "+3.1%",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1241805394,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "+3.1%",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 72,
+      "x": 430,
+      "y": 176
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-sentiment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-sentiment-grp"
+      ],
+      "height": 30,
+      "id": "kpi-sentiment-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "62",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 913217490,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "62",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 28,
+      "x": 948,
+      "y": 176
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "7fdc9ed202",
+       "x_of": "chart-equity"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-equity-grp"
+      ],
+      "height": 280,
+      "id": "chart-equity-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 792032086,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 100,
+      "y": 312
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "cdad3cee97",
+       "x_of": "chart-equity"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-equity-grp"
+      ],
+      "height": 280,
+      "id": "chart-equity-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        -280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 909910764,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 100,
+      "y": 592
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "10f0350f72",
+       "x_of": "chart-heatmap"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-heatmap-grp"
+      ],
+      "height": 280,
+      "id": "chart-heatmap-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2108896367,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 516,
+      "y": 312
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "ec45deb73c",
+       "x_of": "chart-heatmap"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-heatmap-grp"
+      ],
+      "height": 280,
+      "id": "chart-heatmap-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        -280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1689937365,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 516,
+      "y": 592
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "0596c53720",
+       "x_of": "chart-drawdown"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-drawdown-grp"
+      ],
+      "height": 280,
+      "id": "chart-drawdown-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1075067016,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 932,
+      "y": 312
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "d339c1538c",
+       "x_of": "chart-drawdown"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-drawdown-grp"
+      ],
+      "height": 280,
+      "id": "chart-drawdown-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        -280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1495099698,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 932,
+      "y": 592
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-portfolio-value-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Comes from the Portfolio DB. Note it does **not** come out of a PipelineRun — no enrichment, no scoring, no confidence gate touches this number. It is a read of a source, displayed.",
+       "value": "$4.82M"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-portfolio-value-grp"
+      ],
+      "height": 96,
+      "id": "kpi-portfolio-value",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 254503836,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 236,
+      "x": 100,
+      "y": 168
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-alpha-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Alpha is return **against a benchmark**. There is no benchmark anywhere in the pipeline, the glossary, or the five DataSources. Something is supplying it and nothing on any of these diagrams knows what.",
+       "value": "+3.1%"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-alpha-grp"
+      ],
+      "height": 96,
+      "id": "kpi-alpha",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 665930734,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 236,
+      "x": 348,
+      "y": 168
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-sentiment-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Rolled up from the sentiment scorer — so this one does come from the pipeline. But it is a raw enricher output shown directly, jumping over the risk model, the aggregator and the 0.70 gate. The screen is reading from the middle of the pipeline, not the end.",
+       "value": "62"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-sentiment-grp"
+      ],
+      "height": 96,
+      "id": "kpi-sentiment",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1984261075,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 236,
+      "x": 844,
+      "y": 168
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "annotates": "kpi-run",
+       "author": "agent",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": "screen-dashboard",
+      "groupIds": [],
+      "height": 17,
+      "id": "note-run-tile",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "not on the real screen — wanted",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 661484098,
+      "strokeColor": "#5c8a5f",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "not on the real screen — wanted",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 260,
+      "x": 1092,
+      "y": 272
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-equity-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "Needs two things the pipeline does not have: a **benchmark series**, and a **history of portfolio value over time**. A PipelineRun emits Signals for one morning; nothing in the vocabulary stores a curve."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-equity-grp"
+      ],
+      "height": 280,
+      "id": "chart-equity",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1307102780,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 100,
+      "y": 312
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-heatmap-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "Needs a **sector** for every Instrument. The glossary says a Position is of an Instrument and stops there — Instruments have no attributes at all. This chart is the evidence that they need at least one."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-heatmap-grp"
+      ],
+      "height": 280,
+      "id": "chart-heatmap",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1917490451,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 516,
+      "y": 312
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-drawdown-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "Peak-to-trough on the same value history the equity curve needs. Also backward-looking: this whole row is about how the portfolio **has performed**, while the pipeline is about what to do **today**."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-drawdown-grp"
+      ],
+      "height": 280,
+      "id": "chart-drawdown",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1994756353,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 932,
+      "y": 312
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-portfolio-value",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-portfolio-value-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio value",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 979169240,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio value",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 144,
+      "x": 146,
+      "y": 238
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-alpha",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-alpha-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Alpha",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1507097230,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Alpha",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 48,
+      "x": 442,
+      "y": 238
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-sentiment",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-sentiment-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sentiment index",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 633249550,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sentiment index",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 144,
+      "x": 890,
+      "y": 238
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-equity",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-equity-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Equity curve vs benchmark",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 207746710,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Equity curve vs benchmark",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 240,
+      "x": 182,
+      "y": 442
+     },
+     "index": 37,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-heatmap",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-heatmap-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sector heat map",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 473487116,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sector heat map",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 646,
+      "y": 442
+     },
+     "index": 38,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-drawdown",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-drawdown-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Drawdown",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1418881107,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Drawdown",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1096,
+      "y": 442
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Where do the benchmark series and the portfolio-value history come from? Neither is a DataSource and neither is something a PipelineRun emits.",
+       "role": "pin",
+       "status": "open",
+       "target": "chart-equity"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-benchmark",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1769932177,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 512,
+      "y": 304
+     },
+     "index": 40,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What does an Instrument actually carry — is sector the only attribute, or is there a whole reference-data layer here?",
+       "role": "pin",
+       "status": "open",
+       "target": "chart-heatmap"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-instrument-sector",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 576762825,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 928,
+      "y": 304
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "If reports open in place, is the PDF the artifact — or an export of a page?",
+       "role": "pin",
+       "status": "open",
+       "target": "card-digest"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-report-page",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 238877762,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 512,
+      "y": 604
+     },
+     "index": 42,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-signals"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-signals-grp"
+      ],
+      "height": 30,
+      "id": "kpi-signals-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "24",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1804335472,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "24",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 28,
+      "x": 340,
+      "y": 160
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-clusters"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-clusters-grp"
+      ],
+      "height": 30,
+      "id": "kpi-clusters-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "3",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 207256089,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "3",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 14,
+      "x": 519,
+      "y": 160
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "6afdbe7c28",
+       "x_of": "chart-risk-conviction"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 744650956,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 236
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "f48f4ec165",
+       "x_of": "chart-risk-conviction"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 896215414,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 396
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "3444e35e1b",
+       "x_of": "chart-var-trend"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 97628194,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 236
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "c712c822d2",
+       "x_of": "chart-var-trend"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 483975576,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 396
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-signals-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Count of Signals that cleared the confidence gate. Drawn with the threshold in the label because the number is meaningless without it — 24 signals at what bar?",
+       "value": "24"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-signals-grp"
+      ],
+      "height": 72,
+      "id": "kpi-signals",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 927563523,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 272,
+      "y": 152
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-clusters-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "3+ insiders, 10 trading days. A conviction signal — it never touched the risk number in the tile to its left.",
+       "value": "3"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-clusters-grp"
+      ],
+      "height": 72,
+      "id": "kpi-clusters",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 198218882,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 444,
+      "y": 152
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-risk-conviction-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "**A guess, and the sharpest one on this screen.** You told me risk and conviction are two different numbers computed on two different paths that only meet at the aggregator.\n\nIf that is true of the pipeline, a two-axis plot is the honest picture of it: names that are high-conviction and low-risk are the interesting quadrant, and crowding would show up as a cluster.\n\nIf the real dashboard shows one blended score instead, then the screen has flattened a distinction the pipeline maintains — which is exactly the kind of drift you said you couldn't locate."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1692284115,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 236
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-var-trend-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "VaR over recent runs with the alert line drawn on it. Guessed. The value of a line rather than a tile is that it says whether you are drifting toward 2.5% or sitting still — a single number can't."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 968622568,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 236
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-signals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-signals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Signals ≥ 0.70",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2019291564,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Signals ≥ 0.70",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 134,
+      "x": 287,
+      "y": 198
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-clusters",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "kpi-clusters-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Insider clusters",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 529167045,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Insider clusters",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 140,
+      "x": 456,
+      "y": 178
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-risk-conviction",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-risk-conviction-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk × conviction",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1780405935,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk × conviction",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 186,
+      "y": 306
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-var-trend",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-var-trend-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "VaR vs 2.5% alert",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 405378140,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "VaR vs 2.5% alert",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 530,
+      "y": 306
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is there anything on your real dashboard that tells you the run was complete?",
+       "role": "pin",
+       "status": "open",
+       "target": "kpi-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-run-health",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1648549032,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 788,
+      "y": 144
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the screen keep risk and conviction as two numbers, the way the pipeline does — or does it blend them into one score?",
+       "role": "pin",
+       "status": "open",
+       "target": "chart-risk-conviction"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-risk-conviction-split",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1907892592,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 444,
+      "y": 228
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 720,
+       "to": 1280
+      },
+      {
+       "attr": "height",
+       "from": 480,
+       "to": 720
+      },
+      {
+       "attr": "name",
+       "from": "Dashboard — morning",
+       "to": "Dashboard — as it is today"
+      }
+     ],
+     "id": "screen-dashboard",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "1.8%",
+       "to": "2.4%"
+      }
+     ],
+     "id": "kpi-var-value",
+     "op": "mod"
+    },
+    {
+     "from": [
+      154,
+      160
+     ],
+     "id": "kpi-var-value",
+     "op": "move",
+     "to": [
+      650,
+      176
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "5/5",
+       "to": "4/5"
+      }
+     ],
+     "id": "kpi-run-value",
+     "op": "mod"
+    },
+    {
+     "from": [
+      676,
+      160
+     ],
+     "id": "kpi-run-value",
+     "op": "move",
+     "to": [
+      1152,
+      176
+     ]
+    },
+    {
+     "from": [
+      174,
+      416
+     ],
+     "id": "card-digest-value",
+     "op": "move",
+     "to": [
+      174,
+      620
+     ]
+    },
+    {
+     "from": [
+      374,
+      416
+     ],
+     "id": "card-brief-value",
+     "op": "move",
+     "to": [
+      562,
+      620
+     ]
+    },
+    {
+     "from": [
+      602,
+      416
+     ],
+     "id": "card-deepdive-value",
+     "op": "move",
+     "to": [
+      978,
+      620
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 680,
+       "to": 1240
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 40,
+       "to": 48
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "nav",
+        "role": "node",
+        "tooltip": "The run stamp is deliberate: this is the only place the screen could tell you *which* run you are looking at. If your real header doesn't carry it, that is a finding."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "nav",
+        "role": "node",
+        "tooltip": "**Unconfirmed.** You never described the chrome, so the run stamp is still my invention. If the real header carries nothing but a title, delete the text — it matters, because this is the only place the screen could say which run you are looking at."
+       }
+      }
+     ],
+     "id": "dash-header",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 164,
+       "to": 236
+      },
+      {
+       "attr": "height",
+       "from": 72,
+       "to": 96
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Straight off the risk model. The 2.5% alert threshold lives against this number — but the alert reaches you out of band, not through this tile, so a tile showing 1.8% and an alert that already fired are two different channels telling you about the same thing.",
+        "value": "1.8%"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "The one KPI that is genuinely a pipeline output — it comes off the risk model.\n\nWorth staring at: your alert threshold is **2.5%** and the screen is showing **2.4%**. The headline number on the morning dashboard is sitting a tenth of a point under the alarm.",
+        "value": "2.4%"
+       }
+      }
+     ],
+     "id": "kpi-var",
+     "op": "mod"
+    },
+    {
+     "from": [
+      100,
+      152
+     ],
+     "id": "kpi-var",
+     "op": "move",
+     "to": [
+      596,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 164,
+       "to": 236
+      },
+      {
+       "attr": "height",
+       "from": 72,
+       "to": 96
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "**I invented this tile.** Nothing you have said implies the dashboard reports on the health of the run that produced it.\n\nI drew it because you have five sources, three of which you don't control, and a parked question about what happens when one is late. If the screen can't say '4/5', then on the morning EDGAR is missing this dashboard looks exactly as confident as every other morning.",
+        "value": "5/5"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "**The one thing here that isn't as-is.** Doesn't exist on the real screen; you said keep it.\n\nIt reads 4/5, not 4/4 — because the macro calendar is off by choice, not absent by accident, and a tile that can't tell those apart is not worth having. That distinction is most of this tile's job.",
+        "value": "4/5"
+       }
+      }
+     ],
+     "id": "kpi-run",
+     "op": "mod"
+    },
+    {
+     "from": [
+      616,
+      152
+     ],
+     "id": "kpi-run",
+     "op": "move",
+     "to": [
+      1092,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 220,
+       "to": 404
+      },
+      {
+       "attr": "height",
+       "from": 100,
+       "to": 120
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Daily. Cut from this morning's run. Internal only — by practice, not by policy.",
+        "value": "today"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Opens in place — no download. Which means the Digest is a **page**, and the PDF is an export of it rather than the thing itself.",
+        "value": "today"
+       }
+      }
+     ],
+     "id": "card-digest",
+     "op": "mod"
+    },
+    {
+     "from": [
+      100,
+      408
+     ],
+     "id": "card-digest",
+     "op": "move",
+     "to": [
+      100,
+      612
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 220,
+       "to": 404
+      },
+      {
+       "attr": "height",
+       "from": 100,
+       "to": 120
+      }
+     ],
+     "id": "card-brief",
+     "op": "mod"
+    },
+    {
+     "from": [
+      328,
+      408
+     ],
+     "id": "card-brief",
+     "op": "move",
+     "to": [
+      516,
+      612
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 220,
+       "to": 404
+      },
+      {
+       "attr": "height",
+       "from": 100,
+       "to": 120
+      }
+     ],
+     "id": "card-deepdive",
+     "op": "mod"
+    },
+    {
+     "from": [
+      556,
+      408
+     ],
+     "id": "card-deepdive",
+     "op": "move",
+     "to": [
+      932,
+      612
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 301,
+       "to": 581
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 110,
+       "to": 114
+      }
+     ],
+     "id": "dash-header-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 120,
+       "to": 644
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 198,
+       "to": 218
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 124,
+       "to": 140
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 20,
+       "to": 40
+      },
+      {
+       "attr": "text",
+       "from": "Portfolio VaR",
+       "to": "VaR (95%, 1-day)"
+      },
+      {
+       "attr": "autoResize",
+       "from": true,
+       "to": false
+      }
+     ],
+     "id": "kpi-var-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 650,
+       "to": 1162
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 198,
+       "to": 238
+      }
+     ],
+     "id": "kpi-run-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 143,
+       "to": 235
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 482,
+       "to": 706
+      }
+     ],
+     "id": "card-digest-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 380,
+       "to": 660
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 482,
+       "to": 706
+      }
+     ],
+     "id": "card-brief-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 599,
+       "to": 1067
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 482,
+       "to": 706
+      }
+     ],
+     "id": "card-deepdive-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "kpi-var-value",
+     "fact": "renamed",
+     "from": "1.8%",
+     "to": "2.4%"
+    },
+    {
+     "element": "kpi-run-value",
+     "fact": "renamed",
+     "from": "5/5",
+     "to": "4/5"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "renamed",
+     "from": "Portfolio VaR",
+     "to": "VaR (95%, 1-day)"
+    },
+    {
+     "element": "kpi-portfolio-value-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "$4.82M",
+     "low_signal": true
+    },
+    {
+     "element": "kpi-alpha-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "+3.1%",
+     "low_signal": true
+    },
+    {
+     "element": "kpi-sentiment-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "62",
+     "low_signal": true
+    },
+    {
+     "element": "chart-equity-x1",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-equity-x1",
+     "low_signal": true
+    },
+    {
+     "element": "chart-equity-x2",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-equity-x2",
+     "low_signal": true
+    },
+    {
+     "element": "chart-heatmap-x1",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-heatmap-x1",
+     "low_signal": true
+    },
+    {
+     "element": "chart-heatmap-x2",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-heatmap-x2",
+     "low_signal": true
+    },
+    {
+     "element": "chart-drawdown-x1",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-drawdown-x1",
+     "low_signal": true
+    },
+    {
+     "element": "chart-drawdown-x2",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-drawdown-x2",
+     "low_signal": true
+    },
+    {
+     "element": "kpi-portfolio-value",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Portfolio value"
+    },
+    {
+     "element": "kpi-alpha",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Alpha"
+    },
+    {
+     "element": "kpi-sentiment",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Sentiment index"
+    },
+    {
+     "author": "agent",
+     "element": "note-run-tile",
+     "fact": "annotated",
+     "target": "kpi-run",
+     "text": "not on the real screen — wanted"
+    },
+    {
+     "element": "chart-equity",
+     "fact": "added",
+     "kind": "image",
+     "label": "Equity curve vs benchmark"
+    },
+    {
+     "element": "chart-heatmap",
+     "fact": "added",
+     "kind": "image",
+     "label": "Sector heat map"
+    },
+    {
+     "element": "chart-drawdown",
+     "fact": "added",
+     "kind": "image",
+     "label": "Drawdown"
+    },
+    {
+     "element": "pin-benchmark",
+     "fact": "pin_added",
+     "question": "Where do the benchmark series and the portfolio-value history come from? Neither is a DataSource and neither is something a PipelineRun emits."
+    },
+    {
+     "element": "pin-instrument-sector",
+     "fact": "pin_added",
+     "question": "What does an Instrument actually carry — is sector the only attribute, or is there a whole reference-data layer here?"
+    },
+    {
+     "element": "pin-report-page",
+     "fact": "pin_added",
+     "question": "If reports open in place, is the PDF the artifact — or an export of a page?"
+    },
+    {
+     "element": "kpi-signals-value",
+     "fact": "deleted",
+     "low_signal": true,
+     "was": {
+      "kind": "text",
+      "label": "24"
+     }
+    },
+    {
+     "element": "kpi-clusters-value",
+     "fact": "deleted",
+     "low_signal": true,
+     "was": {
+      "kind": "text",
+      "label": "3"
+     }
+    },
+    {
+     "element": "chart-risk-conviction-x1",
+     "fact": "deleted",
+     "low_signal": true,
+     "was": {
+      "kind": "line",
+      "label": "chart-risk-conviction-x1"
+     }
+    },
+    {
+     "element": "chart-risk-conviction-x2",
+     "fact": "deleted",
+     "low_signal": true,
+     "was": {
+      "kind": "line",
+      "label": "chart-risk-conviction-x2"
+     }
+    },
+    {
+     "element": "chart-var-trend-x1",
+     "fact": "deleted",
+     "low_signal": true,
+     "was": {
+      "kind": "line",
+      "label": "chart-var-trend-x1"
+     }
+    },
+    {
+     "element": "chart-var-trend-x2",
+     "fact": "deleted",
+     "low_signal": true,
+     "was": {
+      "kind": "line",
+      "label": "chart-var-trend-x2"
+     }
+    },
+    {
+     "element": "kpi-signals",
+     "fact": "deleted",
+     "was": {
+      "kind": "kpi",
+      "label": "Signals ≥ 0.70"
+     }
+    },
+    {
+     "element": "kpi-clusters",
+     "fact": "deleted",
+     "was": {
+      "kind": "kpi",
+      "label": "Insider clusters"
+     }
+    },
+    {
+     "element": "chart-risk-conviction",
+     "fact": "deleted",
+     "was": {
+      "kind": "image",
+      "label": "Risk × conviction"
+     }
+    },
+    {
+     "element": "chart-var-trend",
+     "fact": "deleted",
+     "was": {
+      "kind": "image",
+      "label": "VaR vs 2.5% alert"
+     }
+    },
+    {
+     "element": "pin-run-health",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "pin-risk-conviction-split",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "screen-dashboard",
+     "fact": "renamed",
+     "from": "Dashboard — morning",
+     "to": "Dashboard — as it is today"
+    },
+    {
+     "element": "screen-dashboard",
+     "fact": "resized",
+     "label": "Dashboard — as it is today"
+    },
+    {
+     "dx": 496,
+     "dy": 16,
+     "element": "kpi-var-value",
+     "fact": "moved",
+     "label": "2.4%",
+     "low_signal": true,
+     "spatial": "moved right-down"
+    },
+    {
+     "dx": 476,
+     "dy": 16,
+     "element": "kpi-run-value",
+     "fact": "moved",
+     "label": "4/5",
+     "low_signal": true,
+     "spatial": "moved right-down"
+    },
+    {
+     "dx": 0,
+     "dy": 204,
+     "element": "card-digest-value",
+     "fact": "moved",
+     "label": "today",
+     "low_signal": true,
+     "spatial": "moved down"
+    },
+    {
+     "consequence_of": "kpi-portfolio-value-value",
+     "dx": 188,
+     "dy": 204,
+     "element": "card-brief-value",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "kpi-portfolio-value-value",
+     "dx": 376,
+     "dy": 204,
+     "element": "card-deepdive-value",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "element": "dash-header",
+     "fact": "resized",
+     "label": "Argus · Fri 7 Aug · run 06:04"
+    },
+    {
+     "element": "dash-header",
+     "fact": "tooltip_changed",
+     "label": "Argus · Fri 7 Aug · run 06:04",
+     "text": "**Unconfirmed.** You never described the chrome, so the run stamp is still my in"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "resized",
+     "label": "VaR (95%, 1-day)"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "value_changed",
+     "from": "1.8%",
+     "label": "VaR (95%, 1-day)",
+     "to": "2.4%"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "tooltip_changed",
+     "label": "VaR (95%, 1-day)",
+     "text": "The one KPI that is genuinely a pipeline output — it comes off the risk model.\n\n"
+    },
+    {
+     "dx": 496,
+     "dy": 16,
+     "element": "kpi-var",
+     "fact": "moved",
+     "label": "VaR (95%, 1-day)",
+     "spatial": "moved right-down"
+    },
+    {
+     "element": "kpi-run",
+     "fact": "resized",
+     "label": "Sources in"
+    },
+    {
+     "element": "kpi-run",
+     "fact": "value_changed",
+     "from": "5/5",
+     "label": "Sources in",
+     "to": "4/5"
+    },
+    {
+     "element": "kpi-run",
+     "fact": "tooltip_changed",
+     "label": "Sources in",
+     "text": "**The one thing here that isn't as-is.** Doesn't exist on the real screen; you s"
+    },
+    {
+     "dx": 476,
+     "dy": 16,
+     "element": "kpi-run",
+     "fact": "moved",
+     "label": "Sources in",
+     "spatial": "moved right-down"
+    },
+    {
+     "element": "card-digest",
+     "fact": "resized",
+     "label": "Signals Digest"
+    },
+    {
+     "element": "card-digest",
+     "fact": "tooltip_changed",
+     "label": "Signals Digest",
+     "text": "Opens in place — no download. Which means the Digest is a **page**, and the PDF "
+    },
+    {
+     "dx": 0,
+     "dy": 204,
+     "element": "card-digest",
+     "fact": "moved",
+     "label": "Signals Digest",
+     "spatial": "moved down"
+    },
+    {
+     "element": "card-brief",
+     "fact": "resized",
+     "label": "Weekly Brief"
+    },
+    {
+     "dx": 188,
+     "dy": 204,
+     "element": "card-brief",
+     "fact": "moved",
+     "label": "Weekly Brief",
+     "spatial": "moved right-down"
+    },
+    {
+     "element": "card-deepdive",
+     "fact": "resized",
+     "label": "Risk Deep-Dive"
+    },
+    {
+     "dx": 376,
+     "dy": 204,
+     "element": "card-deepdive",
+     "fact": "moved",
+     "label": "Risk Deep-Dive",
+     "spatial": "moved right-down"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "block_moved_within_screen",
+     "label": "VaR (95%, 1-day)",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "kpi-run",
+     "fact": "block_moved_within_screen",
+     "label": "Sources in",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "card-digest",
+     "fact": "block_moved_within_screen",
+     "label": "Signals Digest",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "card-brief",
+     "fact": "block_moved_within_screen",
+     "label": "Weekly Brief",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "card-deepdive",
+     "fact": "block_moved_within_screen",
+     "label": "Risk Deep-Dive",
+     "screen": "Dashboard — as it is today"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "label_renamed",
+     "from": "Portfolio VaR",
+     "to": "VaR (95%, 1-day)"
+    },
+    {
+     "element": "screen-dashboard",
+     "fact": "reading_order_changed",
+     "order": [
+      "Argus · Fri 7 Aug · run 06:04",
+      "Portfolio value",
+      "Alpha",
+      "VaR (95%, 1-day)",
+      "Sentiment index",
+      "Sources in",
+      "Equity curve vs benchmark",
+      "Sector heat map",
+      "Drawdown",
+      "Signals Digest",
+      "Weekly Brief",
+      "Risk Deep-Dive"
+     ],
+     "screen": "Dashboard — as it is today",
+     "was": [
+      "Argus · Fri 7 Aug · run 06:04",
+      "Portfolio VaR",
+      "Signals ≥ 0.70",
+      "Insider clusters",
+      "Sources in",
+      "Risk × conviction",
+      "VaR vs 2.5% alert",
+      "Signals Digest",
+      "Weekly Brief",
+      "Risk Deep-Dive"
+     ]
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1067,
+       "to": 599
+      },
+      {
+       "attr": "y",
+       "from": 706,
+       "to": 482
+      }
+     ],
+     "id": "card-deepdive-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 660,
+       "to": 380
+      },
+      {
+       "attr": "y",
+       "from": 706,
+       "to": 482
+      }
+     ],
+     "id": "card-brief-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 235,
+       "to": 143
+      },
+      {
+       "attr": "y",
+       "from": 706,
+       "to": 482
+      }
+     ],
+     "id": "card-digest-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1162,
+       "to": 650
+      },
+      {
+       "attr": "y",
+       "from": 238,
+       "to": 198
+      }
+     ],
+     "id": "kpi-run-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 644,
+       "to": 120
+      },
+      {
+       "attr": "y",
+       "from": 218,
+       "to": 198
+      },
+      {
+       "attr": "width",
+       "from": 140,
+       "to": 124
+      },
+      {
+       "attr": "height",
+       "from": 40,
+       "to": 20
+      },
+      {
+       "attr": "text",
+       "from": "VaR (95%, 1-day)",
+       "to": "Portfolio VaR"
+      },
+      {
+       "attr": "autoResize",
+       "from": false,
+       "to": true
+      }
+     ],
+     "id": "kpi-var-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 581,
+       "to": 301
+      },
+      {
+       "attr": "y",
+       "from": 114,
+       "to": 110
+      }
+     ],
+     "id": "dash-header-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      932,
+      612
+     ],
+     "id": "card-deepdive",
+     "op": "move",
+     "to": [
+      556,
+      408
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 404,
+       "to": 220
+      },
+      {
+       "attr": "height",
+       "from": 120,
+       "to": 100
+      }
+     ],
+     "id": "card-deepdive",
+     "op": "mod"
+    },
+    {
+     "from": [
+      516,
+      612
+     ],
+     "id": "card-brief",
+     "op": "move",
+     "to": [
+      328,
+      408
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 404,
+       "to": 220
+      },
+      {
+       "attr": "height",
+       "from": 120,
+       "to": 100
+      }
+     ],
+     "id": "card-brief",
+     "op": "mod"
+    },
+    {
+     "from": [
+      100,
+      612
+     ],
+     "id": "card-digest",
+     "op": "move",
+     "to": [
+      100,
+      408
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 404,
+       "to": 220
+      },
+      {
+       "attr": "height",
+       "from": 120,
+       "to": 100
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Opens in place — no download. Which means the Digest is a **page**, and the PDF is an export of it rather than the thing itself.",
+        "value": "today"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Daily. Cut from this morning's run. Internal only — by practice, not by policy.",
+        "value": "today"
+       }
+      }
+     ],
+     "id": "card-digest",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1092,
+      168
+     ],
+     "id": "kpi-run",
+     "op": "move",
+     "to": [
+      616,
+      152
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 236,
+       "to": 164
+      },
+      {
+       "attr": "height",
+       "from": 96,
+       "to": 72
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "**The one thing here that isn't as-is.** Doesn't exist on the real screen; you said keep it.\n\nIt reads 4/5, not 4/4 — because the macro calendar is off by choice, not absent by accident, and a tile that can't tell those apart is not worth having. That distinction is most of this tile's job.",
+        "value": "4/5"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "**I invented this tile.** Nothing you have said implies the dashboard reports on the health of the run that produced it.\n\nI drew it because you have five sources, three of which you don't control, and a parked question about what happens when one is late. If the screen can't say '4/5', then on the morning EDGAR is missing this dashboard looks exactly as confident as every other morning.",
+        "value": "5/5"
+       }
+      }
+     ],
+     "id": "kpi-run",
+     "op": "mod"
+    },
+    {
+     "from": [
+      596,
+      168
+     ],
+     "id": "kpi-var",
+     "op": "move",
+     "to": [
+      100,
+      152
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 236,
+       "to": 164
+      },
+      {
+       "attr": "height",
+       "from": 96,
+       "to": 72
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "The one KPI that is genuinely a pipeline output — it comes off the risk model.\n\nWorth staring at: your alert threshold is **2.5%** and the screen is showing **2.4%**. The headline number on the morning dashboard is sitting a tenth of a point under the alarm.",
+        "value": "2.4%"
+       },
+       "to": {
+        "author": "agent",
+        "kind": "kpi",
+        "role": "node",
+        "tooltip": "Straight off the risk model. The 2.5% alert threshold lives against this number — but the alert reaches you out of band, not through this tile, so a tile showing 1.8% and an alert that already fired are two different channels telling you about the same thing.",
+        "value": "1.8%"
+       }
+      }
+     ],
+     "id": "kpi-var",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 1240,
+       "to": 680
+      },
+      {
+       "attr": "height",
+       "from": 48,
+       "to": 40
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "nav",
+        "role": "node",
+        "tooltip": "**Unconfirmed.** You never described the chrome, so the run stamp is still my invention. If the real header carries nothing but a title, delete the text — it matters, because this is the only place the screen could say which run you are looking at."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "nav",
+        "role": "node",
+        "tooltip": "The run stamp is deliberate: this is the only place the screen could tell you *which* run you are looking at. If your real header doesn't carry it, that is a finding."
+       }
+      }
+     ],
+     "id": "dash-header",
+     "op": "mod"
+    },
+    {
+     "from": [
+      978,
+      620
+     ],
+     "id": "card-deepdive-value",
+     "op": "move",
+     "to": [
+      602,
+      416
+     ]
+    },
+    {
+     "from": [
+      562,
+      620
+     ],
+     "id": "card-brief-value",
+     "op": "move",
+     "to": [
+      374,
+      416
+     ]
+    },
+    {
+     "from": [
+      174,
+      620
+     ],
+     "id": "card-digest-value",
+     "op": "move",
+     "to": [
+      174,
+      416
+     ]
+    },
+    {
+     "from": [
+      1152,
+      176
+     ],
+     "id": "kpi-run-value",
+     "op": "move",
+     "to": [
+      676,
+      160
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "4/5",
+       "to": "5/5"
+      }
+     ],
+     "id": "kpi-run-value",
+     "op": "mod"
+    },
+    {
+     "from": [
+      650,
+      176
+     ],
+     "id": "kpi-var-value",
+     "op": "move",
+     "to": [
+      154,
+      160
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "text",
+       "from": "2.4%",
+       "to": "1.8%"
+      }
+     ],
+     "id": "kpi-var-value",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 1280,
+       "to": 720
+      },
+      {
+       "attr": "height",
+       "from": 720,
+       "to": 480
+      },
+      {
+       "attr": "name",
+       "from": "Dashboard — as it is today",
+       "to": "Dashboard — morning"
+      }
+     ],
+     "id": "screen-dashboard",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the screen keep risk and conviction as two numbers, the way the pipeline does — or does it blend them into one score?",
+       "role": "pin",
+       "status": "open",
+       "target": "chart-risk-conviction"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-risk-conviction-split",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1907892592,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 444,
+      "y": 228
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is there anything on your real dashboard that tells you the run was complete?",
+       "role": "pin",
+       "status": "open",
+       "target": "kpi-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-run-health",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1648549032,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 788,
+      "y": 144
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-var-trend",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-var-trend-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "VaR vs 2.5% alert",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 405378140,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "VaR vs 2.5% alert",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 530,
+      "y": 306
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-risk-conviction",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-risk-conviction-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk × conviction",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1780405935,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk × conviction",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 186,
+      "y": 306
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-clusters",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "kpi-clusters-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Insider clusters",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 529167045,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Insider clusters",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 140,
+      "x": 456,
+      "y": 178
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-signals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-signals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Signals ≥ 0.70",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2019291564,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Signals ≥ 0.70",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 134,
+      "x": 287,
+      "y": 198
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-var-trend-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "VaR over recent runs with the alert line drawn on it. Guessed. The value of a line rather than a tile is that it says whether you are drifting toward 2.5% or sitting still — a single number can't."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 968622568,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 236
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-risk-conviction-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "**A guess, and the sharpest one on this screen.** You told me risk and conviction are two different numbers computed on two different paths that only meet at the aggregator.\n\nIf that is true of the pipeline, a two-axis plot is the honest picture of it: names that are high-conviction and low-risk are the interesting quadrant, and crowding would show up as a cluster.\n\nIf the real dashboard shows one blended score instead, then the screen has flattened a distinction the pipeline maintains — which is exactly the kind of drift you said you couldn't locate."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1692284115,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 236
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-clusters-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "3+ insiders, 10 trading days. A conviction signal — it never touched the risk number in the tile to its left.",
+       "value": "3"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-clusters-grp"
+      ],
+      "height": 72,
+      "id": "kpi-clusters",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 198218882,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 444,
+      "y": 152
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-signals-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Count of Signals that cleared the confidence gate. Drawn with the threshold in the label because the number is meaningless without it — 24 signals at what bar?",
+       "value": "24"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-signals-grp"
+      ],
+      "height": 72,
+      "id": "kpi-signals",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 927563523,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 272,
+      "y": 152
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "c712c822d2",
+       "x_of": "chart-var-trend"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 483975576,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 396
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "3444e35e1b",
+       "x_of": "chart-var-trend"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 97628194,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 236
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "f48f4ec165",
+       "x_of": "chart-risk-conviction"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 896215414,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 396
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "6afdbe7c28",
+       "x_of": "chart-risk-conviction"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 744650956,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 236
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-clusters"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-clusters-grp"
+      ],
+      "height": 30,
+      "id": "kpi-clusters-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "3",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 207256089,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "3",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 14,
+      "x": 519,
+      "y": 160
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-signals"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-signals-grp"
+      ],
+      "height": 30,
+      "id": "kpi-signals-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "24",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1804335472,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "24",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 28,
+      "x": 340,
+      "y": 160
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "If reports open in place, is the PDF the artifact — or an export of a page?",
+       "role": "pin",
+       "status": "open",
+       "target": "card-digest"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-report-page",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 238877762,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 512,
+      "y": 604
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What does an Instrument actually carry — is sector the only attribute, or is there a whole reference-data layer here?",
+       "role": "pin",
+       "status": "open",
+       "target": "chart-heatmap"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-instrument-sector",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 576762825,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 928,
+      "y": 304
+     },
+     "index": 41,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Where do the benchmark series and the portfolio-value history come from? Neither is a DataSource and neither is something a PipelineRun emits.",
+       "role": "pin",
+       "status": "open",
+       "target": "chart-equity"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-benchmark",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1769932177,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 512,
+      "y": 304
+     },
+     "index": 40,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-drawdown",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-drawdown-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Drawdown",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1418881107,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Drawdown",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 76,
+      "x": 1096,
+      "y": 442
+     },
+     "index": 39,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-heatmap",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-heatmap-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sector heat map",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 473487116,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sector heat map",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 144,
+      "x": 646,
+      "y": 442
+     },
+     "index": 38,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-equity",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-equity-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Equity curve vs benchmark",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 207746710,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Equity curve vs benchmark",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 240,
+      "x": 182,
+      "y": 442
+     },
+     "index": 37,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-sentiment",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-sentiment-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sentiment index",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 633249550,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sentiment index",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 144,
+      "x": 890,
+      "y": 238
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-alpha",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-alpha-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Alpha",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1507097230,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Alpha",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 48,
+      "x": 442,
+      "y": 238
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-portfolio-value",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-portfolio-value-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio value",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 979169240,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio value",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 144,
+      "x": 146,
+      "y": 238
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-drawdown-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "Peak-to-trough on the same value history the equity curve needs. Also backward-looking: this whole row is about how the portfolio **has performed**, while the pipeline is about what to do **today**."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-drawdown-grp"
+      ],
+      "height": 280,
+      "id": "chart-drawdown",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1994756353,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 932,
+      "y": 312
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-heatmap-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "Needs a **sector** for every Instrument. The glossary says a Position is of an Instrument and stops there — Instruments have no attributes at all. This chart is the evidence that they need at least one."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-heatmap-grp"
+      ],
+      "height": 280,
+      "id": "chart-heatmap",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1917490451,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 516,
+      "y": 312
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-equity-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "Needs two things the pipeline does not have: a **benchmark series**, and a **history of portfolio value over time**. A PipelineRun emits Signals for one morning; nothing in the vocabulary stores a curve."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-equity-grp"
+      ],
+      "height": 280,
+      "id": "chart-equity",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1307102780,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 100,
+      "y": 312
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "annotates": "kpi-run",
+       "author": "agent",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": "screen-dashboard",
+      "groupIds": [],
+      "height": 17,
+      "id": "note-run-tile",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "not on the real screen — wanted",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 661484098,
+      "strokeColor": "#5c8a5f",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "not on the real screen — wanted",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 260,
+      "x": 1092,
+      "y": 272
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-sentiment-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Rolled up from the sentiment scorer — so this one does come from the pipeline. But it is a raw enricher output shown directly, jumping over the risk model, the aggregator and the 0.70 gate. The screen is reading from the middle of the pipeline, not the end.",
+       "value": "62"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-sentiment-grp"
+      ],
+      "height": 96,
+      "id": "kpi-sentiment",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1984261075,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 236,
+      "x": 844,
+      "y": 168
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-alpha-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Alpha is return **against a benchmark**. There is no benchmark anywhere in the pipeline, the glossary, or the five DataSources. Something is supplying it and nothing on any of these diagrams knows what.",
+       "value": "+3.1%"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-alpha-grp"
+      ],
+      "height": 96,
+      "id": "kpi-alpha",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 665930734,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 236,
+      "x": 348,
+      "y": 168
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-portfolio-value-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Comes from the Portfolio DB. Note it does **not** come out of a PipelineRun — no enrichment, no scoring, no confidence gate touches this number. It is a read of a source, displayed.",
+       "value": "$4.82M"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-portfolio-value-grp"
+      ],
+      "height": 96,
+      "id": "kpi-portfolio-value",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 254503836,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 236,
+      "x": 100,
+      "y": 168
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "d339c1538c",
+       "x_of": "chart-drawdown"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-drawdown-grp"
+      ],
+      "height": 280,
+      "id": "chart-drawdown-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        -280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1495099698,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 932,
+      "y": 592
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "0596c53720",
+       "x_of": "chart-drawdown"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-drawdown-grp"
+      ],
+      "height": 280,
+      "id": "chart-drawdown-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1075067016,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 932,
+      "y": 312
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "ec45deb73c",
+       "x_of": "chart-heatmap"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-heatmap-grp"
+      ],
+      "height": 280,
+      "id": "chart-heatmap-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        -280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1689937365,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 516,
+      "y": 592
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "10f0350f72",
+       "x_of": "chart-heatmap"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-heatmap-grp"
+      ],
+      "height": 280,
+      "id": "chart-heatmap-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2108896367,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 516,
+      "y": 312
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "cdad3cee97",
+       "x_of": "chart-equity"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-equity-grp"
+      ],
+      "height": 280,
+      "id": "chart-equity-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        -280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 909910764,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 100,
+      "y": 592
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "7fdc9ed202",
+       "x_of": "chart-equity"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-equity-grp"
+      ],
+      "height": 280,
+      "id": "chart-equity-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        404,
+        280
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 792032086,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 404,
+      "x": 100,
+      "y": 312
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-sentiment"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-sentiment-grp"
+      ],
+      "height": 30,
+      "id": "kpi-sentiment-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "62",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 913217490,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "62",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 28,
+      "x": 948,
+      "y": 176
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-alpha"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-alpha-grp"
+      ],
+      "height": 30,
+      "id": "kpi-alpha-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "+3.1%",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1241805394,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "+3.1%",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 72,
+      "x": 430,
+      "y": 176
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-portfolio-value"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-portfolio-value-grp"
+      ],
+      "height": 30,
+      "id": "kpi-portfolio-value-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "$4.82M",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 697100036,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "$4.82M",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 86,
+      "x": 175,
+      "y": 176
+     },
+     "index": 6,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 11,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "mapping_tombstoned",
+   "mapping": {
+    "concept": "dashboard",
+    "elements": [
+     "dashboard-wireframe#kpi-clusters",
+     "enrichment-flow#insider-detector"
+    ],
+    "kinds": null,
+    "note": null
+   }
+  },
+  {
+   "action": "remove_mapping",
+   "index": 5
+  },
+  {
+   "action": "mapping_tombstoned",
+   "mapping": {
+    "concept": "dashboard",
+    "elements": [
+     "dashboard-wireframe#kpi-signals",
+     "enrichment-flow#to-compose"
+    ],
+    "kinds": null,
+    "note": null
+   }
+  },
+  {
+   "action": "remove_mapping",
+   "index": 4
+  },
+  {
+   "action": "add_mapping",
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#kpi-sentiment",
+    "enrichment-flow#sentiment-scorer"
+   ]
+  },
+  {
+   "action": "set_budget",
+   "artifact": "dashboard-wireframe",
+   "nodes": 13,
+   "reason": "as-is fidelity: five KPI tiles, three charts, three cards is the screen he actually looks at"
+  }
+ ],
+ "revn": 12,
+ "round": 3,
+ "saved_at": "2026-08-09T11:11:11Z",
+ "selection_at_save": [],
+ "short_id": "9419b7b",
+ "summary": {
+  "headline": "screen Dashboard — as it is today now reads: Argus · Fri 7 Aug · run 06:04 / Portfolio value / Alpha / VaR (95%, 1-day) / Sentiment index / Sources in… (+44 more)",
+  "suppressed": 20,
+  "verb_counts": {
+   "added": 15,
+   "annotated": 1,
+   "block_moved_within_screen": 5,
+   "deleted": 10,
+   "label_renamed": 1,
+   "moved": 10,
+   "pin_added": 3,
+   "pin_deleted": 2,
+   "reading_order_changed": 1,
+   "renamed": 4,
+   "resized": 7,
+   "tooltip_changed": 4,
+   "value_changed": 2
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "dashboard-wireframe#kpi-var",
+   "changed_all": [
+    "dashboard-wireframe#kpi-var"
+   ],
+   "id": "tw-12-1",
+   "kind": "divergence",
+   "mapping": "dashboard:dashboard-wireframe#kpi-var+enrichment-flow#risk-model",
+   "question": "dashboard-wireframe › kpi-var changed but its mapped sibling enrichment-flow › risk-model didn't. Divergence, or should it propagate?",
+   "sibling": "enrichment-flow#risk-model",
+   "siblings": [
+    "enrichment-flow#risk-model"
+   ]
+  },
+  {
+   "changed": "dashboard-wireframe#kpi-run",
+   "changed_all": [
+    "dashboard-wireframe#kpi-run"
+   ],
+   "id": "tw-12-2",
+   "kind": "divergence",
+   "mapping": "dashboard:dashboard-wireframe#kpi-run+daily-run-flow#normalize",
+   "question": "dashboard-wireframe › kpi-run changed but its mapped sibling daily-run-flow › normalize didn't. Divergence, or should it propagate?",
+   "sibling": "daily-run-flow#normalize",
+   "siblings": [
+    "daily-run-flow#normalize"
+   ]
+  }
+ ],
+ "user_note": "redrawn as it actually is: your KPI row, your three charts. Nothing of the pipeline's vocabulary survives on it."
+}

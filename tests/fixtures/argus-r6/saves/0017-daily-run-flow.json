@@ -1,0 +1,246 @@
+{
+ "artifacts": {
+  "daily-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "normalize",
+     "kind": "transform",
+     "label": "Normalize per source",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "Normalize",
+       "to": "Normalize per source"
+      },
+      "tooltip_changed": {
+       "label": "Normalize per source",
+       "text": "**Per source, not into one pool.** The old label let this box read as a merge po"
+      }
+     },
+     "verb": "renamed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Your words: the four enrichers 'run in parallel off the same normalized input'. That makes normalization a real stage, not plumbing — it is the last point where a missing source is still visible as a missing source.\n\n**Five sources are configured; four are on.** The macro calendar is switched off, not removed."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Per source, not into one pool.** The old label let this box read as a merge point, and the routing correction says it isn't one: each source keeps its identity through normalization and is delivered to specific enrichers.\n\nEDGAR → sentiment scorer, insider detector (and probably fundamentals). News → sentiment scorer only. Market feed → technicals only. Portfolio DB scopes the run to our names and feeds no scorer.\n\nFive sources configured, four on."
+       }
+      }
+     ],
+     "id": "normalize",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 757,
+       "to": 732
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 332
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 86,
+       "to": 136
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 20,
+       "to": 40
+      },
+      {
+       "attr": "text",
+       "from": "Normalize",
+       "to": "Normalize per source"
+      },
+      {
+       "attr": "autoResize",
+       "from": true,
+       "to": false
+      }
+     ],
+     "id": "normalize-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "normalize",
+     "fact": "renamed",
+     "from": "Normalize",
+     "to": "Normalize per source"
+    },
+    {
+     "element": "normalize",
+     "fact": "tooltip_changed",
+     "label": "Normalize per source",
+     "text": "**Per source, not into one pool.** The old label let this box read as a merge po"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 732,
+       "to": 757
+      },
+      {
+       "attr": "y",
+       "from": 332,
+       "to": 342
+      },
+      {
+       "attr": "width",
+       "from": 136,
+       "to": 86
+      },
+      {
+       "attr": "height",
+       "from": 40,
+       "to": 20
+      },
+      {
+       "attr": "text",
+       "from": "Normalize per source",
+       "to": "Normalize"
+      },
+      {
+       "attr": "autoResize",
+       "from": false,
+       "to": true
+      }
+     ],
+     "id": "normalize-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Per source, not into one pool.** The old label let this box read as a merge point, and the routing correction says it isn't one: each source keeps its identity through normalization and is delivered to specific enrichers.\n\nEDGAR → sentiment scorer, insider detector (and probably fundamentals). News → sentiment scorer only. Market feed → technicals only. Portfolio DB scopes the run to our names and feeds no scorer.\n\nFive sources configured, four on."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Your words: the four enrichers 'run in parallel off the same normalized input'. That makes normalization a real stage, not plumbing — it is the last point where a missing source is still visible as a missing source.\n\n**Five sources are configured; four are on.** The macro calendar is switched off, not removed."
+       }
+      }
+     ],
+     "id": "normalize",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 16,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "mapping_tombstoned",
+   "mapping": {
+    "concept": "argus",
+    "elements": [
+     "daily-run-flow#normalize",
+     "enrichment-flow#normalized-input"
+    ],
+    "kinds": null,
+    "note": null
+   }
+  },
+  {
+   "action": "remove_mapping",
+   "index": 0
+  },
+  {
+   "action": "add_mapping",
+   "concept": "argus",
+   "elements": [
+    "daily-run-flow#market-feed",
+    "enrichment-flow#s-market"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "argus",
+   "elements": [
+    "daily-run-flow#sec-edgar",
+    "enrichment-flow#s-edgar"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "argus",
+   "elements": [
+    "daily-run-flow#news-stream",
+    "enrichment-flow#s-news"
+   ]
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-16-1"
+  }
+ ],
+ "revn": 17,
+ "round": 4,
+ "saved_at": "2026-08-09T11:28:31Z",
+ "selection_at_save": [],
+ "short_id": "13ebbdd",
+ "summary": {
+  "headline": "renamed 'Normalize' → 'Normalize per source' (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "renamed": 1,
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "the spine said all four sources merge into one stream — that is the lie we just removed from the detail view"
+}

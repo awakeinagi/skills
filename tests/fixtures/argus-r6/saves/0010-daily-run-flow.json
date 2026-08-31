@@ -1,0 +1,2481 @@
+{
+ "artifacts": {
+  "daily-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-trigger-macro",
+     "kind": "arrow",
+     "label": "t-trigger-macro",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-trigger-macro"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Weekday 06:00",
+        "macro-calendar"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-macro-normalize",
+     "kind": "arrow",
+     "label": "t-macro-normalize",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "t-macro-normalize"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "macro-calendar",
+        "Normalize"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-trigger-macro",
+     "id": "run-trigger",
+     "kind": "source",
+     "label": "Weekday 06:00",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-trigger-macro",
+       "dx": 0,
+       "dy": -80,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-trigger-macro",
+     "id": "enrichment",
+     "kind": "transform",
+     "label": "Enrich & score",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-trigger-macro",
+       "dx": 0,
+       "dy": -80,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-trigger-macro",
+     "id": "compose-outputs",
+     "kind": "agent",
+     "label": "Compose outputs",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-trigger-macro",
+       "dx": 0,
+       "dy": -80,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-trigger-macro",
+     "id": "analyst-read",
+     "kind": "sink",
+     "label": "Analyst",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-trigger-macro",
+       "dx": 0,
+       "dy": -80,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "normalize",
+     "kind": "transform",
+     "label": "Normalize",
+     "ops": [
+      18,
+      19
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -80,
+       "label": "Normalize",
+       "spatial": "moved up"
+      },
+      "tooltip_changed": {
+       "label": "Normalize",
+       "text": "Your words: the four enrichers 'run in parallel off the same normalized input'. "
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-trigger-macro",
+     "id": "clients",
+     "kind": "sink",
+     "label": "Clients",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-trigger-macro",
+       "dx": 0,
+       "dy": -80,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-d04517fc",
+     "kind": "rectangle",
+     "label": "off — noisy",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "off — noisy"
+      }
+     },
+     "verb": "reordered"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "127b7b0078"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "macro-calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 240,
+      "id": "t-trigger-macro",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        240
+       ],
+       [
+        213,
+        240
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 59944544,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "run-trigger",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 213,
+      "x": 187,
+      "y": 512
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "ceffc410d6"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "normalize",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 240,
+      "id": "t-macro-normalize",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        267,
+        0
+       ],
+       [
+        267,
+        -240
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1163455509,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "macro-calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 267,
+      "x": 560,
+      "y": 752
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 272
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -240
+        ],
+        [
+         267,
+         -240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         267,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "8e02b200b3"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "87cdc19c7f"
+       }
+      }
+     ],
+     "id": "t-trigger-market",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 272
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 80,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -80
+        ],
+        [
+         213,
+         -80
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6caf601291"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3fabbb11d7"
+       }
+      }
+     ],
+     "id": "t-trigger-edgar",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 240,
+       "to": 133
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 160,
+       "to": 267
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "b50784f6db"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3db3d9e6ae"
+       }
+      }
+     ],
+     "id": "t-trigger-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 133,
+       "to": 187
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 512,
+       "to": 432
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 267,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 80,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         80
+        ],
+        [
+         267,
+         80
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         213,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "98043fc97e"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd22ddcc9"
+       }
+      }
+     ],
+     "id": "t-trigger-portfolio",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 240,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         240
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a6381947f2"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "172fc1560c"
+       }
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 80,
+       "to": 0
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         80
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e5a2bae4a1"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d361a74b29"
+       }
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 160,
+       "to": 213
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "normalize",
+        "focus": 0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "54ecf90e0c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1db0e3a03e"
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 267
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 80,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         -80
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "normalize",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "92a6e7928d"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6d89123fab"
+       }
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 400,
+       "to": 320
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "4665ae5362"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "91d999b70c"
+       }
+      }
+     ],
+     "id": "t-compose-analyst",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 352
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "03a5ca182f"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "df3f315ac9"
+       }
+      }
+     ],
+     "id": "t-normalize-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 352
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "4afb59c63c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "59374861c9"
+       }
+      }
+     ],
+     "id": "t-enrich-compose",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1440,
+       "to": 1520
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 464,
+       "to": 352
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         48
+        ],
+        [
+         320,
+         48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f7a1910321"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1907043465"
+       }
+      }
+     ],
+     "id": "t-compose-clients",
+     "op": "mod"
+    },
+    {
+     "from": [
+      80,
+      352
+     ],
+     "id": "run-trigger",
+     "op": "move",
+     "to": [
+      80,
+      272
+     ]
+    },
+    {
+     "from": [
+      1040,
+      400
+     ],
+     "id": "enrichment",
+     "op": "move",
+     "to": [
+      1040,
+      320
+     ]
+    },
+    {
+     "from": [
+      1360,
+      400
+     ],
+     "id": "compose-outputs",
+     "op": "move",
+     "to": [
+      1360,
+      320
+     ]
+    },
+    {
+     "from": [
+      1760,
+      320
+     ],
+     "id": "analyst-read",
+     "op": "move",
+     "to": [
+      1760,
+      240
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Your words: the four enrichers 'run in parallel off the same normalized input'. That makes normalization a real stage, not plumbing — it is the last point where a missing source is still visible as a missing source."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Your words: the four enrichers 'run in parallel off the same normalized input'. That makes normalization a real stage, not plumbing — it is the last point where a missing source is still visible as a missing source.\n\n**Five sources are configured; four are on.** The macro calendar is switched off, not removed."
+       }
+      }
+     ],
+     "id": "normalize",
+     "op": "mod"
+    },
+    {
+     "from": [
+      720,
+      352
+     ],
+     "id": "normalize",
+     "op": "move",
+     "to": [
+      720,
+      272
+     ]
+    },
+    {
+     "from": [
+      1760,
+      480
+     ],
+     "id": "clients",
+     "op": "move",
+     "to": [
+      1760,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 342
+      }
+     ],
+     "id": "run-trigger-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 342
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 412,
+       "to": 332
+      }
+     ],
+     "id": "compose-outputs-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "analyst-read-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 342
+      }
+     ],
+     "id": "normalize-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 502,
+       "to": 422
+      }
+     ],
+     "id": "clients-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "t-compose-analyst-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1494,
+       "to": 1622
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 502,
+       "to": 342
+      }
+     ],
+     "id": "t-compose-clients-label",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich",
+      "t-compose-analyst",
+      "t-normalize-enrich",
+      "t-enrich-compose",
+      "t-compose-clients",
+      "t-trigger-macro",
+      "t-macro-normalize",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "portfolio-db",
+      "enrichment",
+      "compose-outputs",
+      "analyst-read",
+      "normalize",
+      "clients",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "compose-outputs-label",
+      "analyst-read-label",
+      "pin-late-source",
+      "normalize-label",
+      "clients-label",
+      "t-compose-analyst-label",
+      "t-compose-clients-label",
+      "usernote-d04517fc",
+      "usernote-d04517fc-t"
+     ],
+     "moved": [
+      "usernote-d04517fc",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "compose-outputs-label",
+      "analyst-read-label",
+      "pin-late-source",
+      "normalize-label",
+      "clients-label",
+      "t-compose-analyst-label",
+      "t-compose-clients-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich",
+      "t-compose-analyst",
+      "t-normalize-enrich",
+      "t-enrich-compose",
+      "t-compose-clients",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "portfolio-db",
+      "enrichment",
+      "compose-outputs",
+      "analyst-read",
+      "normalize",
+      "clients",
+      "usernote-d04517fc",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "compose-outputs-label",
+      "analyst-read-label",
+      "pin-late-source",
+      "normalize-label",
+      "clients-label",
+      "t-compose-analyst-label",
+      "t-compose-clients-label",
+      "usernote-d04517fc-t"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-trigger-macro",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-trigger-macro"
+     }
+    },
+    {
+     "element": "t-macro-normalize",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "t-macro-normalize"
+     }
+    },
+    {
+     "consequence_of": "t-trigger-macro",
+     "dx": 0,
+     "dy": -80,
+     "element": "run-trigger",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "t-trigger-macro",
+     "dx": 0,
+     "dy": -80,
+     "element": "enrichment",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "t-trigger-macro",
+     "dx": 0,
+     "dy": -80,
+     "element": "compose-outputs",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "t-trigger-macro",
+     "dx": 0,
+     "dy": -80,
+     "element": "analyst-read",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "element": "normalize",
+     "fact": "tooltip_changed",
+     "label": "Normalize",
+     "text": "Your words: the four enrichers 'run in parallel off the same normalized input'. "
+    },
+    {
+     "dx": 0,
+     "dy": -80,
+     "element": "normalize",
+     "fact": "moved",
+     "label": "Normalize",
+     "spatial": "moved up"
+    },
+    {
+     "consequence_of": "t-trigger-macro",
+     "dx": 0,
+     "dy": -80,
+     "element": "clients",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "element": "usernote-d04517fc",
+     "fact": "reordered",
+     "label": "off — noisy"
+    },
+    {
+     "between": [
+      "Weekday 06:00",
+      "macro-calendar"
+     ],
+     "element": "t-trigger-macro",
+     "fact": "transition_deleted"
+    },
+    {
+     "between": [
+      "macro-calendar",
+      "Normalize"
+     ],
+     "element": "t-macro-normalize",
+     "fact": "transition_deleted"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich",
+      "t-compose-analyst",
+      "t-normalize-enrich",
+      "t-enrich-compose",
+      "t-compose-clients",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "portfolio-db",
+      "enrichment",
+      "compose-outputs",
+      "analyst-read",
+      "normalize",
+      "clients",
+      "usernote-d04517fc",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "compose-outputs-label",
+      "analyst-read-label",
+      "pin-late-source",
+      "normalize-label",
+      "clients-label",
+      "t-compose-analyst-label",
+      "t-compose-clients-label",
+      "usernote-d04517fc-t"
+     ],
+     "moved": [
+      "usernote-d04517fc",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "compose-outputs-label",
+      "analyst-read-label",
+      "pin-late-source",
+      "normalize-label",
+      "clients-label",
+      "t-compose-analyst-label",
+      "t-compose-clients-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "t-trigger-market",
+      "t-trigger-edgar",
+      "t-trigger-news",
+      "t-trigger-portfolio",
+      "t-market-enrich",
+      "t-edgar-enrich",
+      "t-news-enrich",
+      "t-portfolio-enrich",
+      "t-compose-analyst",
+      "t-normalize-enrich",
+      "t-enrich-compose",
+      "t-compose-clients",
+      "t-trigger-macro",
+      "t-macro-normalize",
+      "run-trigger",
+      "market-feed",
+      "sec-edgar",
+      "news-stream",
+      "portfolio-db",
+      "enrichment",
+      "compose-outputs",
+      "analyst-read",
+      "normalize",
+      "clients",
+      "run-trigger-label",
+      "market-feed-label",
+      "sec-edgar-label",
+      "news-stream-label",
+      "portfolio-db-label",
+      "enrichment-label",
+      "compose-outputs-label",
+      "analyst-read-label",
+      "pin-late-source",
+      "normalize-label",
+      "clients-label",
+      "t-compose-analyst-label",
+      "t-compose-clients-label",
+      "usernote-d04517fc",
+      "usernote-d04517fc-t"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1622,
+       "to": 1494
+      },
+      {
+       "attr": "y",
+       "from": 342,
+       "to": 502
+      }
+     ],
+     "id": "t-compose-clients-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "t-compose-analyst-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 422,
+       "to": 502
+      }
+     ],
+     "id": "clients-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 342,
+       "to": 422
+      }
+     ],
+     "id": "normalize-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "analyst-read-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 332,
+       "to": 412
+      }
+     ],
+     "id": "compose-outputs-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 342,
+       "to": 422
+      }
+     ],
+     "id": "enrichment-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 342,
+       "to": 422
+      }
+     ],
+     "id": "run-trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1760,
+      400
+     ],
+     "id": "clients",
+     "op": "move",
+     "to": [
+      1760,
+      480
+     ]
+    },
+    {
+     "from": [
+      720,
+      272
+     ],
+     "id": "normalize",
+     "op": "move",
+     "to": [
+      720,
+      352
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Your words: the four enrichers 'run in parallel off the same normalized input'. That makes normalization a real stage, not plumbing — it is the last point where a missing source is still visible as a missing source.\n\n**Five sources are configured; four are on.** The macro calendar is switched off, not removed."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Your words: the four enrichers 'run in parallel off the same normalized input'. That makes normalization a real stage, not plumbing — it is the last point where a missing source is still visible as a missing source."
+       }
+      }
+     ],
+     "id": "normalize",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1760,
+      240
+     ],
+     "id": "analyst-read",
+     "op": "move",
+     "to": [
+      1760,
+      320
+     ]
+    },
+    {
+     "from": [
+      1360,
+      320
+     ],
+     "id": "compose-outputs",
+     "op": "move",
+     "to": [
+      1360,
+      400
+     ]
+    },
+    {
+     "from": [
+      1040,
+      320
+     ],
+     "id": "enrichment",
+     "op": "move",
+     "to": [
+      1040,
+      400
+     ]
+    },
+    {
+     "from": [
+      80,
+      272
+     ],
+     "id": "run-trigger",
+     "op": "move",
+     "to": [
+      80,
+      352
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1520,
+       "to": 1440
+      },
+      {
+       "attr": "y",
+       "from": 352,
+       "to": 464
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         48
+        ],
+        [
+         320,
+         48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1907043465"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f7a1910321"
+       }
+      }
+     ],
+     "id": "t-compose-clients",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 352,
+       "to": 432
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "59374861c9"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "4afb59c63c"
+       }
+      }
+     ],
+     "id": "t-enrich-compose",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 352,
+       "to": 432
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "df3f315ac9"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "03a5ca182f"
+       }
+      }
+     ],
+     "id": "t-normalize-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 320,
+       "to": 400
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "91d999b70c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "4665ae5362"
+       }
+      }
+     ],
+     "id": "t-compose-analyst",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 267,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 80
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         -80
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "normalize",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6d89123fab"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "92a6e7928d"
+       }
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 213,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "normalize",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1db0e3a03e"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "54ecf90e0c"
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 0,
+       "to": 80
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ],
+        [
+         267,
+         80
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "d361a74b29"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e5a2bae4a1"
+       }
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ],
+        [
+         213,
+         240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "172fc1560c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a6381947f2"
+       }
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 187,
+       "to": 133
+      },
+      {
+       "attr": "y",
+       "from": 432,
+       "to": 512
+      },
+      {
+       "attr": "width",
+       "from": 213,
+       "to": 267
+      },
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 80
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         213,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         80
+        ],
+        [
+         267,
+         80
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd22ddcc9"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "98043fc97e"
+       }
+      }
+     ],
+     "id": "t-trigger-portfolio",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 133,
+       "to": 240
+      },
+      {
+       "attr": "width",
+       "from": 267,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         267,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3db3d9e6ae"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "b50784f6db"
+       }
+      }
+     ],
+     "id": "t-trigger-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 272,
+       "to": 352
+      },
+      {
+       "attr": "height",
+       "from": 0,
+       "to": 80
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -80
+        ],
+        [
+         213,
+         -80
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3fabbb11d7"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6caf601291"
+       }
+      }
+     ],
+     "id": "t-trigger-edgar",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 272,
+       "to": 352
+      },
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 240
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         267,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -240
+        ],
+        [
+         267,
+         -240
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "87cdc19c7f"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "8e02b200b3"
+       }
+      }
+     ],
+     "id": "t-trigger-market",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "ceffc410d6"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "normalize",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 240,
+      "id": "t-macro-normalize",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        267,
+        0
+       ],
+       [
+        267,
+        -240
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1163455509,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "macro-calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 267,
+      "x": 560,
+      "y": 752
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "127b7b0078"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "macro-calendar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 240,
+      "id": "t-trigger-macro",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        240
+       ],
+       [
+        213,
+        240
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 59944544,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "run-trigger",
+       "focus": 0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 213,
+      "x": 187,
+      "y": 512
+     },
+     "index": 12,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 9,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "set_budget",
+   "arrows": 12,
+   "artifact": "daily-run-flow",
+   "nodes": 10,
+   "reason": "the four-source fan plus both terminals IS the spine view"
+  }
+ ],
+ "revn": 10,
+ "round": 3,
+ "saved_at": "2026-08-09T11:09:31Z",
+ "selection_at_save": [],
+ "short_id": "be66c25",
+ "summary": {
+  "headline": "deleted t-trigger-macro (+6 more)",
+  "suppressed": 5,
+  "verb_counts": {
+   "deleted": 2,
+   "moved": 6,
+   "reordered": 1,
+   "tooltip_changed": 1,
+   "transition_deleted": 2
+  }
+ },
+ "tripwires": [],
+ "user_note": "clearing the two arrows your deletion left dangling, and re-centring the fan on four"
+}

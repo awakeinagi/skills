@@ -1,0 +1,1698 @@
+{
+ "artifacts": {
+  "daily-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "market-feed",
+     "kind": "store",
+     "label": "Market Feed",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 60,
+       "label": "Market Feed",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sec-edgar",
+     "kind": "store",
+     "label": "SEC EDGAR",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 20,
+       "label": "SEC EDGAR",
+       "spatial": "moved down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "news-stream",
+     "kind": "store",
+     "label": "News Sentiment",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -20,
+       "label": "News Sentiment",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "portfolio-db",
+     "kind": "store",
+     "label": "Portfolio DB",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -60,
+       "label": "Portfolio DB",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 160,
+       "to": 120
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 272,
+       "to": 248
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 240,
+       "to": 280
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 160,
+       "to": 76
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         240,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -76
+        ],
+        [
+         280,
+         -76
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "9311fa8a42"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "69ba7e21c5"
+       }
+      }
+     ],
+     "id": "t-trigger-market",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 236,
+       "to": 196
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 327,
+       "to": 303
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 217,
+       "to": 204
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 23,
+       "to": 3
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         217,
+         0
+        ],
+        [
+         217,
+         -23
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         204,
+         -3
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.342,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.328,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": 0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": -0.202,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6aaaa8da57"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "07eae08b1a"
+       }
+      }
+     ],
+     "id": "t-trigger-edgar",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 236,
+       "to": 196
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 377,
+       "to": 353
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 217,
+       "to": 284
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 23,
+       "to": 27
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         217,
+         0
+        ],
+        [
+         217,
+         23
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         284,
+         0
+        ],
+        [
+         284,
+         27
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.342,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.34,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "news-stream",
+        "focus": -0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": 0.0,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "12bca18171"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "cafd602db0"
+       }
+      }
+     ],
+     "id": "t-trigger-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 160,
+       "to": 120
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 408
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 240,
+       "to": 280
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 160,
+       "to": 124
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         240,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         124
+        ],
+        [
+         280,
+         124
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "8f2b8e2a9f"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "9a53e518a7"
+       }
+      }
+     ],
+     "id": "t-trigger-portfolio",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 112,
+       "to": 172
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 160,
+       "to": 100
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         100
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "ad90620c5e"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "2f458b435a"
+       }
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 507,
+       "to": 560
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 304,
+       "to": 307
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 160
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 21,
+       "to": 18
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         21
+        ],
+        [
+         213,
+         21
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         18
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": -0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": 0.12,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "normalize",
+        "focus": 0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0.19,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd4c8f079"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "ce9accd5af"
+       }
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 507,
+       "to": 560
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 400,
+       "to": 397
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 160
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 21,
+       "to": 18
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -21
+        ],
+        [
+         213,
+         -21
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         -18
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "derived": true,
+       "from": {
+        "elementId": "news-stream",
+        "focus": 0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": -0.12,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "normalize",
+        "focus": -0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": -0.19,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f6edd3f15b"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "84c77d4e8a"
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 592,
+       "to": 532
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 160,
+       "to": 100
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -100
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "5f1be05ae1"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "be78d6bd8f"
+       }
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      80
+     ],
+     "id": "market-feed",
+     "op": "move",
+     "to": [
+      400,
+      140
+     ]
+    },
+    {
+     "from": [
+      400,
+      240
+     ],
+     "id": "sec-edgar",
+     "op": "move",
+     "to": [
+      400,
+      260
+     ]
+    },
+    {
+     "from": [
+      400,
+      400
+     ],
+     "id": "news-stream",
+     "op": "move",
+     "to": [
+      400,
+      380
+     ]
+    },
+    {
+     "from": [
+      400,
+      560
+     ],
+     "id": "portfolio-db",
+     "op": "move",
+     "to": [
+      400,
+      500
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 102,
+       "to": 162
+      }
+     ],
+     "id": "market-feed-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 262,
+       "to": 282
+      }
+     ],
+     "id": "sec-edgar-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 422,
+       "to": 402
+      }
+     ],
+     "id": "news-stream-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 582,
+       "to": 522
+      }
+     ],
+     "id": "portfolio-db-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1694,
+       "to": 1717
+      }
+     ],
+     "id": "t-compose-analyst-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2101,
+       "to": 2078
+      }
+     ],
+     "id": "t-compose-clients-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": 0,
+     "dy": 60,
+     "element": "market-feed",
+     "fact": "moved",
+     "label": "Market Feed",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": 20,
+     "element": "sec-edgar",
+     "fact": "moved",
+     "label": "SEC EDGAR",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": -20,
+     "element": "news-stream",
+     "fact": "moved",
+     "label": "News Sentiment",
+     "spatial": "moved up"
+    },
+    {
+     "dx": 0,
+     "dy": -60,
+     "element": "portfolio-db",
+     "fact": "moved",
+     "label": "Portfolio DB",
+     "spatial": "moved up"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2078,
+       "to": 2101
+      }
+     ],
+     "id": "t-compose-clients-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1717,
+       "to": 1694
+      }
+     ],
+     "id": "t-compose-analyst-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 522,
+       "to": 582
+      }
+     ],
+     "id": "portfolio-db-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 402,
+       "to": 422
+      }
+     ],
+     "id": "news-stream-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 282,
+       "to": 262
+      }
+     ],
+     "id": "sec-edgar-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 162,
+       "to": 102
+      }
+     ],
+     "id": "market-feed-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      500
+     ],
+     "id": "portfolio-db",
+     "op": "move",
+     "to": [
+      400,
+      560
+     ]
+    },
+    {
+     "from": [
+      400,
+      380
+     ],
+     "id": "news-stream",
+     "op": "move",
+     "to": [
+      400,
+      400
+     ]
+    },
+    {
+     "from": [
+      400,
+      260
+     ],
+     "id": "sec-edgar",
+     "op": "move",
+     "to": [
+      400,
+      240
+     ]
+    },
+    {
+     "from": [
+      400,
+      140
+     ],
+     "id": "market-feed",
+     "op": "move",
+     "to": [
+      400,
+      80
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 532,
+       "to": 592
+      },
+      {
+       "attr": "height",
+       "from": 100,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -100
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "be78d6bd8f"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "5f1be05ae1"
+       }
+      }
+     ],
+     "id": "t-portfolio-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 560,
+       "to": 507
+      },
+      {
+       "attr": "y",
+       "from": 397,
+       "to": 400
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "from": 18,
+       "to": 21
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         -18
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -21
+        ],
+        [
+         213,
+         -21
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "news-stream",
+        "focus": -0.12,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": 0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "normalize",
+        "focus": -0.19,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": -0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "84c77d4e8a"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f6edd3f15b"
+       }
+      }
+     ],
+     "id": "t-news-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 560,
+       "to": 507
+      },
+      {
+       "attr": "y",
+       "from": 307,
+       "to": 304
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "from": 18,
+       "to": 21
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         18
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         21
+        ],
+        [
+         213,
+         21
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": 0.12,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": -0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "normalize",
+        "focus": 0.19,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "normalize",
+        "focus": 0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "ce9accd5af"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd4c8f079"
+       }
+      }
+     ],
+     "id": "t-edgar-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 172,
+       "to": 112
+      },
+      {
+       "attr": "height",
+       "from": 100,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         100
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         240,
+         0
+        ],
+        [
+         240,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "2f458b435a"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "ad90620c5e"
+       }
+      }
+     ],
+     "id": "t-market-enrich",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 120,
+       "to": 160
+      },
+      {
+       "attr": "y",
+       "from": 408,
+       "to": 432
+      },
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "from": 124,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         124
+        ],
+        [
+         280,
+         124
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         240,
+         160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "9a53e518a7"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "8f2b8e2a9f"
+       }
+      }
+     ],
+     "id": "t-trigger-portfolio",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 196,
+       "to": 236
+      },
+      {
+       "attr": "y",
+       "from": 353,
+       "to": 377
+      },
+      {
+       "attr": "width",
+       "from": 284,
+       "to": 217
+      },
+      {
+       "attr": "height",
+       "from": 27,
+       "to": 23
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         284,
+         0
+        ],
+        [
+         284,
+         27
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         217,
+         0
+        ],
+        [
+         217,
+         23
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": 0.34,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": 0.342,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "news-stream",
+        "focus": 0.0,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "news-stream",
+        "focus": -0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "cafd602db0"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "12bca18171"
+       }
+      }
+     ],
+     "id": "t-trigger-news",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 196,
+       "to": 236
+      },
+      {
+       "attr": "y",
+       "from": 303,
+       "to": 327
+      },
+      {
+       "attr": "width",
+       "from": 204,
+       "to": 217
+      },
+      {
+       "attr": "height",
+       "from": 3,
+       "to": 23
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         204,
+         -3
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         217,
+         0
+        ],
+        [
+         217,
+         -23
+        ]
+       ]
+      },
+      {
+       "attr": "startBinding",
+       "from": {
+        "elementId": "run-trigger",
+        "focus": -0.328,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "run-trigger",
+        "focus": -0.342,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "sec-edgar",
+        "focus": -0.202,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "sec-edgar",
+        "focus": 0.337,
+        "gap": 6
+       }
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "07eae08b1a"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "6aaaa8da57"
+       }
+      }
+     ],
+     "id": "t-trigger-edgar",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 120,
+       "to": 160
+      },
+      {
+       "attr": "y",
+       "from": 248,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "from": 280,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "from": 76,
+       "to": 160
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -76
+        ],
+        [
+         280,
+         -76
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         240,
+         -160
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "69ba7e21c5"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "9311fa8a42"
+       }
+      }
+     ],
+     "id": "t-trigger-market",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 32,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1245382
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 33,
+ "round": 7,
+ "saved_at": "2026-08-27T07:25:24Z",
+ "selection_at_save": [],
+ "short_id": "cc96db2",
+ "summary": {
+  "headline": "Market Feed moved down (+3 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 4
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "straighten the source fan: even 120px pitch, symmetric about the Normalize spine. run-trigger deliberately untouched."
+}

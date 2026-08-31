@@ -1,0 +1,554 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData",
+      "link"
+     ],
+     "consequence_of": null,
+     "id": "to-compose",
+     "kind": "sink",
+     "label": "→ Review & publish",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "→ Compose",
+       "to": "→ Review & publish"
+      },
+      "tooltip_changed": {
+       "label": "→ Review & publish",
+       "text": "**Everything leaves here now.** This used to be where the 0.70 gate dropped low-"
+      }
+     },
+     "verb": "renamed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         267,
+         -160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "e-in-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "e-in-fundamentals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         213,
+         160
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         80,
+         0
+        ],
+        [
+         80,
+         140
+        ],
+        [
+         160,
+         140
+        ]
+       ]
+      }
+     ],
+     "id": "e-in-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Momentum and breadth, off the market feed and nothing else. **Isolated by design** — this is the box the routing correction was about."
+       },
+       "to": {
+        "author": "agent",
+        "document": "docs/adr/0002-news-never-touches-technical-signals.md",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Momentum and breadth, off the market feed and nothing else. **Isolated by design** — this is the box the routing correction was about."
+       }
+      }
+     ],
+     "id": "technicals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Settled: narrow by design.** Risk here is a fundamentals-and-tone number. Momentum and insider buying are *conviction*, not risk — that is how the desk thinks, not an accident of wiring.\n\nWhich means the Risk Deep-Dive is named after the narrow number, and that is fine.\n\n2.5% VaR is an **alert** off this box, not a filter."
+       },
+       "to": {
+        "author": "agent",
+        "document": "docs/adr/0001-risk-is-narrow-conviction-is-separate.md",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Settled: narrow by design.** Risk here is a fundamentals-and-tone number. Momentum and insider buying are *conviction*, not risk — that is how the desk thinks, not an accident of wiring.\n\nWhich means the Risk Deep-Dive is named after the narrow number, and that is fine.\n\n2.5% VaR is an **alert** off this box, not a filter."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "Hands back to `Compose outputs` on the spine.\n\n**Confirmed:** the 0.70 confidence gate is here — below 0.70 a Signal does not reach the output at all. One gate (0.70) and one alarm (2.5%): the console tunes one of each, not two gates."
+       },
+       "to": {
+        "author": "agent",
+        "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "**Everything leaves here now.** This used to be where the 0.70 gate dropped low-confidence Signals silently. It doesn't any more — the gate moved to its own view and became a router (ADR 0003).\n\nWhat leaves this box is every scored Signal, high and low. What happens to the low ones is a decision, and a human makes it."
+       }
+      },
+      {
+       "attr": "link",
+       "from": "artifact:daily-run-flow",
+       "to": "artifact:review-publish-flow"
+      }
+     ],
+     "id": "to-compose",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1717,
+       "to": 1692
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 332
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 86,
+       "to": 136
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 20,
+       "to": 40
+      },
+      {
+       "attr": "text",
+       "from": "→ Compose",
+       "to": "→ Review & publish"
+      },
+      {
+       "attr": "autoResize",
+       "from": true,
+       "to": false
+      }
+     ],
+     "id": "to-compose-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "to-compose",
+     "fact": "renamed",
+     "from": "→ Compose",
+     "to": "→ Review & publish"
+    },
+    {
+     "element": "to-compose",
+     "fact": "tooltip_changed",
+     "label": "→ Review & publish",
+     "text": "**Everything leaves here now.** This used to be where the 0.70 gate dropped low-"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1692,
+       "to": 1717
+      },
+      {
+       "attr": "y",
+       "from": 332,
+       "to": 342
+      },
+      {
+       "attr": "width",
+       "from": 136,
+       "to": 86
+      },
+      {
+       "attr": "height",
+       "from": 40,
+       "to": 20
+      },
+      {
+       "attr": "text",
+       "from": "→ Review & publish",
+       "to": "→ Compose"
+      },
+      {
+       "attr": "autoResize",
+       "from": false,
+       "to": true
+      }
+     ],
+     "id": "to-compose-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "**Everything leaves here now.** This used to be where the 0.70 gate dropped low-confidence Signals silently. It doesn't any more — the gate moved to its own view and became a router (ADR 0003).\n\nWhat leaves this box is every scored Signal, high and low. What happens to the low ones is a decision, and a human makes it."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "sink",
+        "role": "node",
+        "tooltip": "Hands back to `Compose outputs` on the spine.\n\n**Confirmed:** the 0.70 confidence gate is here — below 0.70 a Signal does not reach the output at all. One gate (0.70) and one alarm (2.5%): the console tunes one of each, not two gates."
+       }
+      },
+      {
+       "attr": "link",
+       "from": "artifact:review-publish-flow",
+       "to": "artifact:daily-run-flow"
+      }
+     ],
+     "id": "to-compose",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "document": "docs/adr/0001-risk-is-narrow-conviction-is-separate.md",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Settled: narrow by design.** Risk here is a fundamentals-and-tone number. Momentum and insider buying are *conviction*, not risk — that is how the desk thinks, not an accident of wiring.\n\nWhich means the Risk Deep-Dive is named after the narrow number, and that is fine.\n\n2.5% VaR is an **alert** off this box, not a filter."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Settled: narrow by design.** Risk here is a fundamentals-and-tone number. Momentum and insider buying are *conviction*, not risk — that is how the desk thinks, not an accident of wiring.\n\nWhich means the Risk Deep-Dive is named after the narrow number, and that is fine.\n\n2.5% VaR is an **alert** off this box, not a filter."
+       }
+      }
+     ],
+     "id": "risk-model",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "document": "docs/adr/0002-news-never-touches-technical-signals.md",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Momentum and breadth, off the market feed and nothing else. **Isolated by design** — this is the box the routing correction was about."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Momentum and breadth, off the market feed and nothing else. **Isolated by design** — this is the box the routing correction was about."
+       }
+      }
+     ],
+     "id": "technicals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         80,
+         0
+        ],
+        [
+         80,
+         140
+        ],
+        [
+         160,
+         140
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         160
+        ],
+        [
+         213,
+         160
+        ]
+       ]
+      }
+     ],
+     "id": "e-in-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         213,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "e-in-fundamentals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -160
+        ],
+        [
+         267,
+         -160
+        ]
+       ]
+      }
+     ],
+     "id": "e-in-sentiment",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 24,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 25,
+ "round": 5,
+ "saved_at": "2026-08-09T11:42:19Z",
+ "selection_at_save": [],
+ "short_id": "440b293",
+ "summary": {
+  "headline": "renamed '→ Compose' → '→ Review & publish' (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "renamed": 1,
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "enrichment-flow#to-compose",
+   "changed_all": [
+    "enrichment-flow#to-compose"
+   ],
+   "id": "tw-25-1",
+   "kind": "divergence",
+   "mapping": "argus:daily-run-flow#compose-outputs+enrichment-flow#to-compose",
+   "question": "enrichment-flow › to-compose changed but its mapped sibling daily-run-flow › compose-outputs didn't. Divergence, or should it propagate?",
+   "sibling": "daily-run-flow#compose-outputs",
+   "siblings": [
+    "daily-run-flow#compose-outputs"
+   ]
+  },
+  {
+   "changed": "enrichment-flow#to-compose",
+   "changed_all": [
+    "enrichment-flow#to-compose"
+   ],
+   "id": "tw-25-2",
+   "kind": "divergence",
+   "mapping": "admin-console:admin-console-wireframe#input-confidence+enrichment-flow#to-compose",
+   "question": "enrichment-flow › to-compose changed but its mapped sibling admin-console-wireframe › input-confidence didn't. Divergence, or should it propagate?",
+   "sibling": "admin-console-wireframe#input-confidence",
+   "siblings": [
+    "admin-console-wireframe#input-confidence"
+   ]
+  },
+  {
+   "changed": "enrichment-flow#to-compose",
+   "changed_all": [
+    "enrichment-flow#to-compose"
+   ],
+   "id": "tw-25-3",
+   "kind": "divergence",
+   "mapping": "review-queue:review-publish-flow#scored-signals+enrichment-flow#to-compose",
+   "question": "enrichment-flow › to-compose changed but its mapped sibling review-publish-flow › scored-signals didn't. Divergence, or should it propagate?",
+   "sibling": "review-publish-flow#scored-signals",
+   "siblings": [
+    "review-publish-flow#scored-signals"
+   ]
+  }
+ ],
+ "user_note": "the boundary no longer filters — it hands everything on, and the gate moved to its own view"
+}

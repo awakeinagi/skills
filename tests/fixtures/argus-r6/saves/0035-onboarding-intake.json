@@ -1,0 +1,6436 @@
+{
+ "artifacts": {
+  "onboarding-intake": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-portal-log",
+     "kind": "arrow",
+     "label": "a-portal-log",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-portal-log"
+      },
+      "transition_added": {
+       "between": [
+        "Client portal",
+        "Log request"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-email-log",
+     "kind": "arrow",
+     "label": "a-email-log",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-email-log"
+      },
+      "transition_added": {
+       "between": [
+        "Email inbox",
+        "Log request"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-rm-log",
+     "kind": "arrow",
+     "label": "a-rm-log",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-rm-log"
+      },
+      "transition_added": {
+       "between": [
+        "RM keyed entry",
+        "Log request"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-log-identity",
+     "kind": "arrow",
+     "label": "a-log-identity",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-log-identity"
+      },
+      "transition_added": {
+       "between": [
+        "Log request",
+        "Identity checks"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-identity-sanctions",
+     "kind": "arrow",
+     "label": "a-identity-sanctions",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-identity-sanctions"
+      },
+      "transition_added": {
+       "between": [
+        "Identity checks",
+        "Sanctions screen"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-sanctions-banding",
+     "kind": "arrow",
+     "label": "a-sanctions-banding",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-sanctions-banding"
+      },
+      "transition_added": {
+       "between": [
+        "Sanctions screen",
+        "Risk banding"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-banding-open",
+     "kind": "arrow",
+     "label": "straight through",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "straight through"
+      },
+      "transition_added": {
+       "between": [
+        "Risk banding",
+        "Account opening"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-banding-review",
+     "kind": "arrow",
+     "label": "needs review",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "needs review"
+      },
+      "rerouted": {
+       "arrow": "a-banding-review"
+      },
+      "transition_added": {
+       "between": [
+        "Risk banding",
+        "Manual review"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-banding-refuse",
+     "kind": "arrow",
+     "label": "refuse",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "refuse"
+      },
+      "transition_added": {
+       "between": [
+        "Risk banding",
+        "Rejection log"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-review-open",
+     "kind": "arrow",
+     "label": "a-review-open",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-review-open"
+      },
+      "transition_added": {
+       "between": [
+        "Manual review",
+        "Account opening"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-open-funding",
+     "kind": "arrow",
+     "label": "a-open-funding",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-open-funding"
+      },
+      "transition_added": {
+       "between": [
+        "Account opening",
+        "Funding"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-funding-welcome",
+     "kind": "arrow",
+     "label": "a-funding-welcome",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-funding-welcome"
+      },
+      "transition_added": {
+       "between": [
+        "Funding",
+        "Welcome pack"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-reject-letter",
+     "kind": "arrow",
+     "label": "a-reject-letter",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-reject-letter"
+      },
+      "transition_added": {
+       "between": [
+        "Rejection log",
+        "Rejection letter"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-review-recon",
+     "kind": "arrow",
+     "label": "> 2 days",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "> 2 days"
+      },
+      "transition_added": {
+       "between": [
+        "Manual review",
+        "Daily reconciliation"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-recon-banding",
+     "kind": "arrow",
+     "label": "re-band",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "re-band"
+      },
+      "transition_added": {
+       "between": [
+        "Daily reconciliation",
+        "Risk banding"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "src-portal",
+     "kind": "source",
+     "label": "Client portal",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Client portal"
+      },
+      "step_added": {
+       "label": "Client portal"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "src-email",
+     "kind": "source",
+     "label": "Email inbox",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "Email inbox"
+      },
+      "step_added": {
+       "label": "Email inbox"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "src-rm",
+     "kind": "source",
+     "label": "RM keyed entry",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "source",
+       "label": "RM keyed entry"
+      },
+      "step_added": {
+       "label": "RM keyed entry"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "log-request",
+     "kind": "transform",
+     "label": "Log request",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Log request"
+      },
+      "step_added": {
+       "label": "Log request"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "identity-checks",
+     "kind": "transform",
+     "label": "Identity checks",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Identity checks"
+      },
+      "step_added": {
+       "label": "Identity checks"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "sanctions-screen",
+     "kind": "transform",
+     "label": "Sanctions screen",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Sanctions screen"
+      },
+      "step_added": {
+       "label": "Sanctions screen"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "risk-banding",
+     "kind": "control",
+     "label": "Risk banding",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Risk banding"
+      },
+      "step_added": {
+       "label": "Risk banding"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "daily-recon",
+     "kind": "control",
+     "label": "Daily reconciliation",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Daily reconciliation"
+      },
+      "step_added": {
+       "label": "Daily reconciliation"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "manual-review",
+     "kind": "agent",
+     "label": "Manual review",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "added": {
+       "kind": "agent",
+       "label": "Manual review"
+      },
+      "step_added": {
+       "label": "Manual review"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "account-opening",
+     "kind": "transform",
+     "label": "Account opening",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Account opening"
+      },
+      "step_added": {
+       "label": "Account opening"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "funding",
+     "kind": "transform",
+     "label": "Funding",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "added": {
+       "kind": "transform",
+       "label": "Funding"
+      },
+      "step_added": {
+       "label": "Funding"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "welcome-pack",
+     "kind": "sink",
+     "label": "Welcome pack",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Welcome pack"
+      },
+      "step_added": {
+       "label": "Welcome pack"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "rejection-log",
+     "kind": "store",
+     "label": "Rejection log",
+     "ops": [
+      27
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Rejection log"
+      },
+      "step_added": {
+       "label": "Rejection log"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "rejection-letter",
+     "kind": "sink",
+     "label": "Rejection letter",
+     "ops": [
+      28
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Rejection letter"
+      },
+      "step_added": {
+       "label": "Rejection letter"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-intake-sanctions",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      48
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "What happens when the sanctions screen gets a hit?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-intake-review-refuse",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      49
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Can a reviewer refuse, or only approve?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-intake-recon-loop",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      50
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Does the two-day sweep ever stop?"
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c1eee84126"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "log-request",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 88,
+      "id": "a-portal-log",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        88
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1000803687,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-portal",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 240,
+      "y": 272
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "087bcd5194"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "log-request",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-email-log",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1639597134,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-email",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 392
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "20f1319449"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "log-request",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 88,
+      "id": "a-rm-log",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -88
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1382546962,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-rm",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 240,
+      "y": 512
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "4d77ecef54"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "identity-checks",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-log-identity",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 360526644,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "log-request",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 560,
+      "y": 392
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "bb5e3ea62b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sanctions-screen",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-identity-sanctions",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2119149758,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "identity-checks",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 880,
+      "y": 392
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "48d6164203"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-sanctions-banding",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2113744450,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "sanctions-screen",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1200,
+      "y": 392
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-banding-open-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "4a75ac4006"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "account-opening",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-banding-open",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        680,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 303065040,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 1520,
+      "y": 392
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-banding-review-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "manual-review",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 100,
+      "id": "a-banding-review",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ],
+       [
+        160,
+        -100
+       ],
+       [
+        320,
+        -100
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 360164661,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1520,
+      "y": 352
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-banding-refuse-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "57feaf2685"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-log",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 120,
+      "id": "a-banding-refuse",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        120
+       ],
+       [
+        400,
+        120
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1064526881,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 400,
+      "x": 1440,
+      "y": 452
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "7c0b8c92f9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "account-opening",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 108,
+      "id": "a-review-open",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        280,
+        0
+       ],
+       [
+        280,
+        108
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1960727472,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "manual-review",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 2000,
+      "y": 252
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "05b236a295"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "funding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-open-funding",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 530739636,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "account-opening",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2360,
+      "y": 392
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "e8ecd9375e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "welcome-pack",
+       "focus": -0.014,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 3,
+      "id": "a-funding-welcome",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        3
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1727078445,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "funding",
+       "focus": 0.01,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2680,
+      "y": 394
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a7ccce5c84"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-letter",
+       "focus": 0.023,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 3,
+      "id": "a-reject-letter",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        200,
+        3
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1698329550,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "rejection-log",
+       "focus": -0.01,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 2000,
+      "y": 573
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-review-recon-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "3d560af83b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "daily-recon",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 116,
+      "id": "a-review-recon",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -116
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1371305824,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "manual-review",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 1920,
+      "y": 220
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-recon-banding-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "0af1b10d6e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 260,
+      "id": "a-recon-banding",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -400,
+        0
+       ],
+       [
+        -400,
+        260
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 28356603,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-recon",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 400,
+      "x": 1840,
+      "y": 72
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-portal-label",
+        "type": "text"
+       },
+       {
+        "id": "a-portal-log",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Self-service. The client keys their own details, so the data arrives structured but unverified."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-portal",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1791193321,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 240
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-email-label",
+        "type": "text"
+       },
+       {
+        "id": "a-email-log",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "A monitored mailbox. Free-form: somebody has to read it and transcribe it, which is where a keying error would enter."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-email",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1636742826,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 360
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-rm-label",
+        "type": "text"
+       },
+       {
+        "id": "a-rm-log",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "A relationship manager enters it by hand on the client's behalf. The only route where the client never touches the form."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-rm",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 141223596,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 480
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "log-request-label",
+        "type": "text"
+       },
+       {
+        "id": "a-portal-log",
+        "type": "arrow"
+       },
+       {
+        "id": "a-email-log",
+        "type": "arrow"
+       },
+       {
+        "id": "a-rm-log",
+        "type": "arrow"
+       },
+       {
+        "id": "a-log-identity",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "**Every route funnels through here.** All three sources are logged before anything else happens, which makes this the first point where a request exists as a record.\n\nFor compliance this is the provenance point: after this box the three routes are indistinguishable unless the log records which one it came from."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "log-request",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1831805413,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 400,
+      "y": 360
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "identity-checks-label",
+        "type": "text"
+       },
+       {
+        "id": "a-log-identity",
+        "type": "arrow"
+       },
+       {
+        "id": "a-identity-sanctions",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Drawn as pass-through, because that is how it was described. **No failure exit is drawn** — see the pinned question on the sanctions screen; the same gap applies here."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "identity-checks",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1496082477,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 720,
+      "y": 360
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sanctions-screen-label",
+        "type": "text"
+       },
+       {
+        "id": "a-identity-sanctions",
+        "type": "arrow"
+       },
+       {
+        "id": "a-sanctions-banding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Drawn as pass-through: everything reaching it continues to risk banding.\n\n**This is almost certainly incomplete.** A sanctions hit normally stops a request where it stands rather than banding it. Pinned."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "sanctions-screen",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1326229453,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1040,
+      "y": 360
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "risk-banding-label",
+        "type": "text"
+       },
+       {
+        "id": "a-sanctions-banding",
+        "type": "arrow"
+       },
+       {
+        "id": "a-banding-open",
+        "type": "arrow"
+       },
+       {
+        "id": "a-banding-review",
+        "type": "arrow"
+       },
+       {
+        "id": "a-banding-refuse",
+        "type": "arrow"
+       },
+       {
+        "id": "a-recon-banding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**The only branch in the pipeline.** Three ways out: straight through, needs review, refuse.\n\nDrawn taller than its neighbours because it is the decision the whole flow turns on."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 120,
+      "id": "risk-banding",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 460279274,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 332
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "daily-recon-label",
+        "type": "text"
+       },
+       {
+        "id": "a-review-recon",
+        "type": "arrow"
+       },
+       {
+        "id": "a-recon-banding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "Sweeps once a day. Anything sitting in manual review more than two days is pushed back to banding.\n\nDrawn as a loop back into banding, which is what was described — note that means a request can be re-banded repeatedly. Pinned."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "daily-recon",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 234733779,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1840,
+      "y": 40
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "manual-review-label",
+        "type": "text"
+       },
+       {
+        "id": "a-banding-review",
+        "type": "arrow"
+       },
+       {
+        "id": "a-review-open",
+        "type": "arrow"
+       },
+       {
+        "id": "a-review-recon",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "agent",
+       "role": "node",
+       "tooltip": "A human looks at the case.\n\nDeliberately **not** called a review queue: Argus already has a *Review queue* for sub-threshold Signals and the two are unrelated. Same word, different system.\n\nOnly one exit is drawn — approved. Whether a reviewer can also refuse is pinned."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "manual-review",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1294563085,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1840,
+      "y": 220
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "account-opening-label",
+        "type": "text"
+       },
+       {
+        "id": "a-banding-open",
+        "type": "arrow"
+       },
+       {
+        "id": "a-review-open",
+        "type": "arrow"
+       },
+       {
+        "id": "a-open-funding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Where straight-through and reviewed cases converge. From here the two are treated identically."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "account-opening",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 694900326,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2200,
+      "y": 360
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "funding-label",
+        "type": "text"
+       },
+       {
+        "id": "a-open-funding",
+        "type": "arrow"
+       },
+       {
+        "id": "a-funding-welcome",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "First money in. Drawn as a single step; whether it can fail or part-fund is not described."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "funding",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1393414614,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2520,
+      "y": 360
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "welcome-pack-label",
+        "type": "text"
+       },
+       {
+        "id": "a-funding-welcome",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "auto_grown": 12,
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "The end of the happy path — the client is on board."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 76,
+      "id": "welcome-pack",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 283748000,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2840,
+      "y": 360
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "rejection-log-label",
+        "type": "text"
+       },
+       {
+        "id": "a-banding-refuse",
+        "type": "arrow"
+       },
+       {
+        "id": "a-reject-letter",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "**The audit trail for a refusal.** Distinct from the letter on purpose: the log is the record that survives, the letter is what the client receives.\n\nCompliance will ask what is retained here and for how long. Nothing in this drawing answers that."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "rejection-log",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1321471095,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1840,
+      "y": 540
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "rejection-letter-label",
+        "type": "text"
+       },
+       {
+        "id": "a-reject-letter",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "auto_grown": 12,
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "What the client is told. No path returns from here — a refusal is drawn as final, with no appeal route."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 76,
+      "id": "rejection-letter",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1663451522,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2200,
+      "y": 540
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-portal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "src-portal-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Client portal",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 726971685,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Client portal",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 91,
+      "x": 114,
+      "y": 261
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-email",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "src-email-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Email inbox",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1087611933,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Email inbox",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 85,
+      "x": 118,
+      "y": 381
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-rm",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "src-rm-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "RM keyed entry",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 813870603,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "RM keyed entry",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 114,
+      "x": 103,
+      "y": 501
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "log-request",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "log-request-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Log request",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 557211808,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Log request",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 87,
+      "x": 436,
+      "y": 381
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "identity-checks",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "identity-checks-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Identity checks",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502363491,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Identity checks",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 108,
+      "x": 746,
+      "y": 381
+     },
+     "index": 33,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sanctions-screen",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "sanctions-screen-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sanctions screen",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 471083799,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sanctions screen",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 122,
+      "x": 1059,
+      "y": 381
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "risk-banding",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "risk-banding-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk banding",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 654253926,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk banding",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 94,
+      "x": 1393,
+      "y": 381
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "daily-recon",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "daily-recon-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Daily reconciliation",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 573296717,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Daily reconciliation",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 138,
+      "x": 1851,
+      "y": 61
+     },
+     "index": 36,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "manual-review",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "manual-review-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Manual review",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 274842008,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Manual review",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 107,
+      "x": 1866,
+      "y": 241
+     },
+     "index": 37,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "account-opening",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "account-opening-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Account opening",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1882246143,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Account opening",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 123,
+      "x": 2218,
+      "y": 381
+     },
+     "index": 38,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "funding",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "funding-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Funding",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1327688401,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Funding",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 59,
+      "x": 2570,
+      "y": 381
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "welcome-pack",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 44,
+      "id": "welcome-pack-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Welcome pack",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1919606052,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Welcome pack",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 70,
+      "x": 2885,
+      "y": 376
+     },
+     "index": 40,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "rejection-log",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "rejection-log-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rejection log",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 310974813,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rejection log",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 95,
+      "x": 1872,
+      "y": 561
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "rejection-letter",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 44,
+      "id": "rejection-letter-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rejection letter",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 995512591,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rejection letter",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 2246,
+      "y": 556
+     },
+     "index": 42,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-banding-open",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-banding-open-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "straight through",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 887261005,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "straight through",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 120,
+      "x": 1800,
+      "y": 381
+     },
+     "index": 43,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-banding-review",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-banding-review-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "needs review",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 323305401,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "needs review",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 99,
+      "x": 1630,
+      "y": 291
+     },
+     "index": 44,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-banding-refuse",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-banding-refuse-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "refuse",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 881506943,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "refuse",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 48,
+      "x": 1448,
+      "y": 567
+     },
+     "index": 45,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-review-recon",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-review-recon-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "> 2 days",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1000969886,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "> 2 days",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 64,
+      "x": 1888,
+      "y": 151
+     },
+     "index": 46,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-recon-banding",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-recon-banding-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "re-band",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1407702414,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "re-band",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 60,
+      "x": 1392,
+      "y": 80
+     },
+     "index": 47,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What happens when the sanctions screen gets a hit?",
+       "role": "pin",
+       "status": "open",
+       "target": "sanctions-screen"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-sanctions",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 621876862,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1208,
+      "y": 352
+     },
+     "index": 48,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Can a reviewer refuse, or only approve?",
+       "role": "pin",
+       "status": "open",
+       "target": "manual-review"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-review-refuse",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1979381892,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2008,
+      "y": 212
+     },
+     "index": 49,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the two-day sweep ever stop?",
+       "role": "pin",
+       "status": "open",
+       "target": "daily-recon"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-recon-loop",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 564843003,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2008,
+      "y": 32
+     },
+     "index": 50,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "a-portal-log",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-portal-log"
+    },
+    {
+     "element": "a-email-log",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-email-log"
+    },
+    {
+     "element": "a-rm-log",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-rm-log"
+    },
+    {
+     "element": "a-log-identity",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-log-identity"
+    },
+    {
+     "element": "a-identity-sanctions",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-identity-sanctions"
+    },
+    {
+     "element": "a-sanctions-banding",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-sanctions-banding"
+    },
+    {
+     "element": "a-banding-open",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "straight through"
+    },
+    {
+     "element": "a-banding-review",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "needs review"
+    },
+    {
+     "element": "a-banding-refuse",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "refuse"
+    },
+    {
+     "element": "a-review-open",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-review-open"
+    },
+    {
+     "element": "a-open-funding",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-open-funding"
+    },
+    {
+     "element": "a-funding-welcome",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-funding-welcome"
+    },
+    {
+     "element": "a-reject-letter",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-reject-letter"
+    },
+    {
+     "element": "a-review-recon",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "> 2 days"
+    },
+    {
+     "element": "a-recon-banding",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "re-band"
+    },
+    {
+     "element": "src-portal",
+     "fact": "added",
+     "kind": "source",
+     "label": "Client portal"
+    },
+    {
+     "element": "src-email",
+     "fact": "added",
+     "kind": "source",
+     "label": "Email inbox"
+    },
+    {
+     "element": "src-rm",
+     "fact": "added",
+     "kind": "source",
+     "label": "RM keyed entry"
+    },
+    {
+     "element": "log-request",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Log request"
+    },
+    {
+     "element": "identity-checks",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Identity checks"
+    },
+    {
+     "element": "sanctions-screen",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Sanctions screen"
+    },
+    {
+     "element": "risk-banding",
+     "fact": "added",
+     "kind": "control",
+     "label": "Risk banding"
+    },
+    {
+     "element": "daily-recon",
+     "fact": "added",
+     "kind": "control",
+     "label": "Daily reconciliation"
+    },
+    {
+     "element": "manual-review",
+     "fact": "added",
+     "kind": "agent",
+     "label": "Manual review"
+    },
+    {
+     "element": "account-opening",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Account opening"
+    },
+    {
+     "element": "funding",
+     "fact": "added",
+     "kind": "transform",
+     "label": "Funding"
+    },
+    {
+     "element": "welcome-pack",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Welcome pack"
+    },
+    {
+     "element": "rejection-log",
+     "fact": "added",
+     "kind": "store",
+     "label": "Rejection log"
+    },
+    {
+     "element": "rejection-letter",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Rejection letter"
+    },
+    {
+     "element": "pin-intake-sanctions",
+     "fact": "pin_added",
+     "question": "What happens when the sanctions screen gets a hit?"
+    },
+    {
+     "element": "pin-intake-review-refuse",
+     "fact": "pin_added",
+     "question": "Can a reviewer refuse, or only approve?"
+    },
+    {
+     "element": "pin-intake-recon-loop",
+     "fact": "pin_added",
+     "question": "Does the two-day sweep ever stop?"
+    },
+    {
+     "between": [
+      "Client portal",
+      "Log request"
+     ],
+     "element": "a-portal-log",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Email inbox",
+      "Log request"
+     ],
+     "element": "a-email-log",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "RM keyed entry",
+      "Log request"
+     ],
+     "element": "a-rm-log",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Log request",
+      "Identity checks"
+     ],
+     "element": "a-log-identity",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Identity checks",
+      "Sanctions screen"
+     ],
+     "element": "a-identity-sanctions",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Sanctions screen",
+      "Risk banding"
+     ],
+     "element": "a-sanctions-banding",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Risk banding",
+      "Account opening"
+     ],
+     "element": "a-banding-open",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Risk banding",
+      "Manual review"
+     ],
+     "element": "a-banding-review",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Risk banding",
+      "Rejection log"
+     ],
+     "element": "a-banding-refuse",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Manual review",
+      "Account opening"
+     ],
+     "element": "a-review-open",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Account opening",
+      "Funding"
+     ],
+     "element": "a-open-funding",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Funding",
+      "Welcome pack"
+     ],
+     "element": "a-funding-welcome",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Rejection log",
+      "Rejection letter"
+     ],
+     "element": "a-reject-letter",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Manual review",
+      "Daily reconciliation"
+     ],
+     "element": "a-review-recon",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Daily reconciliation",
+      "Risk banding"
+     ],
+     "element": "a-recon-banding",
+     "fact": "transition_added"
+    },
+    {
+     "element": "src-portal",
+     "fact": "step_added",
+     "label": "Client portal"
+    },
+    {
+     "element": "src-email",
+     "fact": "step_added",
+     "label": "Email inbox"
+    },
+    {
+     "element": "src-rm",
+     "fact": "step_added",
+     "label": "RM keyed entry"
+    },
+    {
+     "element": "log-request",
+     "fact": "step_added",
+     "label": "Log request"
+    },
+    {
+     "element": "identity-checks",
+     "fact": "step_added",
+     "label": "Identity checks"
+    },
+    {
+     "element": "sanctions-screen",
+     "fact": "step_added",
+     "label": "Sanctions screen"
+    },
+    {
+     "element": "risk-banding",
+     "fact": "step_added",
+     "label": "Risk banding"
+    },
+    {
+     "element": "daily-recon",
+     "fact": "step_added",
+     "label": "Daily reconciliation"
+    },
+    {
+     "element": "manual-review",
+     "fact": "step_added",
+     "label": "Manual review"
+    },
+    {
+     "element": "account-opening",
+     "fact": "step_added",
+     "label": "Account opening"
+    },
+    {
+     "element": "funding",
+     "fact": "step_added",
+     "label": "Funding"
+    },
+    {
+     "element": "welcome-pack",
+     "fact": "step_added",
+     "label": "Welcome pack"
+    },
+    {
+     "element": "rejection-log",
+     "fact": "step_added",
+     "label": "Rejection log"
+    },
+    {
+     "element": "rejection-letter",
+     "fact": "step_added",
+     "label": "Rejection letter"
+    },
+    {
+     "arrow": "a-banding-review",
+     "element": "a-banding-review",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the two-day sweep ever stop?",
+       "role": "pin",
+       "status": "open",
+       "target": "daily-recon"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-recon-loop",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 564843003,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2008,
+      "y": 32
+     },
+     "index": 50,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Can a reviewer refuse, or only approve?",
+       "role": "pin",
+       "status": "open",
+       "target": "manual-review"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-review-refuse",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1979381892,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2008,
+      "y": 212
+     },
+     "index": 49,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What happens when the sanctions screen gets a hit?",
+       "role": "pin",
+       "status": "open",
+       "target": "sanctions-screen"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-sanctions",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 621876862,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1208,
+      "y": 352
+     },
+     "index": 48,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-recon-banding",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-recon-banding-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "re-band",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1407702414,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "re-band",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 60,
+      "x": 1392,
+      "y": 80
+     },
+     "index": 47,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-review-recon",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-review-recon-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "> 2 days",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1000969886,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "> 2 days",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 64,
+      "x": 1888,
+      "y": 151
+     },
+     "index": 46,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-banding-refuse",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-banding-refuse-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "refuse",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 881506943,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "refuse",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 48,
+      "x": 1448,
+      "y": 567
+     },
+     "index": 45,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-banding-review",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-banding-review-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "needs review",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 323305401,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "needs review",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 99,
+      "x": 1630,
+      "y": 291
+     },
+     "index": 44,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-banding-open",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-banding-open-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "straight through",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 887261005,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "straight through",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 120,
+      "x": 1800,
+      "y": 381
+     },
+     "index": 43,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "rejection-letter",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 44,
+      "id": "rejection-letter-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rejection letter",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 995512591,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rejection letter",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 67,
+      "x": 2246,
+      "y": 556
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "rejection-log",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "rejection-log-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Rejection log",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 310974813,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Rejection log",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 95,
+      "x": 1872,
+      "y": 561
+     },
+     "index": 41,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "welcome-pack",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 44,
+      "id": "welcome-pack-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Welcome pack",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1919606052,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Welcome pack",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 70,
+      "x": 2885,
+      "y": 376
+     },
+     "index": 40,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "funding",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "funding-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Funding",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1327688401,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Funding",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 59,
+      "x": 2570,
+      "y": 381
+     },
+     "index": 39,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "account-opening",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "account-opening-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Account opening",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1882246143,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Account opening",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 123,
+      "x": 2218,
+      "y": 381
+     },
+     "index": 38,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "manual-review",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "manual-review-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Manual review",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 274842008,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Manual review",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 107,
+      "x": 1866,
+      "y": 241
+     },
+     "index": 37,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "daily-recon",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "daily-recon-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Daily reconciliation",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 573296717,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Daily reconciliation",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 138,
+      "x": 1851,
+      "y": 61
+     },
+     "index": 36,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "risk-banding",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "risk-banding-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk banding",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 654253926,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk banding",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 94,
+      "x": 1393,
+      "y": 381
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "sanctions-screen",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "sanctions-screen-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sanctions screen",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 471083799,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sanctions screen",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 122,
+      "x": 1059,
+      "y": 381
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "identity-checks",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "identity-checks-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Identity checks",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502363491,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Identity checks",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 108,
+      "x": 746,
+      "y": 381
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "log-request",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "log-request-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Log request",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 557211808,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Log request",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 87,
+      "x": 436,
+      "y": 381
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-rm",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "src-rm-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "RM keyed entry",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 813870603,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "RM keyed entry",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 114,
+      "x": 103,
+      "y": 501
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-email",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "src-email-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Email inbox",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1087611933,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Email inbox",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 85,
+      "x": 118,
+      "y": 381
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "src-portal",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "src-portal-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Client portal",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 726971685,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Client portal",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 91,
+      "x": 114,
+      "y": 261
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "rejection-letter-label",
+        "type": "text"
+       },
+       {
+        "id": "a-reject-letter",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "auto_grown": 12,
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "What the client is told. No path returns from here — a refusal is drawn as final, with no appeal route."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 76,
+      "id": "rejection-letter",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1663451522,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2200,
+      "y": 540
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "rejection-log-label",
+        "type": "text"
+       },
+       {
+        "id": "a-banding-refuse",
+        "type": "arrow"
+       },
+       {
+        "id": "a-reject-letter",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "**The audit trail for a refusal.** Distinct from the letter on purpose: the log is the record that survives, the letter is what the client receives.\n\nCompliance will ask what is retained here and for how long. Nothing in this drawing answers that."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "rejection-log",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1321471095,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1840,
+      "y": 540
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "welcome-pack-label",
+        "type": "text"
+       },
+       {
+        "id": "a-funding-welcome",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "auto_grown": 12,
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "The end of the happy path — the client is on board."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 76,
+      "id": "welcome-pack",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 283748000,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2840,
+      "y": 360
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "funding-label",
+        "type": "text"
+       },
+       {
+        "id": "a-open-funding",
+        "type": "arrow"
+       },
+       {
+        "id": "a-funding-welcome",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "First money in. Drawn as a single step; whether it can fail or part-fund is not described."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "funding",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1393414614,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2520,
+      "y": 360
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "account-opening-label",
+        "type": "text"
+       },
+       {
+        "id": "a-banding-open",
+        "type": "arrow"
+       },
+       {
+        "id": "a-review-open",
+        "type": "arrow"
+       },
+       {
+        "id": "a-open-funding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Where straight-through and reviewed cases converge. From here the two are treated identically."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "account-opening",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 694900326,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2200,
+      "y": 360
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "manual-review-label",
+        "type": "text"
+       },
+       {
+        "id": "a-banding-review",
+        "type": "arrow"
+       },
+       {
+        "id": "a-review-open",
+        "type": "arrow"
+       },
+       {
+        "id": "a-review-recon",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "agent",
+       "role": "node",
+       "tooltip": "A human looks at the case.\n\nDeliberately **not** called a review queue: Argus already has a *Review queue* for sub-threshold Signals and the two are unrelated. Same word, different system.\n\nOnly one exit is drawn — approved. Whether a reviewer can also refuse is pinned."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "manual-review",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1294563085,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1840,
+      "y": 220
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "daily-recon-label",
+        "type": "text"
+       },
+       {
+        "id": "a-review-recon",
+        "type": "arrow"
+       },
+       {
+        "id": "a-recon-banding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "Sweeps once a day. Anything sitting in manual review more than two days is pushed back to banding.\n\nDrawn as a loop back into banding, which is what was described — note that means a request can be re-banded repeatedly. Pinned."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "daily-recon",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 234733779,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1840,
+      "y": 40
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "risk-banding-label",
+        "type": "text"
+       },
+       {
+        "id": "a-sanctions-banding",
+        "type": "arrow"
+       },
+       {
+        "id": "a-banding-open",
+        "type": "arrow"
+       },
+       {
+        "id": "a-banding-review",
+        "type": "arrow"
+       },
+       {
+        "id": "a-banding-refuse",
+        "type": "arrow"
+       },
+       {
+        "id": "a-recon-banding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**The only branch in the pipeline.** Three ways out: straight through, needs review, refuse.\n\nDrawn taller than its neighbours because it is the decision the whole flow turns on."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 120,
+      "id": "risk-banding",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 460279274,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 332
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "sanctions-screen-label",
+        "type": "text"
+       },
+       {
+        "id": "a-identity-sanctions",
+        "type": "arrow"
+       },
+       {
+        "id": "a-sanctions-banding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Drawn as pass-through: everything reaching it continues to risk banding.\n\n**This is almost certainly incomplete.** A sanctions hit normally stops a request where it stands rather than banding it. Pinned."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "sanctions-screen",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1326229453,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1040,
+      "y": 360
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "identity-checks-label",
+        "type": "text"
+       },
+       {
+        "id": "a-log-identity",
+        "type": "arrow"
+       },
+       {
+        "id": "a-identity-sanctions",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "Drawn as pass-through, because that is how it was described. **No failure exit is drawn** — see the pinned question on the sanctions screen; the same gap applies here."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "identity-checks",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1496082477,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 720,
+      "y": 360
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "log-request-label",
+        "type": "text"
+       },
+       {
+        "id": "a-portal-log",
+        "type": "arrow"
+       },
+       {
+        "id": "a-email-log",
+        "type": "arrow"
+       },
+       {
+        "id": "a-rm-log",
+        "type": "arrow"
+       },
+       {
+        "id": "a-log-identity",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "transform",
+       "role": "node",
+       "tooltip": "**Every route funnels through here.** All three sources are logged before anything else happens, which makes this the first point where a request exists as a record.\n\nFor compliance this is the provenance point: after this box the three routes are indistinguishable unless the log records which one it came from."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "log-request",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1831805413,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 400,
+      "y": 360
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-rm-label",
+        "type": "text"
+       },
+       {
+        "id": "a-rm-log",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "A relationship manager enters it by hand on the client's behalf. The only route where the client never touches the form."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-rm",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 141223596,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 480
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-email-label",
+        "type": "text"
+       },
+       {
+        "id": "a-email-log",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "A monitored mailbox. Free-form: somebody has to read it and transcribe it, which is where a keying error would enter."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-email",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1636742826,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 360
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "src-portal-label",
+        "type": "text"
+       },
+       {
+        "id": "a-portal-log",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "Self-service. The client keys their own details, so the data arrives structured but unverified."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "src-portal",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1791193321,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 240
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-recon-banding-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "0af1b10d6e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 260,
+      "id": "a-recon-banding",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        -400,
+        0
+       ],
+       [
+        -400,
+        260
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 28356603,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-recon",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 400,
+      "x": 1840,
+      "y": 72
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-review-recon-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "3d560af83b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "daily-recon",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 116,
+      "id": "a-review-recon",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        -116
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1371305824,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "manual-review",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 0,
+      "x": 1920,
+      "y": 220
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "a7ccce5c84"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-letter",
+       "focus": 0.023,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 3,
+      "id": "a-reject-letter",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        200,
+        3
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1698329550,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "rejection-log",
+       "focus": -0.01,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 2000,
+      "y": 573
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "e8ecd9375e"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "welcome-pack",
+       "focus": -0.014,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 3,
+      "id": "a-funding-welcome",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        3
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1727078445,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "funding",
+       "focus": 0.01,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2680,
+      "y": 394
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "05b236a295"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "funding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-open-funding",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 530739636,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "account-opening",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2360,
+      "y": 392
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "7c0b8c92f9"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "account-opening",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 108,
+      "id": "a-review-open",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        280,
+        0
+       ],
+       [
+        280,
+        108
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1960727472,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "manual-review",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 280,
+      "x": 2000,
+      "y": 252
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-banding-refuse-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "57feaf2685"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-log",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 120,
+      "id": "a-banding-refuse",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        120
+       ],
+       [
+        400,
+        120
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1064526881,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 400,
+      "x": 1440,
+      "y": 452
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-banding-review-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "manual-review",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 100,
+      "id": "a-banding-review",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ],
+       [
+        160,
+        -100
+       ],
+       [
+        320,
+        -100
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 360164661,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 320,
+      "x": 1520,
+      "y": 352
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-banding-open-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "4a75ac4006"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "account-opening",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-banding-open",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        680,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 303065040,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 1520,
+      "y": 392
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "48d6164203"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "risk-banding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-sanctions-banding",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2113744450,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "sanctions-screen",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1200,
+      "y": 392
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "bb5e3ea62b"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sanctions-screen",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-identity-sanctions",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2119149758,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "identity-checks",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 880,
+      "y": 392
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "4d77ecef54"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "identity-checks",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-log-identity",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 360526644,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "log-request",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 560,
+      "y": 392
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "20f1319449"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "log-request",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 88,
+      "id": "a-rm-log",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        -88
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1382546962,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-rm",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 240,
+      "y": 512
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "087bcd5194"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "log-request",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-email-log",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1639597134,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-email",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 392
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c1eee84126"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "log-request",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 88,
+      "id": "a-portal-log",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        240,
+        0
+       ],
+       [
+        240,
+        88
+       ]
+      ],
+      "roughness": 1,
+      "roundness": {
+       "type": 2
+      },
+      "seed": 1000803687,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "src-portal",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 240,
+      "x": 240,
+      "y": 272
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Client Onboarding Intake"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 34,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1317317
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "set_budget",
+   "arrows": 15,
+   "artifact": "onboarding-intake",
+   "nodes": 14,
+   "reason": "one landscape page for the compliance pack: three intake routes, the linear checks, a three-way band, both terminal paths and the two-day sweep. Splitting it would put the branch and its outcomes on different sheets."
+  },
+  {
+   "action": "upsert_concept",
+   "id": "onboarding",
+   "name": "Client onboarding",
+   "view_types": {
+    "onboarding-intake": "flow"
+   },
+   "views": [
+    "onboarding-intake"
+   ]
+  }
+ ],
+ "revn": 35,
+ "round": 9,
+ "saved_at": "2026-08-27T10:58:12Z",
+ "selection_at_save": [],
+ "short_id": "8dbf189",
+ "summary": {
+  "headline": "rerouted a-banding-review (+61 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "added": 29,
+   "pin_added": 3,
+   "rerouted": 1,
+   "step_added": 14,
+   "transition_added": 15
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "first draft of the intake pipeline: three sources, log, identity, sanctions, three-way banding, and the two-day sweep back to banding"
+}

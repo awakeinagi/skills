@@ -1,0 +1,3190 @@
+{
+ "artifacts": {
+  "onboarding-intake": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-signoff-funding",
+     "kind": "arrow",
+     "label": "a-signoff-funding",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "a-signoff-funding"
+      },
+      "transition_added": {
+       "between": [
+        "Second sign-off",
+        "Funding"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-identity-reject",
+     "kind": "arrow",
+     "label": "fail",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "fail"
+      },
+      "rerouted": {
+       "arrow": "a-identity-reject"
+      },
+      "transition_added": {
+       "between": [
+        "Identity checks",
+        "Rejection log"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-sanctions-reject",
+     "kind": "arrow",
+     "label": "hit",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "hit"
+      },
+      "rerouted": {
+       "arrow": "a-sanctions-reject"
+      },
+      "transition_added": {
+       "between": [
+        "Sanctions screen",
+        "Rejection log"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-review-reject",
+     "kind": "arrow",
+     "label": "refused",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "refused"
+      },
+      "rerouted": {
+       "arrow": "a-review-reject"
+      },
+      "transition_added": {
+       "between": [
+        "Manual review",
+        "Rejection log"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "a-recon-escalate",
+     "kind": "arrow",
+     "label": "3rd sweep",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "3rd sweep"
+      },
+      "transition_added": {
+       "between": [
+        "Daily reconciliation",
+        "Escalated to a human"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "second-signoff",
+     "kind": "control",
+     "label": "Second sign-off",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Second sign-off"
+      },
+      "step_added": {
+       "label": "Second sign-off"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "escalation",
+     "kind": "sink",
+     "label": "Escalated to a human",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "sink",
+       "label": "Escalated to a human"
+      },
+      "step_added": {
+       "label": "Escalated to a human"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-intake-escalation",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "What can the human do once a case is escalated?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-intake-sanctions",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-intake-review-refuse",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-intake-recon-loop",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "identity-checks",
+     "kind": "transform",
+     "label": "Identity checks",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Identity checks",
+       "text": "A failed identity check is a **hard stop** — straight to the rejection log, neve"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "sanctions-screen",
+     "kind": "transform",
+     "label": "Sanctions screen",
+     "ops": [
+      22
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Sanctions screen",
+       "text": "A hit is a **hard stop** — straight to the rejection log and a letter, never onw"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "daily-recon",
+     "kind": "control",
+     "label": "Daily reconciliation",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Daily reconciliation",
+       "text": "Sweeps once a day. A case stuck in manual review more than two days goes back to"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "manual-review",
+     "kind": "agent",
+     "label": "Manual review",
+     "ops": [
+      24
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Manual review",
+       "text": "A human looks at the case. **Three ways out**: approve to account opening, refus"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "a-signoff-funding",
+     "id": "funding",
+     "kind": "transform",
+     "label": "Funding",
+     "ops": [
+      25
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "a-signoff-funding",
+       "dx": 320,
+       "dy": 0,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "a-signoff-funding",
+     "id": "welcome-pack",
+     "kind": "sink",
+     "label": "Welcome pack",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "a-signoff-funding",
+       "dx": 320,
+       "dy": 0,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "rejection-log",
+     "kind": "store",
+     "label": "Rejection log",
+     "ops": [
+      27,
+      28
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -480,
+       "dy": 80,
+       "label": "Rejection log",
+       "spatial": "moved left-down"
+      },
+      "tooltip_changed": {
+       "label": "Rejection log",
+       "text": "**Four ways in, and everything that dies lands here**: a failed identity check, "
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "rejection-letter",
+     "kind": "sink",
+     "label": "Rejection letter",
+     "ops": [
+      29
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -480,
+       "dy": 80,
+       "label": "Rejection letter",
+       "spatial": "moved left-down"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "a-open-funding",
+     "kind": "arrow",
+     "label": "a-open-funding",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "a-open-funding",
+       "from": "Account opening→Funding",
+       "to": "Account opening→Second sign-off"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "a-banding-refuse",
+     "kind": "arrow",
+     "label": "refuse",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "a-banding-refuse"
+      }
+     },
+     "verb": "rerouted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "da30bd4bf7"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "funding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-signoff-funding",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 942563504,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "second-signoff",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2680,
+      "y": 392
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-identity-reject-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-log",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 196,
+      "id": "a-identity-reject",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        136
+       ],
+       [
+        590,
+        136
+       ],
+       [
+        590,
+        196
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 393173470,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "identity-checks",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 590,
+      "x": 800,
+      "y": 424
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-sanctions-reject-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-log",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 196,
+      "id": "a-sanctions-reject",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        96
+       ],
+       [
+        310,
+        96
+       ],
+       [
+        310,
+        196
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 178375429,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "sanctions-screen",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 310,
+      "x": 1120,
+      "y": 424
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-review-reject-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-log",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 336,
+      "id": "a-review-reject",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        296
+       ],
+       [
+        -410,
+        296
+       ],
+       [
+        -410,
+        336
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 230175638,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "manual-review",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 410,
+      "x": 1920,
+      "y": 284
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-recon-escalate-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "6e3e8aa366"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "escalation",
+       "focus": 0.018,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 3,
+      "id": "a-recon-escalate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        200,
+        3
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 371396524,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-recon",
+       "focus": -0.01,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 2000,
+      "y": 73
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "second-signoff-label",
+        "type": "text"
+       },
+       {
+        "id": "a-open-funding",
+        "type": "arrow"
+       },
+       {
+        "id": "a-signoff-funding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**Money does not move until a second person signs off.** Sits between account opening and funding.\n\nA four-eyes control: the account can exist without anyone having released funds. Added 2026-08-27 — it was missing from the first draft entirely."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "second-signoff",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 842461926,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2520,
+      "y": 360
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "escalation-label",
+        "type": "text"
+       },
+       {
+        "id": "a-recon-escalate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "auto_grown": 12,
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "**The third pass.** The daily sweep re-bands a stuck case twice; anything swept twice is escalated to a human instead of being re-banded again. A real rule, not a drawing convenience.\n\nDrawn as a terminal because nothing is yet known about what happens next — see the pinned question."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 76,
+      "id": "escalation",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1587533268,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 180,
+      "x": 2200,
+      "y": 40
+     },
+     "index": 35,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "second-signoff",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "second-signoff-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Second sign-off",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 587621919,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Second sign-off",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 2542,
+      "y": 381
+     },
+     "index": 55,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "escalation",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 44,
+      "id": "escalation-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Escalated to a human",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 164515046,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Escalated to a human",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 102,
+      "x": 2239,
+      "y": 56
+     },
+     "index": 56,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-identity-reject",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-identity-reject-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "fail",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1146849659,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "fail",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 25,
+      "x": 1082,
+      "y": 549
+     },
+     "index": 57,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-sanctions-reject",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-sanctions-reject-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "hit",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 352893169,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "hit",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 21,
+      "x": 1264,
+      "y": 509
+     },
+     "index": 58,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-review-reject",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-review-reject-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "refused",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1070977680,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "refused",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 1686,
+      "y": 569
+     },
+     "index": 59,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-recon-escalate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-recon-escalate-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "3rd sweep",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 81234408,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "3rd sweep",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 79,
+      "x": 2060,
+      "y": 64
+     },
+     "index": 60,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What can the human do once a case is escalated?",
+       "role": "pin",
+       "status": "open",
+       "target": "escalation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-escalation",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1356407086,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2362,
+      "y": 43
+     },
+     "index": 61,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": "Sanctions fail is a hard stop — it goes straight to the rejection log and a letter, never onward to banding. Same for a failed identity check.",
+       "author": "agent",
+       "question": "What happens when the sanctions screen gets a hit?",
+       "role": "pin",
+       "status": "answered",
+       "target": "sanctions-screen"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-sanctions",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 621876862,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1208,
+      "y": 352
+     },
+     "index": 48,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Can a reviewer refuse, or only approve?",
+       "role": "pin",
+       "status": "open",
+       "target": "manual-review"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-review-refuse",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1979381892,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2008,
+      "y": 212
+     },
+     "index": 49,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the two-day sweep ever stop?",
+       "role": "pin",
+       "status": "open",
+       "target": "daily-recon"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-recon-loop",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 564843003,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2008,
+      "y": 32
+     },
+     "index": 50,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1440,
+       "to": 1470
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 400,
+       "to": 0
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 120,
+       "to": 168
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         120
+        ],
+        [
+         400,
+         120
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         168
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "57feaf2685"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       }
+      }
+     ],
+     "id": "a-banding-refuse",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "funding",
+       "to": "second-signoff"
+      }
+     ],
+     "id": "a-open-funding",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2680,
+       "to": 3000
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e8ecd9375e"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "42195eba2c"
+       }
+      }
+     ],
+     "id": "a-funding-welcome",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2000,
+       "to": 1520
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 573,
+       "to": 653
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a7ccce5c84"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "eb362aa2ff"
+       }
+      }
+     ],
+     "id": "a-reject-letter",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Drawn as pass-through, because that is how it was described. **No failure exit is drawn** — see the pinned question on the sanctions screen; the same gap applies here."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "A failed identity check is a **hard stop** — straight to the rejection log, never onward to banding. Confirmed with the desk 2026-08-27."
+       }
+      }
+     ],
+     "id": "identity-checks",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Drawn as pass-through: everything reaching it continues to risk banding.\n\n**This is almost certainly incomplete.** A sanctions hit normally stops a request where it stands rather than banding it. Pinned."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "A hit is a **hard stop** — straight to the rejection log and a letter, never onward to banding. Confirmed with the desk 2026-08-27.\n\nThe first draft drew this as pass-through, which would have let a sanctioned party reach the banding step."
+       }
+      }
+     ],
+     "id": "sanctions-screen",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "Sweeps once a day. Anything sitting in manual review more than two days is pushed back to banding.\n\nDrawn as a loop back into banding, which is what was described — note that means a request can be re-banded repeatedly. Pinned."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "Sweeps once a day. A case stuck in manual review more than two days goes back to banding — **but only twice**. Anything swept twice is escalated to a human on the third pass rather than re-banded.\n\nThat limit is a real rule, confirmed 2026-08-27, not a drawing convenience."
+       }
+      }
+     ],
+     "id": "daily-recon",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "A human looks at the case.\n\nDeliberately **not** called a review queue: Argus already has a *Review queue* for sub-threshold Signals and the two are unrelated. Same word, different system.\n\nOnly one exit is drawn — approved. Whether a reviewer can also refuse is pinned."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "A human looks at the case. **Three ways out**: approve to account opening, refuse to the rejection log, or sit long enough to be swept.\n\nDeliberately not called a review queue: Argus already has a *Review queue* for sub-threshold Signals and the two are unrelated systems."
+       }
+      }
+     ],
+     "id": "manual-review",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2520,
+      360
+     ],
+     "id": "funding",
+     "op": "move",
+     "to": [
+      2840,
+      360
+     ]
+    },
+    {
+     "from": [
+      2840,
+      360
+     ],
+     "id": "welcome-pack",
+     "op": "move",
+     "to": [
+      3160,
+      360
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "store",
+        "role": "node",
+        "tooltip": "**The audit trail for a refusal.** Distinct from the letter on purpose: the log is the record that survives, the letter is what the client receives.\n\nCompliance will ask what is retained here and for how long. Nothing in this drawing answers that."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "store",
+        "role": "node",
+        "tooltip": "**Four ways in, and everything that dies lands here**: a failed identity check, a sanctions hit, a refusal at banding, and a reviewer's refusal.\n\nConfirmed with the desk 2026-08-27. The first two are hard stops — they never reach banding at all.\n\nThis is the audit trail; the letter is what the client receives. Compliance will ask what is retained here and for how long, and nothing in this drawing answers that."
+       }
+      }
+     ],
+     "id": "rejection-log",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1840,
+      540
+     ],
+     "id": "rejection-log",
+     "op": "move",
+     "to": [
+      1360,
+      620
+     ]
+    },
+    {
+     "from": [
+      2200,
+      540
+     ],
+     "id": "rejection-letter",
+     "op": "move",
+     "to": [
+      1720,
+      620
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2570,
+       "to": 2890
+      }
+     ],
+     "id": "funding-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2885,
+       "to": 3205
+      }
+     ],
+     "id": "welcome-pack-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1872,
+       "to": 1392
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 561,
+       "to": 641
+      }
+     ],
+     "id": "rejection-log-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 2246,
+       "to": 1766
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 556,
+       "to": 636
+      }
+     ],
+     "id": "rejection-letter-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1448,
+       "to": 1446
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 567,
+       "to": 525
+      }
+     ],
+     "id": "a-banding-refuse-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "a-signoff-funding",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "a-signoff-funding"
+    },
+    {
+     "element": "a-identity-reject",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "fail"
+    },
+    {
+     "element": "a-sanctions-reject",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "hit"
+    },
+    {
+     "element": "a-review-reject",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "refused"
+    },
+    {
+     "element": "a-recon-escalate",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "3rd sweep"
+    },
+    {
+     "element": "second-signoff",
+     "fact": "added",
+     "kind": "control",
+     "label": "Second sign-off"
+    },
+    {
+     "element": "escalation",
+     "fact": "added",
+     "kind": "sink",
+     "label": "Escalated to a human"
+    },
+    {
+     "element": "pin-intake-escalation",
+     "fact": "pin_added",
+     "question": "What can the human do once a case is escalated?"
+    },
+    {
+     "element": "pin-intake-sanctions",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "pin-intake-review-refuse",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "pin-intake-recon-loop",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "identity-checks",
+     "fact": "tooltip_changed",
+     "label": "Identity checks",
+     "text": "A failed identity check is a **hard stop** — straight to the rejection log, neve"
+    },
+    {
+     "element": "sanctions-screen",
+     "fact": "tooltip_changed",
+     "label": "Sanctions screen",
+     "text": "A hit is a **hard stop** — straight to the rejection log and a letter, never onw"
+    },
+    {
+     "element": "daily-recon",
+     "fact": "tooltip_changed",
+     "label": "Daily reconciliation",
+     "text": "Sweeps once a day. A case stuck in manual review more than two days goes back to"
+    },
+    {
+     "element": "manual-review",
+     "fact": "tooltip_changed",
+     "label": "Manual review",
+     "text": "A human looks at the case. **Three ways out**: approve to account opening, refus"
+    },
+    {
+     "consequence_of": "a-signoff-funding",
+     "dx": 320,
+     "dy": 0,
+     "element": "funding",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "a-signoff-funding",
+     "dx": 320,
+     "dy": 0,
+     "element": "welcome-pack",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "element": "rejection-log",
+     "fact": "tooltip_changed",
+     "label": "Rejection log",
+     "text": "**Four ways in, and everything that dies lands here**: a failed identity check, "
+    },
+    {
+     "dx": -480,
+     "dy": 80,
+     "element": "rejection-log",
+     "fact": "moved",
+     "label": "Rejection log",
+     "spatial": "moved left-down"
+    },
+    {
+     "dx": -480,
+     "dy": 80,
+     "element": "rejection-letter",
+     "fact": "moved",
+     "label": "Rejection letter",
+     "spatial": "moved left-down"
+    },
+    {
+     "between": [
+      "Second sign-off",
+      "Funding"
+     ],
+     "element": "a-signoff-funding",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Identity checks",
+      "Rejection log"
+     ],
+     "element": "a-identity-reject",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Sanctions screen",
+      "Rejection log"
+     ],
+     "element": "a-sanctions-reject",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Manual review",
+      "Rejection log"
+     ],
+     "element": "a-review-reject",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "Daily reconciliation",
+      "Escalated to a human"
+     ],
+     "element": "a-recon-escalate",
+     "fact": "transition_added"
+    },
+    {
+     "element": "second-signoff",
+     "fact": "step_added",
+     "label": "Second sign-off"
+    },
+    {
+     "element": "escalation",
+     "fact": "step_added",
+     "label": "Escalated to a human"
+    },
+    {
+     "arrow": "a-open-funding",
+     "element": "a-open-funding",
+     "fact": "rewired",
+     "from": "Account opening→Funding",
+     "to": "Account opening→Second sign-off"
+    },
+    {
+     "arrow": "a-identity-reject",
+     "element": "a-identity-reject",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "a-sanctions-reject",
+     "element": "a-sanctions-reject",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "a-banding-refuse",
+     "element": "a-banding-refuse",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "a-review-reject",
+     "element": "a-review-reject",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1446,
+       "to": 1448
+      },
+      {
+       "attr": "y",
+       "from": 525,
+       "to": 567
+      }
+     ],
+     "id": "a-banding-refuse-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1766,
+       "to": 2246
+      },
+      {
+       "attr": "y",
+       "from": 636,
+       "to": 556
+      }
+     ],
+     "id": "rejection-letter-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1392,
+       "to": 1872
+      },
+      {
+       "attr": "y",
+       "from": 641,
+       "to": 561
+      }
+     ],
+     "id": "rejection-log-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 3205,
+       "to": 2885
+      }
+     ],
+     "id": "welcome-pack-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2890,
+       "to": 2570
+      }
+     ],
+     "id": "funding-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1720,
+      620
+     ],
+     "id": "rejection-letter",
+     "op": "move",
+     "to": [
+      2200,
+      540
+     ]
+    },
+    {
+     "from": [
+      1360,
+      620
+     ],
+     "id": "rejection-log",
+     "op": "move",
+     "to": [
+      1840,
+      540
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "store",
+        "role": "node",
+        "tooltip": "**Four ways in, and everything that dies lands here**: a failed identity check, a sanctions hit, a refusal at banding, and a reviewer's refusal.\n\nConfirmed with the desk 2026-08-27. The first two are hard stops — they never reach banding at all.\n\nThis is the audit trail; the letter is what the client receives. Compliance will ask what is retained here and for how long, and nothing in this drawing answers that."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "store",
+        "role": "node",
+        "tooltip": "**The audit trail for a refusal.** Distinct from the letter on purpose: the log is the record that survives, the letter is what the client receives.\n\nCompliance will ask what is retained here and for how long. Nothing in this drawing answers that."
+       }
+      }
+     ],
+     "id": "rejection-log",
+     "op": "mod"
+    },
+    {
+     "from": [
+      3160,
+      360
+     ],
+     "id": "welcome-pack",
+     "op": "move",
+     "to": [
+      2840,
+      360
+     ]
+    },
+    {
+     "from": [
+      2840,
+      360
+     ],
+     "id": "funding",
+     "op": "move",
+     "to": [
+      2520,
+      360
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "A human looks at the case. **Three ways out**: approve to account opening, refuse to the rejection log, or sit long enough to be swept.\n\nDeliberately not called a review queue: Argus already has a *Review queue* for sub-threshold Signals and the two are unrelated systems."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "A human looks at the case.\n\nDeliberately **not** called a review queue: Argus already has a *Review queue* for sub-threshold Signals and the two are unrelated. Same word, different system.\n\nOnly one exit is drawn — approved. Whether a reviewer can also refuse is pinned."
+       }
+      }
+     ],
+     "id": "manual-review",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "Sweeps once a day. A case stuck in manual review more than two days goes back to banding — **but only twice**. Anything swept twice is escalated to a human on the third pass rather than re-banded.\n\nThat limit is a real rule, confirmed 2026-08-27, not a drawing convenience."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "control",
+        "role": "node",
+        "tooltip": "Sweeps once a day. Anything sitting in manual review more than two days is pushed back to banding.\n\nDrawn as a loop back into banding, which is what was described — note that means a request can be re-banded repeatedly. Pinned."
+       }
+      }
+     ],
+     "id": "daily-recon",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "A hit is a **hard stop** — straight to the rejection log and a letter, never onward to banding. Confirmed with the desk 2026-08-27.\n\nThe first draft drew this as pass-through, which would have let a sanctioned party reach the banding step."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Drawn as pass-through: everything reaching it continues to risk banding.\n\n**This is almost certainly incomplete.** A sanctions hit normally stops a request where it stands rather than banding it. Pinned."
+       }
+      }
+     ],
+     "id": "sanctions-screen",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "A failed identity check is a **hard stop** — straight to the rejection log, never onward to banding. Confirmed with the desk 2026-08-27."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Drawn as pass-through, because that is how it was described. **No failure exit is drawn** — see the pinned question on the sanctions screen; the same gap applies here."
+       }
+      }
+     ],
+     "id": "identity-checks",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1520,
+       "to": 2000
+      },
+      {
+       "attr": "y",
+       "from": 653,
+       "to": 573
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "eb362aa2ff"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a7ccce5c84"
+       }
+      }
+     ],
+     "id": "a-reject-letter",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 3000,
+       "to": 2680
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "42195eba2c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e8ecd9375e"
+       }
+      }
+     ],
+     "id": "a-funding-welcome",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "second-signoff",
+       "to": "funding"
+      }
+     ],
+     "id": "a-open-funding",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1470,
+       "to": 1440
+      },
+      {
+       "attr": "width",
+       "from": 0,
+       "to": 400
+      },
+      {
+       "attr": "height",
+       "from": 168,
+       "to": 120
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         168
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         120
+        ],
+        [
+         400,
+         120
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "57feaf2685"
+       }
+      }
+     ],
+     "id": "a-banding-refuse",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the two-day sweep ever stop?",
+       "role": "pin",
+       "status": "open",
+       "target": "daily-recon"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-recon-loop",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 564843003,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2008,
+      "y": 32
+     },
+     "index": 50,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Can a reviewer refuse, or only approve?",
+       "role": "pin",
+       "status": "open",
+       "target": "manual-review"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-review-refuse",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1979381892,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2008,
+      "y": 212
+     },
+     "index": 49,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": "Sanctions fail is a hard stop — it goes straight to the rejection log and a letter, never onward to banding. Same for a failed identity check.",
+       "author": "agent",
+       "question": "What happens when the sanctions screen gets a hit?",
+       "role": "pin",
+       "status": "answered",
+       "target": "sanctions-screen"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-sanctions",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 621876862,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1208,
+      "y": 352
+     },
+     "index": 48,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "What can the human do once a case is escalated?",
+       "role": "pin",
+       "status": "open",
+       "target": "escalation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 27,
+      "id": "pin-intake-escalation",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1356407086,
+      "strokeColor": "#a54c08",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 2362,
+      "y": 43
+     },
+     "index": 61,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-recon-escalate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-recon-escalate-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "3rd sweep",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 81234408,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "3rd sweep",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 79,
+      "x": 2060,
+      "y": 64
+     },
+     "index": 60,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-review-reject",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-review-reject-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "refused",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1070977680,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "refused",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 57,
+      "x": 1686,
+      "y": 569
+     },
+     "index": 59,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-sanctions-reject",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-sanctions-reject-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "hit",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 352893169,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "hit",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 21,
+      "x": 1264,
+      "y": 509
+     },
+     "index": 58,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "a-identity-reject",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "a-identity-reject-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "fail",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1146849659,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "fail",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 25,
+      "x": 1082,
+      "y": 549
+     },
+     "index": 57,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "escalation",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 44,
+      "id": "escalation-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Escalated to a human",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 164515046,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Escalated to a human",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 102,
+      "x": 2239,
+      "y": 56
+     },
+     "index": 56,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "second-signoff",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 22,
+      "id": "second-signoff-label",
+      "isDeleted": false,
+      "lineHeight": 1.35,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Second sign-off",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 587621919,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Second sign-off",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 115,
+      "x": 2542,
+      "y": 381
+     },
+     "index": 55,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "escalation-label",
+        "type": "text"
+       },
+       {
+        "id": "a-recon-escalate",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "auto_grown": 12,
+       "kind": "sink",
+       "role": "node",
+       "tooltip": "**The third pass.** The daily sweep re-bands a stuck case twice; anything swept twice is escalated to a human instead of being re-banded again. A real rule, not a drawing convenience.\n\nDrawn as a terminal because nothing is yet known about what happens next — see the pinned question."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 76,
+      "id": "escalation",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1587533268,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "ellipse",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 180,
+      "x": 2200,
+      "y": 40
+     },
+     "index": 35,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "second-signoff-label",
+        "type": "text"
+       },
+       {
+        "id": "a-open-funding",
+        "type": "arrow"
+       },
+       {
+        "id": "a-signoff-funding",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**Money does not move until a second person signs off.** Sits between account opening and funding.\n\nA four-eyes control: the account can exist without anyone having released funds. Added 2026-08-27 — it was missing from the first draft entirely."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "second-signoff",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 842461926,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2520,
+      "y": 360
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-recon-escalate-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "6e3e8aa366"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "escalation",
+       "focus": 0.018,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 3,
+      "id": "a-recon-escalate",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        200,
+        3
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 371396524,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "daily-recon",
+       "focus": -0.01,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 200,
+      "x": 2000,
+      "y": 73
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-review-reject-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-log",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 336,
+      "id": "a-review-reject",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        296
+       ],
+       [
+        -410,
+        296
+       ],
+       [
+        -410,
+        336
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 230175638,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "manual-review",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 410,
+      "x": 1920,
+      "y": 284
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-sanctions-reject-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-log",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 196,
+      "id": "a-sanctions-reject",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        96
+       ],
+       [
+        310,
+        96
+       ],
+       [
+        310,
+        196
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 178375429,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "sanctions-screen",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 310,
+      "x": 1120,
+      "y": 424
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "a-identity-reject-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "rejection-log",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 196,
+      "id": "a-identity-reject",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        136
+       ],
+       [
+        590,
+        136
+       ],
+       [
+        590,
+        196
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 393173470,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "identity-checks",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 590,
+      "x": 800,
+      "y": 424
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "da30bd4bf7"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "funding",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "a-signoff-funding",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 942563504,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "second-signoff",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 2680,
+      "y": 392
+     },
+     "index": 15,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "onboarding-intake",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Client Onboarding Intake"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 36,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 4450
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "set_budget",
+   "arrows": 20,
+   "artifact": "onboarding-intake",
+   "nodes": 16,
+   "reason": "one landscape page for the compliance pack: three intake routes, the linear checks, a three-way band, four failure routes converging on the rejection log, the four-eyes funding control and the bounded sweep. The failure fan is the part compliance cares about most and must not be on a second sheet."
+  }
+ ],
+ "revn": 37,
+ "round": 10,
+ "saved_at": "2026-08-31T00:02:26Z",
+ "selection_at_save": [],
+ "short_id": "2647176",
+ "summary": {
+  "headline": "rewired Account opening→Funding to Account opening→Second sign-off (+29 more)",
+  "suppressed": 2,
+  "verb_counts": {
+   "added": 7,
+   "moved": 4,
+   "pin_added": 1,
+   "pin_deleted": 3,
+   "rerouted": 4,
+   "rewired": 1,
+   "step_added": 2,
+   "tooltip_changed": 5,
+   "transition_added": 5
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "desk answers: identity fail, sanctions hit, banding refuse and reviewer refuse all land in the rejection log — four ways in. Sweep escalates on the third pass instead of re-banding. Second sign-off added between account opening and funding."
+}

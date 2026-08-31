@@ -1,0 +1,1067 @@
+{
+ "artifacts": {
+  "daily-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "t-review-compose",
+     "kind": "arrow",
+     "label": "t-review-compose",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "t-review-compose"
+      },
+      "transition_added": {
+       "between": [
+        "Review gate",
+        "Compose outputs"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "review-gate",
+     "kind": "control",
+     "label": "Review gate",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "control",
+       "label": "Review gate"
+      },
+      "step_added": {
+       "label": "Review gate"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-review-compose",
+     "id": "compose-outputs",
+     "kind": "agent",
+     "label": "Compose outputs",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-review-compose",
+       "dx": 320,
+       "dy": 0,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-review-compose",
+     "id": "analyst-read",
+     "kind": "sink",
+     "label": "Analyst",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-review-compose",
+       "dx": 320,
+       "dy": 0,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": "t-review-compose",
+     "id": "clients",
+     "kind": "sink",
+     "label": "Clients",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "moved": {
+       "consequence_of": "t-review-compose",
+       "dx": 320,
+       "dy": 0,
+       "spatial": "layout adjusted"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "endBinding"
+     ],
+     "consequence_of": null,
+     "id": "t-enrich-compose",
+     "kind": "arrow",
+     "label": "t-enrich-compose",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "t-enrich-compose",
+       "from": "Enrich & score→Compose outputs",
+       "to": "Enrich & score→Review gate"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c3d7c4ee13"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compose-outputs",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-review-compose",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 424392594,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1520,
+      "y": 352
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "t-enrich-compose",
+        "type": "arrow"
+       },
+       {
+        "id": "t-review-compose",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**New, and the biggest change to the shape of this pipeline.** Sub-threshold Signals are held in a review queue and a non-empty queue blocks publication — nothing unvetted reaches a client (ADR 0003).\n\nThe consequence for this view: the 06:00 run is **no longer unattended**. A human now sits between scoring and publishing, on a clock, before the open.\n\nClick through for what happens inside."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "review-gate",
+      "isDeleted": false,
+      "link": "artifact:review-publish-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502438947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 320
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Review gate",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1213498770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Review gate",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 1388,
+      "y": 342
+     },
+     "index": 39,
+     "op": "add"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1440,
+       "to": 1840
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 320,
+       "to": 352
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -48
+        ],
+        [
+         320,
+         -48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         -48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "91d999b70c"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "0ba68c5d43"
+       }
+      }
+     ],
+     "id": "t-compose-analyst",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "compose-outputs",
+       "to": "review-gate"
+      }
+     ],
+     "id": "t-enrich-compose",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1520,
+       "to": 1760
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 352,
+       "to": 384
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         48
+        ],
+        [
+         320,
+         48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1907043465"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e26b896441"
+       }
+      }
+     ],
+     "id": "t-compose-clients",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1360,
+      320
+     ],
+     "id": "compose-outputs",
+     "op": "move",
+     "to": [
+      1680,
+      320
+     ]
+    },
+    {
+     "from": [
+      1760,
+      240
+     ],
+     "id": "analyst-read",
+     "op": "move",
+     "to": [
+      2080,
+      240
+     ]
+    },
+    {
+     "from": [
+      1760,
+      400
+     ],
+     "id": "clients",
+     "op": "move",
+     "to": [
+      2080,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1372,
+       "to": 1692
+      }
+     ],
+     "id": "compose-outputs-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1806,
+       "to": 2126
+      }
+     ],
+     "id": "analyst-read-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1806,
+       "to": 2126
+      }
+     ],
+     "id": "clients-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1533,
+       "to": 1981
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 262,
+       "to": 342
+      }
+     ],
+     "id": "t-compose-analyst-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1622,
+       "to": 1814
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 422
+      }
+     ],
+     "id": "t-compose-clients-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "t-review-compose",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "t-review-compose"
+    },
+    {
+     "element": "review-gate",
+     "fact": "added",
+     "kind": "control",
+     "label": "Review gate"
+    },
+    {
+     "consequence_of": "t-review-compose",
+     "dx": 320,
+     "dy": 0,
+     "element": "compose-outputs",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "t-review-compose",
+     "dx": 320,
+     "dy": 0,
+     "element": "analyst-read",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "consequence_of": "t-review-compose",
+     "dx": 320,
+     "dy": 0,
+     "element": "clients",
+     "fact": "moved",
+     "spatial": "layout adjusted"
+    },
+    {
+     "between": [
+      "Review gate",
+      "Compose outputs"
+     ],
+     "element": "t-review-compose",
+     "fact": "transition_added"
+    },
+    {
+     "element": "review-gate",
+     "fact": "step_added",
+     "label": "Review gate"
+    },
+    {
+     "arrow": "t-enrich-compose",
+     "element": "t-enrich-compose",
+     "fact": "rewired",
+     "from": "Enrich & score→Compose outputs",
+     "to": "Enrich & score→Review gate"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1814,
+       "to": 1622
+      },
+      {
+       "attr": "y",
+       "from": 422,
+       "to": 342
+      }
+     ],
+     "id": "t-compose-clients-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1981,
+       "to": 1533
+      },
+      {
+       "attr": "y",
+       "from": 342,
+       "to": 262
+      }
+     ],
+     "id": "t-compose-analyst-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2126,
+       "to": 1806
+      }
+     ],
+     "id": "clients-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 2126,
+       "to": 1806
+      }
+     ],
+     "id": "analyst-read-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1692,
+       "to": 1372
+      }
+     ],
+     "id": "compose-outputs-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      2080,
+      400
+     ],
+     "id": "clients",
+     "op": "move",
+     "to": [
+      1760,
+      400
+     ]
+    },
+    {
+     "from": [
+      2080,
+      240
+     ],
+     "id": "analyst-read",
+     "op": "move",
+     "to": [
+      1760,
+      240
+     ]
+    },
+    {
+     "from": [
+      1680,
+      320
+     ],
+     "id": "compose-outputs",
+     "op": "move",
+     "to": [
+      1360,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1760,
+       "to": 1520
+      },
+      {
+       "attr": "y",
+       "from": 384,
+       "to": 352
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         48
+        ],
+        [
+         320,
+         48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "e26b896441"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "1907043465"
+       }
+      }
+     ],
+     "id": "t-compose-clients",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": "review-gate",
+       "to": "compose-outputs"
+      }
+     ],
+     "id": "t-enrich-compose",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1840,
+       "to": 1440
+      },
+      {
+       "attr": "y",
+       "from": 352,
+       "to": 320
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         320,
+         0
+        ],
+        [
+         320,
+         -48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -48
+        ],
+        [
+         320,
+         -48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "0ba68c5d43"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "91d999b70c"
+       }
+      }
+     ],
+     "id": "t-compose-analyst",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "review-gate",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "review-gate-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Review gate",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1213498770,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Review gate",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 1388,
+      "y": 342
+     },
+     "index": 39,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "review-gate-label",
+        "type": "text"
+       },
+       {
+        "id": "t-enrich-compose",
+        "type": "arrow"
+       },
+       {
+        "id": "t-review-compose",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "document": "docs/adr/0003-the-review-queue-blocks-publication.md",
+       "kind": "control",
+       "role": "node",
+       "tooltip": "**New, and the biggest change to the shape of this pipeline.** Sub-threshold Signals are held in a review queue and a non-empty queue blocks publication — nothing unvetted reaches a client (ADR 0003).\n\nThe consequence for this view: the 06:00 run is **no longer unattended**. A human now sits between scoring and publishing, on a clock, before the open.\n\nClick through for what happens inside."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "review-gate",
+      "isDeleted": false,
+      "link": "artifact:review-publish-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1502438947,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1360,
+      "y": 320
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c3d7c4ee13"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "compose-outputs",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "t-review-compose",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 424392594,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "review-gate",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1520,
+      "y": 352
+     },
+     "index": 12,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 25,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "mapping_tombstoned",
+   "mapping": {
+    "concept": "admin-console",
+    "elements": [
+     "admin-console-wireframe#input-confidence",
+     "enrichment-flow#to-compose"
+    ],
+    "kinds": null,
+    "note": null
+   }
+  },
+  {
+   "action": "remove_mapping",
+   "index": 13
+  },
+  {
+   "action": "annotate_mapping",
+   "index": 14,
+   "kinds": [
+    "renamed",
+    "label_renamed"
+   ],
+   "note": "intentionally-divergent: the same handoff named from both sides — the enrichment view calls it by where it goes, the review view by what arrives. Renames on either side are expected."
+  },
+  {
+   "action": "add_mapping",
+   "concept": "review-queue",
+   "elements": [
+    "daily-run-flow#review-gate",
+    "review-publish-flow#publish-block"
+   ]
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-25-1"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-25-2"
+  },
+  {
+   "action": "resolve_tripwire",
+   "id": "tw-25-3"
+  },
+  {
+   "action": "set_budget",
+   "arrows": 13,
+   "artifact": "daily-run-flow",
+   "nodes": 11,
+   "reason": "four-source fan, both terminals, and the review gate that decides whether a morning ships"
+  }
+ ],
+ "revn": 26,
+ "round": 5,
+ "saved_at": "2026-08-09T11:43:24Z",
+ "selection_at_save": [],
+ "short_id": "74b0594",
+ "summary": {
+  "headline": "rewired Enrich & score→Compose outputs to Enrich & score→Review gate (+4 more)",
+  "suppressed": 3,
+  "verb_counts": {
+   "added": 2,
+   "moved": 3,
+   "rewired": 1,
+   "step_added": 1,
+   "transition_added": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "the review gate belongs on the spine — it is now the thing that decides whether a morning ships"
+}

@@ -665,3 +665,150 @@ the driver can produce. **R5's arm A used this verb for all user edits.**
   then correctly declines to reroute it and it is stable across passes.
 - Beats 7–14 of the turn script (freedraw, 409 banner, fork/archive, two
   audiences) were not reached.
+
+---
+
+# CLOSE
+
+## Scorecard
+
+```
+8 findings / 7 distinct causes        7 turns (planned 13-14)
+P1: 3   P2: 2   P3: 3   P0: 0   ENV: 0
+attribution: tool-silent-shipped 3 · tool-told 2 · tool-told-ignored 1
+             tool-false-alarm 1 · tool-silent-covered 0
+found by:    assessor-query 6 · user-look 1 · agent 1
+withdrawn: 0   ·   undiscriminated: 0
+```
+
+**The cause count is 7, not the ledger's 8.** `r6-1` and `r6-8` were filed under
+different slugs before they were understood to share a root. Reported both ways
+because the mechanical number is what `ledger.py diff` will compare against.
+
+| Run | Findings | Causes | Headline |
+|---|---|---|---|
+| r3 | 13 | 6 | the check validates a value nobody sees |
+| r4 | 14 + 9 | 8 | capability outgrew correctness |
+| r5 | 19 | 18 | the mechanisms are right; the modes turn them off |
+| **r6** | **8** | **7** | **the instrument was the defect** |
+
+## Verdict — the raw counts, discounted
+
+Eight findings is the lowest count in four runs, and the run was cut short at 7
+turns of a planned 13–14 when the host process exited and took the session agent
+with it. Neither number should be read as "the skill is healthier". Read this
+instead:
+
+**Two of the three P1s are not defects in the product at all.** `r6-5` is the
+*assessment adapter* manufacturing states no user can reach; `r6-8`+`r6-1` are
+derived geometry never re-derived. Only the second is something a user meets.
+The run's honest headline is **the instrument was the defect** — and that
+matters more than a bug count, because every behavioural finding any prior run
+derived from `x-as-user move` on a bound element is now suspect, R5's arm A
+included.
+
+**Three findings I nearly filed dissolved on contact**, and the record of them
+is worth more than the ones that survived:
+
+1. Pin glyphs in the gutter looked like a fresh defect. `pin_spot`'s own
+   docstring names it as **r4b-3**, already fixed. The live defect turned out to
+   be narrower and better: the fix is mint-time only.
+2. Canvas-vs-export label divergence looked like this method's signature
+   headline ("a check validating a value nobody sees"). It is **v0.9 WP4 by
+   design**, up to 49px, with `export=` existing precisely so an assessor sees
+   both.
+3. A revision "escaping" the pulled-cadence gate looked like a broken guarantee.
+   The server log shows one `POST /api/pending/resolve` at the second it landed:
+   **a human pulled it from the banner.** The gate worked.
+
+Checking known-ness before filing paid twice; reproducing before believing paid
+once. **A fourth**: my own relayout measurement first read "no change", which I
+nearly reported as the agent overstating its case — the copy had inherited
+`pulled` cadence and the relayout was sitting behind the banner.
+
+**Scored on mechanism, not outcome.** `tool-silent-covered` is **0** this run,
+which is unusual and real: where the agent was saved, it was saved by a *signal*
+(the `ECHO(queued)=` marker in `r6-7`), not by its own diligence. The redundancy
+the docs designed in did load-bearing work.
+
+**What went right, stated as precisely as what went wrong.** The agent under
+test was a genuine second finder — `r6-8` is `--found-by agent`. It caught its
+own no-op harness unprompted (*"everything I'd concluded from it was
+worthless"*), accepted a checker's refusal and credited it (*"Good catch by the
+tool, not by me"*), refused to report before checking disk truth, and diagnosed
+a banner release it was never told about. Against SESSION-HANDOVER §3's
+obligation — *do agents consume the lint category under pressure* — the answer
+is **yes, demonstrably**.
+
+**An unplanned test the product passed.** The host process was killed mid-run
+with a queued revision outstanding and a server holding unflushed state. On
+restart the loader named exactly what differed, attributed it to
+`out-of-session` rather than to the agent, preserved the pending queue, and lost
+nothing. Nobody designed that test.
+
+## Known limits — these change how the findings should be read
+
+- **7 turns, not 13.** The host process exited and the session agent became
+  unreachable (bare-name messaging is per-session). Beats 9–14 were never run:
+  freedraw survival, the 409 stale-save banner, `autoResize: False`,
+  fork/archive, two-audiences, and the *correct-work-in-flight* probe that T8
+  had just set up. **Three of these are now deferred for a third consecutive
+  run.**
+- **One arm** (user ruling). Every behavioural finding is n=1 and marked so.
+- **The event channel was structurally unreachable**, twice costing a
+  measurement: no `Monitor` tool exists in this runtime and SKILL.md's Tier-3
+  fallback (`canvas.py wait`) is a blocking call this harness forbids. Counted,
+  per `assessment-mode.md` §3 — *"If a run accumulates several blocked by the
+  same harness limitation, that is the argument for building the other harness
+  shape."* R6 accumulated two. **That argument is now made.**
+- **The assessor wrote the method.** Beats reproduced from the protocol prove
+  little; the informative part is what R6 ran that the protocol does not
+  contain — the plugin-vs-symlink resolution check (`so1-R6-1`) and the
+  AST-identity test for "does it matter which checkout I assessed".
+- **Deliberate deviation:** the run started from an inherited project rather
+  than a bare directory, because the v0.9 features under test only exist for
+  inherited scenes.
+- **`x-as-user move` was used before `r6-5` was known.** T4's user nudge went
+  through it. That turn's findings were re-derived through other paths before
+  filing; no finding rests on it.
+
+## Fixture promoted — `tests/fixtures/argus-r6/`
+
+6 artifacts, revn 37, 9 open pins, 261 elements. Promoted the day the run ended,
+per `fixtures.md`. **Deliberately excludes** `.pending/`, `.backups/` and any
+nested `project_knowledge/` shell — that residue is exactly what makes the R4
+fixture read as `ARTIFACTS=0` (S-1). Verified to load before committing.
+
+It is a better corpus than R4's for anything about *fresh* scenes: it carries a
+16-node flow the router built from `from`/`to` alone, four arrows contending on
+one node, and a 40-endpoint arrival census.
+
+---
+
+# THE R7 RE-TEST CHECKLIST — the contract between runs
+
+One item per fix, each a falsifiable assertion observable in-session. R7 answers
+this as a table with **in-session evidence**, not a bare PASS.
+
+| # | Item |
+|---|---|
+| 1 | **Move a node that a pin points at, then look.** The glyph must still hug it. A pin's gap to its target must survive any operation that moves the target. Fails today at 748–1703px after `--relayout`. |
+| 2 | **Run `--relayout` on a clean artifact.** `LAYOUT_WARNING`+`LAYOUT_ERROR` must not increase, and the command must say what it changed. Today: 0 → 10, reported as `MOVES=14`. |
+| 3 | **Load a project whose pins carry pre-fix geometry.** Either the loader repairs placement, or a check says it did not. Today both are silent — `ART-000`…`012` covers structural damage only. |
+| 4 | **`x-as-user move` a bound node.** Zero new dangling-binding errors, matching what a real browser drag leaves. Today: 0 → 2 on the user path, 0 → 0 on the agent path, identical narration. |
+| 5 | **The silent half of 1–4.** A correctly-placed pin must not move; `pindrift` must stay quiet on a legitimate near-tie; an unbound node's move must still be clean. A fix that re-places every pin on every load satisfies 1 and wrecks this. |
+| 6 | **Discoverability, with a grace period.** Does an agent reach the event log unprompted when a `Monitor`-class affordance exists? R5 scored this PASS at n=2; R6 could not test it. If it is not reached under a runtime that permits it, that is a **docs** finding, not a code one. |
+| 7 | **Fresh-scene arrivals.** Build a 12+ node flow at long horizontal runs and small vertical offsets and run `arrival_census`. R6 measured 1 oblique of 40, stable, with the scene-guard correctly declining. Beat 3 wants 0. Decide whether 1-in-40 is the target or the checklist is. |
+| 8 | **Deferred a third time — schedule them first, not last.** Freedraw survival across save/reload; the 409 stale-save banner (needs a second browser context); `autoResize: False`; fork/archive. |
+
+## Still open — deliberate non-fixes, carried so they are not re-found
+
+- **Canvas-vs-export label divergence** (4 of 94 text elements, 8–18px):
+  v0.9 WP4 by design, envelope 49px. Not a defect.
+- **`pindrift` relative-only** (`r6-2`): folded into WP-A as a candidate repair
+  route, not a separate red.
+- **11 of 94 text elements** report `stored width < needs`, largest 206 vs 387.
+  Not investigated for want of run time. Readings post-date the 2026-08-20
+  wrap-coin fix, so they are not that.
+- **`so1-R6-1`** is a defect in *this method*, not the target: "check the
+  symlink" inspects the one registration that does not win.

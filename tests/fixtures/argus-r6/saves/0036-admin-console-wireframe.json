@@ -1,0 +1,311 @@
+{
+ "artifacts": {
+  "admin-console-wireframe": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "admin-console-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  },
+  "daily-run-flow": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  },
+  "dashboard-wireframe": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "dashboard-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard"
+   }
+  },
+  "enrichment-flow": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         480,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "e-agg-compose",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         480,
+         0
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         160,
+         0
+        ]
+       ]
+      }
+     ],
+     "id": "e-agg-compose",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  },
+  "onboarding-intake": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": null,
+        "author": "agent",
+        "question": "What happens when the sanctions screen gets a hit?",
+        "role": "pin",
+        "status": "open",
+        "target": "sanctions-screen"
+       },
+       "to": {
+        "answer": "Sanctions fail is a hard stop — it goes straight to the rejection log and a letter, never onward to banding. Same for a failed identity check.",
+        "author": "agent",
+        "question": "What happens when the sanctions screen gets a hit?",
+        "role": "pin",
+        "status": "answered",
+        "target": "sanctions-screen"
+       }
+      }
+     ],
+     "id": "pin-intake-sanctions",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "answer": "Sanctions fail is a hard stop — it goes straight to the rejection log and a letter, never onward to banding. Same for a failed identity check.",
+        "author": "agent",
+        "question": "What happens when the sanctions screen gets a hit?",
+        "role": "pin",
+        "status": "answered",
+        "target": "sanctions-screen"
+       },
+       "to": {
+        "answer": null,
+        "author": "agent",
+        "question": "What happens when the sanctions screen gets a hit?",
+        "role": "pin",
+        "status": "open",
+        "target": "sanctions-screen"
+       }
+      }
+     ],
+     "id": "pin-intake-sanctions",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "onboarding-intake",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Client Onboarding Intake"
+   }
+  },
+  "review-publish-flow": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "review-publish-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Review & Publish"
+   }
+  }
+ },
+ "author": "out-of-session",
+ "base_revn": 35,
+ "branch": "main",
+ "lint": {
+  "admin-console-wireframe": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 16 nodes / 12 arrows — a settings screen is its controls: five toggles, two thresholds, three re-run buttons in three panels",
+    "input-confidence ('Signal confidence') has 1 composed part(s) (input-confidence-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:admin-console-wireframe:input-confidence', reason: ...}",
+    "input-var ('VaR alert') has 1 composed part(s) (input-var-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:admin-console-wireframe:input-var', reason: ...}",
+    "toggle-edgar ('SEC EDGAR') has 1 composed part(s) (toggle-edgar-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:admin-console-wireframe:toggle-edgar', reason: ...}",
+    "toggle-macro ('Macro calendar') has 1 composed part(s) (toggle-macro-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:admin-console-wireframe:toggle-macro', reason: ...}",
+    "toggle-market ('Market feed') has 1 composed part(s) (toggle-market-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:admin-console-wireframe:toggle-market', reason: ...}",
+    "toggle-news ('News sentiment') has 1 composed part(s) (toggle-news-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:admin-console-wireframe:toggle-news', reason: ...}",
+    "toggle-portfolio ('Portfolio DB') has 1 composed part(s) (toggle-portfolio-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:admin-console-wireframe:toggle-portfolio', reason: ...}"
+   ],
+   "warnings": [
+    "pin pin-rerun-unit asks about btn-rerun-enrich ('Re-run enrichment') but is drawn 8px from it and only 0px from btn-rerun-scoring ('Re-run scoring & cut'), so on the canvas it reads as btn-rerun-scoring ('Re-run scoring & cut')'s question (\"What is an 'individual pipeline'? Everything we've drawn is \"). Either the ❓ or the `target` is in the wrong place, and which one is a judgement this check cannot make — or record the decision with waive {op: registry, action: waive, key: 'pindrift:admin-console-wireframe:pin-rerun-unit', reason: ...}"
+   ]
+  },
+  "daily-run-flow": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 11 nodes / 13 arrows — four-source fan, both terminals, and the review gate that decides whether a morning ships"
+   ],
+   "warnings": []
+  },
+  "dashboard-wireframe": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 13 nodes / 12 arrows — as-is fidelity: five KPI tiles, three charts, three cards is the screen he actually looks at",
+    "card-brief ('Weekly Brief') has 1 composed part(s) (card-brief-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:card-brief', reason: ...}",
+    "card-deepdive ('Risk Deep-Dive') has 1 composed part(s) (card-deepdive-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:card-deepdive', reason: ...}",
+    "card-digest ('Signals Digest') has 1 composed part(s) (card-digest-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:card-digest', reason: ...}",
+    "chart-drawdown ('Drawdown') has 1 composed part(s) (chart-drawdown-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:chart-drawdown', reason: ...}",
+    "chart-equity ('Equity curve vs benchmark') has 1 composed part(s) (chart-equity-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:chart-equity', reason: ...}",
+    "chart-heatmap ('Sector heat map') has 1 composed part(s) (chart-heatmap-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:chart-heatmap', reason: ...}",
+    "kpi-alpha ('Excess Return') has 1 composed part(s) (kpi-alpha-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:kpi-alpha', reason: ...}",
+    "kpi-portfolio-value ('Portfolio value') has 1 composed part(s) (kpi-portfolio-value-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:kpi-portfolio-value', reason: ...}",
+    "kpi-run ('Sources in') has 1 composed part(s) (kpi-run-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:kpi-run', reason: ...}",
+    "kpi-sentiment ('Sentiment index') has 1 composed part(s) (kpi-sentiment-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:kpi-sentiment', reason: ...}",
+    "kpi-var ('VaR (95%, 1-day)') has 1 composed part(s) (kpi-var-label) outside its own group, so a drag moves the widget without them and tidy may move them without it. Did you ungroup it deliberately? If so, waive {op: registry, action: waive, key: 'widgetgroup:dashboard-wireframe:kpi-var', reason: ...}"
+   ],
+   "warnings": [
+    "pin pin-report-page asks about card-digest ('Signals Digest') but is drawn 16px from it and only 0px from chart-heatmap ('Sector heat map'), so on the canvas it reads as chart-heatmap ('Sector heat map')'s question ('If reports open in place, is the PDF the artifact — or an ex'). Either the ❓ or the `target` is in the wrong place, and which one is a judgement this check cannot make — or record the decision with waive {op: registry, action: waive, key: 'pindrift:dashboard-wireframe:pin-report-page', reason: ...}"
+   ]
+  },
+  "enrichment-flow": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 12 nodes / 13 arrows — your words: this routing is the thing you'd want written on a wall — merging the sources back into one box is what made it wrong",
+    "unconnected node(s): crowding-check ('Crowding check — scoped, never built')"
+   ],
+   "warnings": [
+    "'→ Review & publish' does not fit to-compose ('→ Review & publish'): needs ~83x40px, the box gives 103x35px (too tall) — the client will not clip this, it grows the box to 160x71px to hold the label, so the node you drew is 7px shorter than the one your reader sees. Store that height, or shorten the text",
+    "arrows e-in-sentiment and e-edgar-sentiment share an attach point on sentiment-scorer ('Sentiment scorer') — the auto-fan could not move them: e-edgar-sentiment is user-shaped. Author waypoints via `mod points`, simplify the path, or move the nodes apart",
+    "arrows e-in-sentiment and e-edgar-sentiment run together for 80px, 16px apart on the same horizontal line — inside the 16px that reads as one stroke, so the drawing has one thick line where the model has two edges and neither can be followed through the overlap. they arrive at sentiment-scorer ('Sentiment scorer') together. Give the feet 18px of separation — and if that side is too short to hold them all, the fan has already spent what it had: move an edge to another border, grow the node, or offset one run with `mod points`. Deliberate? waive {op: registry, action: waive, key: 'lane:enrichment-flow:e-in-sentiment:e-edgar-sentiment', reason: ...}"
+   ]
+  },
+  "onboarding-intake": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 14 nodes / 15 arrows — one landscape page for the compliance pack: three intake routes, the linear checks, a three-way band, both terminal paths and the two-day sweep. Splitting it would put the branch and its outcomes on different sheets."
+   ],
+   "warnings": []
+  }
+ },
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 4450
+ },
+ "reconciliation": true,
+ "registry_changes": [],
+ "revn": 36,
+ "round": 9,
+ "saved_at": "2026-08-31T00:01:34Z",
+ "selection_at_save": [],
+ "short_id": "b40822f",
+ "summary": {
+  "headline": "out-of-session drift reconciled: 2 change(s) differ from history",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 4
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": null
+}

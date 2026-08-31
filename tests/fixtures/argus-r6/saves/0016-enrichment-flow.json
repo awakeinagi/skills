@@ -1,0 +1,3426 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData",
+      "strokeStyle"
+     ],
+     "consequence_of": null,
+     "id": "crowding-check",
+     "kind": "transform",
+     "label": "Crowding check — not built",
+     "ops": [
+      26
+     ],
+     "semantic": {
+      "renamed": {
+       "from": "Crowding check",
+       "to": "Crowding check — not built"
+      },
+      "restyled": {
+       "attrs": [
+        "strokeStyle"
+       ],
+       "low_signal": true
+      },
+      "tooltip_changed": {
+       "label": "Crowding check — not built",
+       "text": "**Confirmed: portfolio-level concentration, and nobody computes it today.**\n\nDra"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-market-technicals",
+     "kind": "arrow",
+     "label": "e-market-technicals",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-market-technicals"
+      },
+      "transition_added": {
+       "between": [
+        "Market Feed",
+        "Technical signals"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-edgar-sentiment",
+     "kind": "arrow",
+     "label": "e-edgar-sentiment",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "arrow",
+       "label": "e-edgar-sentiment"
+      },
+      "rerouted": {
+       "arrow": "e-edgar-sentiment"
+      },
+      "transition_added": {
+       "between": [
+        "SEC EDGAR",
+        "Sentiment scorer"
+       ]
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "s-news",
+     "kind": "store",
+     "label": "News",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "News"
+      },
+      "step_added": {
+       "label": "News"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "s-edgar",
+     "kind": "store",
+     "label": "SEC EDGAR",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "SEC EDGAR"
+      },
+      "step_added": {
+       "label": "SEC EDGAR"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "s-market",
+     "kind": "store",
+     "label": "Market Feed",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "store",
+       "label": "Market Feed"
+      },
+      "step_added": {
+       "label": "Market Feed"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "note-universe",
+     "kind": "text",
+     "label": "Portfolio DB: scopes, doesn't feed",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "annotated": {
+       "author": "agent",
+       "target": "s-market",
+       "text": "Portfolio DB: scopes, doesn't feed"
+      }
+     },
+     "verb": "annotated"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-fundamentals-source",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "You routed four sources to three enrichers and never said where fundamentals gets its input. EDGAR?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "normalized-input",
+     "kind": "source",
+     "label": "Normalized input",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "source",
+        "label": "Normalized input"
+       }
+      },
+      "step_deleted": {
+       "label": "Normalized input"
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-crowding",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "pin_deleted": {}
+     },
+     "verb": "pin_deleted"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "sentiment-scorer",
+     "kind": "agent",
+     "label": "Sentiment scorer",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Sentiment scorer",
+       "text": "Takes news headlines **and** filing tone. Two text sources, one scorer — and the"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "technicals",
+     "kind": "transform",
+     "label": "Technical signals",
+     "ops": [
+      21,
+      22
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 160,
+       "label": "Technical signals",
+       "spatial": "moved down"
+      },
+      "tooltip_changed": {
+       "label": "Technical signals",
+       "text": "Momentum and breadth, off the market feed and nothing else. **Isolated by design"
+      }
+     },
+     "verb": "tooltip_changed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "insider-detector",
+     "kind": "transform",
+     "label": "Insider clusters",
+     "ops": [
+      23
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -160,
+       "label": "Insider clusters",
+       "spatial": "moved up"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [
+      "height"
+     ],
+     "consequence_of": null,
+     "id": "aggregator",
+     "kind": "transform",
+     "label": "Aggregator",
+     "ops": [
+      24,
+      25
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": -48,
+       "label": "Aggregator",
+       "spatial": "moved up"
+      },
+      "resized": {
+       "label": "Aggregator"
+      }
+     },
+     "verb": "resized"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-36da3cb3",
+     "kind": "rectangle",
+     "label": "was feeding technicals too — noise",
+     "ops": [
+      27
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 180,
+       "label": "was feeding technicals too — noise",
+       "spatial": "moved down"
+      },
+      "reordered": {
+       "label": "was feeding technicals too — noise"
+      }
+     },
+     "verb": "moved"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "usernote-f1efa0e6-t",
+     "kind": "text",
+     "label": "watch out for crowded trades",
+     "ops": [],
+     "semantic": {
+      "reordered": {
+       "label": "watch out for crowded trades"
+      }
+     },
+     "verb": "reordered"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "startBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "e-in-sentiment",
+     "kind": "arrow",
+     "label": "e-in-sentiment",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "e-in-sentiment",
+       "consequence_of": "normalized-input",
+       "from": "Normalized input→Sentiment scorer",
+       "to": "News→Sentiment scorer"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "startBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "e-in-fundamentals",
+     "kind": "arrow",
+     "label": "e-in-fundamentals",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "e-in-fundamentals",
+       "consequence_of": "normalized-input",
+       "from": "Normalized input→Fundamentals",
+       "to": "SEC EDGAR→Fundamentals"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "startBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "e-in-insider",
+     "kind": "arrow",
+     "label": "e-in-insider",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "e-in-insider"
+      },
+      "rewired": {
+       "arrow": "e-in-insider",
+       "consequence_of": "normalized-input",
+       "from": "Normalized input→Insider clusters",
+       "to": "SEC EDGAR→Insider clusters"
+      }
+     },
+     "verb": "rewired"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "e-risk-agg",
+     "kind": "arrow",
+     "label": "e-risk-agg",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "e-risk-agg"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "e-technicals-agg",
+     "kind": "arrow",
+     "label": "e-technicals-agg",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "e-technicals-agg"
+      }
+     },
+     "verb": "rerouted"
+    },
+    {
+     "attrs_changed": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "points",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "e-insider-agg",
+     "kind": "arrow",
+     "label": "e-insider-agg",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "rerouted": {
+       "arrow": "e-insider-agg"
+      }
+     },
+     "verb": "rerouted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "52d361fc10"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technicals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "e-market-technicals",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 172182981,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "s-market",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 592
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sentiment-scorer",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 124,
+      "id": "e-edgar-sentiment",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        80,
+        0
+       ],
+       [
+        80,
+        -124
+       ],
+       [
+        160,
+        -124
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1308163831,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "s-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 252
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "s-news-label",
+        "type": "text"
+       },
+       {
+        "id": "e-in-sentiment",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Headlines. Goes to the sentiment scorer and **nowhere else**."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "s-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 967996213,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 80
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "s-edgar-label",
+        "type": "text"
+       },
+       {
+        "id": "e-in-fundamentals",
+        "type": "arrow"
+       },
+       {
+        "id": "e-in-insider",
+        "type": "arrow"
+       },
+       {
+        "id": "e-edgar-sentiment",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "The only source that feeds more than one enricher: filing **tone** to the sentiment scorer, Form-4s to the insider detector — and, as a guess, the financial statements behind the fundamentals ratios."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "s-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 289213466,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 240
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "s-market-label",
+        "type": "text"
+       },
+       {
+        "id": "e-market-technicals",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Prices and volumes. Momentum and breadth come off this and **nothing else** — that isolation is a design rule, not an implementation detail. Headline sentiment leaking in flipped a breadth call twice this quarter."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "s-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 871970094,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 560
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "annotates": "s-market",
+       "author": "agent",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 17,
+      "id": "note-universe",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio DB: scopes, doesn't feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 792399864,
+      "strokeColor": "#5c8a5f",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio DB: scopes, doesn't feed",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 285,
+      "x": 80,
+      "y": 520
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "s-news",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "s-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 879838385,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 38,
+      "x": 141,
+      "y": 102
+     },
+     "index": 40,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "s-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "s-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "SEC EDGAR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1532505849,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "SEC EDGAR",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 117,
+      "y": 262
+     },
+     "index": 41,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "s-market",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "s-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Market Feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1263616490,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Market Feed",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 108,
+      "y": 582
+     },
+     "index": 42,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "You routed four sources to three enrichers and never said where fundamentals gets its input. EDGAR?",
+       "role": "pin",
+       "status": "open",
+       "target": "fundamentals"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-fundamentals-source",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 978773777,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 568,
+      "y": 232
+     },
+     "index": 43,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-in-sentiment",
+        "type": "arrow"
+       },
+       {
+        "id": "e-in-fundamentals",
+        "type": "arrow"
+       },
+       {
+        "id": "e-in-insider",
+        "type": "arrow"
+       },
+       {
+        "id": "normalized-input-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "One normalized input, four consumers, all in parallel. Click through to `daily-run-flow` for where it comes from."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "normalized-input",
+      "isDeleted": false,
+      "link": "artifact:daily-run-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1117531309,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 272
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "normalized-input",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "normalized-input-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Normalized input",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1733220153,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Normalized input",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 136,
+      "x": 92,
+      "y": 332
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Your note — is crowding a portfolio-level thing nobody computes yet, or a caution about the insider signal itself?",
+       "role": "pin",
+       "status": "open",
+       "target": "crowding-check"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-crowding",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 79657778,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1528,
+      "y": 312
+     },
+     "index": 34,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 133,
+       "to": 240
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 272,
+       "to": 112
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 267,
+       "to": 160
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 160,
+       "to": 0
+      },
+      {
+       "attr": "startBinding",
+       "from": "normalized-input",
+       "to": "s-news"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "87cdc19c7f"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "92e1e7f2c0"
+       }
+      }
+     ],
+     "id": "e-in-sentiment",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 187,
+       "to": 240
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 160
+      },
+      {
+       "attr": "startBinding",
+       "from": "normalized-input",
+       "to": "s-edgar"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3fabbb11d7"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "12679bff9b"
+       }
+      }
+     ],
+     "id": "e-in-fundamentals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 187,
+       "to": 240
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 292
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 160
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 160,
+       "to": 140
+      },
+      {
+       "attr": "startBinding",
+       "from": "normalized-input",
+       "to": "s-edgar"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd22ddcc9"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       }
+      }
+     ],
+     "id": "e-in-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "risk-model",
+        "focus": -0.333,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "risk-model",
+        "focus": -0.338,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "e-fundamentals-risk",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 827,
+       "to": 800
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 213,
+       "to": 240
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 128,
+       "to": 76
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         128
+        ],
+        [
+         213,
+         128
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         76
+        ],
+        [
+         240,
+         76
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a2164527d3"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       }
+      }
+     ],
+     "id": "e-risk-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 432,
+       "to": 592
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 533,
+       "to": 480
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 48,
+       "to": 192
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         533,
+         0
+        ],
+        [
+         533,
+         -48
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         80,
+         0
+        ],
+        [
+         80,
+         -192
+        ],
+        [
+         480,
+         -192
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f0472ae642"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       }
+      }
+     ],
+     "id": "e-technicals-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 480,
+       "to": 560
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 560,
+       "to": 432
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 640,
+       "to": 480
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 176,
+       "to": 80
+      },
+      {
+       "attr": "points",
+       "derived": true,
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -88
+        ],
+        [
+         640,
+         -88
+        ],
+        [
+         640,
+         -176
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         0
+        ],
+        [
+         400,
+         -80
+        ],
+        [
+         480,
+         -80
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "af488bf2c1"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       }
+      }
+     ],
+     "id": "e-insider-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "Headlines **and** filing tone — two different kinds of text through one scorer.\n\nDrawn as an **agent** node: a guess that this is a model. If it is, it owes an answer to 'what does it do when it's unsure?' — and that answer interacts with the 0.70 confidence threshold."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "Takes news headlines **and** filing tone. Two text sources, one scorer — and the only enricher with more than one input.\n\nDrawn as an agent node: still a guess that this is a model."
+       }
+      }
+     ],
+     "id": "sentiment-scorer",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Computed from the market feed. Skips the risk model entirely: this is a conviction input.\n\nThe macro calendar used to feed here too — it is switched **off** (your note: 'noisy'), so this box currently runs on price and volume alone. Fed days and CPI prints are not in the picture right now."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Momentum and breadth, off the market feed and nothing else. **Isolated by design** — this is the box the routing correction was about."
+       }
+      }
+     ],
+     "id": "technicals",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      400
+     ],
+     "id": "technicals",
+     "op": "move",
+     "to": [
+      400,
+      560
+     ]
+    },
+    {
+     "from": [
+      400,
+      560
+     ],
+     "id": "insider-detector",
+     "op": "move",
+     "to": [
+      400,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 64,
+       "to": 160
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1040,
+      320
+     ],
+     "id": "aggregator",
+     "op": "move",
+     "to": [
+      1040,
+      272
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**My reading of your sticky note, and a guess.**\n\nCrowding is a property of the aggregate, not of any one name: when conviction stacks — technicals and insider buying pointing the same way across several Positions — the portfolio can end up on one side of a trade that everyone else is also on.\n\nYour narrow risk number cannot see it: it never sees technicals or insider clusters at all. So if crowding is a risk you care about, nothing currently computes it, and this box is a hole rather than a stage.\n\nDelete it if the note meant something else."
+       },
+       "to": {
+        "author": "agent",
+        "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Confirmed: portfolio-level concentration, and nobody computes it today.**\n\nDrawn dashed and named for what it is, because you want it sitting there looking unfinished rather than quietly reading as a stage that exists.\n\nIt is the only place in the design that could see the portfolio ending up on one side of a trade — your risk number is narrow by choice and never meets technicals or insider buying."
+       }
+      },
+      {
+       "attr": "strokeStyle",
+       "from": "solid",
+       "to": "dashed"
+      }
+     ],
+     "id": "crowding-check",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      480
+     ],
+     "id": "usernote-36da3cb3",
+     "op": "move",
+     "to": [
+      400,
+      660
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 412,
+       "to": 572
+      }
+     ],
+     "id": "technicals-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 572,
+       "to": 412
+      }
+     ],
+     "id": "insider-detector-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1373,
+       "to": 1372
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 332
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 134,
+       "to": 136
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 20,
+       "to": 40
+      },
+      {
+       "attr": "text",
+       "from": "Crowding check",
+       "to": "Crowding check — not built"
+      },
+      {
+       "attr": "autoResize",
+       "from": true,
+       "to": false
+      }
+     ],
+     "id": "crowding-check-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 488,
+       "to": 666
+      }
+     ],
+     "id": "usernote-36da3cb3-t",
+     "op": "mod"
+    },
+    {
+     "from_order": [
+      "e-in-sentiment",
+      "e-in-fundamentals",
+      "e-in-insider",
+      "e-sentiment-risk",
+      "e-fundamentals-risk",
+      "e-risk-agg",
+      "e-technicals-agg",
+      "e-insider-agg",
+      "e-agg-compose",
+      "e-risk-alert",
+      "e-crowding-compose",
+      "normalized-input",
+      "sentiment-scorer",
+      "fundamentals",
+      "technicals",
+      "insider-detector",
+      "risk-model",
+      "aggregator",
+      "to-compose",
+      "usernote-f1efa0e6",
+      "var-alert",
+      "crowding-check",
+      "normalized-input-label",
+      "sentiment-scorer-label",
+      "fundamentals-label",
+      "technicals-label",
+      "insider-detector-label",
+      "risk-model-label",
+      "aggregator-label",
+      "to-compose-label",
+      "usernote-f1efa0e6-t",
+      "var-alert-label",
+      "e-risk-alert-label",
+      "crowding-check-label",
+      "pin-crowding",
+      "usernote-36da3cb3",
+      "usernote-36da3cb3-t"
+     ],
+     "moved": [
+      "usernote-36da3cb3",
+      "sentiment-scorer-label",
+      "fundamentals-label",
+      "technicals-label",
+      "insider-detector-label",
+      "risk-model-label",
+      "aggregator-label",
+      "to-compose-label",
+      "usernote-f1efa0e6-t",
+      "var-alert-label",
+      "e-risk-alert-label",
+      "crowding-check-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "e-in-sentiment",
+      "e-in-fundamentals",
+      "e-in-insider",
+      "e-sentiment-risk",
+      "e-fundamentals-risk",
+      "e-risk-agg",
+      "e-technicals-agg",
+      "e-insider-agg",
+      "e-agg-compose",
+      "e-risk-alert",
+      "e-crowding-compose",
+      "e-market-technicals",
+      "e-edgar-sentiment",
+      "sentiment-scorer",
+      "fundamentals",
+      "technicals",
+      "insider-detector",
+      "risk-model",
+      "aggregator",
+      "to-compose",
+      "usernote-f1efa0e6",
+      "var-alert",
+      "crowding-check",
+      "usernote-36da3cb3",
+      "s-news",
+      "s-edgar",
+      "s-market",
+      "note-universe",
+      "sentiment-scorer-label",
+      "fundamentals-label",
+      "technicals-label",
+      "insider-detector-label",
+      "risk-model-label",
+      "aggregator-label",
+      "to-compose-label",
+      "usernote-f1efa0e6-t",
+      "var-alert-label",
+      "e-risk-alert-label",
+      "crowding-check-label",
+      "usernote-36da3cb3-t",
+      "s-news-label",
+      "s-edgar-label",
+      "s-market-label",
+      "pin-fundamentals-source"
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "element": "crowding-check",
+     "fact": "renamed",
+     "from": "Crowding check",
+     "to": "Crowding check — not built"
+    },
+    {
+     "element": "e-market-technicals",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-market-technicals"
+    },
+    {
+     "element": "e-edgar-sentiment",
+     "fact": "added",
+     "kind": "arrow",
+     "label": "e-edgar-sentiment"
+    },
+    {
+     "element": "s-news",
+     "fact": "added",
+     "kind": "store",
+     "label": "News"
+    },
+    {
+     "element": "s-edgar",
+     "fact": "added",
+     "kind": "store",
+     "label": "SEC EDGAR"
+    },
+    {
+     "element": "s-market",
+     "fact": "added",
+     "kind": "store",
+     "label": "Market Feed"
+    },
+    {
+     "author": "agent",
+     "element": "note-universe",
+     "fact": "annotated",
+     "target": "s-market",
+     "text": "Portfolio DB: scopes, doesn't feed"
+    },
+    {
+     "element": "pin-fundamentals-source",
+     "fact": "pin_added",
+     "question": "You routed four sources to three enrichers and never said where fundamentals gets its input. EDGAR?"
+    },
+    {
+     "element": "normalized-input",
+     "fact": "deleted",
+     "was": {
+      "kind": "source",
+      "label": "Normalized input"
+     }
+    },
+    {
+     "element": "pin-crowding",
+     "fact": "pin_deleted"
+    },
+    {
+     "element": "sentiment-scorer",
+     "fact": "tooltip_changed",
+     "label": "Sentiment scorer",
+     "text": "Takes news headlines **and** filing tone. Two text sources, one scorer — and the"
+    },
+    {
+     "element": "technicals",
+     "fact": "tooltip_changed",
+     "label": "Technical signals",
+     "text": "Momentum and breadth, off the market feed and nothing else. **Isolated by design"
+    },
+    {
+     "dx": 0,
+     "dy": 160,
+     "element": "technicals",
+     "fact": "moved",
+     "label": "Technical signals",
+     "spatial": "moved down"
+    },
+    {
+     "dx": 0,
+     "dy": -160,
+     "element": "insider-detector",
+     "fact": "moved",
+     "label": "Insider clusters",
+     "spatial": "moved up"
+    },
+    {
+     "element": "aggregator",
+     "fact": "resized",
+     "label": "Aggregator"
+    },
+    {
+     "dx": 0,
+     "dy": -48,
+     "element": "aggregator",
+     "fact": "moved",
+     "label": "Aggregator",
+     "spatial": "moved up"
+    },
+    {
+     "attrs": [
+      "strokeStyle"
+     ],
+     "element": "crowding-check",
+     "fact": "restyled",
+     "low_signal": true
+    },
+    {
+     "element": "crowding-check",
+     "fact": "tooltip_changed",
+     "label": "Crowding check — not built",
+     "text": "**Confirmed: portfolio-level concentration, and nobody computes it today.**\n\nDra"
+    },
+    {
+     "dx": 0,
+     "dy": 180,
+     "element": "usernote-36da3cb3",
+     "fact": "moved",
+     "label": "was feeding technicals too — noise",
+     "spatial": "moved down"
+    },
+    {
+     "element": "usernote-36da3cb3",
+     "fact": "reordered",
+     "label": "was feeding technicals too — noise"
+    },
+    {
+     "element": "usernote-f1efa0e6-t",
+     "fact": "reordered",
+     "label": "watch out for crowded trades"
+    },
+    {
+     "between": [
+      "Market Feed",
+      "Technical signals"
+     ],
+     "element": "e-market-technicals",
+     "fact": "transition_added"
+    },
+    {
+     "between": [
+      "SEC EDGAR",
+      "Sentiment scorer"
+     ],
+     "element": "e-edgar-sentiment",
+     "fact": "transition_added"
+    },
+    {
+     "element": "s-news",
+     "fact": "step_added",
+     "label": "News"
+    },
+    {
+     "element": "s-edgar",
+     "fact": "step_added",
+     "label": "SEC EDGAR"
+    },
+    {
+     "element": "s-market",
+     "fact": "step_added",
+     "label": "Market Feed"
+    },
+    {
+     "element": "normalized-input",
+     "fact": "step_deleted",
+     "label": "Normalized input"
+    },
+    {
+     "arrow": "e-in-sentiment",
+     "consequence_of": "normalized-input",
+     "element": "e-in-sentiment",
+     "fact": "rewired",
+     "from": "Normalized input→Sentiment scorer",
+     "to": "News→Sentiment scorer"
+    },
+    {
+     "arrow": "e-in-fundamentals",
+     "consequence_of": "normalized-input",
+     "element": "e-in-fundamentals",
+     "fact": "rewired",
+     "from": "Normalized input→Fundamentals",
+     "to": "SEC EDGAR→Fundamentals"
+    },
+    {
+     "arrow": "e-in-insider",
+     "consequence_of": "normalized-input",
+     "element": "e-in-insider",
+     "fact": "rewired",
+     "from": "Normalized input→Insider clusters",
+     "to": "SEC EDGAR→Insider clusters"
+    },
+    {
+     "arrow": "e-edgar-sentiment",
+     "element": "e-edgar-sentiment",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-in-insider",
+     "element": "e-in-insider",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-risk-agg",
+     "element": "e-risk-agg",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-technicals-agg",
+     "element": "e-technicals-agg",
+     "fact": "rerouted"
+    },
+    {
+     "arrow": "e-insider-agg",
+     "element": "e-insider-agg",
+     "fact": "rerouted"
+    }
+   ],
+   "inverse": [
+    {
+     "from_order": [
+      "e-in-sentiment",
+      "e-in-fundamentals",
+      "e-in-insider",
+      "e-sentiment-risk",
+      "e-fundamentals-risk",
+      "e-risk-agg",
+      "e-technicals-agg",
+      "e-insider-agg",
+      "e-agg-compose",
+      "e-risk-alert",
+      "e-crowding-compose",
+      "e-market-technicals",
+      "e-edgar-sentiment",
+      "sentiment-scorer",
+      "fundamentals",
+      "technicals",
+      "insider-detector",
+      "risk-model",
+      "aggregator",
+      "to-compose",
+      "usernote-f1efa0e6",
+      "var-alert",
+      "crowding-check",
+      "usernote-36da3cb3",
+      "s-news",
+      "s-edgar",
+      "s-market",
+      "note-universe",
+      "sentiment-scorer-label",
+      "fundamentals-label",
+      "technicals-label",
+      "insider-detector-label",
+      "risk-model-label",
+      "aggregator-label",
+      "to-compose-label",
+      "usernote-f1efa0e6-t",
+      "var-alert-label",
+      "e-risk-alert-label",
+      "crowding-check-label",
+      "usernote-36da3cb3-t",
+      "s-news-label",
+      "s-edgar-label",
+      "s-market-label",
+      "pin-fundamentals-source"
+     ],
+     "moved": [
+      "usernote-36da3cb3",
+      "sentiment-scorer-label",
+      "fundamentals-label",
+      "technicals-label",
+      "insider-detector-label",
+      "risk-model-label",
+      "aggregator-label",
+      "to-compose-label",
+      "usernote-f1efa0e6-t",
+      "var-alert-label",
+      "e-risk-alert-label",
+      "crowding-check-label"
+     ],
+     "op": "reorder",
+     "order": [
+      "e-in-sentiment",
+      "e-in-fundamentals",
+      "e-in-insider",
+      "e-sentiment-risk",
+      "e-fundamentals-risk",
+      "e-risk-agg",
+      "e-technicals-agg",
+      "e-insider-agg",
+      "e-agg-compose",
+      "e-risk-alert",
+      "e-crowding-compose",
+      "normalized-input",
+      "sentiment-scorer",
+      "fundamentals",
+      "technicals",
+      "insider-detector",
+      "risk-model",
+      "aggregator",
+      "to-compose",
+      "usernote-f1efa0e6",
+      "var-alert",
+      "crowding-check",
+      "normalized-input-label",
+      "sentiment-scorer-label",
+      "fundamentals-label",
+      "technicals-label",
+      "insider-detector-label",
+      "risk-model-label",
+      "aggregator-label",
+      "to-compose-label",
+      "usernote-f1efa0e6-t",
+      "var-alert-label",
+      "e-risk-alert-label",
+      "crowding-check-label",
+      "pin-crowding",
+      "usernote-36da3cb3",
+      "usernote-36da3cb3-t"
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 666,
+       "to": 488
+      }
+     ],
+     "id": "usernote-36da3cb3-t",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1372,
+       "to": 1373
+      },
+      {
+       "attr": "y",
+       "from": 332,
+       "to": 342
+      },
+      {
+       "attr": "width",
+       "from": 136,
+       "to": 134
+      },
+      {
+       "attr": "height",
+       "from": 40,
+       "to": 20
+      },
+      {
+       "attr": "text",
+       "from": "Crowding check — not built",
+       "to": "Crowding check"
+      },
+      {
+       "attr": "autoResize",
+       "from": false,
+       "to": true
+      }
+     ],
+     "id": "crowding-check-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 412,
+       "to": 572
+      }
+     ],
+     "id": "insider-detector-label",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 572,
+       "to": 412
+      }
+     ],
+     "id": "technicals-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      660
+     ],
+     "id": "usernote-36da3cb3",
+     "op": "move",
+     "to": [
+      400,
+      480
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Confirmed: portfolio-level concentration, and nobody computes it today.**\n\nDrawn dashed and named for what it is, because you want it sitting there looking unfinished rather than quietly reading as a stage that exists.\n\nIt is the only place in the design that could see the portfolio ending up on one side of a trade — your risk number is narrow by choice and never meets technicals or insider buying."
+       },
+       "to": {
+        "author": "agent",
+        "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**My reading of your sticky note, and a guess.**\n\nCrowding is a property of the aggregate, not of any one name: when conviction stacks — technicals and insider buying pointing the same way across several Positions — the portfolio can end up on one side of a trade that everyone else is also on.\n\nYour narrow risk number cannot see it: it never sees technicals or insider clusters at all. So if crowding is a risk you care about, nothing currently computes it, and this box is a hole rather than a stage.\n\nDelete it if the note meant something else."
+       }
+      },
+      {
+       "attr": "strokeStyle",
+       "from": "dashed",
+       "to": "solid"
+      }
+     ],
+     "id": "crowding-check",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1040,
+      272
+     ],
+     "id": "aggregator",
+     "op": "move",
+     "to": [
+      1040,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "height",
+       "from": 160,
+       "to": 64
+      }
+     ],
+     "id": "aggregator",
+     "op": "mod"
+    },
+    {
+     "from": [
+      400,
+      400
+     ],
+     "id": "insider-detector",
+     "op": "move",
+     "to": [
+      400,
+      560
+     ]
+    },
+    {
+     "from": [
+      400,
+      560
+     ],
+     "id": "technicals",
+     "op": "move",
+     "to": [
+      400,
+      400
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Momentum and breadth, off the market feed and nothing else. **Isolated by design** — this is the box the routing correction was about."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Computed from the market feed. Skips the risk model entirely: this is a conviction input.\n\nThe macro calendar used to feed here too — it is switched **off** (your note: 'noisy'), so this box currently runs on price and volume alone. Fed days and CPI prints are not in the picture right now."
+       }
+      }
+     ],
+     "id": "technicals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "Takes news headlines **and** filing tone. Two text sources, one scorer — and the only enricher with more than one input.\n\nDrawn as an agent node: still a guess that this is a model."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "agent",
+        "role": "node",
+        "tooltip": "Headlines **and** filing tone — two different kinds of text through one scorer.\n\nDrawn as an **agent** node: a guess that this is a model. If it is, it owes an answer to 'what does it do when it's unsure?' — and that answer interacts with the 0.70 confidence threshold."
+       }
+      }
+     ],
+     "id": "sentiment-scorer",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 560,
+       "to": 480
+      },
+      {
+       "attr": "y",
+       "from": 432,
+       "to": 560
+      },
+      {
+       "attr": "width",
+       "from": 480,
+       "to": 640
+      },
+      {
+       "attr": "height",
+       "from": 80,
+       "to": 176
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         400,
+         0
+        ],
+        [
+         400,
+         -80
+        ],
+        [
+         480,
+         -80
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         -88
+        ],
+        [
+         640,
+         -88
+        ],
+        [
+         640,
+         -176
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "af488bf2c1"
+       }
+      }
+     ],
+     "id": "e-insider-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 592,
+       "to": 432
+      },
+      {
+       "attr": "width",
+       "from": 480,
+       "to": 533
+      },
+      {
+       "attr": "height",
+       "from": 192,
+       "to": 48
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         80,
+         0
+        ],
+        [
+         80,
+         -192
+        ],
+        [
+         480,
+         -192
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         533,
+         0
+        ],
+        [
+         533,
+         -48
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "f0472ae642"
+       }
+      }
+     ],
+     "id": "e-technicals-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 800,
+       "to": 827
+      },
+      {
+       "attr": "width",
+       "from": 240,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "from": 76,
+       "to": 128
+      },
+      {
+       "attr": "points",
+       "from": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         76
+        ],
+        [
+         240,
+         76
+        ]
+       ],
+       "to": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         128
+        ],
+        [
+         213,
+         128
+        ]
+       ]
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "a2164527d3"
+       }
+      }
+     ],
+     "id": "e-risk-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "risk-model",
+        "focus": -0.338,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "risk-model",
+        "focus": -0.333,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "e-fundamentals-risk",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 240,
+       "to": 187
+      },
+      {
+       "attr": "y",
+       "from": 292,
+       "to": 432
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 213
+      },
+      {
+       "attr": "height",
+       "from": 140,
+       "to": 160
+      },
+      {
+       "attr": "startBinding",
+       "from": "s-edgar",
+       "to": "normalized-input"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "authored"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "fdd22ddcc9"
+       }
+      }
+     ],
+     "id": "e-in-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 240,
+       "to": 187
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 213
+      },
+      {
+       "attr": "startBinding",
+       "from": "s-edgar",
+       "to": "normalized-input"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "12679bff9b"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "3fabbb11d7"
+       }
+      }
+     ],
+     "id": "e-in-fundamentals",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 240,
+       "to": 133
+      },
+      {
+       "attr": "y",
+       "from": 112,
+       "to": 272
+      },
+      {
+       "attr": "width",
+       "from": 160,
+       "to": 267
+      },
+      {
+       "attr": "height",
+       "from": 0,
+       "to": 160
+      },
+      {
+       "attr": "startBinding",
+       "from": "s-news",
+       "to": "normalized-input"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "92e1e7f2c0"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "87cdc19c7f"
+       }
+      }
+     ],
+     "id": "e-in-sentiment",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Your note — is crowding a portfolio-level thing nobody computes yet, or a caution about the insider signal itself?",
+       "role": "pin",
+       "status": "open",
+       "target": "crowding-check"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-crowding",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 79657778,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 1528,
+      "y": 312
+     },
+     "index": 34,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "normalized-input",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "normalized-input-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Normalized input",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1733220153,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Normalized input",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 136,
+      "x": 92,
+      "y": 332
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "e-in-sentiment",
+        "type": "arrow"
+       },
+       {
+        "id": "e-in-fundamentals",
+        "type": "arrow"
+       },
+       {
+        "id": "e-in-insider",
+        "type": "arrow"
+       },
+       {
+        "id": "normalized-input-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "source",
+       "role": "node",
+       "tooltip": "One normalized input, four consumers, all in parallel. Click through to `daily-run-flow` for where it comes from."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 160,
+      "id": "normalized-input",
+      "isDeleted": false,
+      "link": "artifact:daily-run-flow",
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 1117531309,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 272
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "You routed four sources to three enrichers and never said where fundamentals gets its input. EDGAR?",
+       "role": "pin",
+       "status": "open",
+       "target": "fundamentals"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-fundamentals-source",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 978773777,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 568,
+      "y": 232
+     },
+     "index": 43,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "s-market",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "s-market-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Market Feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1263616490,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Market Feed",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 105,
+      "x": 108,
+      "y": 582
+     },
+     "index": 42,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "s-edgar",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "s-edgar-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "SEC EDGAR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1532505849,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "SEC EDGAR",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 86,
+      "x": 117,
+      "y": 262
+     },
+     "index": 41,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "s-news",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "s-news-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "News",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 879838385,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "News",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 38,
+      "x": 141,
+      "y": 102
+     },
+     "index": 40,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "annotates": "s-market",
+       "author": "agent",
+       "role": "annotation"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 14,
+      "frameId": null,
+      "groupIds": [],
+      "height": 17,
+      "id": "note-universe",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio DB: scopes, doesn't feed",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 792399864,
+      "strokeColor": "#5c8a5f",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio DB: scopes, doesn't feed",
+      "textAlign": "left",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 285,
+      "x": 80,
+      "y": 520
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "s-market-label",
+        "type": "text"
+       },
+       {
+        "id": "e-market-technicals",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Prices and volumes. Momentum and breadth come off this and **nothing else** — that isolation is a design rule, not an implementation detail. Headline sentiment leaking in flipped a breadth call twice this quarter."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "s-market",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 871970094,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 560
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "s-edgar-label",
+        "type": "text"
+       },
+       {
+        "id": "e-in-fundamentals",
+        "type": "arrow"
+       },
+       {
+        "id": "e-in-insider",
+        "type": "arrow"
+       },
+       {
+        "id": "e-edgar-sentiment",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "The only source that feeds more than one enricher: filing **tone** to the sentiment scorer, Form-4s to the insider detector — and, as a guess, the financial statements behind the fundamentals ratios."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "s-edgar",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 289213466,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 240
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "s-news-label",
+        "type": "text"
+       },
+       {
+        "id": "e-in-sentiment",
+        "type": "arrow"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "store",
+       "role": "node",
+       "tooltip": "Headlines. Goes to the sentiment scorer and **nowhere else**."
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 64,
+      "id": "s-news",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": {
+       "type": 3
+      },
+      "seed": 967996213,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 80,
+      "y": 80
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "authored"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "sentiment-scorer",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 124,
+      "id": "e-edgar-sentiment",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        80,
+        0
+       ],
+       [
+        80,
+        -124
+       ],
+       [
+        160,
+        -124
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1308163831,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "s-edgar",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 252
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "52d361fc10"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technicals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "e-market-technicals",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 172182981,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "s-market",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 240,
+      "y": 592
+     },
+     "index": 11,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 15,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "set_budget",
+   "arrows": 13,
+   "artifact": "enrichment-flow",
+   "nodes": 12,
+   "reason": "your words: this routing is the thing you'd want written on a wall — merging the sources back into one box is what made it wrong"
+  }
+ ],
+ "revn": 16,
+ "round": 4,
+ "saved_at": "2026-08-09T11:28:07Z",
+ "selection_at_save": [],
+ "short_id": "f0d1573",
+ "summary": {
+  "headline": "rerouted e-edgar-sentiment (+30 more)",
+  "suppressed": 4,
+  "verb_counts": {
+   "added": 5,
+   "annotated": 1,
+   "deleted": 1,
+   "moved": 4,
+   "pin_added": 1,
+   "pin_deleted": 1,
+   "renamed": 1,
+   "reordered": 2,
+   "rerouted": 5,
+   "resized": 1,
+   "restyled": 1,
+   "rewired": 3,
+   "step_added": 3,
+   "step_deleted": 1,
+   "tooltip_changed": 3,
+   "transition_added": 2
+  }
+ },
+ "tripwires": [
+  {
+   "changed": "enrichment-flow#normalized-input",
+   "changed_all": [
+    "enrichment-flow#normalized-input"
+   ],
+   "id": "tw-16-1",
+   "kind": "divergence",
+   "mapping": "argus:daily-run-flow#normalize+enrichment-flow#normalized-input",
+   "question": "enrichment-flow › normalized-input changed but its mapped sibling daily-run-flow › normalize didn't. Divergence, or should it propagate?",
+   "sibling": "daily-run-flow#normalize",
+   "siblings": [
+    "daily-run-flow#normalize"
+   ]
+  }
+ ],
+ "user_note": "the routing, written on a wall — and picking up the arrow you cut"
+}

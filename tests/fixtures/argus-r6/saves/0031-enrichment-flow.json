@@ -1,0 +1,211 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "roundness",
+       "from": {
+        "type": 2
+       },
+       "to": null
+      }
+     ],
+     "id": "e-in-insider",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "derived": true,
+       "from": {
+        "elementId": "risk-model",
+        "focus": -0.338,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "risk-model",
+        "focus": 0.337,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "e-fundamentals-risk",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "roundness",
+       "from": {
+        "type": 2
+       },
+       "to": null
+      }
+     ],
+     "id": "e-risk-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "roundness",
+       "from": {
+        "type": 2
+       },
+       "to": null
+      }
+     ],
+     "id": "e-technicals-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "roundness",
+       "from": {
+        "type": 2
+       },
+       "to": null
+      }
+     ],
+     "id": "e-insider-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#5c8a5f",
+       "to": "#47704b"
+      }
+     ],
+     "id": "note-universe",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "strokeColor",
+       "from": "#47704b",
+       "to": "#5c8a5f"
+      }
+     ],
+     "id": "note-universe",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "roundness",
+       "from": null,
+       "to": {
+        "type": 2
+       }
+      }
+     ],
+     "id": "e-insider-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "roundness",
+       "from": null,
+       "to": {
+        "type": 2
+       }
+      }
+     ],
+     "id": "e-technicals-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "roundness",
+       "from": null,
+       "to": {
+        "type": 2
+       }
+      }
+     ],
+     "id": "e-risk-agg",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "endBinding",
+       "from": {
+        "elementId": "risk-model",
+        "focus": 0.337,
+        "gap": 6
+       },
+       "to": {
+        "elementId": "risk-model",
+        "focus": -0.338,
+        "gap": 6
+       }
+      }
+     ],
+     "id": "e-fundamentals-risk",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "roundness",
+       "from": null,
+       "to": {
+        "type": 2
+       }
+      }
+     ],
+     "id": "e-in-insider",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 30,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1944455
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 31,
+ "round": 6,
+ "saved_at": "2026-08-17T21:39:09Z",
+ "selection_at_save": [],
+ "short_id": "d5f899f",
+ "summary": {
+  "headline": "saved without changing anything",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": null
+}

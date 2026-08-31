@@ -1,0 +1,133 @@
+{
+ "artifacts": {
+  "daily-run-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "run-trigger",
+     "kind": "source",
+     "label": "Weekday 06:00",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "moved": {
+       "dx": -40,
+       "dy": -24,
+       "label": "Weekday 06:00",
+       "spatial": "moved left-up"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      80,
+      272
+     ],
+     "id": "run-trigger",
+     "op": "move",
+     "to": [
+      40,
+      248
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 98,
+       "to": 58
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 342,
+       "to": 318
+      }
+     ],
+     "id": "run-trigger-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": -40,
+     "dy": -24,
+     "element": "run-trigger",
+     "fact": "moved",
+     "label": "Weekday 06:00",
+     "spatial": "moved left-up"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 58,
+       "to": 98
+      },
+      {
+       "attr": "y",
+       "from": 318,
+       "to": 342
+      }
+     ],
+     "id": "run-trigger-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      40,
+      248
+     ],
+     "id": "run-trigger",
+     "op": "move",
+     "to": [
+      80,
+      272
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 31,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1245382
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 32,
+ "round": 6,
+ "saved_at": "2026-08-27T07:22:36Z",
+ "selection_at_save": [],
+ "short_id": "f5b7fd9",
+ "summary": {
+  "headline": "Weekday 06:00 moved left-up",
+  "suppressed": 0,
+  "verb_counts": {
+   "moved": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": null
+}

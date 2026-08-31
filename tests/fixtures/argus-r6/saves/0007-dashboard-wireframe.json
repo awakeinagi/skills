@@ -1,0 +1,3849 @@
+{
+ "artifacts": {
+  "dashboard-wireframe": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "screen-dashboard",
+     "kind": "frame",
+     "label": "Dashboard — morning",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "added": {
+       "kind": "frame",
+       "label": "Dashboard — morning"
+      },
+      "reading_order_set": {
+       "order": [
+        "Argus · Fri 7 Aug · run 06:04",
+        "Portfolio VaR",
+        "Signals ≥ 0.70",
+        "Insider clusters",
+        "Sources in",
+        "Risk × conviction",
+        "VaR vs 2.5% alert",
+        "Signals Digest",
+        "Weekly Brief",
+        "Risk Deep-Dive"
+       ],
+       "screen": "Dashboard — morning"
+      },
+      "screen_added": {
+       "name": "Dashboard — morning"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-var-value",
+     "kind": "text",
+     "label": "1.8%",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "1.8%",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-signals-value",
+     "kind": "text",
+     "label": "24",
+     "ops": [
+      2
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "24",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-clusters-value",
+     "kind": "text",
+     "label": "3",
+     "ops": [
+      3
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "3",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-run-value",
+     "kind": "text",
+     "label": "5/5",
+     "ops": [
+      4
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "5/5",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-risk-conviction-x1",
+     "kind": "line",
+     "label": "chart-risk-conviction-x1",
+     "ops": [
+      5
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-risk-conviction-x1",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-risk-conviction-x2",
+     "kind": "line",
+     "label": "chart-risk-conviction-x2",
+     "ops": [
+      6
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-risk-conviction-x2",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-var-trend-x1",
+     "kind": "line",
+     "label": "chart-var-trend-x1",
+     "ops": [
+      7
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-var-trend-x1",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-var-trend-x2",
+     "kind": "line",
+     "label": "chart-var-trend-x2",
+     "ops": [
+      8
+     ],
+     "semantic": {
+      "added": {
+       "kind": "line",
+       "label": "chart-var-trend-x2",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest-value",
+     "kind": "text",
+     "label": "today",
+     "ops": [
+      9
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "today",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-brief-value",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "ops": [
+      10
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "Mon 3 Aug",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-deepdive-value",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "ops": [
+      11
+     ],
+     "semantic": {
+      "added": {
+       "kind": "text",
+       "label": "Mon 3 Aug",
+       "low_signal": true
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "dash-header",
+     "kind": "nav",
+     "label": "Argus · Fri 7 Aug · run 06:04",
+     "ops": [
+      12
+     ],
+     "semantic": {
+      "added": {
+       "kind": "nav",
+       "label": "Argus · Fri 7 Aug · run 06:04"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-var",
+     "kind": "kpi",
+     "label": "Portfolio VaR",
+     "ops": [
+      13
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Portfolio VaR"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-signals",
+     "kind": "kpi",
+     "label": "Signals ≥ 0.70",
+     "ops": [
+      14
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Signals ≥ 0.70"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-clusters",
+     "kind": "kpi",
+     "label": "Insider clusters",
+     "ops": [
+      15
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Insider clusters"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-run",
+     "kind": "kpi",
+     "label": "Sources in",
+     "ops": [
+      16
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Sources in"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-risk-conviction",
+     "kind": "image",
+     "label": "Risk × conviction",
+     "ops": [
+      17
+     ],
+     "semantic": {
+      "added": {
+       "kind": "image",
+       "label": "Risk × conviction"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "chart-var-trend",
+     "kind": "image",
+     "label": "VaR vs 2.5% alert",
+     "ops": [
+      18
+     ],
+     "semantic": {
+      "added": {
+       "kind": "image",
+       "label": "VaR vs 2.5% alert"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-digest",
+     "kind": "kpi",
+     "label": "Signals Digest",
+     "ops": [
+      19
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Signals Digest"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-brief",
+     "kind": "kpi",
+     "label": "Weekly Brief",
+     "ops": [
+      20
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Weekly Brief"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "card-deepdive",
+     "kind": "kpi",
+     "label": "Risk Deep-Dive",
+     "ops": [
+      21
+     ],
+     "semantic": {
+      "added": {
+       "kind": "kpi",
+       "label": "Risk Deep-Dive"
+      }
+     },
+     "verb": "added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-run-health",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      32
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Is there anything on your real dashboard that tells you the run was complete?"
+      }
+     },
+     "verb": "pin_added"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "pin-risk-conviction-split",
+     "kind": "text",
+     "label": "❓",
+     "ops": [
+      33
+     ],
+     "semantic": {
+      "pin_added": {
+       "question": "Does the screen keep risk and conviction as two numbers, the way the pipeline does — or does it blend them into one score?"
+      }
+     },
+     "verb": "pin_added"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 480,
+      "id": "screen-dashboard",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Dashboard — morning",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1676064913,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 720,
+      "x": 80,
+      "y": 80
+     },
+     "index": 0,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-var"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-var-grp"
+      ],
+      "height": 30,
+      "id": "kpi-var-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "1.8%",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1465311471,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "1.8%",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 57,
+      "x": 154,
+      "y": 160
+     },
+     "index": 1,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-signals"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-signals-grp"
+      ],
+      "height": 30,
+      "id": "kpi-signals-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "24",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1804335472,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "24",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 28,
+      "x": 340,
+      "y": 160
+     },
+     "index": 2,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-clusters"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-clusters-grp"
+      ],
+      "height": 30,
+      "id": "kpi-clusters-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "3",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 207256089,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "3",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 14,
+      "x": 519,
+      "y": 160
+     },
+     "index": 3,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-run-grp"
+      ],
+      "height": 30,
+      "id": "kpi-run-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "5/5",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1379235976,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "5/5",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 43,
+      "x": 676,
+      "y": 160
+     },
+     "index": 4,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "6afdbe7c28",
+       "x_of": "chart-risk-conviction"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 744650956,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 236
+     },
+     "index": 5,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "f48f4ec165",
+       "x_of": "chart-risk-conviction"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 896215414,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 396
+     },
+     "index": 6,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "3444e35e1b",
+       "x_of": "chart-var-trend"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 97628194,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 236
+     },
+     "index": 7,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "c712c822d2",
+       "x_of": "chart-var-trend"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 483975576,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 396
+     },
+     "index": 8,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "card-digest"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "card-digest-grp"
+      ],
+      "height": 30,
+      "id": "card-digest-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "today",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1323130375,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "today",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 72,
+      "x": 174,
+      "y": 416
+     },
+     "index": 9,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "card-brief"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "card-brief-grp"
+      ],
+      "height": 30,
+      "id": "card-brief-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Mon 3 Aug",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1592578687,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Mon 3 Aug",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 129,
+      "x": 374,
+      "y": 416
+     },
+     "index": 10,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "card-deepdive"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "card-deepdive-grp"
+      ],
+      "height": 30,
+      "id": "card-deepdive-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Mon 3 Aug",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1870232,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Mon 3 Aug",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 129,
+      "x": 602,
+      "y": 416
+     },
+     "index": 11,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "dash-header-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "nav",
+       "role": "node",
+       "tooltip": "The run stamp is deliberate: this is the only place the screen could tell you *which* run you are looking at. If your real header doesn't carry it, that is a finding."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [],
+      "height": 40,
+      "id": "dash-header",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 240463416,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 100,
+      "y": 100
+     },
+     "index": 12,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-var-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Straight off the risk model. The 2.5% alert threshold lives against this number — but the alert reaches you out of band, not through this tile, so a tile showing 1.8% and an alert that already fired are two different channels telling you about the same thing.",
+       "value": "1.8%"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-var-grp"
+      ],
+      "height": 72,
+      "id": "kpi-var",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1259665003,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 100,
+      "y": 152
+     },
+     "index": 13,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-signals-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Count of Signals that cleared the confidence gate. Drawn with the threshold in the label because the number is meaningless without it — 24 signals at what bar?",
+       "value": "24"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-signals-grp"
+      ],
+      "height": 72,
+      "id": "kpi-signals",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 927563523,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 272,
+      "y": 152
+     },
+     "index": 14,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-clusters-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "3+ insiders, 10 trading days. A conviction signal — it never touched the risk number in the tile to its left.",
+       "value": "3"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-clusters-grp"
+      ],
+      "height": 72,
+      "id": "kpi-clusters",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 198218882,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 444,
+      "y": 152
+     },
+     "index": 15,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-run-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "**I invented this tile.** Nothing you have said implies the dashboard reports on the health of the run that produced it.\n\nI drew it because you have five sources, three of which you don't control, and a parked question about what happens when one is late. If the screen can't say '4/5', then on the morning EDGAR is missing this dashboard looks exactly as confident as every other morning.",
+       "value": "5/5"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-run-grp"
+      ],
+      "height": 72,
+      "id": "kpi-run",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1991431597,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 616,
+      "y": 152
+     },
+     "index": 16,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-risk-conviction-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "**A guess, and the sharpest one on this screen.** You told me risk and conviction are two different numbers computed on two different paths that only meet at the aggregator.\n\nIf that is true of the pipeline, a two-axis plot is the honest picture of it: names that are high-conviction and low-risk are the interesting quadrant, and crowding would show up as a cluster.\n\nIf the real dashboard shows one blended score instead, then the screen has flattened a distinction the pipeline maintains — which is exactly the kind of drift you said you couldn't locate."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1692284115,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 236
+     },
+     "index": 17,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-var-trend-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "VaR over recent runs with the alert line drawn on it. Guessed. The value of a line rather than a tile is that it says whether you are drifting toward 2.5% or sitting still — a single number can't."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 968622568,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 236
+     },
+     "index": 18,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "card-digest-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Daily. Cut from this morning's run. Internal only — by practice, not by policy.",
+       "value": "today"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "card-digest-grp"
+      ],
+      "height": 100,
+      "id": "card-digest",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 81408708,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 220,
+      "x": 100,
+      "y": 408
+     },
+     "index": 19,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "card-brief-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Monday's cut. On a Friday it is four days old, and the card says so — which is the point of putting the cut date on the face of it rather than in the PDF.",
+       "value": "Mon 3 Aug"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "card-brief-grp"
+      ],
+      "height": 100,
+      "id": "card-brief",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1634028811,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 220,
+      "x": 328,
+      "y": 408
+     },
+     "index": 20,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "card-deepdive-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "First-of-month cut. August 1st was a Saturday and there is no weekend run — so the monthly cut rode the same Monday run as the weekly one, and both cards show the same date.\n\nDrawn that way on purpose. If 'first of month' means something else when the 1st is a weekend, correct the value.",
+       "value": "Mon 3 Aug"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "card-deepdive-grp"
+      ],
+      "height": 100,
+      "id": "card-deepdive",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 427659968,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 220,
+      "x": 556,
+      "y": 408
+     },
+     "index": 21,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "dash-header",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "dash-header-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Argus · Fri 7 Aug · run 06:04",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 585160321,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Argus · Fri 7 Aug · run 06:04",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 278,
+      "x": 301,
+      "y": 110
+     },
+     "index": 22,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-var",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-var-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio VaR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1149691955,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio VaR",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 124,
+      "x": 120,
+      "y": 198
+     },
+     "index": 23,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-signals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-signals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Signals ≥ 0.70",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2019291564,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Signals ≥ 0.70",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 134,
+      "x": 287,
+      "y": 198
+     },
+     "index": 24,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-clusters",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "kpi-clusters-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Insider clusters",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 529167045,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Insider clusters",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 140,
+      "x": 456,
+      "y": 178
+     },
+     "index": 25,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-run",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-run-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sources in",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1105555540,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sources in",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 96,
+      "x": 650,
+      "y": 198
+     },
+     "index": 26,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-risk-conviction",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-risk-conviction-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk × conviction",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1780405935,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk × conviction",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 186,
+      "y": 306
+     },
+     "index": 27,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-var-trend",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-var-trend-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "VaR vs 2.5% alert",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 405378140,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "VaR vs 2.5% alert",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 530,
+      "y": 306
+     },
+     "index": 28,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "card-digest",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "card-digest-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Signals Digest",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1561155291,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Signals Digest",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 134,
+      "x": 143,
+      "y": 482
+     },
+     "index": 29,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "card-brief",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "card-brief-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Weekly Brief",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1295833763,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Weekly Brief",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 115,
+      "x": 380,
+      "y": 482
+     },
+     "index": 30,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "card-deepdive",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "card-deepdive-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk Deep-Dive",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 332169540,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk Deep-Dive",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 134,
+      "x": 599,
+      "y": 482
+     },
+     "index": 31,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is there anything on your real dashboard that tells you the run was complete?",
+       "role": "pin",
+       "status": "open",
+       "target": "kpi-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-run-health",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1648549032,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 788,
+      "y": 144
+     },
+     "index": 32,
+     "op": "add"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the screen keep risk and conviction as two numbers, the way the pipeline does — or does it blend them into one score?",
+       "role": "pin",
+       "status": "open",
+       "target": "chart-risk-conviction"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-risk-conviction-split",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1907892592,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 444,
+      "y": 228
+     },
+     "index": 33,
+     "op": "add"
+    }
+   ],
+   "facts": [
+    {
+     "element": "screen-dashboard",
+     "fact": "added",
+     "kind": "frame",
+     "label": "Dashboard — morning"
+    },
+    {
+     "element": "kpi-var-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "1.8%",
+     "low_signal": true
+    },
+    {
+     "element": "kpi-signals-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "24",
+     "low_signal": true
+    },
+    {
+     "element": "kpi-clusters-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "3",
+     "low_signal": true
+    },
+    {
+     "element": "kpi-run-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "5/5",
+     "low_signal": true
+    },
+    {
+     "element": "chart-risk-conviction-x1",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-risk-conviction-x1",
+     "low_signal": true
+    },
+    {
+     "element": "chart-risk-conviction-x2",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-risk-conviction-x2",
+     "low_signal": true
+    },
+    {
+     "element": "chart-var-trend-x1",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-var-trend-x1",
+     "low_signal": true
+    },
+    {
+     "element": "chart-var-trend-x2",
+     "fact": "added",
+     "kind": "line",
+     "label": "chart-var-trend-x2",
+     "low_signal": true
+    },
+    {
+     "element": "card-digest-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "today",
+     "low_signal": true
+    },
+    {
+     "element": "card-brief-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "low_signal": true
+    },
+    {
+     "element": "card-deepdive-value",
+     "fact": "added",
+     "kind": "text",
+     "label": "Mon 3 Aug",
+     "low_signal": true
+    },
+    {
+     "element": "dash-header",
+     "fact": "added",
+     "kind": "nav",
+     "label": "Argus · Fri 7 Aug · run 06:04"
+    },
+    {
+     "element": "kpi-var",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Portfolio VaR"
+    },
+    {
+     "element": "kpi-signals",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Signals ≥ 0.70"
+    },
+    {
+     "element": "kpi-clusters",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Insider clusters"
+    },
+    {
+     "element": "kpi-run",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Sources in"
+    },
+    {
+     "element": "chart-risk-conviction",
+     "fact": "added",
+     "kind": "image",
+     "label": "Risk × conviction"
+    },
+    {
+     "element": "chart-var-trend",
+     "fact": "added",
+     "kind": "image",
+     "label": "VaR vs 2.5% alert"
+    },
+    {
+     "element": "card-digest",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Signals Digest"
+    },
+    {
+     "element": "card-brief",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Weekly Brief"
+    },
+    {
+     "element": "card-deepdive",
+     "fact": "added",
+     "kind": "kpi",
+     "label": "Risk Deep-Dive"
+    },
+    {
+     "element": "pin-run-health",
+     "fact": "pin_added",
+     "question": "Is there anything on your real dashboard that tells you the run was complete?"
+    },
+    {
+     "element": "pin-risk-conviction-split",
+     "fact": "pin_added",
+     "question": "Does the screen keep risk and conviction as two numbers, the way the pipeline does — or does it blend them into one score?"
+    },
+    {
+     "element": "screen-dashboard",
+     "fact": "screen_added",
+     "name": "Dashboard — morning"
+    },
+    {
+     "element": "screen-dashboard",
+     "fact": "reading_order_set",
+     "order": [
+      "Argus · Fri 7 Aug · run 06:04",
+      "Portfolio VaR",
+      "Signals ≥ 0.70",
+      "Insider clusters",
+      "Sources in",
+      "Risk × conviction",
+      "VaR vs 2.5% alert",
+      "Signals Digest",
+      "Weekly Brief",
+      "Risk Deep-Dive"
+     ],
+     "screen": "Dashboard — morning"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Does the screen keep risk and conviction as two numbers, the way the pipeline does — or does it blend them into one score?",
+       "role": "pin",
+       "status": "open",
+       "target": "chart-risk-conviction"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-risk-conviction-split",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1907892592,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 444,
+      "y": 228
+     },
+     "index": 33,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "answer": null,
+       "author": "agent",
+       "question": "Is there anything on your real dashboard that tells you the run was complete?",
+       "role": "pin",
+       "status": "open",
+       "target": "kpi-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 20,
+      "frameId": null,
+      "groupIds": [],
+      "height": 26,
+      "id": "pin-run-health",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "❓",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1648549032,
+      "strokeColor": "#b45309",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "❓",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 26,
+      "x": 788,
+      "y": 144
+     },
+     "index": 32,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "card-deepdive",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "card-deepdive-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk Deep-Dive",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 332169540,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk Deep-Dive",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 134,
+      "x": 599,
+      "y": 482
+     },
+     "index": 31,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "card-brief",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "card-brief-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Weekly Brief",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1295833763,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Weekly Brief",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 115,
+      "x": 380,
+      "y": 482
+     },
+     "index": 30,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "card-digest",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "card-digest-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Signals Digest",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1561155291,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Signals Digest",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 134,
+      "x": 143,
+      "y": 482
+     },
+     "index": 29,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-var-trend",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-var-trend-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "VaR vs 2.5% alert",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 405378140,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "VaR vs 2.5% alert",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 530,
+      "y": 306
+     },
+     "index": 28,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "chart-risk-conviction",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "chart-risk-conviction-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Risk × conviction",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1780405935,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Risk × conviction",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 163,
+      "x": 186,
+      "y": 306
+     },
+     "index": 27,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-run",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-run-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Sources in",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1105555540,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Sources in",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 96,
+      "x": 650,
+      "y": 198
+     },
+     "index": 26,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-clusters",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 40,
+      "id": "kpi-clusters-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Insider clusters",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 529167045,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Insider clusters",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 140,
+      "x": 456,
+      "y": 178
+     },
+     "index": 25,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-signals",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-signals-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Signals ≥ 0.70",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 2019291564,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Signals ≥ 0.70",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 134,
+      "x": 287,
+      "y": 198
+     },
+     "index": 24,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "kpi-var",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "kpi-var-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Portfolio VaR",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1149691955,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Portfolio VaR",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "bottom",
+      "width": 124,
+      "x": 120,
+      "y": 198
+     },
+     "index": 23,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": true,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": "dash-header",
+      "customData": {
+       "author": "agent",
+       "role": "label"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 16,
+      "frameId": null,
+      "groupIds": [],
+      "height": 20,
+      "id": "dash-header-label",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Argus · Fri 7 Aug · run 06:04",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 585160321,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Argus · Fri 7 Aug · run 06:04",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "middle",
+      "width": 278,
+      "x": 301,
+      "y": 110
+     },
+     "index": 22,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "card-deepdive-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "First-of-month cut. August 1st was a Saturday and there is no weekend run — so the monthly cut rode the same Monday run as the weekly one, and both cards show the same date.\n\nDrawn that way on purpose. If 'first of month' means something else when the 1st is a weekend, correct the value.",
+       "value": "Mon 3 Aug"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "card-deepdive-grp"
+      ],
+      "height": 100,
+      "id": "card-deepdive",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 427659968,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 220,
+      "x": 556,
+      "y": 408
+     },
+     "index": 21,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "card-brief-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Monday's cut. On a Friday it is four days old, and the card says so — which is the point of putting the cut date on the face of it rather than in the PDF.",
+       "value": "Mon 3 Aug"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "card-brief-grp"
+      ],
+      "height": 100,
+      "id": "card-brief",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1634028811,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 220,
+      "x": 328,
+      "y": 408
+     },
+     "index": 20,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "card-digest-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Daily. Cut from this morning's run. Internal only — by practice, not by policy.",
+       "value": "today"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "card-digest-grp"
+      ],
+      "height": 100,
+      "id": "card-digest",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 81408708,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 220,
+      "x": 100,
+      "y": 408
+     },
+     "index": 19,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-var-trend-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "VaR over recent runs with the alert line drawn on it. Guessed. The value of a line rather than a tile is that it says whether you are drifting toward 2.5% or sitting still — a single number can't."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 968622568,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 236
+     },
+     "index": 18,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "chart-risk-conviction-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "image",
+       "role": "node",
+       "tooltip": "**A guess, and the sharpest one on this screen.** You told me risk and conviction are two different numbers computed on two different paths that only meet at the aggregator.\n\nIf that is true of the pipeline, a two-axis plot is the honest picture of it: names that are high-conviction and low-risk are the interesting quadrant, and crowding would show up as a cluster.\n\nIf the real dashboard shows one blended score instead, then the screen has flattened a distinction the pipeline maintains — which is exactly the kind of drift you said you couldn't locate."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1692284115,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 236
+     },
+     "index": 17,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-run-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "**I invented this tile.** Nothing you have said implies the dashboard reports on the health of the run that produced it.\n\nI drew it because you have five sources, three of which you don't control, and a parked question about what happens when one is late. If the screen can't say '4/5', then on the morning EDGAR is missing this dashboard looks exactly as confident as every other morning.",
+       "value": "5/5"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-run-grp"
+      ],
+      "height": 72,
+      "id": "kpi-run",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1991431597,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 616,
+      "y": 152
+     },
+     "index": 16,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-clusters-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "3+ insiders, 10 trading days. A conviction signal — it never touched the risk number in the tile to its left.",
+       "value": "3"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-clusters-grp"
+      ],
+      "height": 72,
+      "id": "kpi-clusters",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 198218882,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 444,
+      "y": 152
+     },
+     "index": 15,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-signals-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Count of Signals that cleared the confidence gate. Drawn with the threshold in the label because the number is meaningless without it — 24 signals at what bar?",
+       "value": "24"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-signals-grp"
+      ],
+      "height": 72,
+      "id": "kpi-signals",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 927563523,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 272,
+      "y": 152
+     },
+     "index": 14,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [
+       {
+        "id": "kpi-var-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "kpi",
+       "role": "node",
+       "tooltip": "Straight off the risk model. The 2.5% alert threshold lives against this number — but the alert reaches you out of band, not through this tile, so a tile showing 1.8% and an alert that already fired are two different channels telling you about the same thing.",
+       "value": "1.8%"
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [
+       "kpi-var-grp"
+      ],
+      "height": 72,
+      "id": "kpi-var",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1259665003,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 164,
+      "x": 100,
+      "y": 152
+     },
+     "index": 13,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "#e9e5da",
+      "boundElements": [
+       {
+        "id": "dash-header-label",
+        "type": "text"
+       }
+      ],
+      "customData": {
+       "author": "agent",
+       "kind": "nav",
+       "role": "node",
+       "tooltip": "The run stamp is deliberate: this is the only place the screen could tell you *which* run you are looking at. If your real header doesn't carry it, that is a finding."
+      },
+      "fillStyle": "solid",
+      "frameId": "screen-dashboard",
+      "groupIds": [],
+      "height": 40,
+      "id": "dash-header",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 240463416,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "rectangle",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 680,
+      "x": 100,
+      "y": 100
+     },
+     "index": 12,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "card-deepdive"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "card-deepdive-grp"
+      ],
+      "height": 30,
+      "id": "card-deepdive-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Mon 3 Aug",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1870232,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Mon 3 Aug",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 129,
+      "x": 602,
+      "y": 416
+     },
+     "index": 11,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "card-brief"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "card-brief-grp"
+      ],
+      "height": 30,
+      "id": "card-brief-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "Mon 3 Aug",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1592578687,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "Mon 3 Aug",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 129,
+      "x": 374,
+      "y": 416
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "card-digest"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "card-digest-grp"
+      ],
+      "height": 30,
+      "id": "card-digest-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "today",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1323130375,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "today",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 72,
+      "x": 174,
+      "y": 416
+     },
+     "index": 9,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "c712c822d2",
+       "x_of": "chart-var-trend"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 483975576,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 396
+     },
+     "index": 8,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "3444e35e1b",
+       "x_of": "chart-var-trend"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-var-trend-grp"
+      ],
+      "height": 160,
+      "id": "chart-var-trend-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 97628194,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 444,
+      "y": 236
+     },
+     "index": 7,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "f48f4ec165",
+       "x_of": "chart-risk-conviction"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction-x2",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        -160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 896215414,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 396
+     },
+     "index": 6,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "routed": "6afdbe7c28",
+       "x_of": "chart-risk-conviction"
+      },
+      "elbowed": false,
+      "endArrowhead": null,
+      "endBinding": null,
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [
+       "chart-risk-conviction-grp"
+      ],
+      "height": 160,
+      "id": "chart-risk-conviction-x1",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        336,
+        160
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 744650956,
+      "startArrowhead": null,
+      "startBinding": null,
+      "strokeColor": "#b8b2a5",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "line",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 336,
+      "x": 100,
+      "y": 236
+     },
+     "index": 5,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-run"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-run-grp"
+      ],
+      "height": 30,
+      "id": "kpi-run-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "5/5",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1379235976,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "5/5",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 43,
+      "x": 676,
+      "y": 160
+     },
+     "index": 4,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-clusters"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-clusters-grp"
+      ],
+      "height": 30,
+      "id": "kpi-clusters-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "3",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 207256089,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "3",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 14,
+      "x": 519,
+      "y": 160
+     },
+     "index": 3,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-signals"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-signals-grp"
+      ],
+      "height": 30,
+      "id": "kpi-signals-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "24",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1804335472,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "24",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 28,
+      "x": 340,
+      "y": 160
+     },
+     "index": 2,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "autoResize": false,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "containerId": null,
+      "customData": {
+       "author": "agent",
+       "role": "decoration",
+       "value_of": "kpi-var"
+      },
+      "fillStyle": "solid",
+      "fontFamily": 6,
+      "fontSize": 24,
+      "frameId": null,
+      "groupIds": [
+       "kpi-var-grp"
+      ],
+      "height": 30,
+      "id": "kpi-var-value",
+      "isDeleted": false,
+      "lineHeight": 1.25,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "originalText": "1.8%",
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1465311471,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "text": "1.8%",
+      "textAlign": "center",
+      "type": "text",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "verticalAlign": "top",
+      "width": 57,
+      "x": 154,
+      "y": 160
+     },
+     "index": 1,
+     "op": "del"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node"
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 480,
+      "id": "screen-dashboard",
+      "isDeleted": false,
+      "link": null,
+      "locked": false,
+      "name": "Dashboard — morning",
+      "opacity": 100,
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1676064913,
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "frame",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 720,
+      "x": 80,
+      "y": 80
+     },
+     "index": 0,
+     "op": "del"
+    }
+   ],
+   "meta": {
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 6,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "add_mapping",
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#kpi-var",
+    "enrichment-flow#risk-model"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#kpi-signals",
+    "enrichment-flow#to-compose"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#kpi-clusters",
+    "enrichment-flow#insider-detector"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#kpi-run",
+    "daily-run-flow#normalize"
+   ]
+  },
+  {
+   "action": "add_mapping",
+   "concept": "dashboard",
+   "elements": [
+    "dashboard-wireframe#card-digest",
+    "daily-run-flow#compose-outputs"
+   ]
+  },
+  {
+   "action": "set_budget",
+   "artifact": "dashboard-wireframe",
+   "nodes": 11,
+   "reason": "the screen he asked for is a KPI row, two charts and three report cards — 10 blocks IS the dashboard; splitting it would draw a screen he doesn't have"
+  },
+  {
+   "action": "upsert_concept",
+   "id": "dashboard",
+   "name": "Dashboard",
+   "view_types": {
+    "dashboard-wireframe": "wireframe"
+   },
+   "views": [
+    "dashboard-wireframe"
+   ]
+  }
+ ],
+ "revn": 7,
+ "round": 2,
+ "saved_at": "2026-08-09T11:01:25Z",
+ "selection_at_save": [],
+ "short_id": "fbb729d",
+ "summary": {
+  "headline": "added Dashboard — morning (+14 more)",
+  "suppressed": 11,
+  "verb_counts": {
+   "added": 22,
+   "pin_added": 2,
+   "reading_order_set": 1,
+   "screen_added": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "my reading of the morning screen, derived from the pipeline — delete what isn't there"
+}

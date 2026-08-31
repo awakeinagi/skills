@@ -1,0 +1,316 @@
+{
+ "artifacts": {
+  "admin-console-wireframe": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "admin-console-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Admin Console"
+   }
+  },
+  "daily-run-flow": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "daily-run-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Argus Daily Run"
+   }
+  },
+  "dashboard-wireframe": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1368,
+       "to": 1372
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 176,
+       "to": 187
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 214,
+       "to": 206
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 74,
+       "to": 52
+      }
+     ],
+     "id": "usernote-6785c522-t",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1372,
+       "to": 1368
+      },
+      {
+       "attr": "y",
+       "from": 187,
+       "to": 176
+      },
+      {
+       "attr": "width",
+       "from": 206,
+       "to": 214
+      },
+      {
+       "attr": "height",
+       "from": 52,
+       "to": 74
+      }
+     ],
+     "id": "usernote-6785c522-t",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard"
+   }
+  },
+  "enrichment-flow": {
+   "by_element": [],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 1048,
+       "to": 1052
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 568,
+       "to": 588
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 214,
+       "to": 206
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 74,
+       "to": 35
+      }
+     ],
+     "id": "usernote-f1efa0e6-t",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 408,
+       "to": 412
+      },
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 666,
+       "to": 688
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 214,
+       "to": 206
+      },
+      {
+       "attr": "height",
+       "derived": true,
+       "from": 74,
+       "to": 35
+      }
+     ],
+     "id": "usernote-36da3cb3-t",
+     "op": "mod"
+    }
+   ],
+   "facts": [],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 412,
+       "to": 408
+      },
+      {
+       "attr": "y",
+       "from": 688,
+       "to": 666
+      },
+      {
+       "attr": "width",
+       "from": 206,
+       "to": 214
+      },
+      {
+       "attr": "height",
+       "from": 35,
+       "to": 74
+      }
+     ],
+     "id": "usernote-36da3cb3-t",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 1052,
+       "to": 1048
+      },
+      {
+       "attr": "y",
+       "from": 588,
+       "to": 568
+      },
+      {
+       "attr": "width",
+       "from": 206,
+       "to": 214
+      },
+      {
+       "attr": "height",
+       "from": 35,
+       "to": 74
+      }
+     ],
+     "id": "usernote-f1efa0e6-t",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  },
+  "review-publish-flow": {
+   "by_element": [],
+   "changes": [],
+   "facts": [
+    {
+     "element": null,
+     "fact": "saved_no_changes"
+    }
+   ],
+   "inverse": [],
+   "meta": {
+    "artifact": "review-publish-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Review & Publish"
+   }
+  }
+ },
+ "author": "out-of-session",
+ "base_revn": 27,
+ "branch": "main",
+ "lint": {
+  "admin-console-wireframe": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 16 nodes / 12 arrows — a settings screen is its controls: five toggles, two thresholds, three re-run buttons in three panels"
+   ],
+   "warnings": []
+  },
+  "daily-run-flow": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 11 nodes / 13 arrows — four-source fan, both terminals, and the review gate that decides whether a morning ships"
+   ],
+   "warnings": []
+  },
+  "dashboard-wireframe": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 13 nodes / 12 arrows — as-is fidelity: five KPI tiles, three charts, three cards is the screen he actually looks at"
+   ],
+   "warnings": []
+  },
+  "enrichment-flow": {
+   "errors": [],
+   "notes": [
+    "budget override on this artifact: 12 nodes / 13 arrows — your words: this routing is the thing you'd want written on a wall — merging the sources back into one box is what made it wrong"
+   ],
+   "warnings": []
+  }
+ },
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 627872
+ },
+ "reconciliation": true,
+ "registry_changes": [],
+ "revn": 28,
+ "round": 5,
+ "saved_at": "2026-08-09T11:58:16Z",
+ "selection_at_save": [],
+ "short_id": "26c9482",
+ "summary": {
+  "headline": "saved without changing anything (+2 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "saved_no_changes": 3
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

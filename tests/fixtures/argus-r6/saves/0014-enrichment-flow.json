@@ -1,0 +1,209 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-in-technicals",
+     "kind": "arrow",
+     "label": "e-in-technicals",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "e-in-technicals"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Normalized input",
+        "Technical signals"
+       ]
+      }
+     },
+     "verb": "deleted"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "3db3d9e6ae"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technicals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "e-in-technicals",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        267,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 277651310,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "normalized-input",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 267,
+      "x": 133,
+      "y": 432
+     },
+     "index": 2,
+     "op": "del"
+    }
+   ],
+   "facts": [
+    {
+     "element": "e-in-technicals",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "e-in-technicals"
+     }
+    },
+    {
+     "between": [
+      "Normalized input",
+      "Technical signals"
+     ],
+     "element": "e-in-technicals",
+     "fact": "transition_deleted"
+    }
+   ],
+   "inverse": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "3db3d9e6ae"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "technicals",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "e-in-technicals",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        267,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 277651310,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "normalized-input",
+       "focus": -0.333,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 267,
+      "x": 133,
+      "y": 432
+     },
+     "index": 2,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 13,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 14,
+ "round": 3,
+ "saved_at": "2026-08-09T11:22:25Z",
+ "selection_at_save": [],
+ "short_id": "1b492c0",
+ "summary": {
+  "headline": "deleted e-in-technicals (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "deleted": 1,
+   "transition_deleted": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}

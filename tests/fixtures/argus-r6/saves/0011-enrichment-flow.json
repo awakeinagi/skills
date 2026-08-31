@@ -1,0 +1,114 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "technicals",
+     "kind": "transform",
+     "label": "Technical signals",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "tooltip_changed": {
+       "label": "Technical signals",
+       "text": "Computed from the market feed. Skips the risk model entirely: this is a convicti"
+      }
+     },
+     "verb": "tooltip_changed"
+    }
+   ],
+   "changes": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Computed from the market feed **and the macro calendar** — Fed days, CPI prints. Skips the risk model entirely: this is a conviction input."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Computed from the market feed. Skips the risk model entirely: this is a conviction input.\n\nThe macro calendar used to feed here too — it is switched **off** (your note: 'noisy'), so this box currently runs on price and volume alone. Fed days and CPI prints are not in the picture right now."
+       }
+      }
+     ],
+     "id": "technicals",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "technicals",
+     "fact": "tooltip_changed",
+     "label": "Technical signals",
+     "text": "Computed from the market feed. Skips the risk model entirely: this is a convicti"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Computed from the market feed. Skips the risk model entirely: this is a conviction input.\n\nThe macro calendar used to feed here too — it is switched **off** (your note: 'noisy'), so this box currently runs on price and volume alone. Fed days and CPI prints are not in the picture right now."
+       },
+       "to": {
+        "author": "agent",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "Computed from the market feed **and the macro calendar** — Fed days, CPI prints. Skips the risk model entirely: this is a conviction input."
+       }
+      }
+     ],
+     "id": "technicals",
+     "op": "mod"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 10,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 11,
+ "round": 3,
+ "saved_at": "2026-08-09T11:09:40Z",
+ "selection_at_save": [],
+ "short_id": "711ae21",
+ "summary": {
+  "headline": "reworded the tooltip on Technical signals",
+  "suppressed": 0,
+  "verb_counts": {
+   "tooltip_changed": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": "macro calendar is off, so the technicals note shouldn't claim it as an input"
+}

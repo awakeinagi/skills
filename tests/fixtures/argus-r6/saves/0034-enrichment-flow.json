@@ -1,0 +1,472 @@
+{
+ "artifacts": {
+  "enrichment-flow": {
+   "by_element": [
+    {
+     "attrs_changed": [
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "crowding-check",
+     "kind": "transform",
+     "label": "Crowding check — scoped, never built",
+     "ops": [
+      2,
+      3
+     ],
+     "semantic": {
+      "moved": {
+       "dx": 0,
+       "dy": 240,
+       "label": "Crowding check — scoped, never built",
+       "spatial": "moved down"
+      },
+      "renamed": {
+       "from": "Crowding check — not built",
+       "to": "Crowding check — scoped, never built"
+      },
+      "tooltip_changed": {
+       "label": "Crowding check — scoped, never built",
+       "text": "**Not in the pipeline, and never was.** Confirmed with the desk 2026-08-27: noth"
+      }
+     },
+     "verb": "renamed"
+    },
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "e-crowding-compose",
+     "kind": "arrow",
+     "label": "e-crowding-compose",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "deleted": {
+       "was": {
+        "kind": "arrow",
+        "label": "e-crowding-compose"
+       }
+      },
+      "transition_deleted": {
+       "between": [
+        "Crowding check — not built",
+        "→ Review & publish"
+       ]
+      }
+     },
+     "verb": "deleted"
+    },
+    {
+     "attrs_changed": [
+      "width",
+      "endBinding",
+      "customData"
+     ],
+     "consequence_of": null,
+     "id": "e-agg-compose",
+     "kind": "arrow",
+     "label": "e-agg-compose",
+     "ops": [
+      1
+     ],
+     "semantic": {
+      "rewired": {
+       "arrow": "e-agg-compose",
+       "from": "Aggregator→Crowding check — not built",
+       "to": "Aggregator→→ Review & publish"
+      }
+     },
+     "verb": "rewired"
+    }
+   ],
+   "changes": [
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c3d7c4ee13"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "to-compose",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "e-crowding-compose",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1561886674,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "crowding-check",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1520,
+      "y": 352
+     },
+     "index": 10,
+     "op": "del"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 160,
+       "to": 480
+      },
+      {
+       "attr": "endBinding",
+       "from": "crowding-check",
+       "to": "to-compose"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "59374861c9"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "02e660806b"
+       }
+      }
+     ],
+     "id": "e-agg-compose",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Confirmed: portfolio-level concentration, and nobody computes it today.**\n\nDrawn dashed and named for what it is, because you want it sitting there looking unfinished rather than quietly reading as a stage that exists.\n\nIt is the only place in the design that could see the portfolio ending up on one side of a trade — your risk number is narrow by choice and never meets technicals or insider buying."
+       },
+       "to": {
+        "author": "agent",
+        "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Not in the pipeline, and never was.** Confirmed with the desk 2026-08-27: nothing routes through this. Signals go straight from the Aggregator to Review & publish.\n\nScoped and written up; the work was pulled when the **sector data contract fell through** in spring 2026. Two people confirmed independently, one of them on the original scoping.\n\nDrawn off the line, dashed, with no connectors — a gap that was designed and abandoned, not a stage. It remains the only place in the design that could see portfolio-level concentration, which the narrow risk number can never see."
+       }
+      }
+     ],
+     "id": "crowding-check",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1360,
+      320
+     ],
+     "id": "crowding-check",
+     "op": "move",
+     "to": [
+      1360,
+      560
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "derived": true,
+       "from": 332,
+       "to": 572
+      },
+      {
+       "attr": "width",
+       "derived": true,
+       "from": 136,
+       "to": 137
+      },
+      {
+       "attr": "text",
+       "from": "Crowding check — not built",
+       "to": "Crowding check — scoped, never built"
+      }
+     ],
+     "id": "crowding-check-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "element": "crowding-check",
+     "fact": "renamed",
+     "from": "Crowding check — not built",
+     "to": "Crowding check — scoped, never built"
+    },
+    {
+     "element": "e-crowding-compose",
+     "fact": "deleted",
+     "was": {
+      "kind": "arrow",
+      "label": "e-crowding-compose"
+     }
+    },
+    {
+     "element": "crowding-check",
+     "fact": "tooltip_changed",
+     "label": "Crowding check — scoped, never built",
+     "text": "**Not in the pipeline, and never was.** Confirmed with the desk 2026-08-27: noth"
+    },
+    {
+     "dx": 0,
+     "dy": 240,
+     "element": "crowding-check",
+     "fact": "moved",
+     "label": "Crowding check — scoped, never built",
+     "spatial": "moved down"
+    },
+    {
+     "between": [
+      "Crowding check — not built",
+      "→ Review & publish"
+     ],
+     "element": "e-crowding-compose",
+     "fact": "transition_deleted"
+    },
+    {
+     "arrow": "e-agg-compose",
+     "element": "e-agg-compose",
+     "fact": "rewired",
+     "from": "Aggregator→Crowding check — not built",
+     "to": "Aggregator→→ Review & publish"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "y",
+       "from": 572,
+       "to": 332
+      },
+      {
+       "attr": "width",
+       "from": 137,
+       "to": 136
+      },
+      {
+       "attr": "text",
+       "from": "Crowding check — scoped, never built",
+       "to": "Crowding check — not built"
+      }
+     ],
+     "id": "crowding-check-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      1360,
+      560
+     ],
+     "id": "crowding-check",
+     "op": "move",
+     "to": [
+      1360,
+      320
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Not in the pipeline, and never was.** Confirmed with the desk 2026-08-27: nothing routes through this. Signals go straight from the Aggregator to Review & publish.\n\nScoped and written up; the work was pulled when the **sector data contract fell through** in spring 2026. Two people confirmed independently, one of them on the original scoping.\n\nDrawn off the line, dashed, with no connectors — a gap that was designed and abandoned, not a stage. It remains the only place in the design that could see portfolio-level concentration, which the narrow risk number can never see."
+       },
+       "to": {
+        "author": "agent",
+        "intent": "agent's reading of the user's crowded-trades note — delete if wrong",
+        "kind": "transform",
+        "role": "node",
+        "tooltip": "**Confirmed: portfolio-level concentration, and nobody computes it today.**\n\nDrawn dashed and named for what it is, because you want it sitting there looking unfinished rather than quietly reading as a stage that exists.\n\nIt is the only place in the design that could see the portfolio ending up on one side of a trade — your risk number is narrow by choice and never meets technicals or insider buying."
+       }
+      }
+     ],
+     "id": "crowding-check",
+     "op": "mod"
+    },
+    {
+     "attrs": [
+      {
+       "attr": "width",
+       "from": 480,
+       "to": 160
+      },
+      {
+       "attr": "endBinding",
+       "from": "to-compose",
+       "to": "crowding-check"
+      },
+      {
+       "attr": "customData",
+       "from": {
+        "author": "agent",
+        "role": "node",
+        "routed": "02e660806b"
+       },
+       "to": {
+        "author": "agent",
+        "role": "node",
+        "routed": "59374861c9"
+       }
+      }
+     ],
+     "id": "e-agg-compose",
+     "op": "mod"
+    },
+    {
+     "element": {
+      "angle": 0,
+      "backgroundColor": "transparent",
+      "boundElements": [],
+      "customData": {
+       "author": "agent",
+       "role": "node",
+       "routed": "c3d7c4ee13"
+      },
+      "elbowed": false,
+      "endArrowhead": "arrow",
+      "endBinding": {
+       "elementId": "to-compose",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "fillStyle": "solid",
+      "frameId": null,
+      "groupIds": [],
+      "height": 0,
+      "id": "e-crowding-compose",
+      "isDeleted": false,
+      "lastCommittedPoint": null,
+      "link": null,
+      "locked": false,
+      "opacity": 100,
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        160,
+        0
+       ]
+      ],
+      "roughness": 1,
+      "roundness": null,
+      "seed": 1561886674,
+      "startArrowhead": null,
+      "startBinding": {
+       "elementId": "crowding-check",
+       "focus": 0.0,
+       "gap": 6
+      },
+      "strokeColor": "#1e1e1e",
+      "strokeStyle": "solid",
+      "strokeWidth": 1,
+      "type": "arrow",
+      "updated": 1,
+      "version": 1,
+      "versionNonce": 0,
+      "width": 160,
+      "x": 1520,
+      "y": 352
+     },
+     "index": 10,
+     "op": "add"
+    }
+   ],
+   "meta": {
+    "artifact": "enrichment-flow",
+    "artifact_type": "flow",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Signal Formation"
+   }
+  }
+ },
+ "author": "agent",
+ "base_revn": 33,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 1317317
+ },
+ "reconciliation": false,
+ "registry_changes": [
+  {
+   "action": "upsert_concept",
+   "glossary": "Crowding",
+   "name": "Crowding"
+  }
+ ],
+ "revn": 34,
+ "round": 8,
+ "saved_at": "2026-08-27T10:39:21Z",
+ "selection_at_save": [],
+ "short_id": "daa703f",
+ "summary": {
+  "headline": "rewired Aggregator→Crowding check — not built to Aggregator→→ Review & publish (+5 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "deleted": 1,
+   "moved": 1,
+   "renamed": 1,
+   "rewired": 1,
+   "tooltip_changed": 1,
+   "transition_deleted": 1
+  }
+ },
+ "tripwires": [],
+ "tripwires_muted": [],
+ "user_note": "desk ruling 2026-08-27: nothing routes through Crowding check and never has. Aggregator goes direct to Review & publish; Crowding moves off the line, keeps no connectors, and the term is minted."
+}

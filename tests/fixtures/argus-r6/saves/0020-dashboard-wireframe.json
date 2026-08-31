@@ -1,0 +1,132 @@
+{
+ "artifacts": {
+  "dashboard-wireframe": {
+   "by_element": [
+    {
+     "attrs_changed": [],
+     "consequence_of": null,
+     "id": "kpi-alpha",
+     "kind": "kpi",
+     "label": "Excess Return",
+     "ops": [
+      0
+     ],
+     "semantic": {
+      "block_moved_within_screen": {
+       "label": "Excess Return",
+       "screen": "Dashboard — as it is today"
+      },
+      "moved": {
+       "dx": -248,
+       "dy": 0,
+       "label": "Excess Return",
+       "spatial": "moved left"
+      }
+     },
+     "verb": "moved"
+    }
+   ],
+   "changes": [
+    {
+     "from": [
+      348,
+      168
+     ],
+     "id": "kpi-alpha",
+     "op": "move",
+     "to": [
+      100,
+      168
+     ]
+    },
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "derived": true,
+       "from": 442,
+       "to": 194
+      }
+     ],
+     "id": "kpi-alpha-label",
+     "op": "mod"
+    }
+   ],
+   "facts": [
+    {
+     "dx": -248,
+     "dy": 0,
+     "element": "kpi-alpha",
+     "fact": "moved",
+     "label": "Excess Return",
+     "spatial": "moved left"
+    },
+    {
+     "element": "kpi-alpha",
+     "fact": "block_moved_within_screen",
+     "label": "Excess Return",
+     "screen": "Dashboard — as it is today"
+    }
+   ],
+   "inverse": [
+    {
+     "attrs": [
+      {
+       "attr": "x",
+       "from": 194,
+       "to": 442
+      }
+     ],
+     "id": "kpi-alpha-label",
+     "op": "mod"
+    },
+    {
+     "from": [
+      100,
+      168
+     ],
+     "id": "kpi-alpha",
+     "op": "move",
+     "to": [
+      348,
+      168
+     ]
+    }
+   ],
+   "meta": {
+    "artifact": "dashboard-wireframe",
+    "artifact_type": "wireframe",
+    "migrations": [
+     "0001-baseline"
+    ],
+    "name": "Dashboard"
+   }
+  }
+ },
+ "author": "user",
+ "base_revn": 19,
+ "branch": "main",
+ "migrations": [
+  "0001-baseline"
+ ],
+ "origin": {
+  "pid": 554465
+ },
+ "reconciliation": false,
+ "registry_changes": [],
+ "revn": 20,
+ "round": 4,
+ "saved_at": "2026-08-09T11:34:32Z",
+ "selection_at_save": [],
+ "short_id": "a0e7523",
+ "summary": {
+  "headline": "Excess Return moved left (+1 more)",
+  "suppressed": 0,
+  "verb_counts": {
+   "block_moved_within_screen": 1,
+   "moved": 1
+  }
+ },
+ "tripwires": [],
+ "user_note": null
+}
