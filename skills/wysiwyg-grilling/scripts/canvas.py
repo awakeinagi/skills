@@ -2099,7 +2099,10 @@ def _client_chop(token, inner, fs):
     """One token too wide for any line, split the way `F$` splits it.
 
     The shipped client breaks a word this file cannot. `F$`
-    (index-DTzHdgzu.js @274995, reached from `z$` @274752) walks the
+    (index-DTzHdgzu.js @274995, reached from `Ed` @274822 and reaching
+    `z$` @274752 — the arrow ran the other way here until the task 37
+    review, M-1, and each name occurs exactly twice in the bundle, so
+    both directions are checkable rather than believable) walks the
     token CHARACTER BY CHARACTER accumulating per-glyph advances, and
     closes a chunk the moment the next glyph would overrun the cap — so
     it never hyphenates and never gives up, and a single glyph wider
@@ -27023,6 +27026,20 @@ def assess_capture(scene_els: Sequence[dict[str, Any]], svg: str | None,
     checks: list[dict[str, Any]] = []
 
     def note(name: str, ok: bool, hard: bool, detail: str) -> None:
+        """Record one named check, its verdict, and its reason.
+
+        Args:
+            name: The check's stable name, as a reader will cite it.
+            ok: Whether it passed.
+            hard: Whether failing it makes the whole capture suspect.
+            detail: Why it came out that way, in a sentence — the half
+                that makes the record readable by someone who was not
+                here, and the reason `note` takes it rather than
+                deriving it.
+
+        The check is appended to `checks` in the enclosing scope, which
+        is what the caller returns; there is no return value.
+        """
         checks.append({"check": name, "ok": ok, "hard": hard,
                        "detail": detail})
 
@@ -27036,6 +27053,16 @@ def assess_capture(scene_els: Sequence[dict[str, Any]], svg: str | None,
              "tab and the project have diverged" % artifact)
     live = [e for e in scene_els if not e.get("isDeleted")]
     if svg is None:
+        # UNREACHABLE FROM THE ENDPOINT, said here rather than left for
+        # the next reader to re-derive (task 37 review, M-7):
+        # `file_bugreport` leaves `svg` None only when `known` is False,
+        # and that same flag forces `els` empty, so `live` is always []
+        # and this arm always takes the soft "nothing to render" verdict.
+        # The hard failure below is reachable only by calling
+        # `assess_capture` directly, which the tests do — deliberately,
+        # because a check that cannot be made to fail is a check nobody
+        # has watched speak. Keep the arm: it is the one that would bite
+        # if a future caller ever renders separately from resolving.
         note("scene_rendered", not live, bool(live),
              "nothing to render" if not live else
              "%d live elements and no rendering was written" % len(live))
@@ -27793,7 +27820,8 @@ class ServerApp:
         the section comment above `bugreport_slug`: every browser pixel
         path is poisonable and one measured browser poisons them all),
         and enriches with the half a browser cannot see: the scene JSON
-        at capture, the registry, `head_revn`, the pending queue, the
+        at capture, the registry AS IT STOOD (whole, not counted — see
+        the comment on that field), `head_revn`, the pending queue, the
         standing findings and the last events.
 
         The report is written even when it degrades. A capture with no
@@ -27807,14 +27835,21 @@ class ServerApp:
             body: The POSTed capture. `description` is required and must
                 be non-empty; everything else degrades.
 
+        THE ERROR PATHS DO NOT RETURN, and this paragraph is where that
+        is said (task 37 review, M-5 — it was described inside
+        `Returns:`, as though a 400 were a value this hands back). `err`
+        is the file's convention for an HTTP status and it RAISES;
+        `return err(...)` below reads like a return and is not one. 400
+        for a missing or blank description, 500 for a bundle that cannot
+        be written. No `Raises:` section names it because ruff's
+        DOC502 wants that section to list what the body raises directly,
+        and nothing here does.
+
         Returns:
             The bundle's id, slug, directory, and the capture assessment
             — the dialog shows the last of these, so a degraded capture
             is confessed to the person who filed it rather than only to
-            the file. Goes through `err` (which raises, and is the
-            file's convention for an HTTP status) with 400 for a missing
-            or blank description and 500 for a bundle that cannot be
-            written.
+            the file.
         """
         desc = body.get("description")
         if not isinstance(desc, str) or not desc.strip():
@@ -27877,6 +27912,16 @@ class ServerApp:
                 "artifact": aid,
                 "concept": (self.store.concept_of(aid) or {}).get("id")
                            if known else None,
+                # SERVER TRUTH WINS AND THE CLIENT'S COPY IS KEPT BESIDE
+                # IT (task 37 review, M-3), the same way `ring_bbox` and
+                # the selection already are: a disagreement is a thing to
+                # see, not a thing to resolve silently. It also stops the
+                # `known is False` arm from throwing away a concept the
+                # tab knew — `concept` above is None there, and this is
+                # then the only record that the tab had an answer.
+                "concept_client": body.get("concept")
+                                  if isinstance(body.get("concept"), str)
+                                  else None,
                 "selection": targets,
                 "ring_bbox": box,
                 "ring_points": len(pts),
@@ -27911,15 +27956,36 @@ class ServerApp:
                     "client_is_stale": (None if client_bundle is None else
                                         client_bundle != self.web_bundle),
                 },
+                # EVERY FIELD HERE IS THE CLIENT'S TESTIMONY, and the
+                # three view-state ones were copied through untyped
+                # while their two neighbours were checked (task 37
+                # review, M-4). They are shaped now, so a string posted
+                # where a dict belongs is dropped rather than recorded
+                # as though the tab had said it. WHAT THAT DOES AND
+                # DOES NOT BUY, stated rather than left to be read off
+                # the poison test: a shape check is not a content
+                # check, and a data URL nested INSIDE one of these
+                # dicts still lands in `report.json` verbatim. The
+                # guarantee requirement 1 actually makes is narrower
+                # and stronger — nothing the client posts is ever
+                # RENDERED. `scene.svg` comes from `render_svg` over
+                # the server's own scene, so the picture cannot carry a
+                # payload whatever the client says.
                 "client": {
                     "url": body.get("url") if isinstance(body.get("url"), str)
                            else None,
                     "user_agent": body.get("user_agent")
                                   if isinstance(body.get("user_agent"), str)
                                   else None,
-                    "viewport": body.get("viewport"),
-                    "scene_view": body.get("scene_view"),
-                    "panels": body.get("panels"),
+                    "viewport": body.get("viewport")
+                                if isinstance(body.get("viewport"), dict)
+                                else None,
+                    "scene_view": body.get("scene_view")
+                                  if isinstance(body.get("scene_view"), dict)
+                                  else None,
+                    "panels": body.get("panels")
+                              if isinstance(body.get("panels"), dict)
+                              else None,
                     "captured_at": body.get("captured_at"),
                     "ring_bbox_viewport": ring.get("bbox_viewport"),
                     "ring_viewport": ring.get("points_viewport"),
@@ -27931,12 +27997,31 @@ class ServerApp:
                     "round": self.store.registry["round"],
                     "whose_move": self.store.registry["whose_move"],
                     "dirty": self.dirty,
-                    "registry": {
-                        "concepts": len(self.store.registry["concepts"]),
-                        "mappings": len(self.store.registry["mappings"]),
-                        "pins": len(self.store.registry["pins"]),
-                        "tripwires": len(self.store.registry["tripwires"]),
-                    },
+                    # THE REGISTRY ITSELF, NOT FOUR INTEGERS (task 37
+                    # review, I-2). Step 2 names "registry" beside
+                    # "scene JSON" and the scene arrives whole; four
+                    # cardinalities are not the registry, they are a
+                    # measurement of it, and they answer none of the
+                    # questions a bug report is opened to answer — which
+                    # concept this artifact belongs to, what the pins
+                    # asked and what the user answered, which mappings
+                    # were standing at the time. A BUNDLE IS A
+                    # POINT-IN-TIME RECORD and `model.json` is not the
+                    # fallback: it is the live file, and by the time
+                    # anyone reads the bundle the session has moved on.
+                    #
+                    # THE COPY IS BELT-AND-BRACES AND IS NOT
+                    # LOAD-BEARING, said so that nobody later pins it.
+                    # `write_json` serializes this dict a few lines down
+                    # under the same lock, so a bare reference is
+                    # already safe and MEASURABLY SO: swapping this for
+                    # `self.store.registry` and mutating the live
+                    # registry afterwards leaves the written bundle
+                    # identical, because the bundle is a file. It is
+                    # kept for the refactor that holds a report in
+                    # memory, in the file's own idiom
+                    # (`validate_registry` copies the same way).
+                    "registry": json.loads(json.dumps(self.store.registry)),
                     "artifact_element_counts": {
                         a: len([e for e in v if not e.get("isDeleted")])
                         for a, v in self.store.scenes.items()},

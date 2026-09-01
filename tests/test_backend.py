@@ -30048,7 +30048,14 @@ class TestBugHunterBundles(Base):
         s = r["server"]
         self.assertEqual(s["head_revn"], self.store.head_revn())
         self.assertEqual(s["project"], self.project.name())
-        self.assertEqual(s["registry"]["concepts"], 1)
+        # THE REGISTRY AND NOT A COUNT OF IT (task 37 review, I-2). This
+        # asserted `len(concepts) == 1`, which the comment two lines up
+        # calls asserting by MEANING and is not: a bundle carrying four
+        # integers answers none of the questions it is opened to answer,
+        # and `model.json` is not the fallback because it is live and the
+        # bundle is a point in time.
+        self.assertEqual([c["id"] for c in s["registry"]["concepts"]],
+                         [c["id"] for c in self.store.registry["concepts"]])
         self.assertEqual(s["artifact_element_counts"]["checkout-flow"],
                          len(self.store.scenes["checkout-flow"]))
         self.assertEqual(s["pending"], [])
@@ -30071,6 +30078,101 @@ class TestBugHunterBundles(Base):
             "server"]["events_tail"]
         self.assertEqual(len(tail), canvas.BUGREPORT_EVENTS_TAIL)
         self.assertEqual(tail[-1]["n"], 59)
+
+    def test_the_registry_rides_along_whole_and_not_as_four_integers(self):
+        """Step 2 names "registry", and this bundle shipped a count of one.
+
+        THE CONTENT ARRIVES, not a measurement of it (task 37 review,
+        I-2). Four cardinalities cannot say which concept an artifact
+        belongs to, what a pin asked or what the user answered — which
+        is most of what anyone opens a bug report to find out — and
+        "read `model.json`" is not the fallback, because `model.json`
+        is the LIVE file and by the time anyone reads the bundle the
+        session has moved on.
+
+        WHAT THIS DELIBERATELY DOES NOT ASSERT, because the assertion
+        was written and then measured to be vacuous: that the bundle is
+        FROZEN against a later edit to the live registry. It is — but
+        it is frozen because it is a FILE, not because of anything this
+        code does, and the pin passes identically when the deep copy in
+        `file_bugreport` is replaced by a bare reference. A green that
+        survives its own mutant is a green about nothing, so the claim
+        is made in the comment beside that copy instead.
+        """
+        # the ENDPOINT's store, not the test's: `setUp` seeds through
+        # `self.store` and then builds a `ServerApp`, which reads its own
+        # copy off disk, so an in-memory edit to the first is invisible
+        # to the second and this test would assert nothing
+        live = self.app.store.registry
+        pin = {"id": "p-frozen", "artifact": "checkout-flow",
+               "question": "does the cart total include tax?",
+               "answer": "no, tax is added at the payment step"}
+        live["pins"].append(pin)
+        r = self.report(self.file(artifact="checkout-flow"))
+        reg = r["server"]["registry"]
+        self.assertEqual([c["id"] for c in reg["concepts"]],
+                         [c["id"] for c in live["concepts"]],
+                         "the concepts arrived as something other than "
+                         "themselves")
+        self.assertIn(pin, reg["pins"],
+                      "the pin's question and answer did not ride along, so "
+                      "the bundle records that a pin existed and not what it "
+                      "said")
+        self.assertEqual(reg["mappings"], live["mappings"],
+                         "the mappings standing at capture did not ride "
+                         "along")
+        # and the shape that was there before: a count would satisfy
+        # every "is it present" assertion ever written about this field
+        for key in ("concepts", "mappings", "pins", "tripwires"):
+            self.assertIsInstance(
+                reg[key], list,
+                "%r came back as %r — a bundle that records how MANY "
+                "records the registry to have and not what it says"
+                % (key, reg[key]))
+
+    def test_the_clients_concept_is_kept_beside_the_servers(self):
+        """A disagreement is a thing to see, not to resolve silently.
+
+        Server truth wins — `concept` is `concept_of(artifact)` and the
+        client cannot vote on it — but the tab's own answer is recorded
+        next to it, the same way `ring_bbox` and the selection already
+        keep both readings (task 37 review, M-3). The second case is the
+        one that motivated it: when the server does not hold the
+        artifact, `concept` is None and this is the only surviving trace
+        that the tab believed otherwise.
+        """
+        r = self.report(self.file(artifact="checkout-flow",
+                                  concept="not-checkout"))
+        self.assertEqual(r["concept"], "checkout")
+        self.assertEqual(r["concept_client"], "not-checkout")
+        gone = self.report(self.file(artifact="no-such-artifact",
+                                     concept="checkout"))
+        self.assertIsNone(gone["concept"])
+        self.assertEqual(gone["concept_client"], "checkout")
+
+    def test_the_view_state_the_client_posts_is_shaped_before_it_lands(self):
+        """`viewport`/`scene_view`/`panels` are checked like their siblings.
+
+        `url` and `user_agent` were `isinstance`-checked and these three
+        were copied through untyped (task 37 review, M-4), so a string
+        posted where a dict belongs was recorded as though the tab had
+        said it. STATED PLAINLY BECAUSE THE POISON TEST DOES NOT PROVE
+        IT: a shape check is not a content check, and a data URL nested
+        inside one of these dicts still lands verbatim. What requirement
+        1 guarantees is narrower and stronger — nothing the client posts
+        is ever RENDERED — and that is the neighbour test above.
+        """
+        r = self.report(self.file(
+            artifact="checkout-flow",
+            viewport="data:image/png;base64,AAAA",
+            scene_view=["not", "a", "dict"], panels=7))
+        self.assertIsNone(r["client"]["viewport"])
+        self.assertIsNone(r["client"]["scene_view"])
+        self.assertIsNone(r["client"]["panels"])
+        ok = self.report(self.file(artifact="checkout-flow",
+                                   panels={"rail": True}))
+        self.assertEqual(ok["client"]["panels"], {"rail": True},
+                         "the shape check ate a well-formed payload")
 
     # -- requirement 1: the pixels are made here -------------------------
 
