@@ -16977,10 +16977,12 @@ def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
     Kn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
     as `round(w / 2) - pad`. This said `_s` and `Yn` in a bundle that
     stopped existing at `3f57a17`, then `js` in `index-KJTydiiR.js`
-    which stopped existing at the v0.9.1 build; `_s` and `Yn` resolve in
-    the file that ships to something else entirely (`_s` crops images,
-    `Yn` is assigned nowhere), and the arithmetic has been re-derived
-    unchanged at every rebuild — see the citation note above
+    which stopped existing at the v0.9.1 build; both dead names
+    resolved, in the bundle that shipped at the time, to something else
+    entirely (`_s` cropped images, `Yn` was assigned nowhere), and `_s`
+    is still live and still not this — in the bundle that ships it asks
+    whether a point path closes into a loop. The arithmetic has been
+    re-derived unchanged at every rebuild — see the citation note above
     `_client_chop` in `canvas.py`. `Math.round` is
     half-UP — confirmed in a JS
     engine, not assumed, and `floor(x + 0.5)` reproduces it on every

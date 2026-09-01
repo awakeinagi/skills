@@ -2679,7 +2679,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # `_client_chop`.)
         #
         #   * `restoreElement`, `case "freedraw"` (offset 630190), is
-        #     `xo(e, {points: e.points, lastCommittedPoint: null,
+        #     `wo(e, {points: e.points, lastCommittedPoint: null,
         #     simulatePressure: e.simulatePressure, pressures:
         #     e.pressures})` — it FORWARDS all three with no defaults of
         #     its own, so whatever is missing here is still missing after
@@ -14749,15 +14749,18 @@ def client_text_headroom(container):
     gives its bound text half its box in BOTH directions, not just
     across.
 
-    CITED AS `qg` UNTIL 2026-08-31, in the previous bundle, and `qg` in
-    the bundle that ships is an arc-drawing helper. The arithmetic was
-    re-derived against `Kg` and is unchanged; see the citation note
-    above `_client_chop`.
+    CITED AS `qg`, THEN `Kg`, IN TWO BUNDLES THAT NO LONGER EXIST —
+    `qg` in the bundle that shipped before them drew an arc, and `qg`
+    in the bundle that ships now is `computeBoundTextPosition`, which
+    is neither. The arithmetic has been re-derived at every rebuild and
+    is unchanged each time; see the citation note above `_client_chop`.
 
-    `Kg` IS ALSO `computeBoundTextPosition`'s HEIGHT BUDGET, which is
+    `Qg` IS ALSO `computeBoundTextPosition`'s HEIGHT BUDGET, which is
     where the same number decides a caption's vertical PLACEMENT and
-    not only its growth. `recenter_label` models the rectangle arm of
-    that placement and neither shape arm — see its own docstring.
+    not only its growth — and in the bundle that ships that caller is
+    `qg` itself, so the dead name and the live one now sit one call
+    apart. `recenter_label` models the rectangle arm of that placement
+    and neither shape arm — see its own docstring.
 
     Args:
         container: The container element.
@@ -14785,10 +14788,12 @@ def client_grown_extent(extent, kind):
     takes a 200x80 rhombus to **100px** tall where we made it 56 and
     then drew a picture the browser did not.
 
-    CITED AS `yd` UNTIL 2026-08-31, in the previous bundle, and `yd` in
-    the bundle that ships is a `useLayoutEffect` alias. The arithmetic
-    was re-derived against `bd` and is unchanged; see the citation note
-    above `_client_chop`.
+    CITED AS `yd`, THEN `bd`, IN TWO BUNDLES THAT NO LONGER EXIST —
+    `yd` in the bundle that shipped before them aliased
+    `useLayoutEffect`, and `yd` in the bundle that ships now is a
+    Tooltip component, which is neither; `bd` is assigned nowhere in
+    it. The arithmetic has been re-derived at every rebuild and is
+    unchanged each time; see the citation note above `_client_chop`.
 
     Args:
         extent: The label extent that has to fit, in px.
