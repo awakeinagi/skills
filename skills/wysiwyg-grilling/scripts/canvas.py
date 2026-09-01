@@ -27744,11 +27744,10 @@ class ServerApp:
             The bundle's id, slug, directory, and the capture assessment
             — the dialog shows the last of these, so a degraded capture
             is confessed to the person who filed it rather than only to
-            the file.
-
-        Raises:
-            _Err: 400 when the description is missing or blank, 500 when
-                the bundle cannot be written to disk.
+            the file. Goes through `err` (which raises, and is the
+            file's convention for an HTTP status) with 400 for a missing
+            or blank description and 500 for a bundle that cannot be
+            written.
         """
         desc = body.get("description")
         if not isinstance(desc, str) or not desc.strip():
