@@ -46928,6 +46928,41 @@ def _prov_reading(app: canvas.ServerApp, pid: str,
     }
 
 
+#: The 4xx codes that mean THE SERVER DECIDED, as opposed to the ones that
+#: mean THE DRIVER IS BROKEN. An allowlist, so an unrecognised code falls to
+#: the second — a legitimate repair using an unusual status then gets a loud
+#: guard failure somebody looks at, while a damaged bench never gets a quiet
+#: green. That is the safe direction and it is the same one
+#: `_prov_recorder` takes for an exception with no status at all.
+#:
+#: THE RULE, from which the list is derived rather than the other way round:
+#: a 4xx is a DECISION when the server understood a WELL-FORMED request
+#: about a subject that EXISTS, and declined it anyway. This bench owns both
+#: of those halves — it builds every request body, and
+#: `answer_provenance_bench` mints both pins two statements before it drives
+#: either door. So a route that answers "your body is wrong" or "no such
+#: pin" is not declining anything; it is telling the bench the bench is
+#: broken, and the bench must believe it.
+#:
+#:   * 401 / 403 — declined on who is asking. The shape candidate (d) takes.
+#:   * 405 — declined on the method: the route exists and no longer accepts
+#:     this write. A repair that closes the route lands here.
+#:   * 409 — declined on state ("already answered", a stale base). This
+#:     codebase already uses it that way, at two sites.
+#:   * 423 / 429 / 451 — declined on lock, rate and law. None is reachable
+#:     from this bench today; they are here because they are decisions
+#:     under the rule above, and leaving a decision out would fail a
+#:     repair for spelling.
+#:
+#: EXCLUDED, and each one is a measured false green rather than a judgement
+#: call: 400 (this codebase's commonest, and it means the body was wrong —
+#: the bench wrote the body), 404 (the subject was missing — the bench
+#: minted the subject), 422 (used here as a batch/internal backstop, which
+#: is a failure wearing a 4xx). 400 and 404 were both driven and both
+#: reported GUARD GREEN with both reds green before this list existed.
+_PROV_DECIDED_STATUSES = frozenset({401, 403, 405, 409, 423, 429, 451})
+
+
 def _prov_recorder(
         transport: Callable[..., dict]) -> tuple[Callable[..., dict],
                                                  list[dict[str, Any]]]:
@@ -46942,19 +46977,24 @@ def _prov_recorder(
     of this recorder got that wrong. A refusal written at the ROUTE with
     this repo's own `err(403, …)` idiom raises `HTTPError` exactly as a
     500 does; judging on the raise alone called a deliberate product
-    decision broken plumbing, and said so in the failure message. A 4xx
-    is the server ANSWERING — it considered the request and declined it,
-    which is a decision and therefore a legitimate repair. Only 5xx, a
-    `URLError`, an `OSError` or a timeout mean nobody answered at all.
+    decision broken plumbing, and said so in the failure message.
+
+    BUT "4xx MEANS DECISION" IS TOO COARSE, and taking it whole opened a
+    silent all-clear the round before this one. See
+    `_PROV_DECIDED_STATUSES` for the taxonomy and the reasoning; the
+    short version is that a 4xx is a decision only when the server
+    understood a well-formed request about a subject that EXISTS, and
+    this bench owns both of those.
 
     Args:
         transport: The in-process transport double to wrap.
 
     Returns:
         The wrapper, and the list it appends to — one entry per call,
-        carrying the path, whether it was a POST, the HTTP status when
-        there was one, whether the call was `stopped` (nobody answered)
-        and the exception text if it did not return.
+        carrying the path, whether it was a POST, the `body_id` it named,
+        the HTTP status when there was one, whether the call was
+        `stopped` (nobody answered, or nobody could have) and the
+        exception text if it did not return.
     """
     calls: list[dict[str, Any]] = []
 
@@ -46975,27 +47015,30 @@ def _prov_recorder(
         """
         entry: dict[str, Any] = {"path": url.split(_AS_USER_URL, 1)[-1],
                                  "post": payload is not None, "raised": None,
-                                 "status": None, "stopped": False}
+                                 "status": None, "stopped": False,
+                                 "body_id": (payload or {}).get("id")
+                                 if isinstance(payload, dict) else None}
         calls.append(entry)
         try:
             resp = transport(url, payload, timeout)
-        except Exception as exc:
-            # BROAD ON PURPOSE: a real transport crosses a socket, so the
-            # set of things it can raise is open. Narrowing here would
-            # let the next unlisted failure go unclassified, which is the
-            # defect this recorder exists to end. Nothing is swallowed —
-            # the re-raise below is unconditional.
+        except BaseException as exc:
+            # `BaseException` AND NOT `Exception`, for one word's cost: a
+            # `SystemExit` or a `KeyboardInterrupt` raised inside the
+            # transport would otherwise be recorded as neither answered
+            # nor stopped, which is the one state this classification has
+            # no name for. Broad for the same reason either way — a real
+            # transport crosses a socket, so what it can raise is open,
+            # and an unclassified failure is the defect this recorder
+            # exists to end. Nothing is swallowed; the re-raise is
+            # unconditional.
             entry["raised"] = "%s: %s" % (type(exc).__name__, exc)
-            entry["status"] = getattr(exc, "code", None)
-            # A 4xx IS AN ANSWER. Anything else — a 5xx, a socket, a
-            # timeout, an exception with no status at all — is nobody
-            # answering. `status` is None for the latter, so the default
-            # when a call raises is `stopped`, which is the safe way
-            # round: an unrecognised failure reads as a broken bench and
-            # gets looked at, rather than as a policy decision and
-            # passing.
-            entry["stopped"] = not (isinstance(entry["status"], int)
-                                    and 400 <= entry["status"] < 500)
+            # READ OFF THE TYPE, never off a `.code` attribute. `SystemExit`
+            # carries `.code` too, and `SystemExit(5)` would have been read
+            # as HTTP status 5 by a `getattr(exc, "code", None)`.
+            entry["status"] = (exc.code
+                               if isinstance(exc, urllib.error.HTTPError)
+                               else None)
+            entry["stopped"] = entry["status"] not in _PROV_DECIDED_STATUSES
             raise
         entry["status"] = 200
         return resp
@@ -47075,11 +47118,24 @@ def _prov_control(url: str, expect_revn: int,
     why, half = "", ""
     if stopped:
         half = "traffic"
-        why = ("%d of the %d call(s) the verb made was STOPPED — nobody "
-               "answered it, so the verb was cut off rather than told no: "
-               "%s" % (len(stopped), len(calls),
-                       [(c["path"], c["status"], c["raised"])
-                        for c in stopped]))
+        # TWO WORDINGS, because `stopped` covers two situations and one
+        # sentence for both misnames whichever it is not. A call with no
+        # status was never answered; a call answered 400 or 404 WAS
+        # answered, with a code that indicts the request or the subject —
+        # and the bench wrote the request and minted the subject, so that
+        # is the bench being told it is broken.
+        answered = [c for c in stopped if c["status"] is not None]
+        why = ("%d of the %d call(s) the verb made did not reach a "
+               "decision: %s. " % (len(stopped), len(calls),
+                                   [(c["path"], c["status"], c["raised"])
+                                    for c in stopped])
+               + ("Those with a status were ANSWERED, but with a code "
+                  "that says the request or the subject was wrong — and "
+                  "this bench writes every request and mints every pin "
+                  "it names, so it owns both."
+                  if answered else
+                  "Nothing answered at all, so the verb was cut off "
+                  "rather than told no."))
     elif not served:
         half = "liveness"
         why = ("the server did not answer a control write afterwards: "
@@ -47143,10 +47199,11 @@ def answer_provenance_bench() -> dict[str, Any]:
         app = canvas.ServerApp(project)
         transport, calls = _prov_recorder(_as_user_transport(app))
         # DOOR ONE — the rail. `apiPost("/api/pins/answer", { id, answer })`
-        # is the whole of what the client sends, from two call sites in
-        # App.tsx, and it is reproduced here rather than reached through a
-        # browser because the model tier has none. The server sees this
-        # body and no other fact about its caller.
+        # is the whole of what the client sends, from THREE call sites in
+        # App.tsx — the anchored popover, the rail card and the detail
+        # modal — all posting that same body. Reproduced here rather than
+        # reached through a browser because the model tier has none. The
+        # server sees this body and no other fact about its caller.
         #
         # THROUGH THE TRANSPORT, not `app.handle_post` directly, and the
         # difference is not cosmetic: the browser crosses HTTP, so a route
@@ -47226,12 +47283,28 @@ def answer_provenance_bench() -> dict[str, Any]:
         # stopped, the server is healthy, the exit code is real — and the
         # pin is unanswered. `vanished` cannot see it, being gated on
         # `landed`. A door that was told yes did not refuse.
-        pin_writes = [c for c in calls[verb_from:]
-                      if c["post"] and c["path"].startswith("api/pins/")
-                      and c["status"] == 200]
+        # THE TRIPLE FILTER IS LOAD-BEARING AND IS SPELLED OUT BECAUSE IT
+        # WAS CORRECT BY COINCIDENCE. This slice runs to the end of the
+        # log, so it also holds `cmd_wait`'s `api/events` GETs and the
+        # control's own health/heartbeat calls; `post` drops the GETs,
+        # the path prefix drops the control, and `status == 200` drops
+        # anything refused. Each of the three is doing real work — remove
+        # one and this counts calls that are not pin writes.
+        pin_calls = [c for c in calls[verb_from:]
+                     if c["post"] and c["path"].startswith("api/pins/")]
+        pin_writes = [c for c in pin_calls if c["status"] == 200]
+        # AND THE VERB HAS TO HAVE AIMED AT THE PIN THIS BENCH MINTED.
+        # Unconditional, not gated on the outcome: aiming wrong is always
+        # the driver's fault and never a product decision, whatever the
+        # server then said about it. A `refused` from a 404 was a silent
+        # all-clear on exactly this — see `_PROV_DECIDED_STATUSES`, which
+        # is the other half of the same repair.
+        misaimed = [c for c in pin_calls
+                    if c["body_id"] != _PROV_PINS["composed"]]
         out: dict[str, Any] = {"composed_outcome": outcome,
                                "refusal": refusal, "control": control,
                                "pin_writes_accepted": pin_writes,
+                               "misaimed": misaimed,
                                "typed_refusal": typed_refusal,
                                "feed_size": len(feed)}
         for door in _PROV_DOORS:
@@ -47548,72 +47621,99 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
         readings differ, and each reads as a fix. So this claims the
         facts that make `same == []` mean something.
 
-        WATCHED FAILING, one clause at a time, 2026-09-01, by damaging
-        this bench in a throwaway copy outside the repo. The right-hand
-        column is what the two reds did under that same damage, and it is
-        the reason each clause exists rather than a note about it:
+        WATCHED FAILING, ONE CLAUSE AT A TIME, by damaging this bench in
+        a throwaway copy outside the repo. Every row was re-driven
+        2026-09-01 against the tree that ships it, and the WHICH CLAUSE
+        column is the point of the table: a stage that reddens the guard
+        by tripping some OTHER clause proves nothing about the one it is
+        filed under, and this table said exactly that about `http500` for
+        a day. NAME THE ISOLATING STAGE, or the next editor weakens a
+        clause, runs a stage that never reached it, and sees red.
 
-          * agent door pointed at a pin id that does not exist ->
-            `composed_outcome` reads `vanished`, clause 3 fires, and both
-            reds go GREEN — precisely the false fix that clause refuses.
-          * every `api/pins/*` POST answers HTTP 500 -> `_x_post` dies,
-            `composed_outcome` reads `refused` with exit code 5, and both
-            reds go GREEN. Clause 4 is the only thing that speaks, and it
-            speaks because the call was STOPPED — a 5xx is nobody
-            answering — not because the server was unreachable. A
-            liveness probe alone was tried first and passed here, since
-            `api/heartbeat` stays healthy while one endpoint 500s. FOUND
-            IN REVIEW, not by me, and it is the same shape as the
-            `vanished` hole one door over: an exception meaning four
-            different things, read as the one that flatters the tree.
-          * `api/health` answering `OSError` -> `_x_client` dies before
-            the verb ever posts; clause 4 fires on the stopped health
-            call. Before the control existed this was caught only
-            incidentally, by clause 6 noticing an empty feed, which is
-            not the same as being detected.
-          * the route answers 200 and no-ops, and the verb dies AFTER the
-            write -> nothing stopped, server healthy, `refusal` 7, and
-            the pin unanswered. Every other clause passes and both reds
-            go GREEN; clause 5 is the only one that speaks. `vanished`
-            cannot reach this corner because it is gated on `landed`, and
-            the control cannot because nothing failed. ALSO FOUND IN
-            REVIEW, and unreachable in today's product — but this guard's
-            subject is a damaged bench, not a product bug.
-          * the route refuses with `err(403, …)`, this repo's own idiom
-            -> GUARD GREEN and both reds green, which is CORRECT and is
-            the point of the ruling on candidate (d). Before the ruling
-            this crashed the bench outright: `_Err` is translated to an
-            HTTP status by the real server's `do_POST`, the transport
-            double returned `handle_post` raw, and `_x_post` catches
-            none of `_Err`. Both reds then read as ordinary expected
-            failures, because an `@expectedFailure` reports an ERROR
-            exactly as it reports a FAILURE.
-          * a repair that COMMITS when it records an answer -> GUARD
-            GREEN, both reds still red. Also correct, and also a
-            correction: the revision clause compared `==` against a
-            floor read off a second `Store` that never sees the server's
-            writes, so a legitimate repair read `head_revn=4 (expected
-            2)` while `alive=True ok=True` and was reported as broken
-            plumbing.
-          * user door posting `""` -> clause 1 fires on the answer text.
-          * `Store.pin_debt` returning `[]` -> clause 6 fires on the nag.
-          * `cmd_wait` driven `--for agent` -> clause 7 fires on the feed.
+        Clause order, since the rows refer to it: 1 the user's door landed
+        the sentence, 2 it left the pin `answered`, 3 `composed_outcome`
+        is `landed` or `refused`, 4 the verb aimed at the pin this bench
+        minted, 5 the control, 6 no accepted write behind a refusal, 7
+        the nag rendered, 8 the feed was non-empty.
 
-        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3, 4 and
-        5 are shaped around TOGETHER, and no one of them is sufficient.
-        `_x_post` turns a product refusal, an HTTP 500, a refused
-        connection and a timeout into one `SystemExit`, so `refused`
-        names the exception and not its cause. Clause 4 asks whether
-        anybody ANSWERED — a 4xx is an answer, a 5xx and a dead socket
-        are not — and then whether the server is still there. Clause 5
-        catches the corner where everything answered and the write was
-        accepted anyway.
+          * `wrong_pin_id` — the verb posts `id="no-such-pin"` -> CLAUSE
+            4. `answer_pin` raises, the route answers 404, and the whole
+            chain reads as a decision: outcome `refused`, exit 5. Before
+            the 2026-09-01 taxonomy this was GUARD GREEN with both reds
+            green — a silent all-clear on the worst damage in the table,
+            and a REGRESSION introduced by the round-2 narrowing from
+            `raised` to `stopped`. The bench mints `q2` two statements
+            earlier, so a 404 here never means the product declined
+            anything.
+          * `malformed_body` — the route answers 400 -> CLAUSE 5
+            (traffic). The same shape as the row above and the reason
+            the fix is a taxonomy rather than a 404 special case: 400
+            says the BODY was wrong and the bench writes the body.
+          * `agent_write_500` — only the composed pin's write 500s ->
+            CLAUSE 5, traffic half, ISOLATING. Both reds go GREEN and
+            this is the only thing that speaks.
+          * `server_lost_revisions` — heartbeat reports `head_revn` 0 ->
+            CLAUSE 5, liveness half, ISOLATING. Traffic is clean, so this
+            is the only stage that reaches the second half of the control.
+          * `http500` — every `api/pins/*` POST answers 500 -> CLAUSE 1,
+            NOT CLAUSE 5. It stops at the first clause because door one
+            crosses the transport too and is broken by the same damage.
+            Kept because it is the damage that FOUND the control, and
+            listed here with its true attribution so nobody reads its red
+            as evidence about the control. THE SAME TRAP CAUGHT THE
+            MUST-PASS SIDE: a `d_server_http` that refused every answer
+            reddened clause 1 as well, and had to be narrowed to the
+            agent's write before it measured what it claimed to. A stage
+            that refuses BOTH doors is a different product, not a
+            refusal of the agent's route.
+          * `health_oserror` — `api/health` raises -> CLAUSE 5, on a
+            stopped call with no status. Before the control existed this
+            was caught only incidentally, by clause 8 noticing an empty
+            feed, which is not the same as being detected.
+          * `accepted_then_dies` — the route answers 200 and no-ops, the
+            verb dies after -> CLAUSE 6, ISOLATING. Nothing stopped,
+            server healthy, `refusal` 7, pin unanswered, both reds GREEN.
+            `vanished` cannot reach it (gated on `landed`) and the
+            control cannot (nothing failed).
+          * `posted_ok_noop_route` — the same no-op without the death ->
+            CLAUSE 3, `vanished`. The sibling that keeps clause 3 proven
+            now that `wrong_pin_id` is caught earlier.
+          * `empty_answer` — the user's door posts `""` -> CLAUSE 1.
+          * `dead_nag` — `Store.pin_debt` returns `[]` -> CLAUSE 7.
+          * `dead_feed` — `cmd_wait` driven `--for agent` -> CLAUSE 8.
 
-        TWO JUDGEMENTS ARE BAKED INTO CLAUSES 1, 2 AND 6, and they are
+        AND FOUR STAGES THAT MUST STAY GREEN, which are half the value of
+        the table: a guard that reddens on every perturbation is not
+        discriminating, it is just loud.
+
+          * `d_client` — the verb refuses before posting. GUARD GREEN.
+          * `d_server_http` — the route refuses 403 over the wire.
+          * `d_server_err_agent_only` — the route refuses with this
+            repo's own `err(403, …)`, the shape a real repair takes.
+            Before the `_Err` translation this crashed the bench outright
+            and both reds read as ordinary expected failures, because an
+            `@expectedFailure` reports an ERROR exactly as it reports a
+            FAILURE.
+          * `e_commits` — a repair that COMMITS when it records an
+            answer. GUARD GREEN, both reds still red. This one was a
+            false RED until the revision clause became a floor.
+
+        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 to 6
+        are shaped around TOGETHER, and no one of them is sufficient.
+        `_x_post` turns a product refusal, an HTTP 500, a 404 and a dead
+        socket into one `SystemExit`, so `refused` names the exception
+        and not its cause. Clause 4 asks whether the verb aimed at the
+        right pin at all. Clause 5 asks whether anybody reached a
+        DECISION — see `_PROV_DECIDED_STATUSES` for which codes count and
+        why — and then whether the server survived. Clause 6 catches the
+        corner where everything answered and the write was accepted
+        anyway.
+
+        THREE JUDGEMENTS ARE BAKED INTO CLAUSES 1, 2 AND 8, and they are
         written here rather than left implicit, because a guard whose
-        subject is unstated judgements should not carry any. Clause 1/2
-        require the USER's door to land the sentence and leave the pin
-        `answered`; clause 6 requires at least one event on the
+        subject is unstated judgements should not carry any. Clauses 1
+        and 2 require the USER's door to land the sentence and leave the
+        pin `answered`; clause 8 requires at least one event on the
         `--for user` feed. A repair that turned BOTH doors into proposals
         — nobody's answer lands until someone promotes it — would fail
         this guard rather than flip the reds. That is deliberate: it is a
@@ -47643,6 +47743,17 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "readings differ for a reason that has nothing to do with "
             "provenance, and both reds above then pass over a bench that "
             "measured one door" % bench["composed_outcome"])
+        self.assertEqual(
+            bench["misaimed"], [],
+            "the agent's door sent %d pin write(s) naming a pin this "
+            "bench did not mint: %s (it minted %r). Whatever the server "
+            "then answered, the composed pin is unanswered because the "
+            "DRIVER aimed wrong — and a 404 for a pin that does not "
+            "exist arrives as a 4xx, which every other clause here reads "
+            "as the server making a decision"
+            % (len(bench["misaimed"]),
+               [(c["path"], c["body_id"], c["status"])
+                for c in bench["misaimed"]], _PROV_PINS["composed"]))
         control = bench["control"]
         self.assertTrue(
             control["ok"],
@@ -47652,13 +47763,13 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             # A guard that misnames its own finding sends a fixer hunting
             # the wrong thing, which is the defect this whole clause was
             # added to stop.
-            {"traffic": "the agent's door was CUT OFF rather than told "
-                        "no: %s. A 4xx would be a decision and would "
-                        "pass here; this was not one. `_x_post` exits "
-                        "identically for a refusal, a 500 and a dead "
-                        "socket, so without this clause a broken bench "
-                        "reports `refused` and BOTH reds above go green "
-                        "over a tree where nothing was repaired",
+            {"traffic": "the agent's door never reached a DECISION: %s. "
+                        "A 401/403/405/409 would be one and would pass "
+                        "here. `_x_post` exits identically for a "
+                        "refusal, a 500, a 404 and a dead socket, so "
+                        "without this clause a broken bench reports "
+                        "`refused` and BOTH reds above go green over a "
+                        "tree where nothing was repaired",
              "liveness": "the agent's door was answered, but the server "
                          "did not survive it: %s. The readings the reds "
                          "compare were taken off a server that is no "
