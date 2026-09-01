@@ -24112,13 +24112,21 @@ class TestShapeAwareLabelRoom(Base):
     (v0.9 TASK-TEXT-TRUTH § A6.3; fixed here by WP4-AND-GUARDS). The
     belief was re-derived here rather than taken on report:
 
-      * the shipped bundle, `ai` @553053 —
-        `(t||!e.autoResize)&&(i=t?_s(t,e):e.width, ...)`. `t` is the
-        CONTAINER; when there is one the wrap width is `_s(t, e)` and
+      * the shipped bundle, `ii` @553053 —
+        `(t||!e.autoResize)&&(i=t?Ts(t,e):e.width, ...)`. `t` is the
+        CONTAINER; when there is one the wrap width is `Ts(t, e)` and
         the label's stored `width` is unreachable. `autoResize` is
         `||`-ed on the left, so it does not gate the wrap at all;
-      * `_s` @555675 with `Yn = 5`: ellipse `round(w/2*sqrt(2)) - 10`,
+      * `Ts` @555677 with `Kn = 5`: ellipse `round(w/2*sqrt(2)) - 10`,
         diamond `round(w/2) - 10`, else `w - 10`;
+        (this bullet pair said `ai`, `_s` and `Yn` until the fix round
+        for the 2026-08-31 citation sweep, which is to say it carried
+        the names of the FIRST bundle whose symbols rotted through
+        every rebuild since. Both offsets still land on their sites and
+        no arithmetic here changed; `ai` and `_s` are both live in the
+        file that ships and neither is this, and `Yn` is assigned
+        nowhere. See the citation note above `_client_chop` in
+        `canvas.py`.)
       * this repo's own `App.tsx`, whose `restoreForRender` passes
         `refreshDimensions: true` — the option its own comment calls
         "what re-wraps container-bound text" — nine lines under a

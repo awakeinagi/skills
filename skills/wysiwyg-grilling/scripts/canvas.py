@@ -20285,8 +20285,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                           default=0)
             over_w, over_h = longest > room_w, th > room_h
         # THE HEIGHT ARM OF A BOUND LABEL IS NOT A CLIP (v0.9 WP4
-        # review, I-1). The bundle's `ai` (@553053) is explicit —
-        # `if(!ht(t)&&l.height>s){let m=yd(l.height,t.type);pe(t,{height:m})}`
+        # review, I-1). The bundle's `ii` (@553053 — `ai`, then `ri`, in
+        # two bundles that no longer exist, and `ai` is live in the one
+        # that ships and is not this) is explicit — `if(!ht(t)&&
+        # l.height>s){let m=md(l.height,t.type);pe(t,{height:m},r),
+        # Jm(t.id,m)}`
         # — so when a bound label's painted block outruns the headroom
         # the client GROWS the container. `fit_label_in` transcribes
         # exactly that, two thousand lines above, and this arm was
@@ -20419,7 +20422,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # 35px of headroom, so the band [22, 66] runs off a body only
         # 64px tall and `shape_band_span` pinches to nothing — and the
         # check reports the pinched sentence about a drawing the browser
-        # never paints. `ai` (@553053) grows that ellipse to 160x76, and
+        # never paints. `ii` (@553053) grows that ellipse to 160x76, and
         # in the grown body the same band is [16, 60] over a 130.5px
         # chord. The rhombus case is the same: 200x100 pinches, the
         # 200x150 the client draws gives 113.3px.

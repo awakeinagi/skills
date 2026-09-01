@@ -42228,7 +42228,7 @@ class TestTheBandIsScoredOnTheBodyTheClientDraws(unittest.TestCase):
     """The half of the same fold that no single control could see.
 
     I-3 made the band deep enough to run off the body, and the body on
-    disk is not always the body the browser paints: `ai` (@553053) grows
+    disk is not always the body the browser paints: `ii` (@553053) grows
     a container whose bound label outgrows its headroom. Scoring a
     client-wrapped block against a STORED height turns true sizing
     findings into pinched ones that are false about the picture.
