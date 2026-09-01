@@ -359,6 +359,73 @@ reproduces that failure at the review layer.
    *cost to the user*. Review tiers measure *what blocks a merge*. They are
    different questions and must not be collapsed.
 
+### A review that could see a visual defect must open a browser
+
+**Any review of a change that can produce a visual defect runs a live
+browser.** Not a screenshot someone else took, not a render the implementer
+reports, not `eslint` and `tsc`. The reviewer opens it.
+
+A visual defect is one whose evidence is pixels: overlay contrast, clipping,
+overflow, z-order, an element landing where it is not drawn, anything whose
+symptom is *"that looks wrong"*. Static analysis cannot see any of it.
+
+Why this is a rule and not advice, with the three that earned it:
+
+- The deleted 2026-08 bug-hunter spike's **first catch was its own
+  white-on-white Submit button** — injected CSS losing a specificity war it
+  could not lose in any type-checker.
+- The empty-save class survived **thirteen closures** on instruments that
+  modelled a browser instead of running one. It closed when a real tab
+  recorded its testimony in the wire format.
+- On 2026-09-01 a controller ran an 18-hook gate — lint, types, backend
+  unittest, eslint, tsc — and treated it as coverage of a **feature whose
+  entire value is an interaction**. The gate opens no browser. Nothing in
+  the client half had been independently verified by anyone.
+
+The gate is not that browser. **`uvx pre-commit run --all-files` has eighteen
+hooks and none of them render anything.** A review that says "the gate is
+green" about a rendering change has verified the wrong thing.
+
+If a browser genuinely cannot run, the review says so under
+`⚠️ Cannot verify from diff` and names what a browser would have to check.
+Silence there is the failure this whole standard exists to prevent.
+
+## Curation — a new bug is never fixed by whoever found it
+
+**A defect surfaced at any stage goes to a `mutant-curator` before anyone
+fixes it.** The curator writes the red; a different agent writes the fix.
+A fix and its acceptance test from one author is how one class survived nine
+closures here, and it is the single rule this repo has paid the most for.
+
+The curation flow mirrors the fix flow, and every step is its own subagent:
+
+```
+curation -> review -> re-curation (if needed) -> re-review (if needed)
+         -> then the four-stage fix loop above
+```
+
+- **Curation** — reproduce, minimise, encode the red, prove it fails for the
+  stated reason and flips under **more than one** honest repair
+  (`skills/silence-is-a-bug` §8). A red that flips under exactly one repair
+  is prescribing that repair, not asserting a property.
+- **Review of the curation** — same template, same ladder. A red is code and
+  gets reviewed like code. Ask the questions a red can fail silently on: can
+  it go vacuous? does its population contain the failing case? has its
+  guard been *watched failing*?
+- **Re-curation / re-review** — only if the review found something. Fresh
+  hands each round, as above.
+
+**A bug surfaced during the fix flow goes back to a curator too.** If it is
+the *same* defect the round is already about, it goes to the **original
+curator** — that agent holds the reproduction and the population, and a
+second curator would rebuild both and disagree at the edges. If it is a
+*different* defect, it goes to a **new curator**, because the round in flight
+should not silently grow a second subject.
+
+Nothing here is a reason to fix a defect inline while you are near it. The
+temptation is strongest exactly when the fix looks obvious, and an obvious
+fix with no red is how a class comes back.
+
 ## Known debt
 
 Tracked in `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`. Each
