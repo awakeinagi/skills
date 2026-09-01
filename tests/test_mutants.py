@@ -28663,7 +28663,16 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestAStaleBrowserCaptureIsNotConsumedInSilence": 2}
+# THE GATE-DARKENING PAIR ARRIVED 2026-09-01, filed by the mutant-curator
+# for pipeline r8-close on a finding three agents reached independently
+# that day: a recorded browser capture whose `canvas_sha256` stops
+# matching the tree downgrades its consumers from an exact fact-for-fact
+# comparison against a real browser's answer to `assertNotEqual(facts,
+# [])`, with no failure, no skip, and `pre-commit` still exiting 0. Two
+# reds because the two captures are consumed by two classes whose gates
+# are written out separately, so a half-repair is a thing that can land.
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
@@ -40193,6 +40202,451 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
             "as a vertical move. Facts: %s"
             % (len(out["phantoms"]), len(pop["untouched"]), pop["drag_dx"],
                pop["rewrapped"], out["facts"]))
+
+
+# ---------------------------------------------------------------------------
+# GATE-DARKENING: A BROWSER CAPTURE THAT STOPPED DESCRIBING THIS TREE IS
+# CONSUMED IN SILENCE. Filed by the mutant-curator for pipeline r8-close,
+# 2026-09-01, on a finding three agents reached independently that day.
+#
+# BASE: the two recorded captures this file already ships, read by the two
+# classes directly above exactly as ordinary discovery reads them.
+# MUTATION: each capture is re-recorded against another head — its
+# `canvas_sha256` becomes the digest of this tree's `canvas.py` plus one
+# comment line, and the fact that head narrated is the drag going the
+# other way. Two fields, one event: a capture is testimony about ONE
+# `canvas.py` and cannot half-belong to a second. `canvas.py` itself is
+# never edited, because the darkening is a property of the COMPARISON;
+# it was confirmed from the other side once, and a `# .` appended to
+# `canvas.py` in a throwaway export left all 712 tests of this module
+# green and the process exiting 0.
+# MAGNITUDE: `assertEqual(out["facts"], cap["observed"]["facts"])` pins
+# each browser-measured fact by four fields — name, element, dx, dy. The
+# fallback pins none of them, so on the caption capture a record that
+# reported the 60px drag as -60 sails through: 120px of error, and the
+# rewrap capture's is 50.
+# DIRECTION: strictly WEAKER, which is the unsafe direction. Any record
+# that narrates anything at all now passes, so this file's strongest
+# browser testimony degrades to "something was said".
+# NEIGHBOURS, both ungated and both green: a capture that DOES describe
+# this `canvas.py` is not refused where a stale one passes, so no repair
+# is being asked for that would reject the testimony it protects; and a
+# vacuity guard damages the capture's INPUT — `stored_after` emptied —
+# and watches the same probe report a consumer going loud, so quiet from
+# this probe is a reading and not a deafness.
+# ---------------------------------------------------------------------------
+
+# The shortest run of a sha256 that identifies WHICH digest a message is
+# talking about. A skip is an acceptable answer to a stale capture only
+# when its reason names both digests, and this is a FLOOR on identifying
+# them, never a format: a repair that prints twelve chars, or all
+# sixty-four, contains its own first eight either way. Eight hex chars is
+# four bytes, so two unrelated digests colliding on it is not a thing
+# that happens to a repo.
+DIGEST_NAMED_BY = 8
+
+
+@functools.cache
+def consumer_classes_naming(constant: str) -> tuple[str, ...]:
+    """Name every top-level test class in this module that reads `constant`.
+
+    NOT SPELLED `test_...`, which the first draft was: pytest collects a
+    module-level `test_`-prefixed callable as a test, and this one takes
+    an argument, so `pre-commit` reported it as a collection ERROR
+    rather than as anything about captures.
+
+    PARSED RATHER THAN LISTED, because the SET is the subject. A repair
+    to the gate below may answer a stale capture inside the class that
+    consumes it or from a gate class added beside it, and a probe that
+    hardcoded one class name would have flipped for the first shape only
+    and quietly prescribed it. A name bound anywhere inside a class body
+    counts as a read of that capture.
+
+    Args:
+        constant: The module-level name a capture file is bound to.
+
+    Returns:
+        The class names that read it, in source order.
+    """
+    parsed = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    return tuple(node.name for node in parsed.body
+                 if isinstance(node, ast.ClassDef)
+                 and constant in {n.id for n in ast.walk(node)
+                                  if isinstance(n, ast.Name)})
+
+
+def run_capture_consumers(constant: str, path: Path,
+                          exclude: str) -> dict[str, Any]:
+    """Run every consumer of a capture against the capture file at `path`.
+
+    THE CONSUMERS ARE RUN WHOLE, not one method each, because the gate
+    this measures is owned by no single method: a currency clause sits
+    just as naturally in a class's shared absence guard, or in its
+    `setUp`, as in the replay test that reads the digest today.
+
+    Args:
+        constant: The module-level name the capture file is bound to.
+        path: The capture the consumers should read instead of theirs.
+        exclude: One class name to leave out — the caller's own, which
+            names the constant to build its subject and is not a
+            consumer of it.
+
+    Returns:
+        `{"classes", "ran", "loud", "skipped", "answered"}` — the classes
+        run, how many tests ran, the method names that failed or errored,
+        the `(method, reason)` pairs that skipped, and the union of the
+        method names in those two.
+    """
+    module = sys.modules[__name__]
+    names = tuple(n for n in consumer_classes_naming(constant) if n != exclude)
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite(loader.loadTestsFromTestCase(
+        getattr(module, n)) for n in names)
+    result = unittest.TestResult()
+    with mock.patch.object(module, constant, path):
+        suite.run(result)
+    loud = sorted(t.id().rsplit(".", 1)[-1]
+                  for t, _ in result.failures + result.errors)
+    skipped = sorted((t.id().rsplit(".", 1)[-1], why)
+                     for t, why in result.skipped)
+    return {"classes": names, "ran": result.testsRun, "loud": loud,
+            "skipped": skipped,
+            "answered": sorted(set(loud) | {n for n, _ in skipped})}
+
+
+def a_capture_recorded_against_another_head(cap: dict[str, Any]
+                                            ) -> dict[str, Any]:
+    """Re-record a capture against a `canvas.py` one comment line away.
+
+    ONE EVENT, TWO FIELDS, and they move together because a capture is
+    testimony about ONE `canvas.py`. Its `canvas_sha256` becomes the
+    digest of this tree's file plus a comment line, and the fact that
+    other head narrated is this head's drag reversed — the plainest
+    thing an exact comparison exists to catch, and the plainest thing a
+    fallback asking only for a non-empty list cannot see.
+
+    MOVING THE DIGEST ALONE WAS THE FIRST DRAFT AND IT PRESCRIBED A
+    REPAIR, which is why this reads the way it does. A record whose
+    digest names one head while its facts still describe another is an
+    artefact no recording can produce; measured against it, the repair
+    that deletes the conditional outright — always compare the facts,
+    exactly — looks broken while being honest, because the facts agree
+    and it correctly stays quiet. That draft flipped under six of the
+    seven repairs and not that one, and a red that flips under all but
+    one candidate is pointing at the other six.
+
+    Args:
+        cap: A capture as its spec wrote it.
+
+    Returns:
+        A copy that is testimony about a tree this one is not.
+    """
+    observed: dict[str, Any] = dict(cap["observed"])
+    observed["facts"] = [
+        [f[0], f[1], -f[2] if isinstance(f[2], (int, float)) else f[2],
+         f[3]] for f in cap["observed"]["facts"]]
+    other: dict[str, Any] = dict(cap, observed=observed)
+    other["canvas_sha256"] = hashlib.sha256(
+        Path(canvas.__file__).read_bytes() + b"# .\n").hexdigest()
+    return other
+
+
+def a_capture_that_still_describes_this_tree(cap: dict[str, Any],
+                                             root: Path) -> dict[str, Any]:
+    """Re-pin a capture to this `canvas.py`, and to what it narrates now.
+
+    THE OPPOSITE POLE, AND IT MUST BE HEAD-STABLE OR IT IS NOT ONE. A
+    capture whose digest is forced to match while its recorded facts
+    still describe an older head would fail the exact comparison and
+    report a refusal where there is none — the pole would become a
+    second copy of the red, red for another reason, on the first honest
+    `canvas.py` edit anyone makes.
+
+    SO THE FACTS ARE DERIVED FROM THE SUBJECT, DELIBERATELY, which is
+    normally how a pin goes vacuous. It is safe only because the fact
+    comparison is not what this pole reads: neutralising it is what
+    leaves CURRENCY as the single variable between this pole and the
+    red. What keeps the neutralisation honest is the vacuity guard
+    beside it, which damages a different input of the same capture and
+    watches the same probe report a consumer failing.
+
+    Args:
+        cap: A capture as its spec wrote it.
+        root: An empty directory to replay the capture in.
+
+    Returns:
+        A copy that is current testimony about this tree's `canvas.py`.
+    """
+    fresh: dict[str, Any] = dict(cap, canvas_sha256=canvas_digest())
+    observed: dict[str, Any] = dict(cap["observed"])
+    observed["facts"] = replay_a_capture(canvas, root, fresh,
+                                         set())["facts"]
+    fresh["observed"] = observed
+    return fresh
+
+
+def consumers_that_answered_a_stale_capture(verdict: dict[str, Any],
+                                            recorded: str,
+                                            tree: str) -> list[str]:
+    """Report which consumers said anything about a capture that is not current.
+
+    A FAILURE OR AN ERROR IS AN ANSWER; A SKIP IS ONE ONLY IF IT NAMES
+    BOTH DIGESTS. That asymmetry is the whole content of the word
+    "silently" in this finding: 45 render-tier tests in this repo
+    already skip for want of a browser and every one of them reads as a
+    green, so a skip earns its keep only by printing the pair a reader
+    has to compare.
+
+    Args:
+        verdict: What `run_capture_consumers` returned.
+        recorded: The digest the capture carries.
+        tree: The digest this tree's `canvas.py` actually has.
+
+    Returns:
+        The method names that answered, sorted.
+    """
+    return sorted(set(verdict["loud"]) |
+                  {name for name, why in verdict["skipped"]
+                   if recorded[:DIGEST_NAMED_BY] in why
+                   and tree[:DIGEST_NAMED_BY] in why})
+
+
+class TestAStaleBrowserCaptureIsNotConsumedInSilence(unittest.TestCase):
+    """gate-darkening: a capture describing another canvas.py still passes.
+
+    THE INVARIANT, and it holds no digest literal: a recorded browser
+    capture whose `canvas_sha256` no longer matches the tree's
+    `canvas.py` is either RE-RECORDED, or the tests that consume it
+    FAIL — or skip with both digests named in the reason. A mismatch may
+    not pass. Today it passes, in silence, on both captures.
+
+    WHAT THE DRAWING GETS WRONG, in one line: edit `canvas.py` by one
+    comment character and this file's two browser-fidelity classes stop
+    comparing the replay's record against the browser's fact for fact
+    and start asserting that the replay narrated SOMETHING — with no
+    failure, no skip, no message, and `pre-commit` still exiting 0.
+
+    HOW IT WAS REPRODUCED, both ways round. Appending `# .` to
+    `canvas.py` in a throwaway export of this tree left all 712 tests of
+    this module green, exit 0, with the fallback branch demonstrably
+    taken. The reds below reach the same branch from the capture's side
+    and never touch `canvas.py`, because the darkening is a property of
+    the comparison rather than of any particular edit.
+
+    THE REPAIRS IT WAS MEASURED AGAINST, all seven monkeypatched into
+    throwaway copies of this file under /tmp and none of them applied
+    here: (1) the fallback becomes `self.fail`; (2) the fallback becomes
+    `skipTest` with the digest pair in the message; (3) the capture
+    loaders return `{}` for a record that describes another tree; (4) a
+    fifth clause in `assert_a_capture_is_current_testimony`, which both
+    captures share; (5) a `setUp` that refuses a stale capture, so every
+    method of the class errors rather than one; (6) the conditional
+    deleted outright, so the exact comparison always runs and a capture
+    from another head fails on the facts; (7) a gate class added beside
+    the consumers instead of inside them. Both reds flip under all
+    seven. An eighth shape — a `pre-commit` hook comparing the digests
+    before python starts — is NOT measurable from here and is named so
+    nobody reads its absence as a verdict; this class sees only what a
+    test run sees.
+
+    WHAT MEASURING THEM COST, because it is the reason two things here
+    are shaped oddly. Repair (6) is why the mutation moves the facts as
+    well as the digest, documented on
+    `a_capture_recorded_against_another_head`. Repair (4) is why the
+    currency pole below compares two runs instead of demanding an
+    all-green one: that repair makes the consuming class's OWN
+    damaged-capture meta-test fail, on artificial captures it builds
+    itself, so an all-green pole would have gone red over an honest
+    repair that had simply not updated that meta-test in the same
+    change. Whoever lands (4) still owes that update.
+
+    WHAT THIS CLASS DOES NOT DO IS CHOOSE. It asserts the relation and
+    prescribes none of the seven; picking one belongs to whoever owns
+    the browser-capture gate.
+    """
+
+    def setUp(self) -> None:
+        """Give each test a scratch directory for the captures it re-pins."""
+        self.root = Path(tempfile.mkdtemp(prefix="capture-currency-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _consume(self, constant: str, cap: dict[str, Any],
+                 name: str) -> dict[str, Any]:
+        """Run a capture's consumers over `cap`, refusing an empty run.
+
+        The two clauses here are what stop every reading in this class
+        from being a claim about nobody: a constant no class reads, or a
+        suite that ran no test at all, produces exactly the quiet the
+        reds below report as darkness.
+
+        Args:
+            constant: The module-level name the capture file is bound to.
+            cap: The capture to write out and have the consumers read.
+            name: A file name for it, so each run gets its own.
+
+        Returns:
+            What `run_capture_consumers` returned.
+        """
+        path = self.root / name
+        path.write_text(json.dumps(cap), encoding="utf-8")
+        verdict = run_capture_consumers(constant, path, type(self).__name__)
+        self.assertNotEqual(
+            verdict["classes"], (),
+            "no test class in this module reads %s, so every reading in "
+            "this class is a claim about nobody. Either the capture was "
+            "renamed or its consumers were deleted" % constant)
+        self.assertGreater(
+            verdict["ran"], 0,
+            "the consumers of %s (%s) ran no test at all, so a quiet "
+            "result here means nothing" % (constant, verdict["classes"]))
+        return verdict
+
+    def test_the_probe_hears_a_consumer_that_does_speak(self) -> None:
+        """Hear a consumer fail: the vacuity guard, damaged and watched.
+
+        DAMAGED AT THE INPUT AND NOT AT THE FUNCTION, which is the only
+        version of this guard worth having. `stored_after` is emptied —
+        one field of the capture, the post-save geometry both replay
+        tests read — and both consuming classes carry an explicit clause
+        saying a capture with no post-save geometry makes their
+        head-stable half vacuous. So a probe that can hear anything must
+        hear that clause, on BOTH captures, under a digest this tree
+        still matches. If this goes quiet, the reds below are reporting
+        the probe's deafness and not a gate.
+        """
+        for constant, cap, name in (
+                ("BROWSER_CAPTION_CAPTURE", browser_caption_capture(),
+                 "caption-no-geometry.json"),
+                ("BROWSER_REWRAP_CAPTURE", browser_rewrap_capture(),
+                 "rewrap-no-geometry.json")):
+            damaged = dict(cap, canvas_sha256=canvas_digest(),
+                           stored_after={})
+            verdict = self._consume(constant, damaged, name)
+            self.assertNotEqual(
+                verdict["loud"], [],
+                "the probe reports every consumer of %s passing over a "
+                "capture with NO post-save geometry, which both classes "
+                "say makes their head-stable half vacuous. This probe "
+                "cannot hear a consumer fail, so nothing else in this "
+                "class is evidence: %s" % (constant, verdict))
+
+    def test_a_current_capture_is_not_refused_where_a_stale_one_passes(
+            self) -> None:
+        """Refuse the over-fire: currency may only ever buy a capture green.
+
+        THE OTHER POLE OF THE SAME PROBE, and what stops the reds below
+        from being satisfiable by a gate that rejects every capture
+        there is. Each record is run twice — once re-pinned to this
+        tree's own `canvas.py` and to what this `canvas.py` narrates,
+        once as testimony from another head — and nothing may answer
+        over the current one that stayed quiet over the stale one.
+
+        A SUBSET AND NOT AN ALL-GREEN, and the difference was paid for.
+        Demanding an all-green run over the current capture went red
+        under repair (4) of the seven in the class docstring, which
+        trips the consuming class's own damaged-capture meta-test on
+        captures that meta-test builds itself — an honest repair, one
+        same-change update short. The relation this pole actually needs
+        is narrower and is the one asserted: currency never costs a
+        capture anything.
+
+        THE DERIVED FACTS ARE NOT EVIDENCE HERE and say so on
+        `a_capture_that_still_describes_this_tree`; they exist to leave
+        currency as the single variable. What makes this pole's quiet a
+        reading is the guard above it.
+        """
+        for constant, cap, name in (
+                ("BROWSER_CAPTION_CAPTURE", browser_caption_capture(),
+                 "caption"), ("BROWSER_REWRAP_CAPTURE",
+                              browser_rewrap_capture(), "rewrap")):
+            current = self._consume(
+                constant, a_capture_that_still_describes_this_tree(
+                    cap, self.root / (name + "-replay")),
+                name + "-current.json")
+            stale = self._consume(
+                constant, a_capture_recorded_against_another_head(cap),
+                name + "-stale.json")
+            only_current = sorted(set(current["answered"]) -
+                                  set(stale["answered"]))
+            self.assertEqual(
+                only_current, [],
+                "%s answers over a capture that DOES describe this "
+                "tree's canvas.py while staying quiet over one that does "
+                "not, so a currency gate here is refusing the very "
+                "testimony it exists to protect. current %s, stale %s"
+                % (only_current, current, stale))
+
+    @unittest.expectedFailure
+    def test_a_stale_caption_capture_is_not_consumed_in_silence(self) -> None:
+        """Answer a caption capture from another head, or re-record it.
+
+        RED. See the class docstring for the invariant, the magnitude
+        and the seven repairs this was measured against.
+        """
+        self._assert_a_stale_capture_is_answered(
+            "BROWSER_CAPTION_CAPTURE", browser_caption_capture(),
+            "caption-stale.json")
+
+    @unittest.expectedFailure
+    def test_a_stale_rewrap_capture_is_not_consumed_in_silence(self) -> None:
+        """Answer a rewrap capture from another head, or re-record it.
+
+        RED, and a second one rather than a case of the first, because
+        the two captures are consumed by two classes whose gates are
+        written out separately — a repair that lands in one and not the
+        other is exactly the half-repair this pair exists to report, and
+        a single red over both would report it closed.
+        """
+        self._assert_a_stale_capture_is_answered(
+            "BROWSER_REWRAP_CAPTURE", browser_rewrap_capture(),
+            "rewrap-stale.json")
+
+    def _assert_a_stale_capture_is_answered(self, constant: str,
+                                            cap: dict[str, Any],
+                                            name: str) -> None:
+        """Assert a capture recorded against another `canvas.py` is answered.
+
+        Args:
+            constant: The module-level name the capture file is bound to.
+            cap: The capture as its spec wrote it.
+            name: A file name for the re-recorded copy.
+        """
+        self.assertNotEqual(
+            cap, {},
+            "no capture is recorded at %s, so this red has no subject; "
+            "the consuming class's own absence guard is what reports "
+            "that" % constant)
+        stale = a_capture_recorded_against_another_head(cap)
+        tree = canvas_digest()
+        self.assertNotEqual(
+            stale["canvas_sha256"], tree,
+            "the re-recorded capture carries this tree's own digest, so "
+            "the mutation did not take and this red asserts nothing")
+        self.assertNotEqual(
+            stale["observed"]["facts"], cap["observed"]["facts"],
+            "the re-recorded capture narrates exactly what the recorded "
+            "one does, so the mutation did not take on the half a repair "
+            "that always compares the facts would answer: %s"
+            % cap["observed"]["facts"])
+        verdict = self._consume(constant, stale, name)
+        self.assertNotEqual(
+            consumers_that_answered_a_stale_capture(
+                verdict, stale["canvas_sha256"], tree), [],
+            "GATE-DARKENING. All %d test(s) of %s passed in silence over "
+            "a capture recorded against a canvas.py this tree does not "
+            "have (capture %s…, tree %s…) and narrating %s where this "
+            "head narrates %s. No failure, no error, no skip naming the "
+            "pair. The exact comparison — each fact pinned by name, "
+            "element, dx and dy — has fallen to "
+            "`assertNotEqual(facts, [])`, which is weaker in the unsafe "
+            "direction: any record that narrates anything passes, at any "
+            "magnitude, either way round. Re-record the capture, or make "
+            "its consumers fail — or skip with both digests in the "
+            "reason. Verdict: %s"
+            % (verdict["ran"], ", ".join(verdict["classes"]),
+               stale["canvas_sha256"][:12], tree[:12],
+               stale["observed"]["facts"], cap["observed"]["facts"],
+               verdict))
 
 
 # ---------------------------------------------------------------------------
