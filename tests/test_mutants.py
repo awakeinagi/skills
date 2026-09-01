@@ -28,6 +28,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+import urllib.error
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -1800,10 +1801,16 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
         Args:
             url: The absolute URL the driver built.
             payload: JSON body for a POST; None for a GET.
-            timeout: Accepted and ignored — nothing here blocks.
+            timeout: The long-poll budget for `api/events`; ignored by
+                every other arm, none of which blocks.
 
         Returns:
             The decoded response the real server would have sent.
+
+        Raises:
+            urllib.error.HTTPError: When the route refused with `err()`,
+                translated to the status and body the real server's
+                `do_POST` would have put on the wire.
         """
         path = url.split(_AS_USER_URL, 1)[-1]
         if path == "api/health":
@@ -1816,19 +1823,19 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
             # then reads the feed `canvas.py wait` prints, which is the
             # surface the agent itself reads an answer off.
             #
-            # THE `timeout` IS HONOURED, matching the real server's own
-            # `do_GET` arm. Answering `since` alone and returning at once
-            # is correct only when there is something to return: on an
-            # empty window `cmd_wait` re-asks immediately and spins the
-            # rest of its budget at full tilt. Harmless at this bench's
-            # 1s and not harmless at a realistic one, and a helper whose
-            # cost depends on a caller's constant is a trap for whoever
-            # widens it next.
+            # THE `timeout` IS HONOURED AND CLAMPED, both halves of what
+            # `do_GET` does. Answering `since` alone and returning at
+            # once is correct only when there is something to return: on
+            # an empty window `cmd_wait` re-asks immediately and spins
+            # the rest of its budget at full tilt. The `min(…, 50.0)` is
+            # the server's own ceiling, copied because a double that
+            # matches "minus one clause" is a double whose divergence
+            # nobody has written down.
             query = dict(
                 pair.partition("=")[::2]
                 for pair in path.partition("?")[2].split("&") if pair)
             since = int(query.get("since", 0))
-            wait = float(query.get("timeout", 0))
+            wait = min(float(query.get("timeout", 0)), 50.0)
             return {"ok": True, "seq": app.events.seq,
                     "events": (app.events.wait_since(since, wait) if wait > 0
                                else app.events.since(since))}
@@ -1847,7 +1854,29 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
             # way an instrument can be wrong.
             return {"ok": True, "elements": copy.deepcopy(
                 app.store.scenes[path.rsplit("/", 1)[1]])}
-        return app.handle_post("/" + path, payload or {})
+        try:
+            return app.handle_post("/" + path, payload or {})
+        except canvas._Err as exc:
+            # THE REFUSAL IDIOM, TRANSLATED. `err(status, msg)` raises
+            # `_Err`, and the real server turns it into an HTTP status
+            # plus a JSON body in `do_POST`'s `except _Err` arm. This
+            # double returned `handle_post` untranslated, so a route that
+            # refused by the repo's OWN idiom sent `_Err` straight past
+            # `_x_post` — which catches `HTTPError`/`URLError`/`OSError`
+            # and none of those — and out through `cmd_x_as_user`. The
+            # provenance bench then died on the one path a candidate
+            # repair is most likely to take, and because an
+            # `@expectedFailure` reports an ERROR exactly as it reports a
+            # FAILURE, both reds went on reading as healthy reds.
+            #
+            # ONLY `_Err`, deliberately. `do_POST` also has a blanket arm
+            # turning any other exception into a 500, and copying that
+            # here would dress a bug in this bench up as a server fault
+            # and swallow its traceback. A divergence that reports
+            # LOUDLY is the right one to keep.
+            raise urllib.error.HTTPError(
+                url, exc.status, exc.payload.get("error", ""), None,
+                None) from exc
     return transport
 
 
@@ -28038,12 +28067,15 @@ def coverage_table() -> list[tuple[str, str, str]]:
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
     "TestAnAnswerSaysWhoseWordsItIs": 2}
-# FILLED 2026-09-01 by the mutant-curator, from an assessment run's P2: a
-# pin answer records nothing about whose composition it is, on either of
-# the two stores that already model authorship for the QUESTION. Two reds
-# because the halves fail apart — one on the record, one on the two
-# surfaces that render it — and a repair landing only the first would
-# leave the second pointing at provenance nobody renders.
+# FILLED 2026-09-01 by the mutant-curator: a pin answer records nothing
+# about whose composition it is, on either of the two stores that already
+# model authorship for the QUESTION. Two reds because the halves fail
+# apart — one over what an answer is stored in and emitted as, one over
+# the two surfaces that render it — and a repair landing only the first
+# leaves the second pointing at provenance nobody renders. Which repairs
+# move which red is MEASURED and written into the class, not summarised
+# here; the one-line version of it went stale within a day of being
+# written and this sentence is deliberately the shape that cannot.
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -46820,8 +46852,9 @@ _PROV_PINS = {"typed": "q1", "composed": "q2"}
 #: `asked_at_revn` and `round` are equal by construction and cannot stand in
 #: for an attribution nobody made.
 _PROV_QUESTION = "Does anything retry?"
-#: The answer, in the shape the run produced: a flat assertion of fact worth
-#: exactly as much as knowing who wrote it.
+#: The answer. A flat assertion of fact, worth exactly as much as knowing who
+#: wrote it — which is the whole subject. Invented here, like everything else
+#: in this bench; no sentence from any run survives in this file.
 _PROV_ANSWER = "Nothing retries."
 #: Keys whose value differs between two pins whoever answered them, and which
 #: would therefore manufacture a difference the subject did not put there.
@@ -46901,20 +46934,27 @@ def _prov_recorder(
     """Wrap the driver's transport and record what actually crossed it.
 
     A PRODUCT REFUSAL AND A BROKEN PIPE ARRIVE AS THE SAME `SystemExit`,
-    and the difference between them is not in the exception — it is in
-    the traffic. A verb that refuses by design either never posts at all
-    (`die` before `_x_post`) or posts and is answered; a verb stopped by
-    an HTTP 500, a refused connection or a timeout has a request that
-    RAISED. Only a record of the calls can tell those apart, so the
-    transport keeps one.
+    and the difference between them is not in the exception's TYPE — it
+    is in what the server said. Both come out of `_x_post` as
+    `die("ERROR=… refused by the server", 5)`.
+
+    SO THE TEST IS THE STATUS, NOT "DID IT RAISE", and the first version
+    of this recorder got that wrong. A refusal written at the ROUTE with
+    this repo's own `err(403, …)` idiom raises `HTTPError` exactly as a
+    500 does; judging on the raise alone called a deliberate product
+    decision broken plumbing, and said so in the failure message. A 4xx
+    is the server ANSWERING — it considered the request and declined it,
+    which is a decision and therefore a legitimate repair. Only 5xx, a
+    `URLError`, an `OSError` or a timeout mean nobody answered at all.
 
     Args:
         transport: The in-process transport double to wrap.
 
     Returns:
         The wrapper, and the list it appends to — one entry per call,
-        carrying the path, whether it was a POST, and the exception if
-        the call did not return.
+        carrying the path, whether it was a POST, the HTTP status when
+        there was one, whether the call was `stopped` (nobody answered)
+        and the exception text if it did not return.
     """
     calls: list[dict[str, Any]] = []
 
@@ -46934,18 +46974,31 @@ def _prov_recorder(
             swallowing a failure would rewrite the behaviour under test.
         """
         entry: dict[str, Any] = {"path": url.split(_AS_USER_URL, 1)[-1],
-                                 "post": payload is not None, "raised": None}
+                                 "post": payload is not None, "raised": None,
+                                 "status": None, "stopped": False}
         calls.append(entry)
         try:
-            return transport(url, payload, timeout)
+            resp = transport(url, payload, timeout)
         except Exception as exc:
             # BROAD ON PURPOSE: a real transport crosses a socket, so the
             # set of things it can raise is open. Narrowing here would
-            # let the next unlisted failure read as a product refusal
-            # again, which is the exact defect this recorder exists to
-            # end. Nothing is swallowed — the raise below is unconditional.
+            # let the next unlisted failure go unclassified, which is the
+            # defect this recorder exists to end. Nothing is swallowed —
+            # the re-raise below is unconditional.
             entry["raised"] = "%s: %s" % (type(exc).__name__, exc)
+            entry["status"] = getattr(exc, "code", None)
+            # A 4xx IS AN ANSWER. Anything else — a 5xx, a socket, a
+            # timeout, an exception with no status at all — is nobody
+            # answering. `status` is None for the latter, so the default
+            # when a call raises is `stopped`, which is the safe way
+            # round: an unrecognised failure reads as a broken bench and
+            # gets looked at, rather than as a policy decision and
+            # passing.
+            entry["stopped"] = not (isinstance(entry["status"], int)
+                                    and 400 <= entry["status"] < 500)
             raise
+        entry["status"] = 200
+        return resp
 
     return recording, calls
 
@@ -46966,50 +47019,74 @@ def _prov_control(url: str, expect_revn: int,
     alone is not enough and was tried: `api/heartbeat` came back healthy
     while the pins route was answering 500, because a server can be up
     and one endpoint broken. So the first question is about the verb's
-    OWN traffic — did any call it made raise? — and only the second is
-    about the server still being there afterwards.
+    OWN traffic — was any call it made STOPPED, in `_prov_recorder`'s
+    sense of nobody answering — and only the second is about the server
+    still being there afterwards.
+
+    A 4xx IS NOT A STOPPED CALL, which is the correction that matters
+    here and the reason `stopped` exists rather than `raised`. See the
+    ruling in `TestAnAnswerSaysWhoseWordsItIs`: a refusal written at the
+    route with `err(403, …)` is a product decision and must pass.
 
     `api/heartbeat` is the liveness POST because it is the one live write
     with no side effect and no event. `api/config` would append a
     `config_changed` that the `--for user` feed then counts, and a
     control that perturbs the measurement it protects is not a control.
 
+    THE REVISION CLAUSE IS A FLOOR AND NOT AN EQUALITY, corrected after
+    it failed a legitimate repair. `expect_revn` is read off the bench's
+    OUTER `Store` while the heartbeat reports the server's — two
+    instances over the same files, and the outer one never sees the
+    server's writes. A candidate that COMMITS when it records an answer
+    therefore read `head_revn=4 (expected 2)` and was reported as broken
+    plumbing while `alive=True ok=True`. A floor keeps the clause alive
+    (a server that has lost revisions still fails) without legislating
+    that a repair may not write.
+
     Args:
         url: The base URL the driver posts against.
-        expect_revn: The head revision the store is known to be at, so a
-            server answering `ok` out of a stale or empty state fails
-            rather than passing on the truthiness of a dict.
+        expect_revn: A revision the store is known to have reached, used
+            as a FLOOR — so a server answering `ok` out of a rolled-back
+            or empty state fails rather than passing on the truthiness of
+            a dict.
         calls: `_prov_recorder`'s log of what the verb actually sent.
 
     Returns:
-        `ok` (nothing raised, the server is alive, a write is accepted
-        and the revision matches) plus `raised`, `alive`, `beat` and a
-        `why` naming whichever half failed.
+        `ok` (no call was stopped, the server is alive, a write is
+        accepted and the revision is at or past the floor) plus
+        `stopped`, `alive`, `beat` and a `why` naming whichever half
+        failed — `half` says which, so a caller can word its own message
+        without re-deriving it.
     """
-    raised = [c for c in calls if c["raised"]]
+    stopped = [c for c in calls if c["stopped"]]
     try:
         alive = bool(canvas.server_alive({"url": url}))
         beat = canvas.http_json(url + "api/heartbeat", {"dirty": False})
     except Exception as exc:
         # Broad for `_prov_recorder`'s reason: a control that cannot be
         # taken is a dead bench, whatever killed it.
-        return {"ok": False, "raised": raised, "alive": None, "beat": None,
+        return {"ok": False, "stopped": stopped, "alive": None, "beat": None,
+                "half": "control",
                 "why": "the control itself could not be taken (%s: %s)"
                        % (type(exc).__name__, exc)}
+    revn = beat.get("head_revn")
     served = bool(alive and beat.get("ok")
-                  and beat.get("head_revn") == expect_revn)
-    why = ""
-    if raised:
-        why = ("%d of the %d call(s) the verb made RAISED, so it was "
-               "stopped rather than answered: %s"
-               % (len(raised), len(calls),
-                  [(c["path"], c["raised"]) for c in raised]))
+                  and isinstance(revn, int) and revn >= expect_revn)
+    why, half = "", ""
+    if stopped:
+        half = "traffic"
+        why = ("%d of the %d call(s) the verb made was STOPPED — nobody "
+               "answered it, so the verb was cut off rather than told no: "
+               "%s" % (len(stopped), len(calls),
+                       [(c["path"], c["status"], c["raised"])
+                        for c in stopped]))
     elif not served:
+        half = "liveness"
         why = ("the server did not answer a control write afterwards: "
-               "alive=%r ok=%r head_revn=%r (expected %r)"
-               % (alive, beat.get("ok"), beat.get("head_revn"), expect_revn))
-    return {"ok": bool(not raised and served), "raised": raised,
-            "alive": alive, "beat": beat, "why": why}
+               "alive=%r ok=%r head_revn=%r (floor %r)"
+               % (alive, beat.get("ok"), revn, expect_revn))
+    return {"ok": bool(not stopped and served), "stopped": stopped,
+            "alive": alive, "beat": beat, "half": half, "why": why}
 
 
 def answer_provenance_bench() -> dict[str, Any]:
@@ -47070,14 +47147,36 @@ def answer_provenance_bench() -> dict[str, Any]:
         # App.tsx, and it is reproduced here rather than reached through a
         # browser because the model tier has none. The server sees this
         # body and no other fact about its caller.
-        app.handle_post("/api/pins/answer",
-                        {"id": _PROV_PINS["typed"], "answer": _PROV_ANSWER})
+        #
+        # THROUGH THE TRANSPORT, not `app.handle_post` directly, and the
+        # difference is not cosmetic: the browser crosses HTTP, so a route
+        # that refuses with `err(403, …)` must reach this door as an
+        # `HTTPError` and not as a raw `_Err`. Calling the app directly
+        # skipped the translation and blew the bench up — and an
+        # `@expectedFailure` reports an ERROR exactly as it reports a
+        # FAILURE, so both reds went on looking healthy while the bench
+        # was in pieces.
+        typed_refusal = None
+        with mock.patch.object(canvas, "http_json", transport):
+            try:
+                transport(_AS_USER_URL + "api/pins/answer",
+                          {"id": _PROV_PINS["typed"],
+                           "answer": _PROV_ANSWER})
+            except Exception as exc:    # the user's door is allowed to be
+                # refused by a product; it is clause 1's job to say so in
+                # a sentence rather than this function's to crash.
+                typed_refusal = "%s: %s" % (type(exc).__name__, exc)
         # DOOR TWO — the agent, instructed. Driven through `cmd_x_as_user`
         # rather than by posting the same body again, because a repair that
         # marks the door has to have a door to mark: two identical POSTs
         # would erase the distinction this is measuring, and no honest fix
         # could then flip it.
         outcome, refusal = "landed", None
+        # EVERYTHING FROM HERE IS THE VERB'S OWN TRAFFIC. The control and
+        # the accepted-write clause both judge what the AGENT's door did,
+        # and door one's successful write is in the same log — counting it
+        # would make every run look like a door that was told yes.
+        verb_from = len(calls)
         with mock.patch.object(canvas, "http_json", transport), \
                 contextlib.redirect_stdout(io.StringIO()):
             try:
@@ -47092,8 +47191,16 @@ def answer_provenance_bench() -> dict[str, Any]:
             # still alive, so it has to be that transport and not a fresh
             # one. A control outside this block would prove the store is
             # readable and nothing about the door.
+            #
+            # THE FLOOR COMES OFF THE OUTER `store` DELIBERATELY. That is
+            # a second `Store` over the same files and it never sees the
+            # server's writes, so it can only ever LAG — which is what
+            # makes it a floor worth having, and why the comparison is
+            # `>=` rather than `==`. Reading the floor off `app.store`
+            # would make the clause compare the heartbeat's own source
+            # against itself and assert nothing at all.
             control = _prov_control(_AS_USER_URL, store.head_revn(),
-                                    list(calls))
+                                    calls[verb_from:])
         # AND THEN READ BACK THE WAY THE AGENT READS. `wait --for user` is
         # run for real, filter and all, so the classification that made the
         # agent unable to separate its own words is exercised rather than
@@ -47113,8 +47220,19 @@ def answer_provenance_bench() -> dict[str, Any]:
                 for_whom="user"))
         feed = [json.loads(line) for line in printed.getvalue().splitlines()
                 if line.startswith("{")]
+        # WHICH PIN WRITES WERE ACCEPTED, kept so the guard can refuse
+        # the one corner neither `vanished` nor `control` reaches: a verb
+        # that POSTS, is answered 200, and dies afterwards. Nothing was
+        # stopped, the server is healthy, the exit code is real — and the
+        # pin is unanswered. `vanished` cannot see it, being gated on
+        # `landed`. A door that was told yes did not refuse.
+        pin_writes = [c for c in calls[verb_from:]
+                      if c["post"] and c["path"].startswith("api/pins/")
+                      and c["status"] == 200]
         out: dict[str, Any] = {"composed_outcome": outcome,
                                "refusal": refusal, "control": control,
+                               "pin_writes_accepted": pin_writes,
+                               "typed_refusal": typed_refusal,
                                "feed_size": len(feed)}
         for door in _PROV_DOORS:
             out[door] = _prov_reading(app, _PROV_PINS[door], feed)
@@ -47216,9 +47334,13 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
     THE RELATION, NOT THE INCIDENT: an answer on a pin carries the door
     it came through, and an answer the agent supplied cannot be read as
     one the user gave. Two reds, because the property has two halves that
-    fail independently — a repair that marks both stores and leaves the
-    nag and the feed unmarked has built provenance nobody renders, and
-    the second red is what would still be pointing at it.
+    fail independently — a repair that marks everything an answer is
+    STORED IN AND EMITTED AS, and stops there, has built provenance
+    nobody renders, and the second red is what would still be pointing at
+    it. Measured, not assumed: the ladder is in
+    `test_the_rendered_mark_does_not_move_with_the_answers_source`, and
+    it takes both stores AND the `pin_answer` event to turn the first red
+    green — marking the two stores alone leaves it RED on `events`.
 
     A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT, on the
     `TestADeclaredDatumSurvivesTheDoorItCameThrough` precedent and for
@@ -47253,9 +47375,27 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
           `--for user` feed AT ALL, which is the sharpest of the four:
           the agent stops being able to hear its own voice come back as
           the user's.
-      (d) A DOOR THAT SHUTS. The verb refuses, naming the reason. The
-          bench records `refused` and the readings differ because one pin
-          is answered and the other is not.
+      (d) A DOOR THAT SHUTS. The route or the verb refuses, naming the
+          reason. The bench records `refused` and the readings differ
+          because one pin is answered and the other is not.
+
+          WHERE THE REFUSAL LIVES IS NOT THIS PIN'S BUSINESS, and that
+          is a RULING, recorded 2026-09-01 because the first version of
+          the guard silently decided otherwise. I wrote (d) as a
+          client-side `die` in `cmd_x_as_user` because it was the
+          shortest plugin to write, NOT because I judged client-side to
+          be the only honest placement — and the guard I then built
+          judged on "did a call raise", which fails a refusal written at
+          the ROUTE with `err(403, …)`, this repo's own idiom. Measured:
+          a route-level 403 read as broken plumbing and the failure
+          message asserted the opposite of the truth.
+          SERVER-SIDE IS LEGITIMATE AND MUST PASS. A refusal in the CLI
+          verb guards one caller; every other HTTP client still walks
+          through. The §8 note below argues an unmarked route the agent
+          still holds is the defect surviving — which points AT the
+          route, so a guard that fails a route-level refusal prescribes
+          the weaker of the two placements while the class claims to
+          prescribe none.
 
     Four mechanisms, one law, and (b) is the one that proves this is not
     a disguised "add a field": it adds none.
@@ -47419,30 +47559,55 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
           * every `api/pins/*` POST answers HTTP 500 -> `_x_post` dies,
             `composed_outcome` reads `refused` with exit code 5, and both
             reds go GREEN. Clause 4 is the only thing that speaks, and it
-            speaks because the RECORDED CALL RAISED, not because the
-            server was unreachable — a liveness probe alone was tried
-            first and passed here, since `api/heartbeat` stays healthy
-            while one endpoint 500s. THIS ONE WAS FOUND IN REVIEW, not by
-            me, and it is the same shape as the `vanished` hole one door
-            over: an exception meaning four different things, read as the
-            one that flatters the tree.
+            speaks because the call was STOPPED — a 5xx is nobody
+            answering — not because the server was unreachable. A
+            liveness probe alone was tried first and passed here, since
+            `api/heartbeat` stays healthy while one endpoint 500s. FOUND
+            IN REVIEW, not by me, and it is the same shape as the
+            `vanished` hole one door over: an exception meaning four
+            different things, read as the one that flatters the tree.
           * `api/health` answering `OSError` -> `_x_client` dies before
-            the verb ever posts; clause 4 fires on the raised health
+            the verb ever posts; clause 4 fires on the stopped health
             call. Before the control existed this was caught only
             incidentally, by clause 6 noticing an empty feed, which is
             not the same as being detected.
+          * the route answers 200 and no-ops, and the verb dies AFTER the
+            write -> nothing stopped, server healthy, `refusal` 7, and
+            the pin unanswered. Every other clause passes and both reds
+            go GREEN; clause 5 is the only one that speaks. `vanished`
+            cannot reach this corner because it is gated on `landed`, and
+            the control cannot because nothing failed. ALSO FOUND IN
+            REVIEW, and unreachable in today's product — but this guard's
+            subject is a damaged bench, not a product bug.
+          * the route refuses with `err(403, …)`, this repo's own idiom
+            -> GUARD GREEN and both reds green, which is CORRECT and is
+            the point of the ruling on candidate (d). Before the ruling
+            this crashed the bench outright: `_Err` is translated to an
+            HTTP status by the real server's `do_POST`, the transport
+            double returned `handle_post` raw, and `_x_post` catches
+            none of `_Err`. Both reds then read as ordinary expected
+            failures, because an `@expectedFailure` reports an ERROR
+            exactly as it reports a FAILURE.
+          * a repair that COMMITS when it records an answer -> GUARD
+            GREEN, both reds still red. Also correct, and also a
+            correction: the revision clause compared `==` against a
+            floor read off a second `Store` that never sees the server's
+            writes, so a legitimate repair read `head_revn=4 (expected
+            2)` while `alive=True ok=True` and was reported as broken
+            plumbing.
           * user door posting `""` -> clause 1 fires on the answer text.
-          * `Store.pin_debt` returning `[]` -> clause 5 fires on the nag.
-          * `cmd_wait` driven `--for agent` -> clause 6 fires on the feed.
+          * `Store.pin_debt` returning `[]` -> clause 6 fires on the nag.
+          * `cmd_wait` driven `--for agent` -> clause 7 fires on the feed.
 
-        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 and 4
-        are shaped around TOGETHER. Neither is sufficient alone: `_x_post`
-        turns a product refusal, an HTTP 500, a refused connection and a
-        timeout into one `SystemExit`, so `refused` names the exception
-        and not its cause. Clause 4 asks the server a question it must
-        answer, through the same transport, immediately afterwards —
-        under repair (d) the door says no and the control comes back
-        live, under a broken bench nothing comes back at all.
+        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3, 4 and
+        5 are shaped around TOGETHER, and no one of them is sufficient.
+        `_x_post` turns a product refusal, an HTTP 500, a refused
+        connection and a timeout into one `SystemExit`, so `refused`
+        names the exception and not its cause. Clause 4 asks whether
+        anybody ANSWERED — a 4xx is an answer, a 5xx and a dead socket
+        are not — and then whether the server is still there. Clause 5
+        catches the corner where everything answered and the write was
+        accepted anyway.
 
         TWO JUDGEMENTS ARE BAKED INTO CLAUSES 1, 2 AND 6, and they are
         written here rather than left implicit, because a guard whose
@@ -47462,7 +47627,10 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             (typed["record"] or {}).get("answer"), _PROV_ANSWER,
             "the user's own door did not land the answer, so the reds "
             "beside this are comparing a record that was never written: "
-            "%s" % json.dumps(typed["record"], sort_keys=True))
+            "%s%s" % (json.dumps(typed["record"], sort_keys=True),
+                      "" if bench["typed_refusal"] is None
+                      else ". The rail's own POST was refused: %s"
+                           % bench["typed_refusal"]))
         self.assertEqual(
             (typed["record"] or {}).get("status"), "answered",
             "the user's answer left the pin %r rather than `answered` — "
@@ -47475,22 +47643,45 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "readings differ for a reason that has nothing to do with "
             "provenance, and both reds above then pass over a bench that "
             "measured one door" % bench["composed_outcome"])
+        control = bench["control"]
         self.assertTrue(
-            bench["control"]["ok"],
-            "the server did not answer a control request through the same "
-            "transport after the agent's door ran (%s), so `%s` describes "
-            "the plumbing and not a product decision. `_x_post` exits the "
-            "same way for a refusal, an HTTP 500 and a dead socket — "
-            "without this clause a broken bench reports `refused` and "
-            "BOTH reds above go green over a tree where nothing was "
-            "repaired"
-            % (bench["control"]["why"] or bench["control"],
-               bench["composed_outcome"]))
+            control["ok"],
+            # BRANCHED ON WHICH HALF FAILED, because one message for both
+            # printed "so `landed` describes the plumbing" over a bench
+            # whose traffic was fine and whose revision floor was stale.
+            # A guard that misnames its own finding sends a fixer hunting
+            # the wrong thing, which is the defect this whole clause was
+            # added to stop.
+            {"traffic": "the agent's door was CUT OFF rather than told "
+                        "no: %s. A 4xx would be a decision and would "
+                        "pass here; this was not one. `_x_post` exits "
+                        "identically for a refusal, a 500 and a dead "
+                        "socket, so without this clause a broken bench "
+                        "reports `refused` and BOTH reds above go green "
+                        "over a tree where nothing was repaired",
+             "liveness": "the agent's door was answered, but the server "
+                         "did not survive it: %s. The readings the reds "
+                         "compare were taken off a server that is no "
+                         "longer serving",
+             "control": "the control could not be taken at all: %s"}
+            .get(control["half"], "the control failed: %s")
+            % (control["why"] or control,))
         if bench["composed_outcome"] == "refused":
             self.assertIsNotNone(
                 bench["refusal"],
                 "the agent's door refused without an exit code, so the "
                 "refusal is not something a caller could act on")
+            self.assertEqual(
+                bench["pin_writes_accepted"], [],
+                "the agent's door reported a refusal, but %d pin write(s) "
+                "came back 200 first: %s. A write the server ACCEPTED is "
+                "not a refusal — something died after being told yes, and "
+                "the composed pin is unanswered for a reason that has "
+                "nothing to do with provenance. `vanished` cannot see "
+                "this corner: it is gated on `landed`"
+                % (len(bench["pin_writes_accepted"]),
+                   [(c["path"], c["status"])
+                    for c in bench["pin_writes_accepted"]]))
         for door in _PROV_DOORS:
             self.assertTrue(
                 bench[door]["nag"],
