@@ -70,6 +70,16 @@ That rebuilds `skills/wysiwyg-grilling/scripts/web/`, copies Excalidraw's
 fonts, and writes `build-stamp.json` (a source hash — `canvas.py start`
 warns when the committed bundle is stale). Commit the result.
 
+**A rebuild renames every minified symbol, so it also invalidates every
+citation.** This tree's prose cites the client by symbol and offset to
+justify arithmetic it transcribes, and two hand sweeps have already found
+those citations rotted onto live, unrelated functions. After the build,
+`TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans` in
+`tests/test_mutants.py` goes red at each stale one and names the symbol that
+replaced it; re-derive each by anchoring on a rename-invariant slice of the
+code and reading the name back out, never by keeping the name and moving the
+offset. Part of the same commit as the bundle.
+
 ## Tests
 
 ```

@@ -40429,12 +40429,34 @@ class TestTheBundleCitationsNameAFileThatExists(unittest.TestCase):
 #
 # WHAT IS BEING ASSERTED, and it is a RELATION rather than a roster: a name
 # this tree spells for the client is either ANCHORED — the same prose region
-# carries an offset that the shipping bundle resolves to that very symbol —
-# or SCOPED, saying in the tree's own past-tense vocabulary that the name
-# belonged to a bundle that no longer ships. There is no third state, and an
-# unanchored present-tense name is unverifiable BY ANYONE, which is the
-# property that let four of five rot into live unrelated functions and go on
-# reading correct for two more rebuilds.
+# pins it to the shipping bundle, by an offset that resolves to that very
+# symbol or by a quoted rename-invariant slice of code that does — or
+# SCOPED, saying IN THAT NAME'S OWN SENTENCE, in the tree's own past-tense
+# vocabulary, that it belonged to a bundle that no longer ships. There is no
+# third state, and an unanchored present-tense name is unverifiable BY
+# ANYONE, which is the property that let four of five rot into live
+# unrelated functions and go on reading correct for two more rebuilds.
+#
+# THE ASYMMETRY BETWEEN THE TWO EXITS IS DELIBERATE and is the C-1 repair
+# (independent re-curation review, 2026-09-01). An anchor reaches the whole
+# region because it is a POSITIVE claim resolved against the shipping file:
+# a false one turns the always-run pole red, so it cannot be pasted in. A
+# scoping clause reaches one sentence because it is an unverifiable
+# EXEMPTION. While it reached the region, pasting the bare phrase "in the
+# previous bundle" once into each of the twenty loose regions — twenty
+# edits, nothing made checkable — took the violation list from 27 to ZERO,
+# and a bare RETIRED FILENAME did the same, which made the cheapest of the
+# four advertised repairs the one that verifies nothing. Measured, not
+# argued; the measurement now lives in the guard below so it cannot come
+# back quietly.
+#
+# WHAT STILL DEFEATS IT, stated rather than left to be found: writing the
+# past-tense clause into EVERY sentence that names a symbol greens the
+# class. That is not a shortcut — it is fifty-odd specific false statements,
+# each saying of one name that it belonged to a build that no longer ships.
+# No reading of text can tell a deliberate lie from a true sentence. What
+# the repair above buys is that the lie now has to be told once per
+# citation, in the citation's own sentence, where a reviewer meets it.
 #
 # THE HALF THIS CANNOT REACH, said plainly, because a limit that is not
 # written down gets re-discovered as a defect. The vocabulary below is a
@@ -40450,10 +40472,21 @@ class TestTheBundleCitationsNameAFileThatExists(unittest.TestCase):
 # THE SECOND UNREACHABLE HALF is a symbol named inside a quoted CODE block
 # rather than on its own. Two of the live sites hide a wrong name there —
 # the shipping bundle renamed both the wrapper and the measure it calls, and
-# the prose quotes the call. Matching those needs identifier-blind matching
-# of a minified statement against the bundle, which is a different
-# instrument; here they are reached only because the same region also names
-# a symbol in the open.
+# the prose quotes the call, so `code_slice_owner` finds no match and can
+# only answer "not in this bundle", never "you meant this one". Telling
+# those apart needs identifier-BLIND matching of a minified statement, which
+# is a different instrument; here the two sites are reached only because
+# their regions also name a symbol in the open.
+#
+# THE THIRD is a surface question and it is a RULING rather than an
+# oversight (re-curation M-1, 2026-09-01). The scan reads tracked Python
+# only. Tracked MARKDOWN carries citations too — one v0.9 work-package
+# report holds about ten — and they are NOT scanned, because that report is
+# a dated record of what was believed on the day it was written, which is
+# the one document class where a stale name is the point. Extending the
+# scan there would demand scoping clauses inside a historical artefact
+# nobody may edit. A live document that starts citing symbols is a
+# different case and belongs in `_TRACKED_PROSE` when it appears.
 
 # The client's minified names this tree talks about, each with the reason
 # the token is unambiguous HERE — not what the function does, which is
@@ -40504,10 +40537,36 @@ CLIENT_SYMBOLS: dict[str, str] = {
 SYMBOL_SCOPE_MARKERS: tuple[str, ...] = (
     "in the previous bundle", "in the bundle that shipped before",
     "bundles that no longer exist", "bundle that no longer exists",
-    "bundle whose symbols rotted", "in the bundle that shipped at the time")
+    "bundle whose symbols rotted", "in the bundle that shipped at the time",
+    "in the bundle that then shipped")
+
+# And the tree's vocabulary for the OPPOSITE claim. A sentence that says a
+# name is true of the build shipping NOW cannot be excused by a past-tense
+# clause pasted into the same sentence — that is not scoping, it is a
+# sentence contradicting itself, and it was the residue left after C-1's
+# region-wide hole was closed: "`ai` in the shipped bundle wraps a bound
+# label" is greened by appending four words unless something refuses.
+SYMBOL_PRESENT_TENSE: tuple[str, ...] = (
+    "in the shipped bundle", "in the bundle that ships", "the file that ships",
+    "in the shipped file")
 
 _SYMBOL_OFFSET = re.compile(r"@(\d{4,7})")
 _BACKTICK_SPAN = re.compile(r"`([^`\n]{1,200})`")
+# A sentence, for the purpose of deciding what a scoping clause excuses.
+# Deliberately conservative: only a full stop followed by something that
+# starts a sentence. A colon does NOT end one, because this tree's densest
+# scoping clause is "…in the bundle that shipped at the time, to real
+# functions doing something else: `Yn` is assigned nowhere…" and splitting
+# there would strand the clause from every name it is about.
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-Z(`])")
+# A quoted slice of bundle CODE, as opposed to a quoted symbol: long enough
+# not to collide by accident and carrying at least one piece of syntax. The
+# minimum is 16 characters because the shortest slice this tree actually
+# anchors on is `.normalize("NFC").split(` and the shortest plausible one is
+# a property access plus a call.
+_CODE_SLICE_MIN = 16
+_CODE_SYNTAX = re.compile(r"[(){};=]")
+_WHITESPACE = re.compile(r"\s+")
 # A minified binding, in the two forms an esbuild bundle emits. Used only to
 # walk LEFT from a cited offset to the definition that encloses it; nothing
 # downstream compares a name to a name this file wrote.
@@ -40515,7 +40574,11 @@ _JS_BINDING = re.compile(
     r"(?:function\s+([A-Za-z_$][\w$]*)\s*\("
     r"|(?<![\w$.])([A-Za-z_$][\w$]*)\s*=\s*"
     r"(?:function\b|async\b|\([^()]{0,80}\)\s*=>|[A-Za-z_$][\w$]*\s*=>))")
-_JS_BINDING_HERE = re.compile(r"\A(?:function\s+)?([A-Za-z_$][\w$]*)\s*[=(]")
+# A binding STARTING at the cited offset. `function X(` or `X=`, and never a
+# bare `X(`: an offset landing on `if (e.type === "arrow")` would otherwise
+# resolve to the name `if`, which a code-slice anchor reaches routinely.
+_JS_BINDING_HERE = re.compile(
+    r"\A(?:function\s+([A-Za-z_$][\w$]*)\s*\(|([A-Za-z_$][\w$]*)\s*=(?!=))")
 _TRACKED_PROSE = ("tests/*.py",)
 
 
@@ -40580,7 +40643,7 @@ def bundle_symbol_owner(bundle: str, offset: int) -> str | None:
         return None
     here = _JS_BINDING_HERE.match(bundle[offset:offset + 60])
     if here:
-        return here.group(1)
+        return here.group(1) or here.group(2)
     offsets, names = _js_bindings(bundle)
     at = bisect.bisect_right(offsets, offset)
     return names[at - 1] if at else None
@@ -40590,14 +40653,18 @@ def bundle_symbol_owner(bundle: str, offset: int) -> str | None:
 def prose_regions(source: str) -> tuple[tuple[int, int, str], ...]:
     """Every docstring and comment run in one Python file, joined.
 
-    THE REGION IS THE UNIT OF A CLAIM, and neither a line nor a
-    function will do. A line splits "the redraw that runs whenever a
-    container changes (@553083)" from the name three words earlier; a
-    function lumps a class's honest historical note together with a
-    live falsehood two methods down and lets the first vouch for the
-    second. A docstring or an unbroken run of comment lines is one
-    thing somebody wrote in one sitting, which is the granularity an
-    offset and a scoping clause actually apply at.
+    THE REGION IS THE UNIT AN ANCHOR REACHES, and neither a line nor a
+    function will do. A line splits an offset from the name it belongs
+    to when the sentence wraps; a function lumps a class's honest
+    historical note together with a live falsehood two methods down
+    and lets the first vouch for the second. NO OFFSET IS SPELLED IN
+    THIS PARAGRAPH: the file scans its own docstrings, so an
+    illustrative number here would be a live anchor the moment anybody
+    put a backticked name beside it. A docstring or an unbroken run of
+    comment lines is one thing somebody wrote in one sitting, which is
+    the granularity an offset applies at. A SCOPING CLAUSE APPLIES
+    NARROWER — see `sentence_spans`, which is where the C-1 repair
+    lives.
 
     Args:
         source: The file's text. Cached on it, because both poles and
@@ -40658,8 +40725,9 @@ def _symbol_span(names: tuple[str, ...]) -> re.Pattern[str]:
         r"(%s)(?:\s*=\s*[-\w.]+|\(.*\)|\.[\w.]+(?:\(.*\))?)?" % alt)
 
 
-def _region_names(text: str, vocabulary: dict[str, str]) -> list[str]:
-    """Which vocabulary symbols this region spells AS symbols.
+def symbol_spans(text: str, vocabulary: dict[str, str]
+                 ) -> list[tuple[str, int, int]]:
+    """Where this region spells a vocabulary symbol AS a symbol.
 
     THE SPAN FORM IS THE WHOLE DISCRIMINATOR. A backticked span counts
     only when it is the bare name, a call on it, an attribute of it, or
@@ -40674,17 +40742,141 @@ def _region_names(text: str, vocabulary: dict[str, str]) -> list[str]:
         vocabulary: `CLIENT_SYMBOLS`, or a stand-in.
 
     Returns:
-        The symbols named, sorted, without duplicates.
+        `(symbol, start, end)` per OCCURRENCE, in reading order.
+        Occurrences and not a set, because a scoping clause excuses the
+        mention it sits beside and not every later mention of the same
+        name — which is the whole of the C-1 repair.
     """
     if not vocabulary:
         return []
     pat = _symbol_span(tuple(sorted(vocabulary)))
-    out = set()
-    for span in _BACKTICK_SPAN.findall(text):
-        hit = pat.fullmatch(span.strip())
+    out = []
+    for m in _BACKTICK_SPAN.finditer(text):
+        hit = pat.fullmatch(m.group(1).strip())
         if hit:
-            out.add(hit.group(1))
-    return sorted(out)
+            out.append((hit.group(1), m.start(), m.end()))
+    return out
+
+
+def _region_names(text: str, vocabulary: dict[str, str]) -> list[str]:
+    """Which vocabulary symbols this region spells, deduplicated.
+
+    Args:
+        text: The joined region.
+        vocabulary: `CLIENT_SYMBOLS`, or a stand-in.
+
+    Returns:
+        The symbols named, sorted, without duplicates.
+    """
+    return sorted({s for s, _, _ in symbol_spans(text, vocabulary)})
+
+
+def sentence_spans(region: str) -> list[tuple[int, int]]:
+    """The region's sentences, as character ranges.
+
+    THE UNIT A SCOPING CLAUSE REACHES. Region-wide scoping was the C-1
+    defect: one past-tense phrase anywhere in an 81-line docstring
+    excused every name that docstring mentioned, so the cheapest of the
+    three advertised repairs was to paste a bare marker in and verify
+    nothing. Measured before the repair: inserting the phrase once into
+    each loose region took the violation list from 27 to 0.
+
+    An ANCHOR still reaches the whole region and that asymmetry is the
+    point. An anchor is a positive claim this check resolves against the
+    shipping bundle, so a false one turns the pole above red; a scoping
+    clause is an unverifiable exemption, so it may only excuse what it
+    stands next to.
+
+    Args:
+        region: The joined region.
+
+    Returns:
+        `(start, end)` per sentence, covering the region exactly once.
+    """
+    out, pos = [], 0
+    for m in _SENTENCE_BREAK.finditer(region):
+        out.append((pos, m.start()))
+        pos = m.end()
+    out.append((pos, len(region)))
+    return out
+
+
+@functools.lru_cache(maxsize=4)
+def _flattened_bundle(bundle: str) -> tuple[str, tuple[int, ...]]:
+    """The bundle with whitespace removed, plus each character's home.
+
+    Prose quotes minified code with spaces put back for readability, so
+    a quoted slice never matches the file verbatim. Flattening both
+    sides is what makes a code-slice citation checkable at all.
+
+    Args:
+        bundle: The bundle source.
+
+    Returns:
+        `(flattened_text, original_offsets)`, index-aligned.
+    """
+    keep = tuple(i for i, ch in enumerate(bundle) if not ch.isspace())
+    return "".join(bundle[i] for i in keep), keep
+
+
+def code_slice_owner(bundle: str, quoted: str) -> str | None:
+    """Which name owns the code this prose quotes, if exactly one does.
+
+    THE ANCHOR `canvas.py` ITSELF RECOMMENDS. Its citation note tells
+    the reader that the trustworthy re-derivation "does not read the
+    symbol at all: anchor on a rename-invariant slice of the CODE, find
+    it in the new file, and read the name back out". That form is
+    strictly better than a numeric offset — it survives a rebuild
+    instead of being invalidated by one — so it is accepted here as an
+    anchor in its own right, and the tree's own advice is not left
+    failing the tree's own check.
+
+    Args:
+        bundle: The bundle source.
+        quoted: One backticked span, as written in the prose.
+
+    Returns:
+        The owning name, or None when the slice is too short, carries
+        no syntax, or does not occur in the shipping bundle exactly
+        once. Ambiguity answers None rather than a guess.
+    """
+    flat = _WHITESPACE.sub("", quoted)
+    if len(flat) < _CODE_SLICE_MIN or not _CODE_SYNTAX.search(flat):
+        return None
+    text, home = _flattened_bundle(bundle)
+    at = text.find(flat)
+    if at < 0 or text.find(flat, at + 1) >= 0:
+        return None
+    return bundle_symbol_owner(bundle, home[at])
+
+
+def region_anchors(region: str, bundle: str,
+                   vocabulary: dict[str, str]) -> dict[str, str]:
+    """Which symbols this region anchors, and how each one is anchored.
+
+    Args:
+        region: The joined region.
+        bundle: The shipping bundle's source.
+        vocabulary: `CLIENT_SYMBOLS`, or a stand-in.
+
+    Returns:
+        `{symbol: how}` for every symbol the region pins to the bundle,
+        by numeric offset or by quoted code slice.
+    """
+    out: dict[str, str] = {}
+    named = set(_region_names(region, vocabulary))
+    for m in _SYMBOL_OFFSET.finditer(region):
+        owner = bundle_symbol_owner(bundle, int(m.group(1)))
+        if owner in named:
+            out.setdefault(owner, "@%s" % m.group(1))
+    pat = _symbol_span(tuple(sorted(vocabulary))) if vocabulary else None
+    for m in _BACKTICK_SPAN.finditer(region):
+        if pat is not None and pat.fullmatch(m.group(1).strip()):
+            continue
+        owner = code_slice_owner(bundle, m.group(1))
+        if owner in named:
+            out.setdefault(owner, "the code slice `%s`" % m.group(1)[:40])
+    return out
 
 
 def symbol_citations(sources: dict[str, str], bundle: str,
@@ -40705,10 +40897,12 @@ def symbol_citations(sources: dict[str, str], bundle: str,
             plus every declared-retired filename when None.
 
     Returns:
-        One record per (region, symbol): `where`, `symbol`, `scoped`,
-        and `owner` — the name the bundle puts at the region's offset
-        that resolves to this symbol, None when no offset in the region
-        does. `owner == symbol` is the anchored, verified state.
+        One record per OCCURRENCE: `where`, `symbol`, `scoped` — a
+        scoping clause in that occurrence's own sentence, and that
+        sentence not also claiming the name is true of the build
+        shipping now — and `owner`, the symbol itself when the region
+        anchors it and None otherwise. `owner == symbol` is the
+        anchored, verified state.
     """
     vocab = CLIENT_SYMBOLS if vocabulary is None else vocabulary
     marks = (SYMBOL_SCOPE_MARKERS + tuple(sorted(RETIRED_BUNDLES))
@@ -40717,14 +40911,22 @@ def symbol_citations(sources: dict[str, str], bundle: str,
     out: list[dict[str, Any]] = []
     for path, text in sorted(sources.items()):
         for first, last, region in prose_regions(text):
-            owners = {bundle_symbol_owner(bundle, int(o))
-                      for o in _SYMBOL_OFFSET.findall(region)}
+            occurrences = symbol_spans(region, vocab)
+            if not occurrences:
+                continue
+            anchors = region_anchors(region, bundle, vocab)
             low = region.lower()
-            scoped = any(m in low for m in marks)
-            out.extend({"where": "%s:%d-%d" % (path, first, last),
-                        "symbol": sym, "scoped": scoped,
-                        "owner": sym if sym in owners else None}
-                       for sym in _region_names(region, vocab))
+            marked = [(sa, sz) for sa, sz in sentence_spans(region)
+                      if any(m in low[sa:sz] for m in marks)
+                      and not any(p in low[sa:sz]
+                                  for p in SYMBOL_PRESENT_TENSE)]
+            for sym, start, end in occurrences:
+                out.append({
+                    "where": "%s:%d-%d" % (path, first, last),
+                    "symbol": sym,
+                    "scoped": any(sa <= start and end <= sz
+                                  for sa, sz in marked),
+                    "owner": sym if sym in anchors else None})
     return out
 
 
@@ -40735,12 +40937,15 @@ def unverifiable_symbol_citations(cites: list[dict[str, Any]]) -> list[str]:
         cites: What `symbol_citations` returned, or a damaged stand-in.
 
     Returns:
-        `"where symbol"` per citation that is neither anchored to an
-        offset the bundle resolves to it nor scoped to a build that no
-        longer ships. Empty is the healthy answer.
+        `"where symbol"` per citation that is neither anchored to
+        something the bundle resolves to it nor scoped, in its own
+        sentence, to a build that no longer ships. Deduplicated and
+        sorted: one loose occurrence condemns the pairing, and a second
+        adds nothing a reader has to be told twice. Empty is the
+        healthy answer.
     """
-    return ["%s %s" % (c["where"], c["symbol"]) for c in cites
-            if c["owner"] is None and not c["scoped"]]
+    return sorted({"%s %s" % (c["where"], c["symbol"]) for c in cites
+                   if c["owner"] is None and not c["scoped"]})
 
 
 class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
@@ -40748,10 +40953,11 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
     """The names this repo reads the client at, kept honest by reading.
 
     THE INVARIANT: a minified name this tree spells for the client is
-    anchored to an offset the SHIPPING bundle resolves to that same
-    name, or scoped to a build that no longer ships. Nothing may make a
-    present-tense claim about a symbol that nobody, including its
-    author, has any way to check.
+    anchored — to an offset or to a quoted code slice that the SHIPPING
+    bundle resolves to that same name — or scoped, in its own sentence,
+    to a build that no longer ships. Nothing may make a present-tense
+    claim about a symbol that nobody, including its author, has any way
+    to check.
 
     NOT A STYLE RULE, and the history is the argument. The class above
     keeps the FILENAMES resolvable and says in its own note that a
@@ -40785,13 +40991,19 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
     def test_every_anchored_client_symbol_still_owns_its_offset(self) -> None:
         """The live half, ungated: every anchor reads back its own name.
 
-        This is the pole that survives a rebuild rather than being
-        broken by one. After `npm run build` the offsets land somewhere
-        else, this reads whatever name is now there, and the message
-        below hands the reader the replacement instead of asking them
-        to go find it. It is also the proof that the reader WORKS,
-        which is what stops the red beside it from being red because
-        the machinery is dead.
+        A REBUILD REDS THIS, ON PURPOSE, and that is a contract the
+        rebuild procedure owes its reader rather than a surprise. Run
+        against the bundle that shipped before this one, five of the
+        fifteen anchors read back and ten do not — which is the correct
+        answer and the reason the message names the REPLACEMENT symbol
+        instead of asking anybody to go find it. What it does not do is
+        pin: no minified name is written down here as an expectation,
+        so there is no baseline to re-take, only offsets to re-derive.
+        `README.md`'s build block carries that obligation; this
+        docstring is not the only place it is written down.
+
+        It is also the proof that the reader WORKS, which is what stops
+        the red beside it from being red because the machinery is dead.
         """
         bundle = shipped_bundle_text()
         self.assertGreater(
@@ -40810,19 +41022,31 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
             "stale (a rebuild landed and nothing re-derived them) or the "
             "region walk has stopped seeing prose; %d citations were "
             "found in total" % len(cites))
+        # ONLY AN OFFSET STANDING BESIDE A CITATION IS JUDGED, and the
+        # narrowing is not laziness. `@` plus four digits is a shape
+        # this repo's prose reaches for freely — a line number, a year,
+        # a task id — and judging every one of them would red this
+        # always-run pole over a prose edit that changed no claim. An
+        # offset in the same SENTENCE as a client symbol is a citation
+        # of that symbol; one three paragraphs away is not.
         wrong = []
         for path, text in sorted(tracked.items()):
             for first, last, region in prose_regions(text):
-                named = set(_region_names(region, CLIENT_SYMBOLS))
-                if not named:
+                occurrences = symbol_spans(region, CLIENT_SYMBOLS)
+                if not occurrences:
                     continue
-                for off in _SYMBOL_OFFSET.findall(region):
-                    owner = bundle_symbol_owner(bundle, int(off))
-                    if owner is not None and owner in named:
+                for sa, sz in sentence_spans(region):
+                    named = sorted({s for s, a, b in occurrences
+                                    if sa <= a and b <= sz})
+                    if not named:
                         continue
-                    wrong.append("%s:%d-%d @%s names %s, bundle says %r"
-                                 % (path, first, last, off,
-                                    sorted(named), owner))
+                    for m in _SYMBOL_OFFSET.finditer(region[sa:sz]):
+                        owner = bundle_symbol_owner(bundle, int(m.group(1)))
+                        if owner is not None and owner in named:
+                            continue
+                        wrong.append("%s:%d-%d @%s names %s, bundle says %r"
+                                     % (path, first, last, m.group(1),
+                                        named, owner))
         self.assertEqual(
             wrong, [],
             "these citations carry an offset the shipping bundle does "
@@ -40840,13 +41064,15 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
 
         RED BY INTENT, filed 2026-09-01. The repair belongs to whoever
         owns these checks and deliberately not to whoever wrote this.
-        Three repairs satisfy it and it prescribes none of them: put an
-        offset beside the name, say which build the name was true of,
-        or drop the name and cite the shape — which is what the
-        citation note in `canvas.py` already tells its reader to do.
-        All three were run against one site before this was filed, and
-        a fourth — the right offset beside the WRONG name — was run
-        too and is caught by the pole above rather than by this one.
+        FOUR repairs satisfy it and it prescribes none of them: put an
+        offset beside the name; quote a rename-invariant slice of the
+        CODE beside it, which is the form `canvas.py`'s own citation
+        note recommends and which survives a rebuild rather than being
+        invalidated by one; say, in that name's own sentence, which
+        build it was true of; or drop the name and cite the shape. All
+        were run against one site before this was filed, and so was a
+        fifth — the right offset beside the WRONG name — which the pole
+        above catches instead of this one.
 
         A NAME THAT IS CORRECT TODAY IS IN SCOPE, and that is not
         over-reach. Correct-today is precisely what every rotted
@@ -40866,14 +41092,18 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
         self.assertEqual(
             loose, [],
             "%d of %d client-symbol citations are unverifiable: the "
-            "region spells a minified name, carries no offset the "
-            "shipping bundle resolves to it, and does not say the name "
-            "belonged to a build that no longer ships. THREE REPAIRS "
-            "SATISFY THIS AND IT ASKS FOR NONE — give the citation an "
-            "offset beside the name, in the form the repaired sites "
-            "already use; or scope it in this tree's own past-tense "
-            "vocabulary (`SYMBOL_SCOPE_MARKERS`, which a repair may "
-            "extend); or delete the name and cite the shape. Sites: %s"
+            "region spells a minified name, anchors it to nothing the "
+            "shipping bundle resolves — no offset, no quoted code "
+            "slice — and its own sentence does not say the name "
+            "belonged to a build that no longer ships. FOUR REPAIRS "
+            "SATISFY THIS AND IT ASKS FOR NONE — an offset beside the "
+            "name, in the form the repaired sites already use; a "
+            "rename-invariant code slice beside it, which is better "
+            "than either and is what `canvas.py`'s citation note "
+            "recommends; a scoping clause in that name's own sentence, "
+            "in this tree's past-tense vocabulary "
+            "(`SYMBOL_SCOPE_MARKERS`, which a repair may extend); or "
+            "delete the name and cite the shape. Sites: %s"
             % (len(loose), len(cites), loose))
 
     def test_the_symbol_check_notices_each_way_it_can_go_blind(self) -> None:
@@ -40944,15 +41174,100 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
             "the verifiability predicate answered wrong for %s. A "
             "survivor here means this check is decoration and the "
             "symbols are unguarded again" % missed)
+        # C-1: A SCOPING CLAUSE MAY NOT EXCUSE A NAME IT DOES NOT STAND
+        # BESIDE, and this is the case that proves it. Until 2026-09-01
+        # `scoped` was region-wide: one past-tense phrase anywhere in a
+        # region exempted every name that region mentioned, so pasting a
+        # bare marker into each loose region — 20 edits, no thought,
+        # nothing made checkable — took the violation list from 27 to
+        # ZERO. Measured, not argued. It is repeated here on the LIVE
+        # tree so it can never quietly come back.
+        # The deterministic half: one region, two sentences, the clause
+        # in the first and the name alone in the second. Sentence-bound
+        # scoping calls that loose; region-wide scoping calls it clean.
+        stranded = '"""A note %s. The name `ai` is bare in this one."""\n'
+        self.assertEqual(
+            unverifiable_symbol_citations(symbol_citations(
+                {"p.py": stranded % SYMBOL_SCOPE_MARKERS[0]}, bundle)),
+            ["p.py:1-1 ai"],
+            "a scoping clause in ONE sentence excused a bare name in "
+            "ANOTHER, so the exemption is region-wide again and the "
+            "cheapest of the four advertised repairs is the one that "
+            "verifies nothing")
+        # AND A SENTENCE MAY NOT SCOPE AND CLAIM AT ONCE. The residue
+        # C-1 left was a sentence saying a name is true of the build
+        # shipping NOW, greened by four words of past tense bolted on.
+        both = "`ai` %s wraps a bound label, and %s it did too." % (
+            SYMBOL_PRESENT_TENSE[0], SYMBOL_SCOPE_MARKERS[0])
+        self.assertEqual(
+            unverifiable_symbol_citations(symbol_citations(
+                {"p.py": '"""%s"""\n' % both}, bundle)),
+            ["p.py:1-1 ai"],
+            "a sentence that scopes a name to a dead build AND claims "
+            "it of the shipping one reads as scoped, so the tense "
+            "refusal is not biting")
+        # And the same on the live tree, as corroboration rather than
+        # as the sharp edge: the phrase pasted once per region must not
+        # dissolve the list. A quarter may legitimately go — the head
+        # line of a region is a real sentence and really does scope
+        # what stands in it — where region-wide scoping halves it.
+        cheap = dict(tracked)
+        for where in {c["where"] for c in real
+                      if c["owner"] is None and not c["scoped"]}:
+            path, span = where.rsplit(":", 1)
+            head = int(span.split("-")[0])
+            lines = cheap[path].splitlines()
+            lines[head - 1] += " " + SYMBOL_SCOPE_MARKERS[0]
+            cheap[path] = "\n".join(lines) + "\n"
+        before = unverifiable_symbol_citations(real)
+        after = unverifiable_symbol_citations(
+            symbol_citations(cheap, bundle))
+        self.assertGreater(
+            len(after) * 4, len(before) * 3,
+            "pasting the bare phrase %r once into each unverifiable "
+            "region took the violation list from %d to %d without "
+            "making one citation checkable"
+            % (SYMBOL_SCOPE_MARKERS[0], len(before), len(after)))
+        # THE CODE-SLICE ANCHOR MUST RESOLVE, AND MUST REFUSE. It is the
+        # form `canvas.py` recommends over an offset, so a check that
+        # silently never matched would reject the tree's own advice.
+        pinned = [c for c in real if c["owner"] is not None]
+        probe = bundle[_JS_BINDING.search(bundle).start():][:60]
+        self.assertIsNotNone(
+            code_slice_owner(bundle, probe),
+            "a slice copied verbatim out of the bundle resolves to "
+            "nothing, so the code-slice anchor is inert and only the "
+            "numeric form works")
+        self.assertIsNone(
+            code_slice_owner(bundle, "e.x"),
+            "a three-character slice resolves, so any fragment of "
+            "quoted code would anchor any name beside it")
+        self.assertIsNone(
+            code_slice_owner(bundle, "return e" + "!" * 40),
+            "a slice that appears nowhere in the bundle still "
+            "resolves, so the anchor is not reading the file")
+        self.assertNotEqual(
+            pinned, [], "nothing in the tree is anchored at all, so "
+                        "neither anchor form is being exercised")
         # THE VOCABULARY MUST STILL BE ABOUT THIS CLIENT. It is declared
         # rather than derived and therefore cannot be complete; what it
         # can be asked is whether it still lands in the file that ships.
-        # BOTH BINDING FORMS, and the second one is not pedantry. Three
+        # BOTH BINDING FORMS, and the second one is not pedantry. FOUR
         # sites in this tree reassure their reader that a superseded
-        # name is "assigned nowhere" in the file that ships; each of the
-        # three names is a live `function` DECLARATION there, which an
-        # `X=` search walks straight past. A census that repeated that
-        # search would inherit the same blind spot.
+        # name is "assigned nowhere" in the file that ships, carrying
+        # TWO names between them — `Yn` three times (canvas.py:2132,
+        # test_mutants.py:16985 and :40145) and `bd` once
+        # (canvas.py:14797). Both are live `function` DECLARATIONS in
+        # the bundle that ships, which an `X=` search walks straight
+        # past, and a census repeating that search inherits the blind
+        # spot. CORRECTION TO `c3f7b95`, whose message says "three
+        # sites ... each of the three names": the mechanism it claims
+        # is right and its roster is not. It counted the sites as three
+        # and folded in `Zr`, which appears in prose exactly once
+        # (canvas.py:2348), inside a quoted code block, with nothing
+        # claiming it is unassigned. Recorded here rather than by
+        # rewriting the commit, because a reader meets this line and
+        # not that one.
         landed = [s for s in CLIENT_SYMBOLS
                   if re.search(r"(?:function\s+%s\s*\(|(?<![\w$.])%s\s*"
                                r"=(?!=))" % (re.escape(s), re.escape(s)),
@@ -40985,6 +41300,19 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
                 any(marker in r.lower() for r in regions),
                 "nothing in the tree uses the scope marker %r; it "
                 "outlived the site it was written for" % marker)
+        # THE PRESENT-TENSE TABLE OWES THE SAME. A phrase nobody writes
+        # refuses nothing, and one that does not name a build would
+        # refuse scoping over prose that never claimed anything.
+        for phrase in SYMBOL_PRESENT_TENSE:
+            self.assertTrue(
+                "ship" in phrase or "bundle" in phrase,
+                "the present-tense phrase %r does not name the build "
+                "that ships, so it refuses a scoping clause over a "
+                "sentence making no claim at all" % phrase)
+            self.assertTrue(
+                any(phrase in r.lower() for r in regions),
+                "nothing in the tree uses the present-tense phrase "
+                "%r; it outlived the site it was read off" % phrase)
 
 
 # ---------------------------------------------------------------------------
