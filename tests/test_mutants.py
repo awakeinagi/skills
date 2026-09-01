@@ -46947,8 +46947,6 @@ def _prov_reading(app: canvas.ServerApp, pid: str,
 #:   * 401 / 403 — declined on who is asking. The shape candidate (d) takes.
 #:   * 405 — declined on the method: the route exists and no longer accepts
 #:     this write. A repair that closes the route lands here.
-#:   * 409 — declined on state ("already answered", a stale base). This
-#:     codebase already uses it that way, at two sites.
 #:   * 423 / 429 / 451 — declined on lock, rate and law. None is reachable
 #:     from this bench today; they are here because they are decisions
 #:     under the rule above, and leaving a decision out would fail a
@@ -46958,9 +46956,30 @@ def _prov_reading(app: canvas.ServerApp, pid: str,
 #: call: 400 (this codebase's commonest, and it means the body was wrong —
 #: the bench wrote the body), 404 (the subject was missing — the bench
 #: minted the subject), 422 (used here as a batch/internal backstop, which
-#: is a failure wearing a 4xx). 400 and 404 were both driven and both
-#: reported GUARD GREEN with both reds green before this list existed.
-_PROV_DECIDED_STATUSES = frozenset({401, 403, 405, 409, 423, 429, 451})
+#: is a failure wearing a 4xx). All three were driven and all three reported
+#: GUARD GREEN with both reds green before this list existed.
+#:
+#: 409 WAS ON THIS LIST FOR A DAY AND THE JUSTIFICATION WAS BACKWARDS,
+#: which is worth more than the correction. It was admitted as "declined on
+#: state, and this codebase already uses it that way, at two sites" — and
+#: both sites (`canvas.py:27318`, `:27416`) are `err(409, str(e),
+#: stale=True, head_revn=…)` raised from a `StaleError`. That is the server
+#: saying THE CALLER'S VIEW OF THE WORLD IS OUT OF DATE, which is the
+#: caller being wrong: the same category as 400 and 404, not the opposite
+#: of it. The evidence cited for including it was evidence for excluding
+#: it, and nothing in the rule above ever supported it.
+#:
+#: AND THIS BENCH IS BUILT TO GENERATE THE TRIGGER, which is what made it
+#: Critical rather than untidy. `_prov_control`'s revision floor depends on
+#: the outer `Store` lagging permanently behind the server's — see the
+#: comment at its call site, which states that lag as the reason the floor
+#: is worth having. A stale revision is exactly what produces a 409. So the
+#: single 4xx this bench is PREDISPOSED to emit was the one waved through
+#: as a product decision. Driven: a route 409-ing the verb's stale
+#: `base_revn` gave GUARD GREEN with both reds green and the composed pin
+#: unanswered. A repair wanting conflict semantics for refusing the agent
+#: has 403, which is on the list and is the natural code.
+_PROV_DECIDED_STATUSES = frozenset({401, 403, 405, 423, 429, 451})
 
 
 def _prov_recorder(
@@ -46991,7 +47010,8 @@ def _prov_recorder(
 
     Returns:
         The wrapper, and the list it appends to — one entry per call,
-        carrying the path, whether it was a POST, the `body_id` it named,
+        carrying the path, whether it was a POST, the `body_names` it
+        carried (every string value, so no key spelling is privileged),
         the HTTP status when there was one, whether the call was
         `stopped` (nobody answered, or nobody could have) and the
         exception text if it did not return.
@@ -47016,8 +47036,19 @@ def _prov_recorder(
         entry: dict[str, Any] = {"path": url.split(_AS_USER_URL, 1)[-1],
                                  "post": payload is not None, "raised": None,
                                  "status": None, "stopped": False,
-                                 "body_id": (payload or {}).get("id")
-                                 if isinstance(payload, dict) else None}
+                                 # EVERY STRING THE BODY CARRIES, not
+                                 # `payload["id"]`. Reading one key names
+                                 # one spelling: a repair addressing the
+                                 # pin as `pin_id` or `target` recorded
+                                 # None and read as a driver that aimed
+                                 # nowhere, which is the I-1 prescription
+                                 # one key over. Measured: `pin_id` gave
+                                 # a false GUARD RED over a repair that
+                                 # answered the pin correctly.
+                                 "body_names": sorted(
+                                     v for v in payload.values()
+                                     if isinstance(v, str))
+                                 if isinstance(payload, dict) else []}
         calls.append(entry)
         try:
             resp = transport(url, payload, timeout)
@@ -47299,8 +47330,32 @@ def answer_provenance_bench() -> dict[str, Any]:
         # server then said about it. A `refused` from a 404 was a silent
         # all-clear on exactly this — see `_PROV_DECIDED_STATUSES`, which
         # is the other half of the same repair.
-        misaimed = [c for c in pin_calls
-                    if c["body_id"] != _PROV_PINS["composed"]]
+        #
+        # "AT LEAST ONE NAMED IT", NOT "EVERY ONE NAMED IT", and the
+        # difference is a prescription this class is not allowed to make.
+        # RULED 2026-09-01 after the strict form reddened a legitimate
+        # repair: one that parks the agent's draft on a companion record
+        # and then answers the pin normally writes two pins, only one of
+        # them `composed`. That repair answered the pin, flipped both
+        # reds, and the guard called it damage — which is the class
+        # claiming to prescribe no repair while forbidding one. The
+        # alternative on offer was to keep the strict form and DISCLOSE
+        # it as a judgement, the way the (d) placement ruling is
+        # disclosed. Rejected: disclosure is right when a judgement earns
+        # its keep, and this one earns nothing. The damage actually being
+        # hunted is a driver that aimed at the WRONG pin, and `any` still
+        # catches every case of it — `wrong_pin_id` writes only
+        # `no-such-pin`, so no write names the composed pin and the
+        # clause fires exactly as before. Narrowing past that buys no
+        # detection and costs a repair.
+        #
+        # GATED ON THERE BEING A WRITE AT ALL, because candidate (d)
+        # refusing client-side makes no pin write whatever, and an
+        # `any()` over an empty list is False. A door that never posted
+        # is clauses 3 and 5's subject, not this one's.
+        wrote_composed = any(_PROV_PINS["composed"] in c["body_names"]
+                             for c in pin_calls)
+        misaimed = [] if not pin_calls or wrote_composed else pin_calls
         out: dict[str, Any] = {"composed_outcome": outcome,
                                "refusal": refusal, "control": control,
                                "pin_writes_accepted": pin_writes,
@@ -47649,6 +47704,14 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             (traffic). The same shape as the row above and the reason
             the fix is a taxonomy rather than a 404 special case: 400
             says the BODY was wrong and the bench writes the body.
+          * `stale_revn_409` — the verb posts the outer store's revision
+            and the route 409s it -> CLAUSE 5 (traffic). GUARD GREEN with
+            both reds green until 409 came off `_PROV_DECIDED_STATUSES`
+            on 2026-09-01. The sharpest row in the table: this bench
+            carries a permanently stale revision BY CONSTRUCTION — the
+            control's floor depends on it — so a 409 is the one 4xx the
+            bench is predisposed to produce, and it was the one being
+            waved through.
           * `agent_write_500` — only the composed pin's write 500s ->
             CLAUSE 5, traffic half, ISOLATING. Both reds go GREEN and
             this is the only thing that speaks.
@@ -47682,9 +47745,12 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
           * `dead_nag` — `Store.pin_debt` returns `[]` -> CLAUSE 7.
           * `dead_feed` — `cmd_wait` driven `--for agent` -> CLAUSE 8.
 
-        AND FOUR STAGES THAT MUST STAY GREEN, which are half the value of
+        AND THE STAGES THAT MUST STAY GREEN, which are half the value of
         the table: a guard that reddens on every perturbation is not
-        discriminating, it is just loud.
+        discriminating, it is just loud. NO COUNT IS WRITTEN for either
+        list, here or anywhere — a hand-maintained total beside a list
+        that grows every review is the one thing this file has been
+        bitten by more than once. Count the bullets.
 
           * `d_client` — the verb refuses before posting. GUARD GREEN.
           * `d_server_http` — the route refuses 403 over the wire.
@@ -47697,6 +47763,17 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
           * `e_commits` — a repair that COMMITS when it records an
             answer. GUARD GREEN, both reds still red. This one was a
             false RED until the revision clause became a floor.
+          * `companion_pin_repair` — the agent's draft is parked on its
+            own pin record and the composed pin is then answered
+            normally. GUARD GREEN, both reds flipped. A false RED until
+            clause 4 widened from "every write named it" to "one of them
+            did"; see that clause's own comment for the ruling.
+          * `renamed_body_key` — the same repair addressing the pin as
+            `pin_id` rather than `id`. GUARD GREEN. A false RED until the
+            recorder stopped privileging one key spelling.
+          * `posts_twice` — the verb writes the same pin twice. GUARD
+            GREEN, and it is the control that proves clause 4
+            discriminates on WHICH pin rather than on how many writes.
 
         A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 to 6
         are shaped around TOGETHER, and no one of them is sufficient.
@@ -47745,15 +47822,17 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "measured one door" % bench["composed_outcome"])
         self.assertEqual(
             bench["misaimed"], [],
-            "the agent's door sent %d pin write(s) naming a pin this "
-            "bench did not mint: %s (it minted %r). Whatever the server "
-            "then answered, the composed pin is unanswered because the "
-            "DRIVER aimed wrong — and a 404 for a pin that does not "
-            "exist arrives as a 4xx, which every other clause here reads "
-            "as the server making a decision"
-            % (len(bench["misaimed"]),
-               [(c["path"], c["body_id"], c["status"])
-                for c in bench["misaimed"]], _PROV_PINS["composed"]))
+            "the agent's door made %d pin write(s) and NOT ONE of them "
+            "named %r, the pin this bench minted for it: %s. Whatever "
+            "the server then answered, the composed pin is unanswered "
+            "because the DRIVER aimed wrong — and a 404 for a pin that "
+            "does not exist arrives as a 4xx, which the clause below "
+            "would otherwise read as the server making a decision. "
+            "Writing OTHER pins as well is fine and is not what this "
+            "asks"
+            % (len(bench["misaimed"]), _PROV_PINS["composed"],
+               [(c["path"], c["body_names"], c["status"])
+                for c in bench["misaimed"]]))
         control = bench["control"]
         self.assertTrue(
             control["ok"],
@@ -47763,13 +47842,20 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             # A guard that misnames its own finding sends a fixer hunting
             # the wrong thing, which is the defect this whole clause was
             # added to stop.
+            # AND THE DECIDING CODES ARE INTERPOLATED, NOT TYPED. This
+            # message carried "401/403/405/409" — four of seven members
+            # hand-copied beside the constant that holds them, and wrong
+            # within a day when 409 came off the list. The one place this
+            # file has been bitten repeatedly is a derived fact written
+            # out as prose.
             {"traffic": "the agent's door never reached a DECISION: %s. "
-                        "A 401/403/405/409 would be one and would pass "
-                        "here. `_x_post` exits identically for a "
-                        "refusal, a 500, a 404 and a dead socket, so "
-                        "without this clause a broken bench reports "
-                        "`refused` and BOTH reds above go green over a "
-                        "tree where nothing was repaired",
+                        "Any of %s would be one and would pass here. "
+                        "`_x_post` exits identically for a refusal, a "
+                        "500, a 404 and a dead socket, so without this "
+                        "clause a broken bench reports `refused` and "
+                        "BOTH reds above go green over a tree where "
+                        "nothing was repaired"
+                        % ("%s", sorted(_PROV_DECIDED_STATUSES)),
              "liveness": "the agent's door was answered, but the server "
                          "did not survive it: %s. The readings the reds "
                          "compare were taken off a server that is no "
