@@ -41307,11 +41307,32 @@ SYMBOL_SCOPE_MARKERS: tuple[str, ...] = (
 # before it while the truth had moved to a quarter, which is exactly the
 # rot the paragraph above forbids. The guard runs the attack and asserts
 # the SET, not its size.
-# "in the shipped file" left the tuple in the same pass and for the same
-# reason as the six scope markers above: nothing in the tree writes it.
+#
+# THE TWO TABLES DO NOT OWE THE SAME CENSUS, and "in the shipped file"
+# came back on 2026-09-01 (curator review of the fix round) because it was
+# removed under the marker table's rule. The rules are asymmetric because
+# the tables point opposite ways. A SCOPE MARKER IS AN EXIT: every phrase
+# in that table is one more thing a repair can paste beside a bare name to
+# excuse it without verifying anything, so a phrase nobody writes is a
+# stale exit and dropping it makes the red STRICTER. A PRESENT-TENSE
+# PHRASE IS A REFUSAL: it excuses nothing, it only forbids scoping over a
+# sentence that claims the name of the build shipping now, so a phrase
+# nobody writes today costs nothing and guards tomorrow's sentence, and
+# dropping it makes the red LOOSER. Applying the exit table's rule here
+# retires each refusal on the day its last false claim is repaired, which
+# is the failure this whole class is about, one table over.
+#
+# AND THE RULE WAS SELF-SATISFYING BESIDES, which is why it is not merely
+# weakened here but replaced. Measured on this tree: the only region that
+# spells "in the shipped file" is the note that recorded its own removal,
+# so restoring the phrase re-passed a "somebody writes it" assertion on
+# the strength of its own obituary. A table whose contents are decided by
+# what its comment happens to quote is not a census. What replaces it is
+# stated at the guard clause, together with the stronger-looking version
+# that was tried first and thrown away for passing on every input.
 SYMBOL_PRESENT_TENSE: tuple[str, ...] = (
     "in the shipped bundle", "in the bundle that ships",
-    "the file that ships")
+    "the file that ships", "in the shipped file")
 
 # THERE IS NO EXIT FOR PROSE ABOUT PROSE, and this paragraph is the ruling
 # rather than a gap. A curator writing the note above reached for one: prose
@@ -42379,19 +42400,42 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
                 any(marker in r.lower() for r in regions),
                 "nothing in the tree uses the scope marker %r; it "
                 "outlived the site it was written for" % marker)
-        # THE PRESENT-TENSE TABLE OWES THE SAME. A phrase nobody writes
-        # refuses nothing, and one that does not name a build would
-        # refuse scoping over prose that never claimed anything.
+        # THE PRESENT-TENSE TABLE OWES SOMETHING ELSE, and the asymmetry
+        # is argued at the tuple. A marker is an EXIT and an unused one
+        # widens the paste attack; a phrase here is a REFUSAL and an
+        # unused one costs nothing while guarding tomorrow's sentence.
+        # Demanding a live site retires each refusal on the day its last
+        # false claim is repaired — and the demand was self-satisfying
+        # anyway, since the note recording a phrase's removal is itself
+        # a site that spells it.
+        #
+        # WHAT REPLACES IT IS DELIBERATELY NOT A PROBE, and the discarded
+        # draft is worth a line because it looked like the stronger
+        # check. It forged a sentence per phrase and asserted the phrase
+        # refused a scope pasted beside it — and it passed for EVERY
+        # phrase including two damaged ones, because the forged sentence
+        # is built from the phrase and a sibling in the tuple lowercases
+        # to cover it. A clause that derives its subject from the thing
+        # it is judging passes on all inputs. The real failure mode is
+        # narrow and static: `symbol_citations` matches these against
+        # LOWERED prose without lowering the table, so a phrase carrying
+        # a capital or a stray space silently never matches and the
+        # refusal it was added for never happens. That is what is
+        # asserted. The MECHANISM is proven live by the `both` clause
+        # above and by the paste attack, both of which read this table.
         for phrase in SYMBOL_PRESENT_TENSE:
             self.assertTrue(
                 "ship" in phrase or "bundle" in phrase,
                 "the present-tense phrase %r does not name the build "
                 "that ships, so it refuses a scoping clause over a "
                 "sentence making no claim at all" % phrase)
-            self.assertTrue(
-                any(phrase in r.lower() for r in regions),
-                "nothing in the tree uses the present-tense phrase "
-                "%r; it outlived the site it was read off" % phrase)
+            self.assertEqual(
+                phrase, phrase.lower().strip(),
+                "the present-tense phrase %r is not lowered and "
+                "stripped, and the prose it is matched against is "
+                "lowered — so it can never match, refuses nothing, and "
+                "reads in this table as a guard that is present"
+                % phrase)
 
 
 # ---------------------------------------------------------------------------
