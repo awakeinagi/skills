@@ -2096,32 +2096,53 @@ def wrap_label_text(text, inner, fs):
 
 
 def _client_chop(token, inner, fs):
-    """One token too wide for any line, split the way `z$` splits it.
+    """One token too wide for any line, split the way `F$` splits it.
 
-    The shipped client breaks a word this file cannot. `z$`
-    (index-KJTydiiR.js @274996, reached from `$$` @274753) walks the
+    The shipped client breaks a word this file cannot. `F$`
+    (index-DTzHdgzu.js @274995, reached from `z$` @274752) walks the
     token CHARACTER BY CHARACTER accumulating per-glyph advances, and
     closes a chunk the moment the next glyph would overrun the cap — so
     it never hyphenates and never gives up, and a single glyph wider
     than the cap takes a line of its own.
 
     EVERY BUNDLE CITATION IN THIS FILE IS A MINIFIED NAME IN A FILE
-    THAT IS REBUILT, and this one is the note the others point at.
+    THAT IS REBUILT, and this one is the note the others point at. It
+    has now been rewritten TWICE for the same reason, which is the
+    argument for reading it rather than the citations under it.
+
     They named `index-DpKP4sIE.js` until 2026-08-31, and that file had
     stopped existing at `3f57a17` when the tree rebuilt to
-    `index-KJTydiiR.js`. THE DANGEROUS HALF IS NOT THE DANGLING NAME.
-    Four of the five symbols this file cited resolve, IN THE BUNDLE
-    THAT SHIPS, to real functions doing something else — `Yn` is
-    assigned nowhere, `_s` is an image-crop helper, `qg` draws an arc,
-    `yd` aliases `useLayoutEffect`, `ai` handles text editing. A reader
-    following one of those lands on working code and believes it. The
-    transcribed ARITHMETIC was re-derived against the shipped bundle
-    and was correct at every site, so what rotted was the address and
-    never the rule.
+    `index-KJTydiiR.js`; on 2026-08-31 `index-KJTydiiR.js` stopped
+    existing in turn, when the v0.9.1 build that added the 🐞 bug-hunter
+    to the client produced `index-DTzHdgzu.js`.
 
-    SO CITE THE SHAPE, AND TREAT THE NAME AS PERISHABLE. `z$`, `$$` and
-    `Wp.calculate` above happen to have survived this rebuild; that is
-    luck. The pattern worth copying is
+    THE DANGEROUS HALF IS NOT THE DANGLING NAME, and the second rebuild
+    proved it a second time in the sharpest possible way. **`z$` is
+    still a symbol in the bundle that ships, and it is no longer this
+    function.** It was the chop walker in `index-KJTydiiR.js`; in
+    `index-DTzHdgzu.js` it is the grapheme splitter that walker CALLS,
+    and the walker is `F$`. A reader who took the obvious repair — swap
+    the filename, keep the symbol — would have been sent one function
+    sideways into working code that does something else, which is the
+    exact failure the first rewrite recorded: four of the five symbols
+    cited before it resolved, in the bundle that then shipped, to real
+    functions doing something else (`Yn` assigned nowhere, `_s` an
+    image-crop helper, `qg` drawing an arc, `yd` aliasing
+    `useLayoutEffect`, `ai` handling text editing).
+
+    Both times the transcribed ARITHMETIC was re-derived against the
+    new bundle and was correct at every site, so what rots is the
+    address and never the rule. The re-derivation that is actually
+    trustworthy does not read the symbol at all: anchor on a
+    rename-invariant slice of the CODE (`.normalize("NFC").split(`,
+    `crop:e.crop??null});`), find it in the new file, and read the name
+    back out of what you land on.
+
+    SO CITE THE SHAPE, AND TREAT THE NAME AS PERISHABLE. Of the names
+    this file leans on, only `Kn` has survived both rebuilds; the
+    per-glyph measurer went `Wp.calculate` → `Bp.calculate` in this one,
+    and `z$` is what luck looks like when it runs out. The
+    pattern worth copying is
     `client_bound_text_rules` in `tests/test_mutants.py`, which reads
     the client's caption rules out of the bundle by STRUCTURE and fails
     loudly when a rebuild stops matching, rather than trusting a name.
@@ -2131,9 +2152,19 @@ def _client_chop(token, inner, fs):
     be relaxed into uselessness by the third one.
 
     Per-character advances and not a re-measure of the accumulated
-    string, because that is what `z$` does: its sibling `$$` re-measures
-    a whole line, this arm sums `Wp.calculate` per glyph. The two are not
-    the same number and using the wrong one moves the break.
+    string, because that is what `F$` does: its CALLER `Ed` re-measures
+    a whole line (`dd(line, font)`) and only reaches for this arm when
+    that line does not fit; this arm then sums `Bp.calculate` per glyph.
+    The two are not the same number and using the wrong one moves the
+    break.
+
+    (That sentence named `$$` as the whole-line re-measurer until the
+    2026-08-31 re-derivation. `$$` was the grapheme SPLITTER, which
+    measures nothing — the claim was true of `Cd`, now `Ed`. Recorded
+    rather than quietly corrected: the mis-attribution survived a
+    rebuild and a review inside a paragraph whose entire subject is
+    that minified names are not to be trusted, which is the argument
+    for anchoring on code rather than on names, made against itself.)
 
     Args:
         token: The word to break. Must contain no whitespace.
@@ -2639,22 +2670,23 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # after one freedraw joined them).
         #
         # THE FIELD SET IS THE CLIENT'S, READ OFF THE BUNDLE rather than
-        # guessed — `scripts/web/assets/index-KJTydiiR.js`, and the two
+        # guessed — `scripts/web/assets/index-DTzHdgzu.js`, and the two
         # sites disagree about what is optional, which is why the whole
-        # trio is written here. (Cited against `index-QQVNNFtd.js` until
-        # 2026-08-31; that file stopped existing at a rebuild and both
-        # shapes were re-derived against the one that ships, unchanged.
-        # See the citation note above `_client_chop`.)
+        # trio is written here. (Cited against `index-QQVNNFtd.js`, then
+        # `index-KJTydiiR.js`; both stopped existing at a rebuild and
+        # every shape was re-derived against the one that ships,
+        # unchanged each time. See the citation note above
+        # `_client_chop`.)
         #
-        #   * `restoreElement`, `case "freedraw"` (offset 630191), is
+        #   * `restoreElement`, `case "freedraw"` (offset 630190), is
         #     `xo(e, {points: e.points, lastCommittedPoint: null,
         #     simulatePressure: e.simulatePressure, pressures:
         #     e.pressures})` — it FORWARDS all three with no defaults of
         #     its own, so whatever is missing here is still missing after
         #     restore. (Contrast `case "line"`/`case "draw"` two clauses
-        #     down at 630428, which substitutes a two-point path for a
+        #     down at 630427, which substitutes a two-point path for a
         #     bad one.)
-        #   * the path builder (offset 496932) is
+        #   * the path builder (offset 496919) is
         #     `e.simulatePressure ? e.points : e.points.length ?
         #     e.points.map(([x, y], i) => [x, y, e.pressures[i]]) :
         #     [[0, 0, .5]]`. `points` is dereferenced on BOTH arms, so an
@@ -2664,8 +2696,20 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # So `simulatePressure` True with an EMPTY `pressures` is the one
         # combination that needs no per-point pressure channel — and it
         # is what the client itself writes when a stroke starts from a
-        # device that reports no pressure (offset 1185296: `pressures:
-        # y ? [] : [o.pressure], simulatePressure: y`). It is also the
+        # device that reports no pressure — `simulatePressure: y` at
+        # offset 1184922 and `pressures: y ? [] : [o.pressure]` at
+        # 1184987, in that order. (This cited "offset 1185296:
+        # `pressures: y ? [] : [o.pressure], simulatePressure: y`" until
+        # the 2026-08-31 re-derivation. BOTH halves were wrong and had
+        # been through a rebuild and a review: the offset was 310 bytes
+        # past the site and landed inside `insertIframeElement`, and the
+        # two fields were transcribed in the opposite order to the one
+        # the bundle writes them in. The ARITHMETIC the paragraph rests
+        # on — that these two are written together, and that
+        # `simulatePressure` true means an empty `pressures` — is
+        # unchanged and correct. Recorded rather than silently fixed,
+        # because a citation nobody could follow is how it stayed wrong
+        # that long.) It is also the
         # honest description of a server-authored stroke: nobody pressed
         # anything.
         el["points"] = spec.get("points", [[0, 0], [el["width"] or 100, 0]])
@@ -12269,8 +12313,9 @@ def _label_position_rederived(old, new, old_container, new_container):
 
     "AT ANGLE 0" IS A QUALIFICATION THIS FUNCTION DOES NOT ENFORCE, and
     saying so is the point of this paragraph — the sentence above was
-    honest and the code beneath it reads no `angle` at all. `mY`
-    (`adjustXYWithRotation`, index-KJTydiiR.js @560560) takes the final
+    honest and the code beneath it reads no `angle` at all. `gY`
+    (`adjustXYWithRotation`, index-DTzHdgzu.js @560559 — it was `mY` in
+    `index-KJTydiiR.js`) takes the final
     vertical arm when `s` is set and `n` is not:
 
         y += (y2_delta) * (1 - cos(angle))
@@ -14548,7 +14593,7 @@ def shape_band_width(el, y0, y1):
 
 
 # THE CLIENT'S BOUND-TEXT PADDING. `Kn = 5` in the shipped bundle
-# (index-KJTydiiR.js @248728), applied on BOTH sides of every rule below —
+# (index-DTzHdgzu.js @248727), applied on BOTH sides of every rule below —
 # and, since `recenter_label` was moved onto it, to the vertical anchor of
 # every bound caption this file writes.
 #
@@ -14558,6 +14603,12 @@ def shape_band_width(el, y0, y1):
 # above `_client_chop` for why this class of rot is worse than a dangling
 # reference: four of the five symbols this file used to name resolve, in
 # the bundle that ships, to real functions that do something else.
+#
+# `Kn` IS THE ONE NAME THAT HAS SURVIVED BOTH REBUILDS, which is worth
+# knowing only because it is not a property anything guarantees — the
+# 2026-08-31 v0.9.1 build renamed the chop walker, the redraw, the wrap
+# and headroom helpers and the per-glyph measurer, and left this one
+# alone. Re-derive it like the rest rather than assuming it held.
 BOUND_TEXT_PADDING = 5
 
 
@@ -14600,25 +14651,28 @@ def client_wrap_width(container):
     defect this function exists to remove. `fit_label_in`'s docstring
     said "the client wraps bound text to the width we allot" and set
     `autoResize: False` to make that stick. The shipped bundle says
-    otherwise — `ri`, the redraw that runs whenever a container or its
-    text changes (index-KJTydiiR.js @553084):
+    otherwise — `ii`, the redraw that runs whenever a container or its
+    text changes (index-DTzHdgzu.js @553083 — `ri` in the previous
+    bundle):
 
         (t || !e.autoResize) && (
-            i = t ? js(t, e) : e.width,
-            a.text = Cd(e.originalText, Wt(e), i))
+            i = t ? Ts(t, e) : e.width,
+            a.text = Ed(e.originalText, Wt(e), i))
 
     `t` is the CONTAINER. When there is one, the wrap width is
-    `js(container)` and the label's own stored `width` is not read at
+    `Ts(container)` and the label's own stored `width` is not read at
     all; `e.width` is reached only by an UNBOUND text. So a bound label
     is re-wrapped to this number on load, and the picture the user sees
     has the line count this returns — not the one we stored.
 
-    CITED AS `ai` UNTIL 2026-08-31, in the previous bundle, and `ai` in
-    the bundle that ships is the text-editing handler, not this. The
-    arithmetic below was re-derived against `js` and is unchanged; see
-    the citation note above `_client_chop`.
+    CITED AS `ai`, THEN `ri`, IN TWO BUNDLES THAT NO LONGER EXIST —
+    `ai` in the bundle that shipped before them is the text-editing
+    handler, not this. The arithmetic below has been re-derived against
+    the wrap helper twice and is unchanged both times; see the citation
+    note above `_client_chop`.
 
-    `js` itself (@555678), with `Kn = 5`:
+    The wrap helper itself, `Ts` (@555677, `js` in the previous
+    bundle), with `Kn = 5`:
 
         ellipse -> round(w / 2 * sqrt(2)) - 10
         diamond -> round(w / 2)           - 10
@@ -14689,7 +14743,8 @@ def client_wrap_width(container):
 def client_text_headroom(container):
     """Height a bound label may reach before the CLIENT grows the box.
 
-    `Kg` in the shipped bundle (index-KJTydiiR.js @555889), the height
+    `Qg` in the shipped bundle (index-DTzHdgzu.js @555888; `Kg` in the
+    previous one), the height
     twin of `client_wrap_width` and shaped identically — a rhombus
     gives its bound text half its box in BOTH directions, not just
     across.
@@ -14723,7 +14778,8 @@ def client_text_headroom(container):
 def client_grown_extent(extent, kind):
     """Extent the CLIENT grows a container to when its label outruns it.
 
-    `bd` (index-KJTydiiR.js @555542). It is the inverse of
+    `md` (index-DTzHdgzu.js @555541; `bd` in the previous bundle). It
+    is the inverse of
     `client_text_headroom` and it is NOT the `+16` this file used to
     grow by: on a diamond the client doubles, so a 40px two-line label
     takes a 200x80 rhombus to **100px** tall where we made it 56 and
@@ -15658,15 +15714,16 @@ def arrowhead_of(e: dict[str, Any], at_end: bool) -> str | None:
     `arrowhead_of({"type": "line"}, True)` answered `"arrow"`. Two
     independent things in the bundle say no, and either alone would
     settle it. `restoreElement` has a THIRD destructuring site,
-    `case "line": case "draw":` (offset 630428 of
-    `scripts/web/assets/index-KJTydiiR.js`), where BOTH ends default to
+    `case "line": case "draw":` (offset 630427 of
+    `scripts/web/assets/index-DTzHdgzu.js`), where BOTH ends default to
     `null`; and the shape generator draws heads inside
-    `if (e.type === "arrow")` (offset 503007, the destructuring it
-    guards at 503029), so a line's stored
+    `if (e.type === "arrow")` (offset 503006, the destructuring it
+    guards at 503028), so a line's stored
     `endArrowhead` is never read for painting at all — an EXPLICIT
     `"arrow"` on a line draws nothing. (Cited against
-    `index-QQVNNFtd.js` until 2026-08-31; re-derived unchanged against
-    the bundle that ships — see the note above `_client_chop`.)
+    `index-QQVNNFtd.js`, then `index-KJTydiiR.js`; re-derived unchanged
+    against the bundle that ships each time — see the note above
+    `_client_chop`.)
     The second is the stronger fact
     and it is why this gates on the type rather than merely changing the
     default. `freedraw` (the bundle's legacy `draw`) is covered by the

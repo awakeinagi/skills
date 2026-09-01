@@ -15773,10 +15773,10 @@ class TestTheBidirectionalFindingReadsTheClientsDefaults(unittest.TestCase):
 
     THE LINE POLE IS THE STRONGER BUNDLE FACT, and it is not the
     destructuring default. `restoreElement`'s `case "line": case "draw":`
-    (offset 630428 of `scripts/web/assets/index-KJTydiiR.js`) does
+    (offset 630427 of `scripts/web/assets/index-DTzHdgzu.js`) does
     default both ends to `null`, but the shape generator puts BOTH head
-    calls inside `if (e.type === "arrow")` (offset 503007, the
-    destructuring itself at 503029) — so a line never gets a head drawn
+    calls inside `if (e.type === "arrow")` (offset 503006, the
+    destructuring itself at 503028) — so a line never gets a head drawn
     whatever it stores, and an EXPLICIT `"arrow"` on both ends of a line
     is still not a bidirectional anything. `lint_layout` binds
     `arrows = [... type in ("arrow", "line") ...]`, so this check really

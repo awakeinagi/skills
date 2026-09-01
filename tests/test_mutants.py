@@ -6398,10 +6398,18 @@ class TestStoreIntegrity(unittest.TestCase):
         red turns on — no leading whitespace on the user's line. Three
         claims, because a fix to `ensure_tree` could break any of them
         while satisfying the red: the user's own lines survive in order,
-        both machinery lines are appended on the start that finds them
+        every machinery line is appended on the start that finds them
         missing, and a second start appends nothing further. Without the
         last one, a fix that stopped comparing against the file's
         contents would grow the file on every start forever.
+
+        The machinery list is SPELLED OUT rather than read off
+        `ensure_tree`, and that is the point: a test that imported the
+        tuple would agree with any future edit to it, including one that
+        quietly stopped ignoring a directory. `.bugreports/` joined it in
+        v0.9.1 with the 🐞 bug-hunter — a bundle carries a picture of the
+        user's project and the text of their complaint, so the line has
+        to be in place before the first one lands.
         """
         root = _scratch_project(self, {}, {})
         gi = root / "project_knowledge" / ".gitignore"
@@ -6410,7 +6418,7 @@ class TestStoreIntegrity(unittest.TestCase):
         first = gi.read_text(encoding="utf-8")
         self.assertEqual(first.splitlines(),
                          ["build/", "# mine", "notes.local.md",
-                          ".backups/", ".pending/"])
+                          ".backups/", ".pending/", ".bugreports/"])
         canvas.Project(root).ensure_tree()
         self.assertEqual(gi.read_text(encoding="utf-8"), first,
                          "a second start appended the machinery again")
@@ -11621,15 +11629,15 @@ class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
 # instead of through the field name.
 #
 # THE ANCHOR IS THE VENDORED BUNDLE, not this repo's belief about the client.
-# `skills/wysiwyg-grilling/scripts/web/assets/index-KJTydiiR.js` carries the
+# `skills/wysiwyg-grilling/scripts/web/assets/index-DTzHdgzu.js` carries the
 # destructuring twice, and both spellings are `= "arrow"`:
 #
-#   restoreElement, case "arrow" (offset 630865):
+#   restoreElement, case "arrow" (offset 630864):
 #     let{startArrowhead:o=null,endArrowhead:h="arrow"}=e
-#   the shape generator, where the mark is actually emitted (503029,
-#   guarded by `e.type==="arrow"` at 503007):
-#     let{startArrowhead:d=null,endArrowhead:u="arrow"}=e;
-#     if(d!==null){...} if(u!==null){...}
+#   the shape generator, where the mark is actually emitted (503028,
+#   guarded by `e.type==="arrow"` at 503006):
+#     let{startArrowhead:u=null,endArrowhead:f="arrow"}=e;
+#     if(u!==null){...} if(f!==null){...}
 #
 # CITED AGAINST `index-DIydcWDi.js` UNTIL 2026-08-31, which had stopped
 # existing at a rebuild. Both shapes were re-derived against the bundle that
@@ -15684,12 +15692,13 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
     to design; the fix read the client instead, and the field set below
     is now asserted BECAUSE the bundle decided it rather than because a
     test guessed. What the bundle says, at
-    `scripts/web/assets/index-KJTydiiR.js`: `restoreElement`'s
-    `case "freedraw"` (offset 630191) forwards all three fields with no
-    defaults, and the path builder (offset 496932) dereferences `points`
+    `scripts/web/assets/index-DTzHdgzu.js`: `restoreElement`'s
+    `case "freedraw"` (offset 630190) forwards all three fields with no
+    defaults, and the path builder (offset 496919) dereferences `points`
     on both of its arms and `pressures` only when `simulatePressure` is
-    falsy. Cited against `index-QQVNNFtd.js` until 2026-08-31, a bundle
-    that had stopped existing; both shapes re-derived unchanged. Origin:
+    falsy. Cited against `index-QQVNNFtd.js`, then `index-KJTydiiR.js`;
+    both stopped existing at a rebuild and both shapes re-derived
+    unchanged each time. Origin:
     spike-derivedframe §8, curated during curator batch 33, 2026-08-18;
     flipped 2026-08-18.
 
@@ -16963,14 +16972,16 @@ def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
                         font_size: int = 16) -> list[dict]:
     """A rhombus whose cap lands on a HALF PIXEL, carrying `text`.
 
-    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `js`
-    (index-KJTydiiR.js @555678, read verbatim) is `Math.round(n/2) -
+    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `Ts`
+    (index-DTzHdgzu.js @555677, read verbatim) is `Math.round(n/2) -
     Kn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
     as `round(w / 2) - pad`. This said `_s` and `Yn` in a bundle that
-    stopped existing at `3f57a17`; both symbols resolve in the shipped
-    file to something else entirely (`_s` crops images, `Yn` is assigned
-    nowhere), and the arithmetic was re-derived unchanged — see the
-    citation note above `_client_chop` in `canvas.py`. `Math.round` is
+    stopped existing at `3f57a17`, then `js` in `index-KJTydiiR.js`
+    which stopped existing at the v0.9.1 build; `_s` and `Yn` resolve in
+    the file that ships to something else entirely (`_s` crops images,
+    `Yn` is assigned nowhere), and the arithmetic has been re-derived
+    unchanged at every rebuild — see the citation note above
+    `_client_chop` in `canvas.py`. `Math.round` is
     half-UP — confirmed in a JS
     engine, not assumed, and `floor(x + 0.5)` reproduces it on every
     `w / 2` from 2 to 4000 — while Python's `round` is half-to-EVEN. So
@@ -40114,15 +40125,24 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
 # that guard SURVIVE.
 #
 # THE DANGLING NAME IS THE MILD HALF. Four of the five symbols `canvas.py`
-# named resolve, IN THE BUNDLE THAT SHIPS, to real functions doing
-# something else: `Yn` is assigned nowhere (the padding is `Kn`), `_s`
-# crops images (the wrap width is `js`), `qg` draws an arc (the max height
-# is `Kg`), `yd` aliases `useLayoutEffect` (the growth is `bd`), and `ai`
-# handles text editing (the redraw is `ri`). Every transcribed ARITHMETIC
-# was re-derived against the shipped file and every one was correct — so
-# what rotted was the address and never the rule. A reader following one of
-# those lands on working code and has no way to know they are in the wrong
-# function.
+# named resolved, in the bundle that shipped at the time, to real functions
+# doing something else: `Yn` is assigned nowhere (the padding is `Kn`),
+# `_s` crops images (the wrap width is `Ts`), `qg` draws an arc (the max
+# height is `Qg`), `yd` aliases `useLayoutEffect` (the growth is `md`), and
+# `ai` handles text editing (the redraw is `ii`). Every transcribed
+# ARITHMETIC was re-derived against the shipped file and every one was
+# correct — so what rotted was the address and never the rule. A reader
+# following one of those lands on working code and has no way to know they
+# are in the wrong function.
+#
+# THE SECOND REBUILD MADE THE POINT SHARPER, and this parenthesis is why
+# the paragraph above now spells FOUR different names than it did: the
+# v0.9.1 build renamed the wrap width `js`→`Ts`, the max height
+# `Kg`→`Qg`, the growth `bd`→`md` and the redraw `ri`→`ii`. Worse, `z$`
+# was the chop walker and is now the grapheme splitter that walker calls
+# — a live symbol, still resolving, pointing one function sideways. The
+# obvious repair for a dangling citation (swap the filename, keep the
+# symbol) would have written that error into the tree.
 #
 # WHY THIS CHECK PINS FILENAMES AND NOT SYMBOLS. Minified names change on
 # every rebuild, so a check that pinned them would fail on every rebuild
@@ -40162,6 +40182,16 @@ RETIRED_BUNDLES: dict[str, str] = {
     "index-DIydcWDi.js":
         "named in one retirement clause, on the arrowhead-default anchor "
         "comment in this file.",
+    "index-KJTydiiR.js":
+        "the bundle that shipped until the v0.9.1 build added the 🐞 "
+        "bug-hunter to the client. Named in five historical clauses — "
+        "the citation note above `_client_chop`, which needs it twice "
+        "to say that `z$` survived the rebuild as a DIFFERENT function; "
+        "the freedraw field set; the `adjustXYWithRotation` rename; the "
+        "arrowhead line pole; and this file's `js`→`Ts` clause. Every "
+        "live citation was re-derived against `index-DTzHdgzu.js` by "
+        "anchoring on rename-invariant slices of the code and reading "
+        "the symbol back out, never by swapping the filename.",
 }
 
 
