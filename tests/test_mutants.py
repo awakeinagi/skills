@@ -28663,7 +28663,18 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing": 2}
+# THE SECOND ENTRY ARRIVED 2026-09-01, filed by the mutant-curator from
+# finding r8-10 of the R8 optimizer round: an answer that named twelve
+# things the drawing holds none of closes its pin with byte-identical
+# bytes to one that named three it holds all of. HAND-AUTHORED and not a
+# catalogue mutant for the reason the sibling above it gives — the
+# subject is a registry answer and a save record, not a scene, and
+# `collect_findings` runs `lint_layout` over elements and can never see
+# a pin's answer at all. Two reds because the halves fail apart: eight
+# measured repair shapes flip the transient one and only three of them
+# flip the durable one. The catalogue's own comment carries the table.
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
@@ -50261,6 +50272,613 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "identically (%r), so it distinguishes no provenance and "
             "cannot be held to distinguishing this one"
             % marks["nag"]["user"])
+
+
+# r8-10 (2026-09-01): the R8 optimizer round's persona 2 named a benchmark
+# vendor feed, an overnight portfolio-value table, a six-column
+# reference-data layer and a one-contract-three-feeds merge. Exactly one
+# reached the picture — a `s-vendor` node with one outgoing arrow — and the
+# rest landed in `customData.tooltip`, where only a reader who opens that
+# element ever meets them. `daily-run-flow`, the diagram OF the pipeline
+# those sources feed, matched none of the four words at all. Measured on the
+# shipped project: `benchmark` False, `vendor` False, `reference` False,
+# `portfolio value` False. The agent's own report then said "nothing draws
+# them as three suppliers, and the note says so explicitly so nobody
+# re-splits them later" — true, and true for the wrong reason: nothing drew
+# them as anything, and a note forbidding a re-split guards a structure that
+# was never built.
+#
+# WHAT IS ENCODED HERE IS NOT THAT CHOICE. A defensible steelman exists and
+# is on the record — a screen mock is not where sources belong — and no
+# check can read intent, so nothing below asserts that the agent should have
+# drawn more. What is asserted is that the TOOL holds both halves of the
+# question and answers it nowhere: it stores the answer's words, it holds
+# every label in the project, and the revision that closes the pin reports
+# the same thing whether the answer named twelve things the drawing holds
+# none of or three it holds all of. The steelman is exactly the sentence
+# that has no slot to be written in.
+#
+# THE ANSWER'S OWN WORDS ARE SCRUBBED OUT OF EVERY SURFACE BEFORE THEY ARE
+# COMPARED (`_R8_ECHOED`). Holding the words is not reporting on them, and a
+# comparison that let `pin["answer"]` through would be satisfied by a store
+# that already exists and a reader who does not: the reader this finding is
+# about would still have to re-read the answer and re-scan the labels
+# himself. The pseudo-repair in the class docstring is that shape, and the
+# neighbour below refuses it.
+_ANSWER_STOPWORDS = frozenset((
+    "the", "and", "are", "was", "were", "this", "that", "from",
+    "with", "into", "onto", "over", "under", "they", "them", "their",
+    "there", "here", "what", "which", "when", "where", "does", "done",
+    "have", "has", "had", "will", "would", "shall", "should", "must",
+    "been", "being", "your", "yours", "ours", "than", "then", "also",
+    "just", "only", "very", "much", "such", "about", "after",
+    "before", "while", "because", "nothing", "something",
+    "anything"))
+
+# Three visible words, and the answers below are written against them: one
+# answer uses only these, one uses none of them. A tokenizer is a SPELLING
+# and the relation is `named things vs drawn things`, so the arms are built
+# so that no reasonable tokenizer could score them the other way round —
+# total coverage against total absence, never a margin.
+_R8_LABELS = ("EDGAR", "Filings", "Fundamentals")
+
+_R8_ANSWERS = {
+    "undrawn": ("A vendor feed carries the benchmark series, a reference "
+                "table carries currency, and portfolio value is written "
+                "overnight."),
+    "drawn": "EDGAR, Filings, Fundamentals.",
+    "reworded": "Fundamentals, from Filings, out of EDGAR."}
+
+# BYTE-IDENTICAL ACROSS ALL THREE ARMS, which is what makes a difference in
+# the report evidence about the ANSWER rather than about the ops. The agent
+# wrote the same tooltip either way; that it happened to paraphrase the
+# answer in the R8 project is the agent's conduct and not the tool's.
+_R8_CLOSING_OPS = ({"op": "mod", "id": "n2",
+                    "attrs": {"tooltip": "Noted; see the detail."}},
+                   {"op": "resolve_pin", "id": "pin-src"})
+
+_R8_VOLATILE = ("saved_at", "short_id", "seed", "versionNonce", "updated",
+                "answered_at", "revn", "base_revn", "ts", "at")
+
+_R8_ECHOED = ("answer", "proposed_answer")
+
+
+def answer_words(text: str) -> set[str]:
+    """The content words a sentence names.
+
+    Args:
+        text: An answer, a label, or any prose.
+
+    Returns:
+        Lowercased words over three characters that are not stopwords.
+    """
+    return {w.lower() for w in re.findall(r"[A-Za-z][A-Za-z-]+", text or "")
+            if len(w) > 3 and w.lower() not in _ANSWER_STOPWORDS}
+
+
+def scene_words(elements: list[dict[str, Any]]) -> set[str]:
+    """Every content word a reader of the PICTURE can see.
+
+    `text` only, deliberately: a word that reaches a drawing solely
+    through `customData` is the r8-10 case itself, so counting it here
+    would make the finding unmeasurable by definition.
+
+    Args:
+        elements: A scene's element list.
+
+    Returns:
+        The union of `answer_words` over every element's visible text.
+    """
+    out: set[str] = set()
+    for e in elements:
+        if isinstance(e.get("text"), str):
+            out |= answer_words(e["text"])
+    return out
+
+
+def answer_coverage(answer: str, elements: list[dict[str, Any]]
+                    ) -> tuple[int, int]:
+    """How much of an answer the drawing already says out loud.
+
+    Args:
+        answer: The stored answer text.
+        elements: The scene the pin lives on.
+
+    Returns:
+        `(drawn, named)` — how many of the things the answer names carry
+        a visible label, out of how many it names.
+    """
+    named = answer_words(answer)
+    return len(named & scene_words(elements)), len(named)
+
+
+def _r8_scrub(obj: Any) -> Any:
+    """Drop the keys nobody is asserting, and the verbatim answer.
+
+    Args:
+        obj: Any JSON-shaped surface.
+
+    Returns:
+        The same shape without `_R8_VOLATILE` (differs run to run) or
+        `_R8_ECHOED` (the answer's own words — see the header note).
+    """
+    if isinstance(obj, dict):
+        return {k: _r8_scrub(v) for k, v in obj.items()
+                if k not in _R8_VOLATILE and k not in _R8_ECHOED}
+    if isinstance(obj, list):
+        return [_r8_scrub(v) for v in obj]
+    return obj
+
+
+def r8_digest(surface: Any) -> str:
+    """A short identity for a surface, so a failure message stays readable.
+
+    Args:
+        surface: Any JSON-shaped surface.
+
+    Returns:
+        Twelve hex characters of its sorted-key JSON's SHA-256.
+    """
+    return hashlib.sha256(
+        json.dumps(surface, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:12]
+
+
+def _stage_r8_flow(root: Path, labels: tuple[str, ...]) -> None:
+    """Write a three-node flow whose only visible words are `labels`.
+
+    Three bare nodes and no arrows: the class asserts nothing about
+    geometry, and every element the scene does not need is a word a
+    reader could mistake for one of the answer's.
+
+    Args:
+        root: The project root to stage under.
+        labels: The captions to bind, shortest-first. A short tuple
+            leaves the remaining nodes unlabelled, which is how the
+            guard's wordless-scene mutant is built for real.
+    """
+    pk = root / "project_knowledge"
+    (pk / "artifacts").mkdir(parents=True)
+    (pk / "saves").mkdir(parents=True)
+    els: list[dict[str, Any]] = []
+    for i in range(3):
+        eid = "n%d" % i
+        base = {"angle": 0, "strokeColor": "#1e1e1e",
+                "backgroundColor": "transparent", "fillStyle": "solid",
+                "strokeWidth": 2, "strokeStyle": "solid", "roughness": 1,
+                "opacity": 100, "groupIds": [], "version": 1,
+                "isDeleted": False, "updated": 1, "link": None,
+                "locked": False, "roundness": None, "frameId": None}
+        lab = labels[i] if i < len(labels) else None
+        els.append(dict(base, id=eid, type="rectangle", x=i * 300, y=0,
+                        width=160, height=80, seed=i + 1, versionNonce=i + 1,
+                        boundElements=([{"id": eid + "t", "type": "text"}]
+                                       if lab else []),
+                        customData={"role": "node", "kind": "transform"}))
+        if lab:
+            els.append(dict(base, id=eid + "t", type="text", x=i * 300 + 10,
+                            y=30, width=140, height=25, seed=50 + i,
+                            versionNonce=50 + i, boundElements=[], text=lab,
+                            originalText=lab, fontSize=20, fontFamily=1,
+                            textAlign="center", verticalAlign="middle",
+                            containerId=eid, lineHeight=1.25,
+                            customData={"role": "label"}))
+    (pk / "artifacts" / "flow.excalidraw").write_text(
+        json.dumps({"type": "excalidraw", "version": 2, "source": "t",
+                    "elements": els, "appState": {}, "files": {}}),
+        encoding="utf-8")
+
+
+def close_a_pin_with(case: unittest.TestCase, answer: str,
+                     labels: tuple[str, ...] = _R8_LABELS
+                     ) -> dict[str, Any]:
+    """Ask a pin, answer it, close it — and collect every surface.
+
+    Driven through a real `ServerApp` rather than a bare `Store` because
+    two of the surfaces are the server's: `applied_reading` is the half
+    of an apply response the agent READS, and the `pin_answer` event is
+    the only place an answer's text reaches an agent watching the log.
+    A bare `Store` reaches neither, and a class about what nothing
+    reports may not quietly leave two reporters out of the room.
+
+    Args:
+        case: The test, for `addCleanup` on the temp project.
+        answer: The sentence the user typed into the rail.
+        labels: Passed through to `_stage_r8_flow`.
+
+    Returns:
+        `answer`, `coverage`, `scene_words`, `ops`, the `report` (every
+        surface the closing revision produces) and the durable `pin`
+        record, both scrubbed.
+    """
+    root = Path(tempfile.mkdtemp(prefix="r8-10-"))
+    case.addCleanup(shutil.rmtree, root, ignore_errors=True)
+    _stage_r8_flow(root, labels)
+    app = canvas.ServerApp(canvas.Project(root))
+    case.addCleanup(app.log_file.close)
+    st = app.store
+    st.apply_batch({"artifact": "flow", "base_revn": st.head_revn(),
+                    "summary": "ask", "ops": [
+                        {"op": "pin", "target": "n2", "id": "pin-src",
+                         "question": "Where do fundamentals come from?"}]})
+    app.pin_answered(st.answer_pin("pin-src", answer))
+    batch = {"artifact": "flow", "base_revn": st.head_revn(),
+             "summary": "record what they said",
+             "ops": json.loads(json.dumps(list(_R8_CLOSING_OPS)))}
+    record, _ = st.apply_batch(json.loads(json.dumps(batch)))
+    pin = next(p for p in st.registry["pins"] if p["id"] == "pin-src")
+    els = st.scenes["flow"]
+    return {
+        "answer": answer,
+        "coverage": answer_coverage(answer, els),
+        "scene_words": sorted(scene_words(els)),
+        "ops": _R8_CLOSING_OPS,
+        "report": _r8_scrub({
+            "summary": record["summary"],
+            "artifacts": record["artifacts"],
+            "registry_changes": record.get("registry_changes"),
+            "reconciliation": record.get("reconciliation"),
+            "tripwires": record.get("tripwires"),
+            "reading": app.applied_reading(batch, record),
+            "debt": st.pin_debt(),
+            "issues": list(st.issues),
+            "lint": canvas.lint_layout(els, artifact_type="flow"),
+            "events": app.events.since(0),
+            "state_pins": st.public_state().get("pins")}),
+        "pin": _r8_scrub(dict(pin))}
+
+
+def the_r8_arms(case: unittest.TestCase) -> dict[str, dict[str, Any]]:
+    """The three arms this class reads its colours off.
+
+    Args:
+        case: The test, threaded through for cleanup.
+
+    Returns:
+        `undrawn` (names twelve things, the drawing holds none) and the
+        two controls `drawn`/`reworded` (different sentences, identical
+        coverage), each closed by the same ops.
+    """
+    return {name: close_a_pin_with(case, text)
+            for name, text in _R8_ANSWERS.items()}
+
+
+def assert_the_r8_arms_put_the_case(case: unittest.TestCase,
+                                    arms: dict[str, dict[str, Any]]) -> None:
+    """Refuse to read a colour off arms that cannot carry the defect.
+
+    Nine clauses, because eight of the ways this class could go quiet
+    are ways of BUILDING it rather than of asserting it: an empty
+    surface, a wordless scene, an undrawn arm that is really drawn, a
+    two-word answer, a control that is really the defect, controls whose
+    coverage differs (which would make the neighbour call an honest
+    repair a regression), controls that are the same string, and arms
+    closed by different ops (which would make any difference in the
+    report evidence about the ops).
+
+    Args:
+        case: The test raising the assertions. The first clause the
+            arms fail raises through it and no later clause runs.
+        arms: The arm set to audit.
+    """
+    missing = [n for n in ("undrawn", "drawn", "reworded") if n not in arms]
+    case.assertEqual(missing, [],
+                     "arms missing: %s — there is nothing to compare"
+                     % missing)
+    blank = [n for n, a in arms.items()
+             if not a.get("report") or not a.get("pin")]
+    case.assertEqual(
+        blank, [], "%s produced an EMPTY surface, so every comparison "
+                   "below is between two nothings" % blank)
+    wordless = [n for n, a in arms.items() if not a.get("scene_words")]
+    case.assertEqual(
+        wordless, [], "%s runs on a scene with NO visible words, so "
+                      "'the drawing holds none of them' is true of every "
+                      "answer and distinguishes nothing" % wordless)
+    drawn_u, named_u = arms["undrawn"]["coverage"]
+    case.assertEqual(
+        drawn_u, 0, "the undrawn arm's answer reaches %d labels, so this "
+                    "population does not contain the r8-10 case at all"
+                    % drawn_u)
+    case.assertGreaterEqual(
+        named_u, 8, "the undrawn arm names only %d things; an answer that "
+                    "names almost nothing and draws none of it is not the "
+                    "finding" % named_u)
+    for name in ("drawn", "reworded"):
+        drawn, named = arms[name]["coverage"]
+        case.assertEqual(
+            (drawn, drawn == named), (named, True),
+            "the %s control draws %d of the %d things it names, so it is "
+            "not the opposite pole it is being used as" % (name, drawn,
+                                                           named))
+    case.assertEqual(
+        arms["drawn"]["coverage"], arms["reworded"]["coverage"],
+        "the two controls have DIFFERENT coverage (%s vs %s), so a report "
+        "that separates them may be reporting coverage honestly and the "
+        "neighbour would call an honest repair a regression"
+        % (arms["drawn"]["coverage"], arms["reworded"]["coverage"]))
+    case.assertNotEqual(
+        arms["drawn"]["answer"], arms["reworded"]["answer"],
+        "the two controls are the SAME SENTENCE, so the neighbour asserts "
+        "only that one string equals itself")
+    shapes = {n: json.dumps(a.get("ops"), sort_keys=True, default=str)
+              for n, a in arms.items()}
+    case.assertEqual(
+        len(set(shapes.values())), 1,
+        "the arms were closed by DIFFERENT ops (%s), so a difference in "
+        "their reports is evidence about the ops and not about the answer"
+        % sorted(shapes))
+
+
+class TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing(
+        unittest.TestCase):
+    """r8-10: an answer that drew nothing closes exactly like one that drew.
+
+    THE ONE-LINE STATEMENT. Two answers to the same pin, closed by
+    byte-identical ops — one naming twelve things the drawing holds none
+    of, one naming three it holds all of — produce a byte-identical
+    revision report and a byte-identical resolved pin record. Nothing
+    the tool emits is a function of whether the answer reached the
+    picture, although the tool holds the answer's words and every label
+    in the project.
+
+    WHERE IT CAME FROM. The R8 optimizer round, 2026-09-01, persona 2.
+    Four things were named — a benchmark vendor feed, an overnight
+    portfolio-value table, a six-column reference-data layer, and a
+    one-contract-three-feeds merge — and one became structure. The rest
+    reached `customData.tooltip` on two elements and `daily-run-flow`,
+    the diagram of the pipeline they feed, matched none of the four
+    words. Measured over that project's own registry, three of its
+    fourteen stored answers name content words that reach NO label of
+    the artifact they were asked on: `pin-recheck-noresult` (13 named, 0
+    drawn), `pin-appeal-team` (7, 0), `pin-intake-escalation` (5, 0).
+
+    THIS IS NOT AN ASSERTION ABOUT THE AGENT'S CHOICE, and it must not
+    become one. A steelman is on the record — a screen mock is not where
+    sources belong — and no check can read intent. The honest version of
+    that call is to SAY it, and the finding is that there is no slot to
+    say it in: the silence and the declaration are the same bytes.
+
+    THE RELATION, NOT A SPELLING. `answer_words` is a tokenizer and
+    tokenizers are spellings; the relation is `named things vs drawn
+    things`. So the arms are total rather than marginal — every content
+    word of one control is a label, no content word of the undrawn arm
+    is — and the guard refuses any arm set where that stops being true.
+
+    MEASURED REPAIRS, 2026-09-01 — nine shapes monkeypatched over a live
+    `Store`/`ServerApp` from `/tmp/curator-r8-10/repairs.py`, none of
+    them an edit to `canvas.py`, and this class PRESCRIBES NONE OF THEM:
+
+        shape                                     A     B
+        RA1 a note on `applied_reading`           flip  -
+        RA2 a verb in `summary.verb_counts`       flip  -
+        RA3 the pin kept on the standing nag      flip  -
+        RA4 a mark in `public_state`              flip  flip
+        RA5 an issue appended to `Store.issues`   flip  -
+        RB1 coverage stored at answer time        flip  flip
+        RB2 coverage stamped at resolve time      flip  flip
+        RB3 the undrawn terms stored on the pin   flip  flip
+        RP  the answer's text echoed in the       flip  -
+            headline (PSEUDO)                     + NEIGHBOUR RED
+
+    THE PSEUDO-REPAIR IS WHY THE NEIGHBOUR IS HERE. Copying the answer
+    into the record turns the first red green while reporting nothing at
+    all, and the neighbour below goes red over it — two answers with
+    identical coverage stop reading identically. Quoting is not
+    reporting, which is the same ruling `_R8_ECHOED` applies at the
+    other end.
+
+    THE TWO REDS FAIL APART, which is why they are two. RA1/RA2/RA3/RA5
+    are transient — they repair what the closing revision SAYS and leave
+    the pin's durable record exactly as it was, so they flip the first
+    red only. RB1/RB2/RB3 are durable and flip both. A fix that stops at
+    the apply response leaves a reader arriving next session with
+    nothing, and the second red is what says so.
+    """
+
+    def test_the_arms_differ_in_coverage_before_any_colour_is_read(
+            self) -> None:
+        """The premise, ungated: this population can contain the defect.
+
+        Both reds below are claims that two surfaces are EQUAL when they
+        should differ, and two surfaces are trivially equal when both
+        are empty, when the scene has no words, or when the two answers
+        were never opposite in the first place. `expectedFailure`
+        swallows errors as readily as failures, so the population is
+        asserted here, outside the mask, before any colour is believed.
+        """
+        assert_the_r8_arms_put_the_case(self, the_r8_arms(self))
+
+    def _guard_says(self, arms: dict[str, dict[str, Any]]) -> str | None:
+        """What the population guard says about a damaged arm set.
+
+        Args:
+            arms: An arm set with one property removed.
+
+        Returns:
+            The assertion message the guard raised, or None — which is a
+            SURVIVOR and the finding.
+        """
+        try:
+            assert_the_r8_arms_put_the_case(self, arms)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
+    def test_the_population_guard_notices_arms_that_cannot_carry_it(
+            self) -> None:
+        """The vacuity mutants, watched failing before any red is believed.
+
+        NINE MUTANTS FOR NINE CLAUSES, and each is required to fail on
+        the clause it targets rather than merely to fail: a mutant that
+        trips a different assertion has proved that assertion twice and
+        the intended one not at all.
+
+        THE INPUTS ARE DAMAGED, NOT THE GUARD. Seven of the nine are
+        REBUILT — a different answer through the same door, or a scene
+        staged with fewer captions — so what they audit is the arm the
+        product would really produce. Only two are forged, and both
+        forge a field no answer can change: an emptied surface, and an
+        arm labelled with ops it was not closed by. A mutant that
+        replaced the guard, or that stubbed `close_a_pin_with`, would be
+        blind to everything the staging does at load — which is the
+        failure this file has recorded once already.
+        """
+        arms = the_r8_arms(self)
+
+        def swap(name: str, answer: str, **kw: Any) -> dict[str, Any]:
+            """Rebuild one arm from a different answer.
+
+            Args:
+                name: The arm to replace.
+                answer: The sentence to answer the pin with.
+                **kw: Passed to `close_a_pin_with` (`labels`).
+
+            Returns:
+                The arm set with that one arm rebuilt.
+            """
+            return dict(arms, **{name: close_a_pin_with(self, answer, **kw)})
+
+        mutants: list[tuple[str, dict[str, Any], str]] = [
+            ("a control arm deleted",
+             {k: v for k, v in arms.items() if k != "reworded"},
+             "arms missing"),
+            ("one arm's surfaces emptied",
+             dict(arms, undrawn=dict(arms["undrawn"], report={})),
+             "EMPTY surface"),
+            ("a scene with no visible words",
+             swap("undrawn", _R8_ANSWERS["undrawn"], labels=()),
+             "NO visible words"),
+            ("the undrawn arm answered with a drawn answer",
+             swap("undrawn", _R8_ANSWERS["drawn"]),
+             "does not contain the r8-10 case"),
+            ("the undrawn arm answered with two words",
+             swap("undrawn", "A benchmark table."),
+             "is not the finding"),
+            ("the drawn control answered with the undrawn answer",
+             swap("drawn", _R8_ANSWERS["undrawn"]),
+             "not the opposite pole"),
+            ("the two controls given different coverage",
+             swap("reworded", "EDGAR, Filings."),
+             "DIFFERENT coverage"),
+            ("the two controls made the same sentence",
+             swap("reworded", _R8_ANSWERS["drawn"]),
+             "SAME SENTENCE"),
+            ("one arm labelled with ops it was not closed by",
+             dict(arms, undrawn=dict(arms["undrawn"],
+                                     ops=({"op": "resolve_pin"},))),
+             "DIFFERENT ops")]
+        verdicts = [(name, want, self._guard_says(damaged))
+                    for name, damaged, want in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, want, (said or "")[:200])
+                 for name, want, said in verdicts
+                 if said is not None and want not in said]
+        self.assertEqual(
+            (survived, [w[0] for w in wrong]), ([], []),
+            "the population guard did not notice %s, and answered the "
+            "wrong clause for %s. A survivor is the finding: that clause "
+            "is decoration, and the reds below are one edit to this "
+            "staging away from passing over nothing. Detail: %s"
+            % (survived, [w[0] for w in wrong], wrong))
+
+    def test_the_report_does_not_move_when_only_the_wording_moves(
+            self) -> None:
+        """The neighbour, ungated: the opposite pole of both reds.
+
+        Two answers with IDENTICAL coverage and different sentences must
+        close identically. It passes today for the uninteresting reason
+        that NOTHING moves the report — and it is here for tomorrow: the
+        cheapest way to turn either red below green is to copy the
+        user's words into the record, which reports nothing and flips
+        this. Measured 2026-09-01, that pseudo-repair turns the first
+        red green and this one red, which is the whole reason a
+        neighbour is mandatory rather than nice.
+
+        It also fails over any repair keyed on the answer's LENGTH or on
+        the presence of a particular noun rather than on coverage, which
+        is the other way a plausible-looking fix reports nothing.
+        """
+        arms = the_r8_arms(self)
+        assert_the_r8_arms_put_the_case(self, arms)
+        drawn, reworded = arms["drawn"], arms["reworded"]
+        self.assertEqual(
+            r8_digest(drawn["report"]), r8_digest(reworded["report"]),
+            "two answers with IDENTICAL coverage (%s and %s, both %d of "
+            "%d) closed the same pin with the same ops and produced "
+            "DIFFERENT reports. Whatever separates them is keyed on the "
+            "user's wording rather than on what the drawing holds, and "
+            "wording is not a fact about the picture."
+            % (drawn["answer"], reworded["answer"], drawn["coverage"][0],
+               drawn["coverage"][1]))
+
+    @unittest.expectedFailure
+    def test_the_closing_revision_says_the_answer_reached_nothing(
+            self) -> None:
+        """RED: the revision that closes a pin reports coverage nowhere.
+
+        Every surface the closing revision produces is compared: the
+        save record's `summary` and per-element `artifacts`, its
+        `registry_changes`, `reconciliation` and `tripwires`, the apply
+        response `applied_reading` builds, the standing nag
+        `Store.pin_debt` feeds, `Store.issues`, `lint_layout` over the
+        resulting scene, the `pin_answer` events, and the pin list
+        `/api/state` serves. All of it, scrubbed of the answer's own
+        words, hashes to one value for both arms.
+
+        Flips under RA1, RA2, RA3, RA4, RA5, RB1, RB2 and RB3 — eight
+        measured shapes at five different sites — so it asserts the
+        property and prescribes none of them.
+        """
+        arms = the_r8_arms(self)
+        assert_the_r8_arms_put_the_case(self, arms)
+        undrawn, drawn = arms["undrawn"], arms["drawn"]
+        self.assertNotEqual(
+            r8_digest(undrawn["report"]), r8_digest(drawn["report"]),
+            "the revision that closed this pin reports IDENTICALLY "
+            "whether the answer named %d things and the drawing held %d "
+            "of them, or named %d and held %d. Both hash to %s across "
+            "the save record, the apply response, the standing nag, the "
+            "store's issues, the scene lint, the event log and "
+            "`/api/state`. The answer that drew nothing closes exactly "
+            "like the answer that drew everything, and the undrawn "
+            "terms were %s."
+            % (drawn["coverage"][1], drawn["coverage"][0],
+               undrawn["coverage"][1], undrawn["coverage"][0],
+               r8_digest(undrawn["report"]),
+               sorted(answer_words(undrawn["answer"])
+                      - set(undrawn["scene_words"]))))
+
+    @unittest.expectedFailure
+    def test_the_resolved_pin_records_that_its_answer_reached_nothing(
+            self) -> None:
+        """RED: and the durable record forgets it too, so nobody can ask later.
+
+        The other half, and it fails apart from the first: a repair that
+        adds a line to the apply response leaves this record byte for
+        byte where it was, so a reader arriving next session — the
+        archive card, `catch_up`, the next round's nag — has nothing to
+        read. Measured: RA1/RA2/RA3/RA5 flip the revision red and leave
+        this one red; RB1/RB2/RB3 flip both.
+
+        The `answer` and `proposed_answer` keys are scrubbed for the
+        reason in this section's header: the pin stores the words
+        already, and storing words is not recording what they reached.
+        """
+        arms = the_r8_arms(self)
+        assert_the_r8_arms_put_the_case(self, arms)
+        undrawn, drawn = arms["undrawn"], arms["drawn"]
+        self.assertNotEqual(
+            r8_digest(undrawn["pin"]), r8_digest(drawn["pin"]),
+            "the resolved pin's durable record is IDENTICAL whether its "
+            "answer reached %d of %d or %d of %d. It is %s in both "
+            "cases — a status, a question, an artifact and an element, "
+            "and no trace of the %d things the answer named that the "
+            "drawing does not say out loud."
+            % (drawn["coverage"][0], drawn["coverage"][1],
+               undrawn["coverage"][0], undrawn["coverage"][1],
+               json.dumps(undrawn["pin"], sort_keys=True),
+               undrawn["coverage"][1] - undrawn["coverage"][0]))
 
 
 class TestCoverage(unittest.TestCase):
