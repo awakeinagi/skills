@@ -40947,8 +40947,15 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
         # THE VOCABULARY MUST STILL BE ABOUT THIS CLIENT. It is declared
         # rather than derived and therefore cannot be complete; what it
         # can be asked is whether it still lands in the file that ships.
+        # BOTH BINDING FORMS, and the second one is not pedantry. Three
+        # sites in this tree reassure their reader that a superseded
+        # name is "assigned nowhere" in the file that ships; each of the
+        # three names is a live `function` DECLARATION there, which an
+        # `X=` search walks straight past. A census that repeated that
+        # search would inherit the same blind spot.
         landed = [s for s in CLIENT_SYMBOLS
-                  if re.search(r"(?<![\w$.])%s\s*=(?!=)" % re.escape(s),
+                  if re.search(r"(?:function\s+%s\s*\(|(?<![\w$.])%s\s*"
+                               r"=(?!=))" % (re.escape(s), re.escape(s)),
                                bundle)]
         self.assertGreater(
             len(landed) * 2, len(CLIENT_SYMBOLS),
