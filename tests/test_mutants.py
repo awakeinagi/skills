@@ -772,13 +772,18 @@ _PIN_RIVAL_LINE = re.compile(r"pin (?P<element>[\w-]+) asks about ")
 #      OWN QUESTION, which `pin_drift` quotes. Both scenes below therefore
 #      ask a question with no digits in it, deliberately.
 #   2. `[^.]{0,40}?` in rows 2-3 is a real ceiling, not a formality. On a
-#      labelled rival the tail is the parenthetical `pin_drift` prints —
-#      `chart-heatmap ('Sector heat map')` is 25 chars, so today's corpus
-#      has 15 to spare — and a rival label past ~55 chars, or any label
-#      CONTAINING A PERIOD (`[^.]` stops there), drops the line to the
-#      `clear` row. The consequence runs the bad way: an honest fix would
-#      read as unfinished. Unreachable from this red, whose `gate` carries
-#      no label at all, so it is written down rather than guarded — widen
+#      labelled rival the tail is the parenthetical `pin_drift` prints,
+#      and the corpus's five are 25/21/20/17/14 chars. The worst is
+#      `btn-rerun-scoring (…'Re-run scoring & cut')` at 25, leaving 15 of
+#      the 40 spare — measured, because an earlier draft of this line
+#      attributed that 25 to `chart-heatmap`, which is 20 with 20 spare.
+#      The number was right and the rival was not, which is the same
+#      misattribution the entry below corrects one paragraph later. A
+#      rival label past ~55 chars, or any label CONTAINING A PERIOD
+#      (`[^.]` stops there), drops the line to the `clear` row. The
+#      consequence runs the bad way: an honest fix would read as
+#      unfinished. Unreachable from this red, whose `gate` carries no
+#      label at all, so it is written down rather than guarded — widen
 #      the bound when a fix lands and a corpus rival outgrows it.
 _PIN_RIVAL_READINGS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("overlap", re.compile(r"only -(?P<mag>\d+(?:\.\d+)?)px from [\w-]+")),
@@ -18171,16 +18176,35 @@ def _pin_drifted_but_clear_of_the_rival() -> list[dict]:
     sentence, and the reading this pair asserts lives inside that
     sentence.
 
-    BOTH POLES TAKE THE `crowded` ARM AND NEITHER IS `stranded`, which
-    main's second arm makes a live constraint rather than a detail.
-    `stranded` fires at `own > reach`, and `step`'s corner-to-corner
-    reach is 116.6px against own-gaps of 58 (neighbour) and 84 (mutant).
-    Were either pole to cross that, `pin_drift` would take the else
-    branch, emit a sentence with NO rival clause, and this check would go
-    silent — a red for the wrong reason. The margin is 32.6px at the
-    mutant pole and it is the operator's own 26px shift that consumes
-    most of it, so a second application of that operator would break the
-    pair.
+    THE `reach` CEILING IS NOT A CONSTRAINT ON THIS PAIR, and the
+    paragraph that used to stand here said it was — wrongly, twice, and
+    it is left contradicted rather than deleted because the error is the
+    instructive part. `pin_drift` grew a second arm on main: `stranded`
+    fires at `own > reach`, and `step`'s corner-to-corner reach is
+    116.6px against own-gaps of 58 (neighbour) and 84 (mutant). From
+    that the old paragraph concluded that crossing the ceiling would
+    take the else branch, emit a sentence with no rival clause, and
+    silence this check — and that a second application of the operator
+    would therefore break the pair.
+
+    BOTH HALVES ARE FALSE, measured at four multiplicities. The
+    arithmetic refutes the first on its own terms: 84 + 26 = 110, still
+    under 116.6, so a 26px shift cannot cross a 32.6px margin. And
+    crossing it silences nothing — at a THIRD application the ❓ is
+    `stranded` (own 136 > 116.6) and the sentence still carries the
+    rival clause, because canvas.py:20743 is `if crowded:` and the
+    crowded reading wins wherever both hold. The finding is
+    `(0.0, "clear")` at every multiplicity from one upward.
+
+    THE PREMISE TREATED A NECESSARY CONDITION AS A SUFFICIENT ONE.
+    Reaching the else branch needs `stranded AND NOT crowded`, and this
+    operator makes `crowded` strictly harder to escape: it slides the ❓
+    right along `gate`'s band, so `rival_gap` clamps to 0 and stays
+    there while `own` only grows, and `own - rival_gap >= PIN_HUG_PX`
+    becomes more satisfied with every application. The pair is more
+    robust than its own docstring claimed — this operator cannot silence
+    it at any multiplicity — and what is worth carrying forward is the
+    branch order at :20743, not the ceiling.
 
     THE GEOMETRY, all of it on one axis. `step` spans x 0-100 and `gate`
     spans x 200-300; the ❓'s 26px slot sits at x 158-184, so its own

@@ -20800,10 +20800,10 @@ class TestPictureIsTheTruth(Base):
         so no drawing this repo owns can reach it. It is bounded
         downstream too: `pin_spot` mints new placements and never rewrites
         stored geometry, and a ❓ that did land on a non-target node is
-        exactly what `pindrift` reports at lint time. Recorded rather than
+        exactly what `pin_drift` reports at lint time. Recorded rather than
         fixed so that the day a 20px-wide node is drawn, the reproduction
         is already written (r8-7 curation, and not that finding's
-        subject — that one is the rival DISTANCE `pindrift` reports, and
+        subject — that one is the rival DISTANCE `pin_drift` reports, and
         it is `pin_buried_in_a_rival_reads_as_adjacent`).
         """
         target = {"id": "t", "type": "rectangle", "x": 100, "y": 100,
