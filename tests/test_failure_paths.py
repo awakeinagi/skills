@@ -1045,15 +1045,25 @@ class TestPendingQueueDurability(PendingHarness, unittest.TestCase):
         The template was written only when absent, so every project
         created before this change would have kept ignoring `.backups/`
         alone and tracking its queue.
+
+        `.bugreports/` rides the same one-time migration since v0.9.1
+        and is asserted here for the same reason `.pending/` is: a
+        bundle carries a picture of the user's project and the text of
+        their complaint, so the line has to arrive before the first one
+        does. Spelled out rather than read off `ensure_tree`, so a
+        future edit that stopped ignoring a directory cannot make this
+        test agree with it.
         """
         gi = self.project.pk / ".gitignore"
         gi.write_text(".backups/\nnotes.local.md\n", "utf-8")
         self.project.ensure_tree()
         self.assertEqual(gi.read_text("utf-8").split(),
-                         [".backups/", "notes.local.md", ".pending/"])
+                         [".backups/", "notes.local.md", ".pending/",
+                          ".bugreports/"])
         self.project.ensure_tree()
-        self.assertEqual(gi.read_text("utf-8").count(".pending/"), 1,
-                         "a second call appended the line again")
+        for line in (".pending/", ".bugreports/"):
+            self.assertEqual(gi.read_text("utf-8").count(line), 1,
+                             "a second call appended %s again" % line)
 
     def test_a_non_utf8_gitignore_does_not_take_down_the_project(self) -> None:
         """It is a USER-owned file, so it can hold anything at all.
