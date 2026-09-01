@@ -47408,14 +47408,26 @@ def answer_provenance_bench() -> dict[str, Any]:
         # reachability and was wrong. There the SIMPLE case was uncaught:
         # a plain wrong id, the first typo anyone makes, sailed through.
         # Here the simple case is caught twice over — `wrong_pin_id` is
-        # red at this clause and red again at clause 5 — and the miss
-        # needs a driver that misaims WHILE carrying the correct id in a
-        # second field that exists for no reason but to be there. That
-        # field is not a bug's by-product; it has to be written. Trading
-        # it for a key-name bet would buy this corner and re-open the
-        # class of false REDs that four rounds were spent closing, which
-        # is the wrong direction for a guard whose measured error mode is
-        # over-refusal.
+        # red at this clause and red again at clause 5.
+        #
+        # THE SPARE FIELD CAN BE A BY-PRODUCT, corrected after this
+        # comment claimed it "exists for no reason but to be there". It
+        # can: a driver that normalises `args.target` into `id` and posts
+        # the raw argument alongside sends a second copy for an ordinary
+        # reason, and `cmd_x_as_user` really is handed `--target q2`.
+        # What the miss still needs is that field AND a route answering a
+        # DECIDED status for a pin that does not exist — and nothing in
+        # this codebase does that. All ten `err(404, …)` sites answer the
+        # natural 404 for a missing subject, which is not a decided
+        # status and reddens clause 5. Driven both ways: with the
+        # normalising driver and a 403, GUARD GREEN; the same driver
+        # against the natural 404, GUARD RED. The conjunction is what the
+        # ruling rests on, not the field's implausibility.
+        #
+        # Trading it for a key-name bet would buy this corner and re-open
+        # the class of false REDs that four rounds were spent closing,
+        # which is the wrong direction for a guard whose measured error
+        # mode is over-refusal.
         wrote_composed = any(_PROV_PINS["composed"] in c["body_names"]
                              for c in pin_calls)
         misaimed = [] if not pin_calls or wrote_composed else pin_calls
@@ -47898,12 +47910,47 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             the pin invisible on the surface that prints every apply.
             Kept as a row because "the guard refuses this shape" and "the
             guard caught half a repair" look identical from one reading,
-            and the pair separates them.
+            and the pair separates them. AND THE PAIR IS LOAD-BEARING FOR
+            A CLAUSE THAT IS NOT ITS OWN — see the coupling note under
+            clause 2. Widening that filter is the blessed half of this
+            pair, and it is also what removes clause 7's backstop.
+
+        KNOWN LIMITS, in the same shape as the rows above so that a gap
+        is a record rather than a discovery. Each was driven; each leaves
+        the guard silent over a bench that should not have satisfied it:
+
           * `wrong_pin_but_echoed` — the driver misaims while carrying
-            the correct id in a spare field, against a route answering a
-            decided status. GUARD GREEN, and this one is a KNOWN MISS,
-            ruled and disclosed at clause 4 rather than closed. It is
-            here so the gap is a row in the table instead of a discovery.
+            the correct id in a field it had reason to send, against a
+            route answering a decided status. GUARD GREEN. Ruled and
+            disclosed at clause 4 rather than closed.
+          * `answer_into_detail` / `answer_into_examples` — the user's
+            door stores the sentence in `detail` or `examples` and leaves
+            `answer` null. Clause 1 asks only that the sentence be
+            SOMEWHERE in the record, so both pass it. GUARD GREEN in
+            both; only red 2 stays red, and for an unrelated reason (the
+            feed differs because no event was emitted). A door that
+            stored no answer is not what clause 1 means to allow.
+          * `joint_evasion` — the two limits composed, plus a terminal
+            `status` of `settled` and the `pin_debt` filter widened.
+            ALL EIGHT CLAUSES PASS and BOTH REDS GO GREEN over a typed
+            door that stored no answer: `{"answer": null, "detail":
+            "Nothing retries.", "status": "settled"}`, nag
+            `<pin>(settled, …)`, feed 1. This is the deepest hole in the
+            guard and it is written down rather than papered over.
+
+        WHY THE PARTS ARE HARMLESS AND THE WHOLE IS NOT, which is the
+        half a future editor could not reconstruct: the components do not
+        compose by accident, they are held apart by ONE reader. Moving
+        the sentence out of `answer` needs `status` moved too, or red 2
+        stays red on the nag; and moving `status` off `answered` drops
+        the pin out of `Store.pin_debt`'s `("open", "answered")` filter,
+        which trips clause 7. Measured both ways:
+        `joint_evasion_no_widen` -> GUARD RED at clause 7,
+        `joint_evasion` (filter widened) -> GUARD GREEN. THE SAFETY IS
+        INCIDENTAL. It comes from a status filter in product code that a
+        blessed repair — `provenance_in_status_complete`, a must-stay-
+        green row above — is expected to widen. Widen it and the
+        composition opens.
 
         A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 to 6
         are shaped around TOGETHER, and no one of them is sufficient.
@@ -47920,7 +47967,7 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
         written here rather than left implicit, because a guard whose
         subject is unstated judgements should not carry any. Clauses 1
         and 2 require the USER's door to land the sentence and leave the
-        pin `answered`; clause 8 requires at least one event on the
+        pin no longer asking; clause 8 requires at least one event on the
         `--for user` feed. A repair that turned BOTH doors into proposals
         — nobody's answer lands until someone promotes it — would fail
         this guard rather than flip the reds. That is deliberate: it is a
@@ -47936,6 +47983,14 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
         # while storing the sentence and the author side by side. The
         # relation is "the user's words are in the store", and the key
         # they are under is the repair's business.
+        #
+        # AND IT IS LOOSER THAN THE PROPERTY IT NAMES, disclosed rather
+        # than tightened. `detail` and `examples` are fields the record
+        # already carries, so a door writing the sentence into either and
+        # leaving `answer` null satisfies this clause completely — driven
+        # as `answer_into_detail` and `answer_into_examples`, both GUARD
+        # GREEN. Tightening means naming the fields that do NOT count,
+        # which is the generator returning in negative form.
         self.assertIn(
             _PROV_ANSWER, _prov_strings(typed["record"]),
             "the user's own door did not land the answer anywhere in the "
@@ -47954,6 +48009,31 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
         # `pin` op MINTS, so testing against it is testing the domain's
         # own starting vocabulary rather than a repair's chosen ending
         # one, and every terminal spelling passes.
+        #
+        # THE CHOICE OF `open` IS RIGHT AND THE RELATION IS LOOSE, and
+        # both are true at once, which is why this is disclosed rather
+        # than reformulated a fifth time. `open` is the one word in the
+        # vocabulary no repair has a reason to move, so a legitimate
+        # widening cannot invalidate the test. But "not open" is weaker
+        # than the property it names: `pruned`, `dismissed`, a re-opened
+        # pin under another word, and `zzzz` all satisfy it, and none of
+        # them is a pin somebody answered. Tightening means enumerating
+        # the terminal states, which names the repair's ending vocabulary
+        # — the exact bet this clause was rewritten to stop making. It is
+        # at the floor of that trade.
+        #
+        # AND ITS COVERAGE IS COUPLED TO CLAUSE 7, WHICH IS NOT OBVIOUS
+        # FROM EITHER. Every evasion of this clause measured so far is
+        # actually stopped by the NAG: `Store.pin_debt` filters
+        # `status in ("open", "answered")`, so a status this clause
+        # permits usually drops the pin off `PIN_DEBT=` and clause 7
+        # fires instead. That backstop is product code, and
+        # `provenance_in_status_complete` — a repair this class blesses —
+        # widens exactly that filter. So the guard's cover for "the user
+        # actually answered" rests on a reader a good repair is expected
+        # to change. `joint_evasion` in the table above is what that
+        # looks like when it opens: all eight clauses green over a door
+        # that stored nothing.
         self.assertNotIn(
             "open", _prov_strings(typed["record"]),
             "the user's answer left the pin still reading as an OPEN "
