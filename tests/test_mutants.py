@@ -28663,7 +28663,18 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestACorrectionWaveHeadlinesWhatSomebodyAuthored": 2,
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+# `TestACorrectionWaveHeadlinesWhatSomebodyAuthored` ARRIVED 2026-09-01,
+# from the R8 assessment's `r8-1` — the escalation of `r7-2`, reproduced
+# on `f29c3f3` before anything was written. A correction wave's headline
+# names a DERIVED re-route, by raw machine id, ahead of the additions and
+# deletions the turn was about, and no `by_element` entry says what caused
+# the re-route. Two reds because the halves fail apart, which was measured
+# and not assumed: `mark_consequences` feeds the ENTRY while the `rerouted`
+# fact is appended from `extra_facts` afterwards, so no single candidate in
+# the class's own matrix flips both. The fix belongs to whoever owns
+# `mechanical_summary` and `mark_consequences`; the curator wrote neither.
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
@@ -52434,6 +52445,367 @@ class TestDiscovery(unittest.TestCase):
                          [s["id"] for s in rec["survivors"]],
                          "the recorded sweep is stale — "
                          "run: python3 tests/test_mutants.py --sweep")
+
+
+# ---------------------------------------------------------------------------
+# r8-1 — A CORRECTION WAVE HEADLINES THE ONE CHANGE NOBODY ASKED FOR.
+# Filed by the R8 assessor (2026-09-01), escalated from r7-2 and reproduced
+# here on `f29c3f3` before a line of this was written. Save 0061 of R8 is a
+# 26-change wave whose whole point was "fix the picture so it's true": four
+# deletions, three additions, three renames, six restyles, eight tooltips.
+# Its headline is `rerouted d12 (+25 more)` — one arrow whose path moved
+# because the node it binds moved, named by RAW MACHINE ID — and
+# `consequence_of` is `None` on all 23 `by_element` entries. n=4 sightings
+# in R8 alone, so it is the rule and not an intermittency.
+#
+# THE SCENE IS FOUR ELEMENTS AND FOUR OPS, which is the fewest that can
+# hold the contest R8 held with 26: something a person authored (a deletion
+# and an addition), something the drawing derived (an arrow re-routed
+# because its endpoint moved), and one headline that has to choose. Nothing
+# in the ranking reads the width, so the width is not modelled.
+R8_ARTIFACT = "flow"
+R8_ARROW = "d12"          # raw machine id on purpose: R8's own arrow
+R8_SOURCE = "a1"
+R8_SINK = "b1"            # the endpoint whose MOVE is the cause
+R8_REMOVED = "c1"         # authored deletion
+R8_MINTED = "e1"          # authored addition
+# Both spellings of each authored subject, because "names an authored
+# change" is a claim about the SUBJECT and not about which surface form a
+# repair picks. A repair that headlines `deleted c1` is worse prose than
+# one that headlines `deleted Fiction` and is not this finding.
+R8_AUTHORED_NAMES = (R8_REMOVED, "Fiction", R8_MINTED, "Warehouse")
+
+
+def r8_correction_wave(structural: bool = True, reroute: bool = True,
+                       endpoint_moves: bool = True) -> dict[str, Any]:
+    """Stage r8-1's minimal correction wave and read the save back.
+
+    The first batch draws Source, Sink, Fiction and an arrow bound from
+    Source to Sink. The second is the correction: Fiction is deleted,
+    Warehouse is added, Sink is moved, and the arrow's `points` are
+    re-sent because Sink moved out from under them. That last op is what
+    R8's agent does — a re-route is written explicitly even when it is
+    entailed — so the wave is built through `apply_batch` rather than
+    assembled as facts, and the ranking measured here is the one a real
+    save produces.
+
+    Args:
+        structural: Keep the authored deletion and addition. False
+            removes the pole the headline is meant to reach.
+        reroute: Keep the `mod points` that mints `rerouted`. False
+            removes the derived pole.
+        endpoint_moves: Keep the move of the node the arrow binds. False
+            leaves the re-route standing on nothing changed — an
+            authored path request, where demanding a cause would be
+            wrong — which is the case this red must not reach.
+
+    Returns:
+        A reading of the second save: `headline`, `verbs` (its
+        `verb_counts`), `facts`, `entries` (`by_element` keyed by id),
+        `changed` (every element id the save touched) and `binds` (the
+        ids the arrow binds after it).
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-r8-1-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": R8_ARTIFACT,
+            "create": {"id": R8_ARTIFACT, "name": "Flow", "type": "flow",
+                       "concept": "pipe", "concept_name": "Pipe"},
+            "ops": [
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": R8_SOURCE, "label": "Source",
+                    "x": 0, "y": 0, "width": 100, "height": 60,
+                    "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": R8_SINK, "label": "Sink",
+                    "x": 400, "y": 0, "width": 100, "height": 60,
+                    "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": R8_REMOVED, "label": "Fiction",
+                    "x": 200, "y": 200, "width": 100, "height": 60,
+                    "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "arrow", "id": R8_ARROW, "x": 100, "y": 30,
+                    "points": [[0, 0], [300, 0]],
+                    "from": R8_SOURCE, "to": R8_SINK}}]})
+        ops: list[dict[str, Any]] = []
+        if structural:
+            ops += [{"op": "del", "id": R8_REMOVED},
+                    {"op": "add", "element": {
+                        "type": "rectangle", "id": R8_MINTED,
+                        "label": "Warehouse", "x": 200, "y": 200,
+                        "width": 100, "height": 60, "role": "node"}}]
+        if endpoint_moves:
+            ops.append({"op": "mod", "id": R8_SINK, "attrs": {"x": 500}})
+        if reroute:
+            ops.append({"op": "mod", "id": R8_ARROW,
+                        "attrs": {"points": [[0, 0], [400, 0]]}})
+        landed = store.apply_batch({"base_revn": store.head_revn(),
+                                    "artifact": R8_ARTIFACT, "ops": ops})
+        record = landed[0] if isinstance(landed, tuple) else landed
+        scene = list(store.scenes[R8_ARTIFACT])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+    part = (record.get("artifacts") or {}).get(R8_ARTIFACT) or {}
+    arrow = next((e for e in scene if e["id"] == R8_ARROW), {})
+    binds = {(arrow.get(side) or {}).get("elementId")
+             for side in ("startBinding", "endBinding")} - {None}
+    return {"headline": (record.get("summary") or {}).get("headline") or "",
+            "verbs": (record.get("summary") or {}).get("verb_counts") or {},
+            "facts": list(part.get("facts") or []),
+            "entries": {e["id"]: e for e in part.get("by_element") or []},
+            "changed": {c.get("id") or (c.get("element") or {}).get("id")
+                        for c in part.get("changes") or []} - {None},
+            "binds": binds}
+
+
+def assert_the_wave_puts_the_r8_case(case: unittest.TestCase,
+                                     reading: dict[str, Any]) -> None:
+    """Refuse a wave in which neither red below could fail.
+
+    Both reds are claims about a CONTEST — an authored change and a
+    derived one competing for one sentence — and a wave holding only one
+    side satisfies them for the wrong reason. The third clause is the
+    one that is easiest to lose and hardest to notice: strip the
+    endpoint's move and the re-route becomes an authored path request,
+    at which point demanding that it name a cause is demanding a lie.
+
+    Every clause fails through `case`, so a wave that cannot exhibit
+    r8-1 is refused at the caller's own site rather than here.
+
+    Args:
+        case: The test asserting, so failures read at its call site.
+        reading: A reading from `r8_correction_wave`, intact or damaged.
+    """
+    case.assertGreaterEqual(
+        reading["verbs"].get("added", 0), 1,
+        "no authored ADDITION landed in this wave, so 'the headline "
+        "names an authored change' has one fewer subject it could be "
+        "satisfied by. verb_counts: %s" % reading["verbs"])
+    case.assertGreaterEqual(
+        reading["verbs"].get("deleted", 0), 1,
+        "no authored DELETION landed in this wave — R8's instance "
+        "outranked four of them, and a wave with none cannot show it. "
+        "verb_counts: %s" % reading["verbs"])
+    case.assertGreaterEqual(
+        reading["verbs"].get("rerouted", 0), 1,
+        "no reroute landed in this wave, so there is no derived pole "
+        "for the authored one to be outranked by and both reds pass "
+        "over nothing. verb_counts: %s" % reading["verbs"])
+    case.assertIn(
+        R8_ARROW, reading["entries"],
+        "the re-routed arrow has no `by_element` entry, so the field "
+        "the consequence red reads has no home and its absence would "
+        "read as the defect. Entries: %s" % sorted(reading["entries"]))
+    case.assertNotEqual(
+        reading["binds"] & (reading["changed"] - {R8_ARROW}), set(),
+        "the re-routed arrow binds nothing this wave changed (binds %s, "
+        "changed %s), so its path change is an AUTHORED path request "
+        "rather than a consequence — and a red demanding that it name a "
+        "cause would be demanding an invention"
+        % (sorted(reading["binds"]), sorted(reading["changed"])))
+    case.assertNotEqual(
+        {f["fact"] for f in reading["facts"]} & {"added", "deleted"}, set(),
+        "no structural fact reaches the fact list `mechanical_summary` "
+        "ranks, so the headline never had an authored candidate to pick "
+        "and the rank red is measuring an empty contest. Facts: %s"
+        % sorted({f["fact"] for f in reading["facts"]}))
+
+
+class TestACorrectionWaveHeadlinesWhatSomebodyAuthored(unittest.TestCase):
+    """r8-1: a derived re-route outranks the work the turn was about.
+
+    THE FINDING, in one line: over a change wave a person authored, the
+    headline names a DERIVED re-route — by raw machine id — ahead of the
+    additions and deletions that were the point of the turn, and no
+    `by_element` entry says what caused the re-route.
+
+    TWO REDS BECAUSE THE TWO HALVES FAIL APART, which is not a guess:
+    the matrix below has no candidate that flips one by flipping the
+    other, and exactly one that closes both. `mark_consequences` feeds
+    `_by_element` and `semantic_facts`; the `rerouted` fact is appended
+    from `extra_facts` AFTER that, so a repair to the cause map reaches
+    the ENTRY and never the FACT `mechanical_summary` ranks. Close the
+    ranking alone and the record still cannot say why the arrow moved;
+    close the cause alone and the headline still opens with `rerouted
+    d12`.
+
+    WHAT THE REDS DO NOT SAY. Neither asks for a particular mechanism,
+    a particular cause, or better prose. The rank red is satisfied by
+    any headline naming the deletion or the addition, under either
+    spelling; the cause red is satisfied by any element this same save
+    changed. The single most tempting repair — teach `headline_for` to
+    render `rerouted Source → Sink` instead of `rerouted d12` — is
+    measured below and does NOT flip either, deliberately: the raw id is
+    how the defect is spotted, and the defect is the RANK.
+
+    MEASURED ON `f29c3f3`, 2026-09-01, every candidate monkeypatched
+    from a throwaway plugin and never by editing `canvas.py`:
+
+        repair                              rank    cause
+        (today's tree)                      red     red
+        demote `rerouted` in SALIENCE       GREEN   red
+        drop `rerouted` from SALIENCE       GREEN   red
+        `low_signal` on the derived fact    GREEN   red
+        `consequence_of` on the fact        GREEN   red
+        widen `mark_consequences`           red     GREEN
+        cause = the moved endpoint          red     GREEN
+        cause reaches the fact as well      GREEN   GREEN
+
+    FOUR SHAPES FLIP THE RANK AND TWO FLIP THE CAUSE, so neither red is
+    prescribing a repair. The two cause-repairs disagree about the
+    ANSWER — one names the structural add, one names the moved endpoint
+    — and both are accepted, because the relation is "the link resolves
+    to something this save changed" and not "the link says `b1`".
+
+    FIVE SHAPES NOBODY HAD TRIED WERE RUN IN THE OTHER DIRECTION, and
+    all five are REFUSED, which is what stops the relation from being
+    wider than the finding:
+
+      * re-sorting the fact list structurally — refused, and it is not
+        a repair at all: `mechanical_summary` walks SALIENCE by NAME,
+        so the order facts arrive in is multiplied by zero. A red that
+        went green here would have blessed a no-op.
+      * `consequence_of` set to an op INDEX — refused. The field is read
+        by `consequence_lines` as an element to name in a sentence; an
+        integer resolves to nothing and the record still cannot say what
+        caused the move.
+      * `consequence_of` set to the arrow's OWN id — refused. A link
+        that links to itself is the shape a repair takes when it is
+        satisfying a test rather than a reader.
+      * `consequence_of` set to an element the save never touched —
+        refused, for the same reason: it resolves, and it resolves to a
+        lie.
+      * the headline emptied, and every fact marked `low_signal` so the
+        save narrates as "housekeeping only" — both refused. Silence is
+        not a repair; that is doctrine §1 turned on our own record.
+
+    WHAT THIS CLASS DOES NOT REACH, said plainly. The R8 record's own
+    §10.5 carries a second, narrower half of r7-2 — revns 96/97/98
+    headline `removed pin <raw-id>` about pins a named person ANSWERED,
+    so both the id and the VERB are wrong there. That is a different
+    producer (`pin_deleted`) reached through a different door, and it
+    is not modelled here; filing it under this class would make one red
+    stand for two defects and let a fix for either read as a fix for
+    both.
+    """
+
+    def test_the_wave_puts_the_case(self) -> None:
+        """Assert the premise before either red's colour is believed.
+
+        Both reds are claims over a wave that holds two competing
+        changes, and a wave holding one satisfies them vacuously —
+        invisibly so, since `expectedFailure` swallows errors as
+        readily as failures.
+        """
+        assert_the_wave_puts_the_r8_case(self, r8_correction_wave())
+
+    @unittest.expectedFailure
+    def test_the_headline_names_something_somebody_authored(self) -> None:
+        """The rank half: a derived re-route may not open the sentence.
+
+        The subject is what is asserted, not the wording. Any headline
+        naming the deleted node or the added one passes, under either
+        the label or the id; a headline naming the arrow does not,
+        however well it names it.
+        """
+        reading = r8_correction_wave()
+        self.assertTrue(
+            any(name in reading["headline"]
+                for name in R8_AUTHORED_NAMES),
+            "the headline of this correction wave is %r. It names none "
+            "of the changes a person authored (%s) — it names the arrow "
+            "whose path moved BECAUSE one of them did. verb_counts: %s"
+            % (reading["headline"], list(R8_AUTHORED_NAMES),
+               reading["verbs"]))
+
+    @unittest.expectedFailure
+    def test_the_derived_reroute_names_what_caused_it(self) -> None:
+        """The cause half: the derived change says what derived it.
+
+        Satisfied by any element this same save changed, so the two
+        honest answers — the structural change, or the endpoint whose
+        move dragged the path — are both accepted and neither is
+        prescribed.
+        """
+        reading = r8_correction_wave()
+        cause = (reading["entries"].get(R8_ARROW)
+                 or {}).get("consequence_of")
+        self.assertIn(
+            cause, reading["changed"] - {R8_ARROW},
+            "the re-routed arrow %s records its cause as %r, and this "
+            "save changed %s — any of which would have been an answer. "
+            "`consequence_of` across the whole wave: %s"
+            % (R8_ARROW, cause, sorted(reading["changed"] - {R8_ARROW}),
+               {k: v.get("consequence_of")
+                for k, v in reading["entries"].items()}))
+
+    def _guard_says(self, reading: dict[str, Any]) -> str | None:
+        """Report what the population guard says about one damaged wave.
+
+        Args:
+            reading: A wave reading with one pole removed.
+
+        Returns:
+            The assertion message the guard raised, or None when it
+            raised nothing — which is a survivor and the finding.
+        """
+        try:
+            assert_the_wave_puts_the_r8_case(self, reading)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
+    def test_the_population_guard_notices_a_wave_that_lost_a_pole(
+            self) -> None:
+        """The vacuity mutants, watched failing before the reds are read.
+
+        THE INPUTS ARE DAMAGED AND NOT THE FUNCTION. Three of the five
+        re-stage the wave through `apply_batch` with one op removed, so
+        the record under the guard is a record the product really
+        writes; the other two forge the READING, because no op can make
+        `apply_batch` emit a save whose arrow has no entry or no
+        bindings, and those are the two states an upstream change could
+        put the guard in without anybody noticing.
+
+        Each mutant is required to trip the clause it targets rather
+        than merely to trip something: a mutant that fails a later
+        clause has proved that clause twice and its own not at all.
+        """
+        intact = r8_correction_wave()
+        mutants: list[tuple[str, dict[str, Any], str]] = [
+            ("the authored structural pole removed",
+             r8_correction_wave(structural=False), "authored ADDITION"),
+            ("the derived pole removed",
+             r8_correction_wave(reroute=False), "no reroute landed"),
+            ("the arrow's endpoint left where it was",
+             r8_correction_wave(endpoint_moves=False),
+             "binds nothing this wave changed"),
+            ("the arrow's entry gone from the record",
+             dict(intact, entries={k: v
+                                   for k, v in intact["entries"].items()
+                                   if k != R8_ARROW}),
+             "no `by_element` entry"),
+            ("the arrow's bindings emptied",
+             dict(intact, binds=set()),
+             "binds nothing this wave changed")]
+        verdicts = [(name, expected, self._guard_says(damaged))
+                    for name, damaged, expected in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, expected, (said or "")[:200])
+                 for name, expected, said in verdicts
+                 if said is not None and expected not in said]
+        self.assertEqual(
+            (survived, [w[:2] for w in wrong]), ([], []),
+            "the population guard did not notice %s, and answered the "
+            "wrong clause for %s. A survivor is the finding: that "
+            "clause is decoration and the two reds above are one "
+            "builder edit away from passing over a wave with no "
+            "contest in it. Detail: %s"
+            % (survived, [w[0] for w in wrong], wrong))
 
 
 if __name__ == "__main__":
