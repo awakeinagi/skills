@@ -1810,6 +1810,18 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
             return {"ok": True}
         if path == "api/state":
             return app.api_state()
+        if path.startswith("api/events"):
+            # ADDITIVE, and `drag_as_user` never walks it. The pin-answer
+            # provenance bench below drives the same verb machinery and
+            # then reads the feed `canvas.py wait` prints, which is the
+            # surface the agent itself reads an answer off. Answered from
+            # `since` alone: the long-poll arm blocks, and there is
+            # nothing here for it to wait on.
+            query = dict(
+                pair.partition("=")[::2]
+                for pair in path.partition("?")[2].split("&") if pair)
+            return {"ok": True, "seq": app.events.seq,
+                    "events": app.events.since(int(query.get("since", 0)))}
         if path.startswith("api/artifact/"):
             # DEEP-COPIED, and this line was a reference until a
             # fix-agnosticism probe caught it. A real read crosses a
@@ -28008,7 +28020,14 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # a whole-placement-rule repair, seeded above this file's anchor class,
 # and no red here should prescribe it.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestAnAnswerSaysWhoseWordsItIs": 2}
+# FILLED 2026-09-01 by the mutant-curator, from an assessment run's P2: a
+# pin answer records nothing about whose composition it is, on either of
+# the two stores that already model authorship for the QUESTION. Two reds
+# because the halves fail apart — one on the record, one on the two
+# surfaces that render it — and a repair landing only the first would
+# leave the second pointing at provenance nobody renders.
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -46675,6 +46694,597 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
             "defect this sweep exists to name"
             % (sorted((k, d) for k, d, _ in found["looped"]),
                sorted(_TRAPPED_PAIRS)))
+
+
+# ---------------------------------------------------------------------------
+# AUTHORSHIP IS MODELLED FOR THE QUESTION AND DROPPED FOR THE ANSWER. Filed
+# 2026-09-01 out of an assessment run, at P2 after two corrections to the
+# account of it. The corrected account is the one that matters, because it
+# needs nobody to have misbehaved: the user told the agent, out of band in
+# chat, to answer their open pins, and the agent did exactly that through the
+# door the tool gives it. Nothing was forged and no route needs closing.
+#
+# THE PIN IS NOT SHORT OF AN AUTHORSHIP FIELD — IT HAS TWO, ON THE OTHER
+# HALF. This is the claim a first reading gets backwards, so it is written
+# out per store:
+#
+#   * THE ELEMENT, `customData` on the ❓ glyph, six keys: `answer`,
+#     `author`, `question`, `role`, `status`, `target`. `author` is set at
+#     mint by `apply_ops` and says WHO ASKED. It sits directly beside
+#     `answer`, which has no counterpart of its own.
+#   * THE REGISTRY, `model.json`'s pin record — a DIFFERENT record with a
+#     different shape and no `author` at all. It carries `direction`, also
+#     WHO ASKED, written explicitly by both minters (the op path files
+#     `agent`, the save ingest files `user`).
+#
+# So the design decided twice that authorship is worth storing, and rendered
+# it twice: `Rail.tsx` draws a `yours`/`agent` chip off `direction`, and
+# `pin_debt_entry` prints `pin-pay(user, open, ...)` off the same field on
+# every `status` and every apply. Both of those answer a question that is
+# almost always "agent" — the agent asks nearly all the pins. The half where
+# authorship actually VARIES, who composed the answer, has no field in either
+# store and no mark on either surface.
+#
+# THE COST LANDED ON THE AGENT FIRST, which is why this needs no villain. One
+# turn after writing eight answers it read thirteen back, could not separate
+# its own eight from the user's five, and asked the user to re-send answers
+# it had written itself. The machinery under that is one line: `pin_answer`
+# is a member of `USER_EVENT_TYPES`, so `canvas.py wait --for user` serves
+# every answer as user activity BY CLASSIFICATION. The filter cannot consult
+# a fact neither store carries.
+#
+# MEASURED BEFORE IT WAS WRITTEN, on this tree, through the two doors that
+# exist. Two pins minted in one batch with identical question text; one
+# answered by the body `App.tsx` posts, one by `canvas.py x-as-user answer`.
+# Registry record, element `customData`, `pin_answer` event, `PIN_DEBT=` line
+# and the `wait --for user` feed came back BYTE-IDENTICAL on both once the
+# pin id and the wall clock are normalised away — `author` reading `"agent"`
+# on the user's own answer, because it is describing the question. One
+# distinct reading for two distinct origins: the direction is COLLAPSE, a
+# surface saying fewer things than there are facts, never one saying the
+# wrong thing.
+#
+# WHAT THIS DELIBERATELY DOES NOT PIN, so the omissions are arguable rather
+# than invisible:
+#
+#   * The eight strings themselves. They are one incident; the class is the
+#     unmodelled half and the unmarked rendering, and a pin on today's text
+#     would go green the moment the text changed.
+#   * `/api/pins/answer` as a door that ought to be shut, guarded or
+#     authenticated. It is a legitimate door and the agent was legitimately
+#     sent through it.
+#   * The answer's VOICE. The same run produced "Nothing retries. I checked
+#     with the team who run it." — the user's first person asserting a
+#     verification the user never performed. That is a judgement about free
+#     text, and this repo refuses those on purpose: `_glossary_ruling` says
+#     so in as many words ("interpreting free text to decide whether the
+#     ruling counts would be this check issuing a verdict on an answer,
+#     which is the one thing a tripwire is built not to do"). A mark saying
+#     whose COMPOSITION an answer is makes that sentence readable correctly
+#     without anything having to parse it, which is why that finding is
+#     served by this red rather than by one of its own.
+#   * `export --with-footnotes`. Measured, not assumed: it renders tooltips
+#     and the glossary, and a pin's answer never reaches it. A surface that
+#     does not show the answer cannot mis-attribute it.
+#   * The rail itself, which is TypeScript and outside both tiers. What is
+#     asserted instead is the necessary condition plus the exact pole:
+#     `api_state()["pins"]` is the rail's entire input and is read here, and
+#     `pin_debt_entry` renders the SAME `direction` field the chip does, so
+#     the pair below says the two things the chip cannot be asked directly —
+#     that mark moves when the QUESTION's source moves, and does not move
+#     when the ANSWER's source moves.
+# ---------------------------------------------------------------------------
+
+#: The two pins the bench answers, named for their ORIGIN. Their contents are
+#: deliberately the same string through both doors: an answer that differed
+#: in wording would let a reading tell them apart for a reason that is not
+#: provenance, which is the one false green available here.
+_PROV_DOORS = ("typed", "composed")
+#: One question, asked twice, in one batch — so `author`, `direction`,
+#: `asked_at_revn` and `round` are equal by construction and cannot stand in
+#: for an attribution nobody made.
+_PROV_QUESTION = "Does anything retry?"
+#: The answer, in the shape the run produced: a flat assertion of fact worth
+#: exactly as much as knowing who wrote it.
+_PROV_ANSWER = "Nothing retries."
+#: Keys whose value differs between two pins whoever answered them, and which
+#: would therefore manufacture a difference the subject did not put there.
+#: `answered_at` is here even though a repair COULD in principle mark
+#: provenance temporally; none of the four candidates does, and a per-pin
+#: wall clock is a flake generator in every run that does not.
+_PROV_VOLATILE = frozenset({"id", "pin", "element", "answered_at", "ts",
+                            "seq", "proposed_at"})
+
+
+def _prov_scrub(obj: Any) -> Any:
+    """Strip the keys that differ per pin regardless of who answered.
+
+    Recursive because the readings nest: a pin's events arrive as a list
+    of dicts and the served record holds lists of its own.
+
+    Args:
+        obj: Any part of a reading — dict, list or scalar.
+
+    Returns:
+        The same structure with `_PROV_VOLATILE` keys removed at every
+        depth, and dict keys sorted so two readings compare as text as
+        well as by value.
+    """
+    if isinstance(obj, dict):
+        return {k: _prov_scrub(v) for k, v in sorted(obj.items())
+                if k not in _PROV_VOLATILE}
+    if isinstance(obj, list):
+        return [_prov_scrub(v) for v in obj]
+    return obj
+
+
+def _prov_reading(app: canvas.ServerApp, pid: str,
+                  feed: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collect what every shipped surface says about one answered pin.
+
+    BOTH STORES AND BOTH RENDERINGS, because the defect is not confined
+    to either: `record` is the registry copy (and the rail's whole
+    input), `element` is the ❓ glyph's own six-key `customData` where
+    `author` sits beside `answer`, and `nag` is the CLI rendering of the
+    same `direction` the rail chip draws. A repair that marked one store
+    and left the other is a pin whose two copies disagree about who
+    spoke, which is the class `pin_glyph_notes` already exists to catch
+    for status.
+
+    The nag has the pin id SUBSTITUTED OUT rather than sliced off, so a
+    repair that rewords `PIN_DEBT=` entirely still compares — slicing on
+    the `(` would hand back two empty strings and read as agreement.
+
+    Args:
+        app: The live server the bench drove both doors against.
+        pid: The pin to read.
+        feed: The events `canvas.py wait --for user` actually printed.
+
+    Returns:
+        Keys `record`, `element`, `events`, `nag` and `feed`.
+    """
+    served = {p["id"]: p for p in app.api_state().get("pins") or []}
+    rows = {d["id"]: d for d in app.store.pin_debt()}
+    glyphs = {e["id"]: e for e in app.store.scenes["flow"]}
+    row = rows.get(pid)
+    return {
+        "record": _prov_scrub(served.get(pid)),
+        "element": _prov_scrub((glyphs[pid].get("customData") or {})
+                               if pid in glyphs else None),
+        "events": _prov_scrub([e for e in app.events.since(0)
+                               if e.get("pin") == pid]),
+        "nag": (canvas.pin_debt_entry(row).replace(pid, "<pin>")
+                if row else None),
+        "feed": _prov_scrub([e for e in feed if e.get("pin") == pid]),
+    }
+
+
+def answer_provenance_bench() -> dict[str, Any]:
+    """Answer one question twice — once by the user's hand, once by the agent.
+
+    THE GROUND TRUTH IS WHICH ENTRY POINT WAS DRIVEN, and that is the
+    only place it can live: the tool has nowhere to record it, which is
+    the finding. `typed` goes through the exact body `App.tsx` posts from
+    the rail, `composed` through `canvas.py x-as-user answer` — the
+    shipped verb an agent reaches for when the user says "answer them for
+    me". Both land the same sentence, so any difference in the readings
+    is provenance and nothing else.
+
+    A REFUSAL IS A RESULT, not an error. Shutting the agent's route is
+    one of the honest product answers, so `SystemExit` out of the verb is
+    caught and reported as `refused`; what must never happen is
+    `vanished`, a door that did nothing and said nothing, which is a
+    broken bench wearing a passing test's clothes.
+
+    Returns:
+        `typed` and `composed` readings from `_prov_reading`, plus
+        `composed_outcome` (`landed`/`refused`/`vanished`), `refusal`
+        (the exit code, when there was one) and `feed_size` (how many
+        events `wait --for user` printed in total).
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-prov-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": pid, "target": "n1",
+                     "question": _PROV_QUESTION} for pid in _PROV_DOORS]})
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        app = canvas.ServerApp(project)
+        transport = _as_user_transport(app)
+        # DOOR ONE — the rail. `apiPost("/api/pins/answer", { id, answer })`
+        # is the whole of what the client sends, from two call sites in
+        # App.tsx, and it is reproduced here rather than reached through a
+        # browser because the model tier has none. The server sees this
+        # body and no other fact about its caller.
+        app.handle_post("/api/pins/answer",
+                        {"id": "typed", "answer": _PROV_ANSWER})
+        # DOOR TWO — the agent, instructed. Driven through `cmd_x_as_user`
+        # rather than by posting the same body again, because a repair that
+        # marks the door has to have a door to mark: two identical POSTs
+        # would erase the distinction this is measuring, and no honest fix
+        # could then flip it.
+        outcome, refusal = "landed", None
+        with mock.patch.object(canvas, "http_json", transport), \
+                contextlib.redirect_stdout(io.StringIO()):
+            try:
+                canvas.cmd_x_as_user(argparse.Namespace(
+                    project=str(tmp), verb="answer", artifact="flow",
+                    target="composed", text=_PROV_ANSWER, dx=0, dy=0,
+                    note=None))
+            except SystemExit as exc:
+                outcome, refusal = "refused", exc.code
+        # AND THEN READ BACK THE WAY THE AGENT READS. `wait --for user` is
+        # run for real, filter and all, so the classification that made the
+        # agent unable to separate its own words is exercised rather than
+        # restated — a transcription of `USER_EVENT_TYPES` here would be a
+        # second copy free to agree with a broken original.
+        printed = io.StringIO()
+        with mock.patch.object(canvas, "http_json", transport), \
+                contextlib.redirect_stdout(printed), \
+                contextlib.suppress(SystemExit):
+            # SUPPRESSED AND NOT CAUGHT, unlike the verb above, because
+            # `cmd_wait`'s exits carry no information this bench wants:
+            # it returns 3 on a quiet window and dies only when no server
+            # answered, and the feed assertions below say more about
+            # either than an exit code would.
+            canvas.cmd_wait(argparse.Namespace(
+                project=str(tmp), since=0, timeout=1, types=None,
+                for_whom="user"))
+        feed = [json.loads(line) for line in printed.getvalue().splitlines()
+                if line.startswith("{")]
+        out: dict[str, Any] = {"composed_outcome": outcome,
+                               "refusal": refusal, "feed_size": len(feed)}
+        for pid in _PROV_DOORS:
+            out[pid] = _prov_reading(app, pid, feed)
+        # `landed` MEANS THE SENTENCE IS SOMEWHERE IN THE READING, and the
+        # first draft of this line asked whether the pin's record existed
+        # instead. It always does — the pin is in the registry from the
+        # moment it is minted — so a driver that silently did nothing
+        # reported `landed`, the two readings differed because one pin was
+        # unanswered, and BOTH reds went green over a bench that had
+        # driven one door. Caught by damaging this guard rather than by
+        # reading it. Searching the serialised reading rather than a named
+        # key is what keeps candidate (c) `landed`: its text arrives under
+        # `proposed_answer`, which no key list written today would name.
+        if outcome == "landed" and _PROV_ANSWER not in json.dumps(
+                out["composed"], ensure_ascii=False):
+            out["composed_outcome"] = "vanished"
+        return out
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def pin_marks_whose_question_it_is() -> dict[str, Any]:
+    """Read both authorship marks for a pin the agent asked and one the user drew.
+
+    THE LIVE POLE FOR THE HALF THAT WORKS. Both reds below accuse the
+    same two stores and the same rendering of saying nothing about who
+    ANSWERED, and an accusation of silence is satisfied perfectly by
+    machinery that has stopped saying anything at all. This drives the
+    provenance those surfaces DO carry, through the two writers that set
+    it: the op path files its own pins `agent`, and the save ingest files
+    a ❓ the user drew as `user`.
+
+    `nag` is the reading that matters most, because `pin_debt_entry`
+    renders the same `direction` the rail's `yours`/`agent` chip does —
+    the chip itself is TypeScript and out of reach, so this is the
+    nearest surface that can be asserted from here.
+
+    Returns:
+        `author` and `direction` and `nag`, each a dict keyed `agent` and
+        `user` by which hand asked the question.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-nag-"))
+    project = canvas.Project(tmp)
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": "asked-by-agent", "target": "n1",
+                     "question": _PROV_QUESTION}]})
+        # The user's own ❓, arriving the only way one can: on their save.
+        # Copied off the agent's glyph so the two differ in id, position
+        # and `customData` alone — a glyph that differed in shape would be
+        # testing the minter rather than the ingest, which keys on `role`.
+        scene = list(store.scenes["flow"])
+        drawn = dict(scene[-1])
+        drawn.update({"id": "asked-by-user", "x": 300, "y": 300,
+                      "customData": {"role": "pin", "target": "n1",
+                                     "question": _PROV_QUESTION,
+                                     "status": "open", "answer": None,
+                                     "author": "user"}})
+        store.commit(author="user", new_scenes={"flow": [*scene, drawn]},
+                     base_revn=store.head_revn())
+        glyphs = {e["id"]: e for e in store.scenes["flow"]}
+        pins = {p["id"]: p for p in store.registry["pins"]}
+        rows = {d["id"]: canvas.pin_debt_entry(d) for d in store.pin_debt()}
+        return {
+            "author": {who: (glyphs["asked-by-%s" % who]
+                             .get("customData") or {}).get("author")
+                       for who in ("agent", "user")},
+            "direction": {who: pins["asked-by-%s" % who].get("direction")
+                          for who in ("agent", "user")},
+            "nag": {who: rows.get("asked-by-%s" % who, "")
+                    for who in ("agent", "user")}}
+    finally:
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
+    """Two hands, one sentence, and no surface that can tell them apart.
+
+    THE RELATION, NOT THE INCIDENT: an answer on a pin carries the door
+    it came through, and an answer the agent supplied cannot be read as
+    one the user gave. Two reds, because the property has two halves that
+    fail independently — a repair that marks both stores and leaves the
+    nag and the feed unmarked has built provenance nobody renders, and
+    the second red is what would still be pointing at it.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT, on the
+    `TestADeclaredDatumSurvivesTheDoorItCameThrough` precedent and for
+    the same reason: every scene-level detector here is correctly quiet,
+    because the scene is internally coherent. What disagrees is the
+    record and the WORLD, and no rule handed a list of elements can reach
+    who typed something. Registering a check name for it would state a
+    contract no lint can meet.
+
+    IT PRESCRIBES NO REPAIR, and four shapes were MEASURED rather than
+    argued. Each monkeypatched from a throwaway plugin outside the repo,
+    applied alone against this tree on 2026-09-01, both reds turning
+    green under every one:
+
+      (a) A SIBLING FIELD AT THE DOOR. `answer_pin` grows a `by`, the
+          verb declares itself, the event and `pin_debt_entry` carry it.
+          The nag prints `<pin>(answered, ..., answered by agent)`.
+      (b) `author` WIDENED TO A PER-FIELD RECORD. No new key: the slot
+          the element already has stops being a scalar about the question
+          and becomes `{"question": "agent", "answer": "user"}`. The nag
+          prints `..., answer by agent)`.
+      (c) A PROPOSAL THE USER PROMOTES. The verb posts to a `propose`
+          route, `proposed_answer` lands, `answer` stays None and the pin
+          stays `open`. The composed answer then does not reach the
+          `--for user` feed AT ALL, which is the sharpest of the four:
+          the agent stops being able to hear its own voice come back as
+          the user's.
+      (d) A DOOR THAT SHUTS. The verb refuses, naming the reason. The
+          bench records `refused` and the readings differ because one pin
+          is answered and the other is not.
+
+    Four mechanisms, one law, and (b) is the one that proves this is not
+    a disguised "add a field": it adds none. What these do NOT flip under
+    is worth writing down too, since §8 says to name the rewrites you
+    break under — a repair that adds a NEW marked route for the agent and
+    leaves `x-as-user answer` writing unmarked testimony keeps both reds
+    red. That is a judgement and it is the one this pin makes: an
+    unmarked route the agent still has is the defect surviving beside its
+    own fix, not a spelling difference.
+    """
+
+    @unittest.expectedFailure
+    def test_two_hands_leave_one_indistinguishable_record(self) -> None:
+        """The storage half: neither store can say what happened.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS COLLAPSE. Two
+        origins produce ONE distinct reading where they must produce two,
+        on all three stored surfaces at once. Asserted as a difference
+        between two readings and never as the presence of a named key,
+        because naming a key names a repair: `answered_by`, a widened
+        `author`, `proposed_answer` and a status the promotion moves are
+        all honest, and a guard that greps for one fails the other three
+        while the behaviour is correct.
+
+        `element` IS IN THE COMPARISON ON PURPOSE. That is the six-key
+        `customData` where `author` sits directly beside `answer` — the
+        pin is not short of an authorship field, it has one for the
+        question and none for the answer, and today it reads `"agent"`
+        over the sentence the USER typed. A reading that only looked at
+        `model.json` would miss that the two stores are wrong in the same
+        direction for two different reasons.
+
+        THE NEAREST FALSE GREEN is a difference that is not provenance —
+        two pins always differ by id and by wall clock — so
+        `_PROV_VOLATILE` removes those before the comparison, and both
+        pins are minted in ONE batch carrying ONE question string so that
+        `author`, `direction`, `round` and `asked_at_revn` are equal by
+        construction.
+        """
+        bench = answer_provenance_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("record", "element", "events")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "an answer the user typed and an answer the agent composed on "
+            "their instruction left the SAME record on %d of 3 stored "
+            "surfaces (%s) — 1 distinct reading for 2 distinct origins. "
+            "The ❓'s own `customData` carries `author` for the QUESTION "
+            "and nothing for the ANSWER, so it reads %r over both. Mark "
+            "it at the door, widen the slot that is already there, park "
+            "it where the user promotes it, or refuse the route and say "
+            "why — but a store that cannot say whose words these are "
+            "makes every answer in the project unverifiable at once. "
+            "Typed element: %s. Composed element: %s"
+            % (len(same), ", ".join(same),
+               (typed["element"] or {}).get("author"),
+               json.dumps(typed["element"], sort_keys=True),
+               json.dumps(composed["element"], sort_keys=True)))
+
+    @unittest.expectedFailure
+    def test_the_rendered_mark_does_not_move_with_the_answers_source(
+            self) -> None:
+        """The rendering half: the badge answers the question nobody asked.
+
+        SEPARATE FROM ITS NEIGHBOUR ABOVE BECAUSE IT FAILS SEPARATELY. A
+        repair that lands a mark in both stores and stops there satisfies
+        the storage red completely and leaves this one exactly where it
+        is — the standing nag still reads `<pin>(answered, age 0r, target
+        edited 0×)` for both, and `wait --for user` still hands the agent
+        its own sentences back under the same heading as the user's. That
+        is the configuration the incident ran in, one rendering short.
+
+        AND IT IS THE EXACT POLE OF THE ONE BELOW. `pin_debt_entry`
+        renders `direction`, the same field the rail's `yours`/`agent`
+        chip draws. `test_the_asking_hand_is_still_marked` proves that
+        mark MOVES when the question's source moves; this proves it does
+        NOT move when the answer's source moves. A mark that is rendered
+        on every apply and cannot follow the fact that varies is worse
+        than no mark: it reads as an attribution.
+
+        THE FEED IS THE SHARP END. `pin_answer` is a member of
+        `USER_EVENT_TYPES`, so the classification is static — every
+        answer is user activity because of what KIND of event it is,
+        never because of who sent it. `cmd_wait` is driven for real here,
+        with its own filter, so a repair anywhere on that path (a new
+        event type, a field the filter consults, a route that emits
+        nothing) moves this reading.
+        """
+        bench = answer_provenance_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("nag", "feed")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "the two answers render identically on %d of 2 surfaces "
+            "somebody reads (%s). PIN_DEBT= prints %r for both, and "
+            "`wait --for user` served %d event(s) with the agent's own "
+            "composition among them under the user's heading. The same "
+            "line already marks WHOSE QUESTION it is, and the rail draws "
+            "a chip off the same field — so what ships is an authorship "
+            "badge on the half that is almost always the agent, and "
+            "nothing on the half that varies"
+            % (len(same), ", ".join(same), typed["nag"], bench["feed_size"]))
+
+    def test_the_bench_drove_both_doors_and_every_reader_spoke(self) -> None:
+        """The vacuity guard: an emptiness claim over a live measurement.
+
+        UNGATED AND ASSERTED IN EVERY COMMIT, because both reds above are
+        `assertEqual(same, [])` and an empty list is what a broken bench
+        produces most easily. A driver that missed the pin, a reader that
+        stopped reading, a feed that printed nothing — each makes the two
+        readings differ, and each reads as a fix. So this claims the
+        facts that make `same == []` mean something.
+
+        WATCHED FAILING, one clause at a time, 2026-09-01, by damaging
+        this bench in a throwaway copy outside the repo:
+
+          * agent door pointed at a pin id that does not exist ->
+            `composed_outcome` reads `vanished`, clause 3 fires, and both
+            reds go GREEN — which is precisely the false fix this clause
+            exists to refuse.
+          * user door posting `""` -> clause 1 fires on the answer text.
+          * `Store.pin_debt` returning `[]` -> clause 4 fires on the nag.
+          * `cmd_wait` driven `--for agent` -> clause 5 fires on the feed.
+
+        A REFUSAL IS NOT A DAMAGED BENCH, which is what clause 3 is
+        shaped around: candidate repair (d) shuts the agent's route and
+        the bench then reports `refused` with an exit code, having heard
+        the door say no. `vanished` is the state where it said nothing
+        and did nothing, and that is the only outcome refused here.
+        """
+        bench = answer_provenance_bench()
+        typed = bench["typed"]
+        self.assertEqual(
+            (typed["record"] or {}).get("answer"), _PROV_ANSWER,
+            "the user's own door did not land the answer, so the reds "
+            "beside this are comparing a record that was never written: "
+            "%s" % json.dumps(typed["record"], sort_keys=True))
+        self.assertEqual(
+            (typed["record"] or {}).get("status"), "answered",
+            "the user's answer left the pin %r rather than `answered` — "
+            "whatever the two reds above compare, it is not an answered "
+            "pin" % ((typed["record"] or {}).get("status"),))
+        self.assertIn(
+            bench["composed_outcome"], ("landed", "refused"),
+            "the agent's door neither landed an answer nor refused out "
+            "loud (%r). A route that silently does nothing makes the two "
+            "readings differ for a reason that has nothing to do with "
+            "provenance, and both reds above then pass over a bench that "
+            "measured one door" % bench["composed_outcome"])
+        for pid in _PROV_DOORS:
+            self.assertTrue(
+                bench[pid]["nag"],
+                "PIN_DEBT= rendered nothing for %r, so the rendering red "
+                "is comparing two absences rather than two lines" % pid)
+        self.assertGreaterEqual(
+            bench["feed_size"], 1,
+            "`canvas.py wait --for user` printed no events at all, so "
+            "the feed half of the rendering red would pass over a "
+            "channel that says nothing — a corpse, not a clean bill")
+
+    def test_the_asking_hand_is_still_marked(self) -> None:
+        """The live pole: both stores DO carry authorship, for the question.
+
+        THE ONE THE REDS CANNOT OBSERVE. They accuse two stores and one
+        rendering of saying nothing about who answered, and machinery
+        that has stopped saying anything about anyone satisfies that
+        perfectly — the accusation and the corpse read alike. This drives
+        the half that works, through both writers and all three readings,
+        so the reds can be read as "the second half was never built"
+        rather than "the first half died".
+
+        It is also the argument they rest on. `author` sits in the ❓'s
+        own six-key `customData`; `direction` sits in the registry;
+        `pin_debt_entry` prints it on every apply and the rail draws a
+        chip off it. The design took authorship seriously enough to store
+        it twice and render it twice. Whose ANSWER it is is that same
+        ruling, one field along.
+        """
+        marks = pin_marks_whose_question_it_is()
+        self.assertEqual(
+            marks["author"], {"agent": "agent", "user": "user"},
+            "the ❓ glyph's own `customData.author` no longer follows the "
+            "hand that asked (%s), so the element store has stopped "
+            "carrying authorship at all and the reds beside this would "
+            "be measuring a dead field rather than a missing one"
+            % (marks["author"],))
+        self.assertEqual(
+            marks["direction"], {"agent": "agent", "user": "user"},
+            "the registry's `direction` no longer follows the hand that "
+            "asked (%s) — both pin writers set it explicitly, so this is "
+            "one of them having gone quiet" % (marks["direction"],))
+        self.assertIn(
+            "user", marks["nag"]["user"],
+            "a ❓ the user drew came back unmarked on the standing nag "
+            "(%r). That line and the rail chip render the same field, so "
+            "this is the nearest assertable evidence that the badge the "
+            "reds accuse of standing still is capable of moving at all"
+            % marks["nag"]["user"])
+        self.assertNotEqual(
+            marks["nag"]["agent"], marks["nag"]["user"],
+            "the nag renders an agent's question and a user's question "
+            "identically (%r), so it distinguishes no provenance and "
+            "cannot be held to distinguishing this one"
+            % marks["nag"]["user"])
 
 
 class TestCoverage(unittest.TestCase):
