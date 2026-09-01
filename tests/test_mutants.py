@@ -46887,6 +46887,39 @@ def _prov_scrub(obj: Any) -> Any:
     return obj
 
 
+def _prov_strings(obj: Any) -> set[str]:
+    """Every string anywhere in a structure, at any depth.
+
+    THE GUARD'S ANSWER TO ITS OWN GENERATOR, and the reason it is
+    recursive rather than a `.values()` comprehension. The two reds in
+    this class compare whole readings and name no key, deliberately —
+    "naming a key names a repair". The guard was not written to that
+    discipline, and every literal in it turned out to be a bet on how a
+    repair would be SPELLED: a top-level scan of the request body read
+    an id nested inside an `ops` list as absent, and reported a repair
+    that had answered the pin as a driver that aimed at nothing.
+
+    Keys are deliberately NOT collected. A key is a spelling; a value is
+    what the caller actually said. Collecting both would let a body that
+    merely happens to have a key named after the pin satisfy a check
+    about what the body ADDRESSED.
+
+    Args:
+        obj: Any JSON-shaped structure — dict, list, or scalar.
+
+    Returns:
+        The set of every string VALUE reachable in it. Non-strings are
+        ignored rather than coerced: `2` and `"2"` are different claims
+        and an id comparison should not merge them.
+    """
+    if isinstance(obj, dict):
+        return set().union(*(_prov_strings(v) for v in obj.values())) \
+            if obj else set()
+    if isinstance(obj, (list, tuple)):
+        return set().union(*(_prov_strings(v) for v in obj)) if obj else set()
+    return {obj} if isinstance(obj, str) else set()
+
+
 def _prov_reading(app: canvas.ServerApp, pid: str,
                   feed: list[dict[str, Any]]) -> dict[str, Any]:
     """Collect what every shipped surface says about one answered pin.
@@ -47036,19 +47069,17 @@ def _prov_recorder(
         entry: dict[str, Any] = {"path": url.split(_AS_USER_URL, 1)[-1],
                                  "post": payload is not None, "raised": None,
                                  "status": None, "stopped": False,
-                                 # EVERY STRING THE BODY CARRIES, not
-                                 # `payload["id"]`. Reading one key names
-                                 # one spelling: a repair addressing the
-                                 # pin as `pin_id` or `target` recorded
-                                 # None and read as a driver that aimed
-                                 # nowhere, which is the I-1 prescription
-                                 # one key over. Measured: `pin_id` gave
-                                 # a false GUARD RED over a repair that
-                                 # answered the pin correctly.
-                                 "body_names": sorted(
-                                     v for v in payload.values()
-                                     if isinstance(v, str))
-                                 if isinstance(payload, dict) else []}
+                                 # EVERY STRING THE BODY CARRIES, AT ANY
+                                 # DEPTH, not `payload["id"]` and not its
+                                 # top level either. Both narrower forms
+                                 # shipped and both were false REDs over
+                                 # repairs that answered the pin: reading
+                                 # one key refused a body naming the pin
+                                 # as `pin_id`, and reading one level
+                                 # refused a batch body carrying it
+                                 # inside `ops`. The bet each time was on
+                                 # how a repair would be WRITTEN.
+                                 "body_names": sorted(_prov_strings(payload))}
         calls.append(entry)
         try:
             resp = transport(url, payload, timeout)
@@ -47353,6 +47384,38 @@ def answer_provenance_bench() -> dict[str, Any]:
         # refusing client-side makes no pin write whatever, and an
         # `any()` over an empty list is False. A door that never posted
         # is clauses 3 and 5's subject, not this one's.
+        #
+        # AND IT HAS A DISCLOSED FALSE NEGATIVE, RULED 2026-09-01 rather
+        # than closed. Widening from "every write named it" to "one of
+        # them did" also widened "AIMED at the pin" to "MENTIONED the
+        # pin": a driver posting `{"id": "no-such-pin", …, "context":
+        # "q2"}` against a route that answers a DECIDED status is silent
+        # here, silent at clause 5, and never reaches `vanished`. Driven,
+        # and the whole class went green over a bench that answered one
+        # door.
+        #
+        # NOT CLOSED, AND THE REASON IS STRUCTURAL RATHER THAN LAZY. The
+        # remedy on offer — look only at the strings a route would read
+        # as an id — is the generator returning: it names the id-bearing
+        # keys, which is the bet M-3 removed and the `ops` nesting
+        # removed again one level down. And the honest version of the
+        # question is unanswerable from here: "where did the route read
+        # the id" can only be settled by watching the route read it, and
+        # under a refusal nothing was read. The bench has no observable.
+        #
+        # WHY THIS IS NOT THE ROUND-3 404 MISTAKE, which is the objection
+        # to answer, because that disposition was also argued from
+        # reachability and was wrong. There the SIMPLE case was uncaught:
+        # a plain wrong id, the first typo anyone makes, sailed through.
+        # Here the simple case is caught twice over — `wrong_pin_id` is
+        # red at this clause and red again at clause 5 — and the miss
+        # needs a driver that misaims WHILE carrying the correct id in a
+        # second field that exists for no reason but to be there. That
+        # field is not a bug's by-product; it has to be written. Trading
+        # it for a key-name bet would buy this corner and re-open the
+        # class of false REDs that four rounds were spent closing, which
+        # is the wrong direction for a guard whose measured error mode is
+        # over-refusal.
         wrote_composed = any(_PROV_PINS["composed"] in c["body_names"]
                              for c in pin_calls)
         misaimed = [] if not pin_calls or wrote_composed else pin_calls
@@ -47528,9 +47591,9 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
     Four mechanisms, one law, and (b) is the one that proves this is not
     a disguised "add a field": it adds none.
 
-    TWO REPAIRS THAT DO **NOT** FLIP THEM, measured in the same review
-    and kept because a negative result is the part a reader cannot
-    reconstruct:
+    THREE REPAIRS THAT DO **NOT** FLIP THEM, measured rather than
+    predicted, and kept because a negative result is the part a reader
+    cannot reconstruct:
 
       * (b) BUILT LITERALLY, widening `customData.author` on the glyph
         and nothing else. Neither red moves — `record`, `events`, `nag`
@@ -47539,6 +47602,17 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
       * MARKING BOTH STORES AND NOT THE EVENT. Red 1 stays red on
         `events`. See the ladder in
         `test_the_rendered_mark_does_not_move_with_the_answers_source`.
+      * A SIDE TABLE. Provenance recorded in
+        `registry["answer_provenance"]`, keyed by pin, with the pin
+        record itself untouched. Both reds stay red and the guard is
+        GREEN, so this arrives as "your repair does not satisfy the
+        law" rather than as a broken bench — which is the right signal,
+        but only if the reader knows it is deliberate. IT IS: red 2's
+        whole argument is that a store nothing renders is provenance
+        nobody has, and an audit table beside the record is exactly
+        that until something reads it. A side table PLUS a rendering
+        that consults it would flip both; the table alone is half a
+        repair and the reds say so.
 
     AND ONE REWRITE THEY BREAK UNDER, named because §8 says to name them:
     a repair that adds a NEW marked route for the agent and leaves
@@ -47546,6 +47620,17 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
     That is a judgement and it is the one this pin makes — an unmarked
     route the agent still has is the defect surviving beside its own fix,
     not a spelling difference.
+
+    ONE THING A REPAIR MUST CARRY WITH IT, learned by building (b) as a
+    `status` widening rather than an `author` one: whatever slot grows,
+    its READERS grow too. `Store.pin_debt` filters on
+    `status in ("open", "answered")`, so a `status` of
+    `answered_by_agent` drops the pin off the standing `PIN_DEBT=` nag
+    entirely. The guard catches that — it reports the nag rendering
+    nothing — and the catch is correct rather than prescriptive: a
+    repair that marks provenance by making the pin invisible on the one
+    surface that prints every apply has moved the defect, not fixed it.
+    Widen the filter in the same change and both reds flip.
     """
 
     @unittest.expectedFailure
@@ -47676,6 +47761,27 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
         readings differ, and each reads as a fix. So this claims the
         facts that make `same == []` mean something.
 
+        THE REDS NAME A RELATION; THIS GUARD MUST TOO. Four review rounds
+        found the same defect wearing four costumes — a raise mistaken
+        for a refusal, a 404, a 409, a misaim clause reading "every write"
+        for "any write" — and the root was one habit: the reds compare
+        whole readings and mention no key, on the stated ground that
+        naming a key names a repair, and the guard was not written to
+        that discipline. Every literal in it was a bet on how a repair
+        would be SPELLED, and each bet refused a repair that satisfied
+        the law:
+
+            asked for `record["answer"]`      -> refused `answer_text`
+            asked for `status == "answered"`  -> refused `answered_by_user`
+            scanned the body's top level      -> refused an id inside `ops`
+
+        All three are now relations. The sentence must be SOMEWHERE in
+        the record; the pin must no longer read as OPEN; the id is looked
+        for at any depth. The rule for anyone adding a clause here: ask
+        what the repair must ACHIEVE, never where it must write it. If a
+        clause cannot be phrased without a key name, it belongs in the
+        break-under list as a disclosed judgement, not in the assertions.
+
         WATCHED FAILING, ONE CLAUSE AT A TIME, by damaging this bench in
         a throwaway copy outside the repo. Every row was re-driven
         2026-09-01 against the tree that ships it, and the WHICH CLAUSE
@@ -47774,6 +47880,30 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
           * `posts_twice` — the verb writes the same pin twice. GUARD
             GREEN, and it is the control that proves clause 4
             discriminates on WHICH pin rather than on how many writes.
+          * `batch_write` — the repair answers through a batch route with
+            the id nested inside `ops`. GUARD GREEN. A false RED until
+            `body_names` went recursive; the message had asserted the pin
+            was unanswered over a pin that was answered.
+          * `renamed_record_field` — the stored answer moves to
+            `answer_text` with `answer_author` beside it. GUARD GREEN. A
+            false RED until clause 1 stopped naming `answer`.
+          * `provenance_in_status_complete` — `status` widens to
+            `answered_by_user`/`answered_by_agent`, WITH `pin_debt`'s
+            filter widened in the same change. GUARD GREEN, both reds
+            flipped, and no new key anywhere. A false RED until clause 2
+            stopped naming `"answered"`.
+          * `provenance_in_status` — the SAME repair with the filter left
+            alone. GUARD RED at clause 7, and correctly: the pin drops
+            off `PIN_DEBT=` entirely, so the mark was bought by making
+            the pin invisible on the surface that prints every apply.
+            Kept as a row because "the guard refuses this shape" and "the
+            guard caught half a repair" look identical from one reading,
+            and the pair separates them.
+          * `wrong_pin_but_echoed` — the driver misaims while carrying
+            the correct id in a spare field, against a route answering a
+            decided status. GUARD GREEN, and this one is a KNOWN MISS,
+            ruled and disclosed at clause 4 rather than closed. It is
+            here so the gap is a row in the table instead of a discovery.
 
         A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 to 6
         are shaped around TOGETHER, and no one of them is sufficient.
@@ -47800,19 +47930,36 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
         """
         bench = answer_provenance_bench()
         typed = bench["typed"]
-        self.assertEqual(
-            (typed["record"] or {}).get("answer"), _PROV_ANSWER,
-            "the user's own door did not land the answer, so the reds "
-            "beside this are comparing a record that was never written: "
-            "%s%s" % (json.dumps(typed["record"], sort_keys=True),
-                      "" if bench["typed_refusal"] is None
-                      else ". The rail's own POST was refused: %s"
-                           % bench["typed_refusal"]))
-        self.assertEqual(
-            (typed["record"] or {}).get("status"), "answered",
-            "the user's answer left the pin %r rather than `answered` — "
-            "whatever the two reds above compare, it is not an answered "
-            "pin" % ((typed["record"] or {}).get("status"),))
+        # CLAUSE 1 — THE SENTENCE IS IN THE RECORD, wherever the record
+        # chose to put it. This asked `record["answer"] == _PROV_ANSWER`
+        # and refused a repair that renamed the field to `answer_text`
+        # while storing the sentence and the author side by side. The
+        # relation is "the user's words are in the store", and the key
+        # they are under is the repair's business.
+        self.assertIn(
+            _PROV_ANSWER, _prov_strings(typed["record"]),
+            "the user's own door did not land the answer anywhere in the "
+            "record, so the reds beside this are comparing a record that "
+            "was never written: %s%s"
+            % (json.dumps(typed["record"], sort_keys=True),
+               "" if bench["typed_refusal"] is None
+               else ". The rail's own POST was refused: %s"
+                    % bench["typed_refusal"]))
+        # CLAUSE 2 — THE PIN IS NO LONGER ASKING, which is what "the user
+        # answered it" means. This asked for the literal `"answered"` and
+        # refused a repair widening `status` to `answered_by_user` —
+        # while the class next door celebrates candidate (b) for widening
+        # the `author` slot in exactly that way. Accepting one and
+        # refusing the other was incoherent. `open` is the state the
+        # `pin` op MINTS, so testing against it is testing the domain's
+        # own starting vocabulary rather than a repair's chosen ending
+        # one, and every terminal spelling passes.
+        self.assertNotIn(
+            "open", _prov_strings(typed["record"]),
+            "the user's answer left the pin still reading as an OPEN "
+            "question (%s) — whatever the two reds above compare, it is "
+            "not a pin somebody has answered"
+            % json.dumps(typed["record"], sort_keys=True))
         self.assertIn(
             bench["composed_outcome"], ("landed", "refused"),
             "the agent's door neither landed an answer nor refused out "
