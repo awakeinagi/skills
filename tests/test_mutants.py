@@ -684,13 +684,13 @@ _PIN_RIVAL_LINE = re.compile(r"pin (?P<element>[\w-]+) asks about ")
 # would agree with itself on every input.
 #
 # IT SPEAKS ONLY FOR THE `crowded` ARM, which is the arm that names a
-# rival. The `stranded` arm (canvas.py:20729) reports a ❓ further from its
+# rival. The `stranded` arm (`stranded = own > reach`) reports a ❓ further from its
 # target than the target is wide, and its sentence has no rival clause at
 # all — none of the readings below match it, so this check is silent
 # there, correctly: there is no rival distance to be right or wrong about.
 #
 # THE LIST IS ORDERED AND ITS PLURALITY IS THE POINT. `_rect_gap`
-# (canvas.py:14976) is quoted WHOLE here, because a fragment of it is what
+# is quoted WHOLE here — as it stood on main — because a fragment of it is what
 # sent one review down a wrong branch — read as `max(bx1 - ax2, ax1 - bx2,
 # 0)` alone it looks like a single-axis clamp, and the repair space for
 # that is a different space:
@@ -735,17 +735,17 @@ _PIN_RIVAL_LINE = re.compile(r"pin (?P<element>[\w-]+) asks about ")
 # pin-report-page at -20px; both pins open, neither waived).
 #
 # AND (A) REMOVES A NONDETERMINISM THE CLAUSE REPAIRS LEAVE STANDING. The
-# rival is selected at canvas.py:20689 by `d < rival_gap` — the FIRST
+# rival is selected by `d < rival_gap` — the FIRST
 # minimum wins — so under the clamp every overlapping rival ties at 0 and
 # the sentence names whichever node comes first in the element list.
 # Measured on main, a ❓ overlapping two nodes at 6px and 16px: the
 # sentence names the SHALLOW one in one element order and the DEEP one in
 # the other. Extended through zero it names the deep one in both.
 #
-# EXTEND THE RIVAL READ AT :20688 ONLY — NOT THE `own` READ AT :20680, and
+# EXTEND THE RIVAL READ ONLY — NOT THE `own` READ ABOVE IT, and
 # this is the one part of (A) that is not free. Both go through the same
 # helper, so changing the helper changes both, and `own` feeds `crowded`
-# at :20730 (`own - rival_gap >= PIN_HUG_PX`) and `stranded` at :20729
+# (`own - rival_gap >= PIN_HUG_PX`) and `stranded`
 # (`own > reach`). Under the clamp `crowded` can NEVER hold for a ❓
 # overlapping its own target: `own` clamps to 0 and `rival_gap` is
 # non-negative, so the difference is at most 0. Extended, it can. Measured
@@ -756,7 +756,17 @@ _PIN_RIVAL_LINE = re.compile(r"pin (?P<element>[\w-]+) asks about ")
 # ON their own target, none currently firing, so today's inertness belongs
 # to those five scenes and not to the repair. Extend the rival read and
 # leave `own` clamped, or pin the gate on a ❓-over-its-own-target scene.
-# Nothing asserts that yet, which is why it is written down.
+#
+# BOTH LANDED ON 2026-09-01, and the "or" was wrong — the second is not an
+# alternative to the first, it is what caught the first being incomplete.
+# `pin_over_its_own_target_stays_quiet_about_rivals` is that pin, and it
+# measures this paragraph's instruction RED: extending the rival read and
+# leaving `own` clamped is not sufficient, because `crowded` subtracts one
+# gap from the other, so `own` floors to 0 and a rival 22px deep still
+# gives `0 - -22 = 22 >= 8`. What the shipped repair also does — and what
+# this paragraph did not ask for — is floor the rival's gap back for the
+# GATE while the sentence reports the depth. See that entry's five-tree
+# matrix; the row this paragraph describes is its third.
 #
 # Overlap spellings are tried FIRST and the clamped slot is the fallback,
 # so a repair that both extends the slot and adds a clause still reports
@@ -18202,7 +18212,7 @@ def _pin_drifted_but_clear_of_the_rival() -> list[dict]:
     contained both numbers and nobody divided them. And crossing the
     ceiling silences nothing anyway: at a THIRD application the ❓ is
     `stranded` (own 136 > 116.6) and the sentence still carries the
-    rival clause, because canvas.py:20743 is `if crowded:` and the
+    rival clause, because the branch there tests `crowded` first and the
     crowded reading wins wherever both hold. The finding is
     `(0.0, "clear")` at every multiplicity from one upward.
 
@@ -18214,7 +18224,7 @@ def _pin_drifted_but_clear_of_the_rival() -> list[dict]:
     becomes more satisfied with every application. The pair is more
     robust than its own docstring claimed — this operator cannot silence
     it at any multiplicity — and what is worth carrying forward is the
-    branch order at :20743, not the ceiling.
+    branch order in that `if`, not the ceiling.
 
     THE GEOMETRY, all of it on one axis. `step` spans x 0-100 and `gate`
     spans x 200-300; the ❓'s 26px slot sits at x 158-184, so its own
@@ -18241,6 +18251,81 @@ def _pin_drifted_but_clear_of_the_rival() -> list[dict]:
             el(id="gate", type="rectangle", x=200, y=0, width=100,
                height=60, customData={"role": "node"}),
             el(id="q1", type="text", x=158, y=10, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
+                           "status": "open", "question": "which one?"})]
+
+
+def _pin_hugging_a_target_that_abuts_a_rival() -> list[dict]:
+    """A correctly minted ❓, on a page where its target ABUTS a rival.
+
+    THE RIVAL TOUCHES THE TARGET AND THAT IS THE WHOLE STAGE. A version
+    of this scene with the rival far away is VACUOUS as a control for
+    the hazard it exists to hold: with 200px of air past `step`, no
+    single move can put the ❓ inside both boxes at once, so the pair
+    below would stay quiet for a reason that has nothing to do with the
+    repair under test and would go on passing against the wrong fix.
+    Abutting is the shape the hazard actually takes — a ❓ dragged over
+    the seam is simultaneously ON the thing it asks about and IN
+    something else.
+
+    SILENT AS BUILT, and by the placement rule rather than by luck: the
+    ❓'s 26px slot sits at x 266-292, exactly `PIN_HUG_PX` off `step`'s
+    left edge, which is where `pin_spot` mints one. `gate` is 208px
+    away, so `crowded` reads 8 - 208 and `stranded` reads 8 against a
+    215.4px diagonal.
+
+    Returns:
+        The three-element scene: the target `step`, the abutting rival
+        `gate`, then the ❓ `q1` at its mint spot.
+    """
+    return [el(id="step", type="rectangle", x=300, y=0, width=200,
+               height=80, customData={"role": "node"}),
+            el(id="gate", type="rectangle", x=500, y=0, width=200,
+               height=80, customData={"role": "node"}),
+            el(id="q1", type="text", x=266, y=10, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
+                           "status": "open", "question": "which one?"})]
+
+
+def _pin_into_a_rival_and_clear_of_its_target() -> list[dict]:
+    """The firing pole: a ❓ CLEAR of its own target and 36px into a rival.
+
+    The other end of the reading its mutant asserts silence on, and it
+    has to be a separate scene rather than the same one moved, because a
+    neighbour is built AS-IS and never sees the operator. What it proves
+    is the half a `Silence` can never prove on its own: that `pin_drift`
+    still reaches its rival clause, still reports a signed depth, and has
+    not simply stopped speaking — a dead check satisfies a silence.
+
+    THE GEOMETRY, on the same two nodes as the stage next door. The ❓'s
+    slot sits at x 520-546, y 44-70. `step` spans x 300-500, so its own
+    gap is 20px of real air; `gate` spans x 500-700 and y 0-80, so the
+    slot is 46px inside it across and 36px down, and the minimum
+    translation distance is the SMALLER of those. It is the y axis that
+    binds, deliberately: an overlap whose two depths were equal could
+    not tell `min` from `max` from either leg, and this pair exists to
+    assert which quantity the sentence carries.
+
+    WHAT THE +/-10% BAND AROUND 36 THEREFORE EXCLUDES, each of them a
+    reading somebody could take: 20 (the distance to its own TARGET,
+    which is `pin_drift`'s magnitude in both arms and the number this
+    check must never duplicate), 46 (the OTHER axis's depth, which is
+    what `max` would report), 58.4 (`hypot(46, 36)` — the signed
+    hypotenuse, the plausible wrong quantity the clamped shape invites,
+    refused by row G of the r8-7 repair matrix), 1656 (the overlap AREA,
+    row F), 26 (the slot's own width) and 8 (`PIN_HUG_PX`).
+
+    Returns:
+        The three-element scene: the target `step`, the rival `gate`,
+        then the ❓ `q1` buried in the rival.
+    """
+    return [el(id="step", type="rectangle", x=300, y=0, width=200,
+               height=80, customData={"role": "node"}),
+            el(id="gate", type="rectangle", x=500, y=0, width=200,
+               height=80, customData={"role": "node"}),
+            el(id="q1", type="text", x=520, y=44, width=26, height=26,
                text="❓", fontSize=20,
                customData={"role": "pin", "target": "step",
                            "status": "open", "question": "which one?"})]
@@ -24770,7 +24855,7 @@ _register(Mutant(
 # button, 10px in, with the button's fill behind the glyph. An agent
 # relaying "0px" tells the user their marker is beside the wrong button
 # when it is on top of it, and those are different repairs — nudge it, or
-# get it out of there. The cause is `_rect_gap` (canvas.py:14976), whose
+# get it out of there. The cause is `_rect_gap`, which on main had for its
 # whole body is
 #
 #     return math.hypot(max(bx1 - ax2, ax1 - bx2, 0),
@@ -24832,6 +24917,83 @@ _register(Mutant(
                         FindingSpec("pin_rival_gap", element="q1",
                                     magnitude=(16, 0.10),
                                     direction="clear"))))
+
+# THE OTHER HALF OF THE ENTRY ABOVE, and the half its own comment said
+# nothing asserted: "Extend the rival read and leave `own` clamped, or pin
+# the gate on a ❓-over-its-own-target scene. Nothing asserts that yet,
+# which is why it is written down." This is that, written down in the one
+# place that runs.
+#
+# WHAT IT HOLDS. `pin_drift` reads `_rect_gap` TWICE in one loop — the
+# distance to the pin's own target and the distance to the nearest rival —
+# and r8-7's repair extends only the second. The first stays clamped
+# because `crowded` subtracts one from
+# the other against `PIN_HUG_PX`, which is a PLACEMENT tolerance: 8px is
+# how far off a shape `pin_spot` mints a glyph, a fact about air, with no
+# reading at all for a negative operand. Under the clamp `crowded` can
+# never hold for a ❓ overlapping its own target — `own` floors at 0 and
+# the rival's gap was non-negative, so the difference is at most 0 — and
+# the population is not hypothetical: 5 of the corpus's 40 targeted
+# markers sit ON their own target, overlapping by 15-38px, and not one of
+# them speaks.
+#
+# IT IS GREEN ON MAIN AND THAT IS THE POINT. This entry pins no defect;
+# it pins a SILENCE that two plausible spellings of the repair break, so
+# it can only ever fail forward. Five whole trees were measured, each the
+# shipped canvas.py with one of its three edits undone:
+#
+#   canvas.py                                   this pin   r8-7
+#   main: both reads clamped, gate raw          green      RED
+#   sign the helper, gate raw                   RED        green
+#   sign the RIVAL READ ONLY, gate raw          RED        green
+#   sign the helper, gate clamped               green      green
+#   shipped: sign the rival read, gate clamped  green      green
+#
+# ROWS 2 AND 3 ARE WHAT THIS ENTRY IS FOR, and reading them together is
+# what says which. They differ only in whether the OWN read is signed and
+# both go red, so what this pin holds is not "the own read stayed
+# clamped" — it is that `crowded` still subtracts a CLEARANCE. Row 4
+# proves the same thing from the other side: signing the shared helper is
+# harmless while the gate floors its operand.
+#
+# SO THE INSTRUCTION WAS NOT SUFFICIENT, which is the finding worth
+# carrying. "Sign the rival read only, leave `own` clamped" is row 3, and
+# row 3 is red: `own` floors to 0, a rival 22px deep still gives
+# `0 - -22 = 22 >= 8`, and the check speaks about a ❓ sitting on the very
+# thing it asks about — "drawn 0px from it and only -22px from gate" —
+# with the own read left exactly as it was told to be. A reader who took
+# the instruction literally would have signed the rival read, watched
+# r8-7 flip, and shipped row 3.
+#
+# THE NEIGHBOUR IS BROKEN ON MAIN, measured, and that is correct rather
+# than a flaw: it asserts a 36px overlap reading, and main has no way to
+# say anything but 0/clear. It is a pole the repair CREATES, which is why
+# it is asserted ungated from here forward and could not have been
+# written before the fix.
+#
+# THE OPERATOR IS ONE DRAG AND NOT A CONSTRUCTED SCENE, which is what
+# makes it a mutant rather than a fixture: `shift_label` slides the ❓
+# 230px right, off `step`'s left edge and across the seam, and nothing
+# else in the drawing moves. That is a gesture a user makes with a mouse
+# and no op is issued for — the same door r6-1's producer half came
+# through — and it lands the glyph 4px into its own target and 22px into
+# the abutting rival at once.
+#
+# THE NEIGHBOUR IS A FIRING POLE AND NOT A SECOND QUIET SCENE, because a
+# dead `pin_drift` satisfies a `Silence` and nothing else here would
+# notice: it asserts the same check reaching the same rival clause and
+# reporting 36px of overlap on a ❓ that is clear of its own target. That
+# is also what supplies this check's ungated `FindingSpec` — see
+# `test_a_silence_pole_is_never_the_only_witness_of_a_check`.
+_register(Mutant(
+    "pin_over_its_own_target_stays_quiet_about_rivals",
+    build=_pin_hugging_a_target_that_abuts_a_rival,
+    op="shift_label", args={"text_id": "q1", "dx": 230, "dy": 0},
+    expect=Silence("pin_rival_gap"),
+    neighbour=Neighbour(_pin_into_a_rival_and_clear_of_its_target,
+                        FindingSpec("pin_rival_gap", element="q1",
+                                    magnitude=(36, 0.10),
+                                    direction="overlap"))))
 
 
 class TestMutantCatalogue(unittest.TestCase):
@@ -26646,18 +26808,34 @@ class TestMutantCatalogue(unittest.TestCase):
         """A minted ❓ with a bystander 2px nearer is not a drifted one."""
         self._run_neighbour("pin_left_behind_by_its_moved_target")
 
-    @unittest.expectedFailure
     def test_mutant_pin_buried_in_a_rival_reads_as_adjacent(self) -> None:
-        """A ❓ drawn 10px INSIDE a rival is reported as 0px from it."""
-        # Red by assertion: `pin_drift` speaks, and about the rival it
-        # says 0px/clear where the picture is 10px/overlap. Flips when
-        # the sentence names the penetration — several spellings count,
-        # see `_PIN_RIVAL_READINGS`, which also says which quantity.
+        """A ❓ drawn 10px INSIDE a rival is reported at 10px of overlap."""
+        # GREEN as of 2026-09-01, by repair (A) of the three the entry
+        # measured: `_rect_gap_signed` extends the gap through zero and
+        # the RIVAL read takes it, so the sentence
+        # carries -10px where it carried 0px. The own read is still
+        # clamped, which is the half of (A) that is not free — see
+        # `pin_over_its_own_target_stays_quiet_about_rivals` below,
+        # which is the gate the entry asked for and which goes red
+        # under a helper-level signing.
         self._run("pin_buried_in_a_rival_reads_as_adjacent")
 
     def test_neighbour_pin_buried_in_a_rival_reads_as_adjacent(self) -> None:
         """16px of air between the same ❓ and the same rival reads clear."""
         self._run_neighbour("pin_buried_in_a_rival_reads_as_adjacent")
+
+    def test_mutant_pin_over_its_own_target_stays_quiet_about_rivals(
+            self) -> None:
+        """A ❓ dragged onto its own target says nothing about a rival."""
+        # Green here and red under two spellings of the r8-7 repair that
+        # look right — signing the shared helper, and signing the rival
+        # read but gating `crowded` on the signed value. See the entry.
+        self._run("pin_over_its_own_target_stays_quiet_about_rivals")
+
+    def test_neighbour_pin_over_its_own_target_stays_quiet_about_rivals(
+            self) -> None:
+        """Clear of its target and 36px into a rival, the check speaks."""
+        self._run_neighbour("pin_over_its_own_target_stays_quiet_about_rivals")
 
     def test_mutant_border_run_reads_an_unbound_neighbour(self) -> None:
         """80px of drop lies on a box the arrow binds neither end to."""
@@ -28956,7 +29134,37 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"pin_buried_in_a_rival_reads_as_adjacent"}
+CATALOGUE_RED_IDS: set[str] = set()
+# DRAINED on 2026-09-01, hours after it refilled, by repair (A) of the four
+# its own entry had measured: `_rect_gap_signed` continues the box gap
+# through zero and returns the negated MINIMUM TRANSLATION DISTANCE, and
+# the RIVAL read takes it. `_rect_gap` stays clamped and
+# is now that function floored, so there is one geometry with two views of
+# it. The entry offered four spellings and refused three; the choice among
+# the four was the fixer's, and the two it refuses were re-measured against
+# this tree before the decorator came off (`hypot(10, 36)` = 37.4px at row
+# G, the overlap area at 360 at row F).
+#
+# WHAT THE ENTRY ASKED FOR AND DID NOT GET UNTIL NOW is the other half:
+# "extend the rival read and leave `own` clamped, OR pin the gate on a
+# ❓-over-its-own-target scene. Nothing asserts that yet." Both halves
+# landed here — `pin_over_its_own_target_stays_quiet_about_rivals` is that
+# pin, it is green, and it goes RED under two spellings of this repair that
+# look right, including the one this entry itself recommended in those
+# words. Signing the rival read alone is NOT sufficient: `crowded`
+# subtracts the rival's gap from the own gap, so `own`
+# floors to 0 and a rival 22px deep still gives `0 - -22 = 22 >= 8`. The
+# gate has to keep subtracting a CLEARANCE, and the new entry carries the
+# five-tree matrix that says so.
+#
+# MEASURED COST OVER THE FROZEN CORPUS, re-derived here against the fix
+# rather than carried over from the entry: 3 artifacts fire before and
+# after, 5 pin_drift sentences before and after, and 2 changed text — the
+# two the finding named (`argus-r4-arm4/admin-console-wireframe`
+# `pin-rerun-unit` 0px -> -10px, `argus-r4-arm4/dashboard-wireframe`
+# `pin-report-page` 0px -> -20px). THE VALUE ABOVE WAS READ OFF THE GUARD:
+# the decorator was dropped first, `test_the_catalogue_reds_are_the_ones_
+# declared` was run, and it reported `measured []`.
 # REFILLED on 2026-09-01 by the curator, from r8 finding r8-7, and it is a
 # third drain shape's opposite: nothing was fixed and nothing was
 # re-judged, a check that has been reporting correctly for weeks was found

@@ -14973,6 +14973,55 @@ def pin_glyph_box():
     return (gw, gh, (PIN_SLOT_PX - gw) / 2.0)
 
 
+def _rect_gap_signed(a, b):
+    """`_rect_gap` continued THROUGH ZERO: negative when the boxes overlap.
+
+    Positive is air between the boxes and is exactly what `_rect_gap`
+    has always returned. Negative is penetration, and the quantity is
+    the MINIMUM TRANSLATION DISTANCE — the shortest move that would
+    separate the two — carried back with a minus sign, so the number
+    line runs continuously from "far apart" through "touching" to
+    "buried".
+
+    IT IS NOT A SIGNED HYPOTENUSE, which is the mistake this shape
+    invites and the one it is worth spelling out. For DISJOINT boxes
+    `hypot(sep_x, sep_y)` already IS the minimum translation distance,
+    so the hypotenuse looks like the thing that wants a sign; past zero
+    the axes stop combining and exactly ONE of them binds, because a
+    box is freed by sliding it out the near side and not by travelling
+    diagonally. On r8-7's own drawing the two answers are 10px and
+    `hypot(10, 36)` = 37.4px, against a picture a reader would repair by
+    nudging 10px sideways, and the r8-7 mutant's band refuses 37.4 for
+    that reason (its repair matrix, row G). The same band refuses the
+    product of the two depths at 360 (row F).
+
+    Args:
+        a: One element (`x`, `y`, `width`, `height`).
+        b: The other.
+
+    Returns:
+        Distance in px between the two rectangles: positive when they
+        are apart, 0.0 when they touch, and the negated minimum
+        translation distance when they overlap.
+    """
+    ax1, ay1 = a.get("x", 0), a.get("y", 0)
+    ax2, ay2 = ax1 + a.get("width", 0), ay1 + a.get("height", 0)
+    bx1, by1 = b.get("x", 0), b.get("y", 0)
+    bx2, by2 = bx1 + b.get("width", 0), by1 + b.get("height", 0)
+    # each axis UNCLAMPED, which is the whole edit: `max(b_lo - a_hi,
+    # a_lo - b_hi)` is the air between the two spans, and continued past
+    # zero it is minus how far along that axis one box would have to
+    # travel to clear the other. Both terms negative is the definition
+    # of interpenetration, and clamping them independently — which is
+    # what this function did until r8-7 — is what collapsed every such
+    # pair to `hypot(0, 0)`.
+    sx = max(bx1 - ax2, ax1 - bx2)
+    sy = max(by1 - ay2, ay1 - by2)
+    if sx < 0 and sy < 0:
+        return float(max(sx, sy))       # -min(x_depth, y_depth)
+    return math.hypot(max(sx, 0), max(sy, 0))
+
+
 def _rect_gap(a, b):
     """Clearance between two elements' boxes, 0 when they touch.
 
@@ -14984,6 +15033,17 @@ def _rect_gap(a, b):
     also the metric the whole-branch review measured M-4 with — its
     headline instance reproduces at 8.0px from this function.
 
+    THE FLOOR AT ZERO IS NOW A DELIBERATE PROJECTION and no longer the
+    only reading available: `_rect_gap_signed` carries the overlap
+    depth and this is that value floored, so there is one geometry and
+    two views of it rather than two arithmetics that could drift.
+    Callers take THIS one when they must not distinguish a touch from a
+    burial. `pin_drift`'s own-target read is the standing example and
+    the reason the distinction exists: its `crowded` gate subtracts a
+    rival's clearance from this one against `PIN_HUG_PX`, a PLACEMENT
+    tolerance, so a signed own-gap makes the check speak about a ❓
+    drawn on the very thing it asks about.
+
     Args:
         a: One element (`x`, `y`, `width`, `height`).
         b: The other.
@@ -14992,12 +15052,7 @@ def _rect_gap(a, b):
         Euclidean distance between the two rectangles, 0 if they
         overlap or touch.
     """
-    ax1, ay1 = a.get("x", 0), a.get("y", 0)
-    ax2, ay2 = ax1 + a.get("width", 0), ay1 + a.get("height", 0)
-    bx1, by1 = b.get("x", 0), b.get("y", 0)
-    bx2, by2 = bx1 + b.get("width", 0), by1 + b.get("height", 0)
-    return math.hypot(max(bx1 - ax2, ax1 - bx2, 0),
-                      max(by1 - ay2, ay1 - by2, 0))
+    return max(_rect_gap_signed(a, b), 0.0)
 
 
 def _rect_contains(outer, inner):
@@ -20685,7 +20740,25 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                 # drawn inside, not a rival for it — the same rule
                 # `pin_spot` states as "a frame is not a neighbour"
                 continue
-            d = _rect_gap(e, n)
+            # SIGNED HERE AND CLAMPED AT THE `own` READ ABOVE, which is r8-7's
+            # whole repair and the one part of it that is not free. Both
+            # reads went through `_rect_gap` and both came back 0 for an
+            # overlap, so the sentence told a reader "only 0px from" —
+            # adjacency — about a ❓ drawn ON the rival, with the rival's
+            # fill behind the glyph. Two of the five pin_drift sentences
+            # the frozen corpus emits were that (admin-console-wireframe
+            # `pin-rerun-unit` at 10px of burial, dashboard-wireframe
+            # `pin-report-page` at 20px), and the two pictures need
+            # different repairs — nudge it, or get it off the tile.
+            #
+            # IT ALSO SETTLES THE SELECTION BELOW. `d < rival_gap` takes
+            # the FIRST minimum, so under the clamp every overlapping
+            # rival tied at 0 and the sentence named whichever node came
+            # first in the element list: measured on main, a ❓ over two
+            # nodes at 6px and 16px names the SHALLOW one in one element
+            # order and the DEEP one in the other. Signed, the deepest
+            # wins in both.
+            d = _rect_gap_signed(e, n)
             if rival_gap is None or d < rival_gap:
                 rival, rival_gap = n, d
         # TWO ARMS, AND THE SECOND ONE IS WHY THIS BLOCK HAS A DISJUNCTION
@@ -20727,7 +20800,30 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # ❓ carry above is taken out.
         reach = math.hypot(tgt.get("width", 0), tgt.get("height", 0))
         stranded = own > reach
-        crowded = rival is not None and own - rival_gap >= PIN_HUG_PX
+        # THE DECISION IS TAKEN IN CLEARANCE SPACE AND THE SENTENCE IS
+        # NOT, and keeping those apart is what stops r8-7's repair from
+        # changing who this check speaks about. `crowded` compares two
+        # CLEARANCES against `PIN_HUG_PX`, which is the standoff
+        # `pin_spot` places at — a tolerance about air, with no reading
+        # for a negative operand — so the rival is floored back to zero
+        # here while the clause below reports the depth.
+        #
+        # SIGNING THIS SUBTRACTION IS THE HAZARD, and it does not need
+        # the own read to be signed to bite — which is the part r8-7's
+        # own write-up did not have. Measured on a ❓ dragged over the
+        # seam between its target and an abutting rival: `own` floors to
+        # 0, a rival 22px deep gives `0 - -22 = 22 >= 8`, and the check
+        # starts speaking about a marker sitting on the very thing it
+        # asks about. Leaving the own read clamped does not prevent it;
+        # flooring the operand here does, and it does so even if the
+        # shared helper is signed. Five of the corpus's 40 targeted
+        # markers sit on their own target, overlapping by 15-38px, and
+        # none of them speaks.
+        # `pin_over_its_own_target_stays_quiet_about_rivals` in
+        # tests/test_mutants.py is the pin, and its entry carries the
+        # five-tree matrix this paragraph summarises.
+        crowded = (rival is not None
+                   and own - max(rival_gap, 0.0) >= PIN_HUG_PX)
         if not (crowded or stranded):
             continue
         key = "pindrift:%s:%s" % (aid or "<artifact>", slugify(e["id"]))
@@ -20740,7 +20836,30 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # and the evidence picks the tail. The crowded reading wins where
         # both hold, because it names a rival the reader can go and look
         # at, which is strictly more than "it is far from its subject".
-        if crowded:
+        if crowded and rival_gap < 0:
+            # A NEGATIVE GAP GETS WORDS AND NOT ONLY A SIGN. The number
+            # keeps the "only %dpx from %s" shape it has always had —
+            # that is what the r8-7 mutant reads and what the corpus
+            # gate matches — but "only" is an adjacency word, and a
+            # minus sign is a thin thing to hang "beside it" against
+            # "drawn on top of it" on when telling those two apart is
+            # the entire point of the repair. This file has ruled on
+            # that hazard once already: the export check subtracted
+            # unconditionally, printed "-4000 lost in transit", and the
+            # fix was to SAY which way round it was rather than to
+            # trust the reader to parse the sign.
+            #
+            # THE ROUNDING IS THE TEMPLATE'S AND IS LEFT ALONE: a
+            # sub-pixel burial prints "0px inside it", the same way a
+            # sub-pixel gap has always printed "only 0px from". The
+            # words are what carry the reading at that magnitude, which
+            # is a second argument for their being here.
+            why = ("and only %dpx from %s — a negative gap: the ❓ is "
+                   "drawn ON that node, %dpx inside it, not beside it "
+                   "— so on the canvas it reads as %s's question"
+                   % (round(rival_gap), name(rival["id"]),
+                      round(-rival_gap), name(rival["id"])))
+        elif crowded:
             why = ("and only %dpx from %s, so on the canvas it reads as "
                    "%s's question"
                    % (round(rival_gap), name(rival["id"]),
