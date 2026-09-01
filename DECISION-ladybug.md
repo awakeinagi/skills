@@ -87,7 +87,12 @@ with the spike evidence in the bullet above it, and the evidence wins:*
 the client assembles the CAPTURE REQUEST — description, selection,
 camera, panels, ring in scene coordinates — and the server makes the
 picture with `render_svg`, which reads the scene it already holds and
-owes a browser nothing. The split moved; the field list did not.
+owes a browser nothing. The split moved; the field list did not —
+**with one exception, found by the review and fixed in the fix round:**
+`registry` arrived as four integers while this paragraph claimed the
+whole list did. It arrives whole now. A bundle is a point-in-time
+record and `model.json` is the live file, so "read the registry later"
+was never the same thing.
 
 *The bundle carries no PNG.* Rasterizing needs a headless browser
 (`rasterize_svg`, snapshot tier 2), which takes seconds and can fail — a
@@ -97,3 +102,42 @@ worth stating plainly: the spike's periodicity-not-flatness noise
 detector has no subject here and is not implemented. If pixels are ever
 re-admitted to a bundle, that detector is owed with them, and
 `assess_capture` is where it goes.
+
+**That condition is a check, not only this sentence.**
+`test_no_bundle_file_is_a_raster_and_the_owed_detector_says_so` sniffs
+every file a filed bundle contains by magic bytes and goes red the day
+one of them is a raster, naming the owed detector in its failure
+message; `test_the_raster_guard_can_actually_see_a_raster` is the
+neighbour that proves it speaks. An owed condition that lives only in
+prose is exactly the silence-reads-as-health shape this feature exists
+to catch, and it was in the paragraph above until the task 37 review
+(M-6) said so.
+
+## Owed at the next frontend rebuild
+
+Two review findings are **real and deliberately unfixed**, because the
+fix is in `frontends/wysiwyg-grilling/src/` and this tree cannot touch
+that source without paying for it twice:
+
+- **M-2** — `App.tsx` hardcodes `rail_open: true` and `filmstrip_open:
+  true` into the posted `panels`. Neither `<Rail>` nor `.filmstrip` has
+  an open/closed state, so two of ten fields can never vary. Rename to
+  `rail_present`/`filmstrip_present` or drop them.
+- **M-5, frontend half** — `BugHunter.tsx`'s `enterRing` and `submit`
+  carry no JSDoc while every sibling in the file does.
+
+**Why not now, measured rather than asserted.** `postbuild.mjs` stamps
+`web/build-stamp.json` with a sha1 over the whole of `src/`, and
+`frontend_stamp_warning` recomputes it. At this head the two agree
+exactly (`6f00eb65…`), so the tree ships a bundle that is honestly
+current. Editing so much as a comment in `src/` changes that hash — the
+two JSDoc blocks above were written, measured to move it to
+`27f4d535…`, and reverted. The consequences are not cosmetic: every
+maintainer starting the server sees "committed web bundle is STALE",
+and **every bug report filed from this tree records that warning in its
+own `report.json`**, which is a false value written into the evidence
+this feature exists to produce. The alternative is `npm run build`,
+which renames `index-DTzHdgzu.js` and dangles the ~20 prose citations
+into it that the fix round had just re-derived — for two JSDoc blocks
+and two field names. Both are cheap to do in the same commit as the
+next real frontend change; neither is worth a rebuild of its own.

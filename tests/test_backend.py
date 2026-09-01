@@ -30212,6 +30212,92 @@ class TestBugHunterBundles(Base):
         self.assertNotIn("data:image",
                          (d / "scene.svg").read_text("utf-8"))
 
+    # raster magic numbers, first bytes of the file. `RIFF` is checked
+    # with `WEBP` at offset 8 because RIFF is also WAV and AVI.
+    RASTERS = ((b"\x89PNG\r\n\x1a\n", "PNG"), (b"\xff\xd8\xff", "JPEG"),
+               (b"GIF87a", "GIF"), (b"GIF89a", "GIF"), (b"BM", "BMP"),
+               (b"II*\x00", "TIFF"), (b"MM\x00*", "TIFF"))
+
+    def rasters_in(self, d):
+        """Every file in a bundle that is a raster image, by magic bytes.
+
+        Sniffing the bytes rather than trusting the extension, because
+        the thing this guards against is a picture arriving, not a
+        picture arriving politely named.
+
+        Args:
+            d: The bundle directory.
+
+        Returns:
+            A sorted list of `"name (FORMAT)"` strings, empty when the
+            bundle holds no raster.
+        """
+        found = []
+        for p in sorted(d.rglob("*")):
+            if not p.is_file():
+                continue
+            head = p.read_bytes()[:12]
+            for magic, kind in self.RASTERS:
+                if head.startswith(magic):
+                    found.append("%s (%s)" % (p.name, kind))
+                    break
+            else:
+                if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+                    found.append("%s (WEBP)" % p.name)
+        return sorted(found)
+
+    def test_no_bundle_file_is_a_raster_and_the_owed_detector_says_so(self):
+        """Requirement 4's owed-back condition, as a check and not prose.
+
+        ONE OF THE ELEVEN SPIKE REQUIREMENTS IS DELIBERATELY NOT BUILT.
+        Requirement 4 wanted `snapshot_suspect` to detect a poisoned
+        snapshot by PERIODICITY, not flatness, sampling full rows — and
+        that detector has no subject here, because requirement 1 keeps
+        browser pixels out of the bundle by construction and the server
+        renders SVG. It was not written because it would have been dead
+        code. That reasoning is sound and it is CONDITIONAL, and the
+        condition lived only in a sentence in `DECISION-ladybug.md`
+        (task 37 review, M-6) — in a repo whose whole thesis is that
+        silence reads as health.
+
+        So the condition is a check now. The day a raster enters a
+        bundle this goes red and NAMES WHAT IS OWED, rather than the
+        bundle quietly gaining a picture nobody validates and the
+        detector staying unwritten because nobody remembered it was
+        promised. Sniffed by magic bytes, so a `.svg` that is really a
+        PNG is caught too.
+        """
+        d = self.bundle(self.file(artifact="checkout-flow",
+                                  ring={"points_scene": self.ring()}))
+        self.assertEqual(
+            self.rasters_in(d), [],
+            "this bundle carries a raster image (%s), so PIXELS HAVE "
+            "BEEN RE-ADMITTED and requirement 4 of the spike's eleven "
+            "is now owed: `assess_capture` needs the periodicity "
+            "detector from spike round 6 — periodicity, NOT flatness, "
+            "sampling full rows — and a `snapshot_suspect` that cannot "
+            "see a poisoned readback is the exact failure this feature "
+            "exists to catch, one level up. See DECISION-ladybug.md, "
+            "the paragraph on why the bundle carries no PNG."
+            % ", ".join(self.rasters_in(d)))
+
+    def test_the_raster_guard_can_actually_see_a_raster(self):
+        """The neighbour: a guard nobody has watched speak is not a guard.
+
+        The check above passes on an empty directory, on a bundle that
+        failed to write, and on any tree of text — which is every way it
+        could be green while blind. So one real PNG is dropped into a
+        real bundle and it has to be named.
+        """
+        d = self.bundle(self.file(artifact="checkout-flow"))
+        self.assertEqual(self.rasters_in(d), [])
+        (d / "snapshot.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32)
+        self.assertEqual(self.rasters_in(d), ["snapshot.png (PNG)"])
+        # and the extension is not what it reads
+        (d / "scene.svg").write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 32)
+        self.assertEqual(self.rasters_in(d),
+                         ["scene.svg (JPEG)", "snapshot.png (PNG)"])
+
     # -- the ring --------------------------------------------------------
 
     def ring(self):
