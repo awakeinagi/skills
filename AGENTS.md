@@ -323,6 +323,42 @@ in `canvas.py` and `tests/test_backend.py` alone.
 Match surrounding style by hand: ~79-col target, packed collections, aligned
 trailing comments.
 
+## Review — the four-stage loop, four sets of hands
+
+Ruled 2026-08-31. Work of any size goes through **implementation → review →
+fix → re-review**, and **each stage is a different subagent**. The shapes
+live in `.agents/skills/subagent-driven-development/`:
+`implementer-prompt.md`, `task-reviewer-prompt.md`, `re-review-prompt.md`,
+and `scripts/review-package` for the diff the reviewer reads in one call.
+
+**Findings use that skill's ladder, and only that ladder:**
+
+| tier | meaning |
+|---|---|
+| **Critical** | Must Fix |
+| **Important** | Should Fix |
+| **Minor** | Nice to Have |
+
+Each finding carries `file:line`, what is wrong, why it matters, and how to
+fix it if that is not obvious. Give findings stable IDs (`C-1`, `I-2`) so
+one stays addressable through the fix round and the re-review.
+
+**The reviewer must also report `⚠️ Cannot verify from diff`** — what it
+could *not* check, and what the controller should check instead. This is not
+optional politeness. Thirteen rounds of the empty-save class survived on
+checks that went quiet and were read as health; a reviewer that cannot
+separate "I checked this and it is fine" from "I could not check this"
+reproduces that failure at the review layer.
+
+**Two deliberate departures from the skill as written:**
+
+1. It says fix rounds R≤3 may *resume* the implementer. **We do not.** A
+   fresh fixer every round. A fix and the test that judges it from the same
+   hands is how one defect class survived nine closures here.
+2. Assessment findings keep `skill-optimizer`'s **P1/P2/P3**, which measure
+   *cost to the user*. Review tiers measure *what blocks a merge*. They are
+   different questions and must not be collapsed.
+
 ## Known debt
 
 Tracked in `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`. Each
