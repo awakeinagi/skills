@@ -30509,25 +30509,48 @@ class TestBugHunterBundles(Base):
 
         Without this the stale-tab check is a comparison of a constant
         with itself, which passes on every input.
+
+        It reads the build stamp `scripts/postbuild.mjs` writes rather
+        than hashing anything of its own — a second identity for one
+        build would be free to disagree with `frontend_stamp_warning`,
+        which reads the same field. So the cases here are the stamp's:
+        two builds, and the three ways it can be missing.
         """
         root = self.tmp / "web"
-        (root / "assets").mkdir(parents=True)
-        (root / "index.html").write_text("<html>", encoding="utf-8")
-        (root / "assets" / "app-aaaa.js").write_text("x", encoding="utf-8")
+        root.mkdir(parents=True)
+        stamp = root / "build-stamp.json"
+        stamp.write_text('{"source_hash": "aaaaaaaaaaaabbbb"}',
+                         encoding="utf-8")
         one = canvas.web_bundle_id(root)
-        (root / "assets" / "app-aaaa.js").rename(
-            root / "assets" / "app-bbbb.js")
+        self.assertEqual(one, "aaaaaaaaaaaa")
+        stamp.write_text('{"source_hash": "ccccccccccccdddd"}',
+                         encoding="utf-8")
         self.assertNotEqual(canvas.web_bundle_id(root), one,
                             "a rebuilt bundle reads as the same build")
-        (root / "assets" / "app-bbbb.js").rename(
-            root / "assets" / "app-aaaa.js")
-        self.assertEqual(canvas.web_bundle_id(root), one)
-        (root / "index.html").write_text("<html><!--edited-->",
-                                         encoding="utf-8")
-        self.assertNotEqual(canvas.web_bundle_id(root), one,
-                            "an in-place edit reads as the same build")
+        for broken in ("{ not json", "[]", '{"source_hash": null}',
+                       '{"source_hash": ""}'):
+            stamp.write_text(broken, encoding="utf-8")
+            self.assertEqual(canvas.web_bundle_id(root), "unknown")
+        stamp.unlink()
+        self.assertEqual(canvas.web_bundle_id(root), "unknown")
         self.assertEqual(canvas.web_bundle_id(self.tmp / "nothing-here"),
                          "unknown")
+
+    def test_the_id_is_the_stamp_the_repos_own_build_writes(self):
+        """The shipped bundle's stamp, not a second opinion about it.
+
+        Reads `skills/wysiwyg-grilling/scripts/web/build-stamp.json` off
+        the tree and asserts the running server agrees with it. If the
+        two ever diverge, the bug bundle's `web_bundle` and `start`'s
+        stale-bundle warning are answering the same question differently
+        — which is the failure mode a second hash would have created.
+        """
+        shipped = Path(canvas.__file__).resolve().parent / "web"
+        if not (shipped / "build-stamp.json").is_file():
+            self.skipTest("no built web bundle in this tree")
+        want = canvas.read_json(shipped / "build-stamp.json")["source_hash"]
+        self.assertEqual(canvas.web_bundle_id(shipped), want[:12])
+        self.assertEqual(self.app.web_bundle, want[:12])
 
     # -- gitignore -------------------------------------------------------
 

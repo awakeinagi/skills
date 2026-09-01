@@ -26797,28 +26797,30 @@ def web_bundle_id(web_root: Path) -> str:
     A spike round was spent chasing a defect that had already been fixed,
     against a server still serving the previous build — so a bundle that
     cannot say which build produced it costs the next reader that round
-    again. Vite writes content-hashed asset filenames, so the NAMES
-    identify a build on their own; sizes are folded in as well so an
-    in-place edit of a served file (which renames nothing) still moves
-    the id. Deliberately no file reads: this runs on every server start.
+    again.
+
+    THIS REPO ALREADY HAS A BUILD IDENTITY and this reads it rather than
+    inventing a second one. `scripts/postbuild.mjs` writes
+    `web/build-stamp.json` with a sha1 over the frontend source tree, and
+    `frontend_stamp_warning` compares that same field against the source
+    on disk. A separate hash here — over asset filenames, say — would
+    have been a second answer to one question, free to disagree with the
+    stale-bundle warning `start` already prints.
 
     Args:
         web_root: The directory the server serves static files from.
 
     Returns:
-        A 12-hex-char id, or `unknown` when the directory cannot be
-        walked — never an exception, because a missing bundle already
-        has its own error path and this is only a stamp.
+        The build stamp's `source_hash`, shortened, or `unknown` when the
+        bundle carries no readable stamp. Never raises: a missing bundle
+        already has its own error path and this is only a label.
     """
     try:
-        parts = sorted(
-            "%s:%d" % (p.relative_to(web_root).as_posix(), p.stat().st_size)
-            for p in Path(web_root).rglob("*") if p.is_file())
-    except OSError:
+        stamp = read_json(Path(web_root) / "build-stamp.json")
+    except (OSError, ValueError):
         return "unknown"
-    if not parts:
-        return "unknown"
-    return hashlib.sha1("\n".join(parts).encode("utf-8")).hexdigest()[:12]
+    got = stamp.get("source_hash") if isinstance(stamp, dict) else None
+    return got[:12] if isinstance(got, str) and got else "unknown"
 
 
 def ring_bbox(points: Sequence[Sequence[float]]) -> dict[str, float] | None:
@@ -27832,6 +27834,12 @@ class ServerApp:
                     "server_source": own_source_hash(),
                     "web_bundle": self.web_bundle,
                     "client_bundle": client_bundle,
+                    # the maintainer-only half of the same question: is
+                    # the bundle being served stale against the frontend
+                    # source sitting beside it? None for an installed
+                    # skill, which has no source to compare with.
+                    "bundle_warning":
+                        frontend_stamp_warning(self.project),
                     # None when the tab is too old to send one — which is
                     # itself the answer to "was this filed from a stale
                     # build?", so it is not defaulted to False
