@@ -28663,7 +28663,17 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestAClosedPinSaysWhyItClosed": 2}
+# `TestAClosedPinSaysWhyItClosed` ARRIVED ON 2026-09-01, found during the
+# R8 close (finding r8-8), hours after the entry below left. It is the
+# other end of the same door: the provenance repair made the agent's
+# answer a PROPOSAL, and `resolve_pin` still carries an id and nothing
+# else — so a pin the user answered out loud closes to the same bytes as
+# one that merely stopped mattering (29 of 43 pins at revision 98), and a
+# pin with a draft nobody ruled on closes over it in silence. Two reds
+# because the halves do not share a repair: of eleven shapes measured,
+# three flip the first, six flip the second, and not one flips both.
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
@@ -50261,6 +50271,539 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "identically (%r), so it distinguishes no provenance and "
             "cannot be held to distinguishing this one"
             % marks["nag"]["user"])
+
+
+#: r8-8's three closures. The ids are deliberately NOT the door names:
+#: `_r88_scrub` substitutes the id out of every rendered line so two
+#: closures compare as text, and an id that is also a plausible rendering
+#: ("answered", "lapsed") would be mangled inside the very failure message
+#: a reader uses to judge a candidate repair.
+_R88_DOORS = ("spoken", "lapsed", "unread")
+_R88_PINS = {"spoken": "p1", "lapsed": "p2", "unread": "p3"}
+#: One question, asked three times in ONE batch, so `direction`, `round`,
+#: `asked_at_revn` and the ❓'s own `author` are equal by construction and
+#: cannot stand in for a distinction nobody drew. Clause 1 of the guard
+#: ASSERTS that equality rather than trusting the construction, because
+#: the construction is exactly what a later edit breaks.
+_R88_QUESTION = "Which store holds the ledger?"
+#: The user's sentence, said out loud in the conversation and never typed
+#: into the rail. Invented here; no wording from any session survives in
+#: this file.
+_R88_ANSWER = "Postgres, with a read replica."
+#: Keys whose value differs between two closures for a reason that is not
+#: the reason they closed: `_PROV_VOLATILE`'s seven, plus the two this
+#: bench adds. Each closure here is its OWN apply, so `revn` and
+#: `short_id` count applies and say nothing about why a pin shut. Every
+#: entry makes these reds HARDER to flip and never easier, which is the
+#: safe direction for a set that is guessed at all.
+_R88_VOLATILE = _PROV_VOLATILE | {"revn", "short_id"}
+#: Everything one closure leaves behind: the registry record, whatever the
+#: apply SAID about the op, the events it appended, the standing `PIN_DEBT=`
+#: line, and the refusal when there was one. Red 1 demands the two closures
+#: differ on AT LEAST ONE of them — naming five and requiring one is what
+#: keeps the red from prescribing which surface a repair writes to.
+_R88_SURFACES = ("record", "say", "events", "nag", "refusal")
+#: The four of those a reader actually meets. Red 2 drops `record`, and
+#: that exclusion is the reason it is a separate method — see its
+#: docstring on the residue.
+_R88_TOLD = ("say", "events", "nag", "refusal")
+
+
+def _r88_scrub(obj: Any, pid: str) -> Any:
+    """Strip per-apply keys and blank the pin id out of every string.
+
+    Two jobs in one walk because they answer one question: what would
+    these two closures look like to a reader who did not already know
+    which pin was which. `_prov_scrub` does the first half against a
+    different volatile set and cannot do the second at all — the nag and
+    the echo are rendered TEXT, and an id left in them makes every
+    closure differ for the one reason that is never provenance.
+
+    Args:
+        obj: Any part of a reading — dict, list or scalar.
+        pid: The pin id to replace with `<pin>` wherever it appears.
+
+    Returns:
+        The same structure with `_R88_VOLATILE` keys removed at every
+        depth, dict keys sorted, and `pid` substituted inside strings.
+    """
+    if isinstance(obj, dict):
+        return {k: _r88_scrub(v, pid) for k, v in sorted(obj.items())
+                if k not in _R88_VOLATILE}
+    if isinstance(obj, list):
+        return [_r88_scrub(v, pid) for v in obj]
+    if isinstance(obj, str):
+        return obj.replace(pid, "<pin>")
+    return obj
+
+
+def pin_closure_bench() -> dict[str, Any]:
+    """Close three identical pins for three different reasons.
+
+    THE GROUND TRUTH IS WHY EACH ONE CLOSED, and the bench is the only
+    place it can live — which is the finding. `spoken` was answered in
+    conversation and the agent closes it holding the user's sentence;
+    `lapsed` was never answered and simply stopped mattering; `unread`
+    carries a draft the agent composed through its own door and that
+    nobody has ruled on. All three then go through the SAME shipped
+    close — a `resolve_pin` op posted to `/api/apply` — so any difference
+    in the readings is the reason for the closure and nothing else.
+
+    THE SENTENCE IS OFFERED AT THE DOOR, under the record's own word for
+    it. `spoken`'s op carries `answer`, which is not a bet on a repair's
+    spelling: it is the key the `pin` op MINTS on every pin record,
+    holding None from birth. The agent has the words and puts them where
+    the record already has a slot for them; today the op reaches
+    `apply_batch`, the key is ignored, and the pin closes with `answer`
+    still None. That is r8-8 in one line, and it is why a bench that
+    posted a bare resolve for both pins could not be flipped by any
+    repair at all — two identical bodies have nothing for a fix to read.
+
+    ONE APPLY PER CLOSURE, deliberately, and it is what `_R88_VOLATILE`
+    grew two keys for. Putting all three resolves in one batch would make
+    a refusal — the shape half the honest repairs take — refuse the
+    whole batch and leave every pin open and identical, so the red could
+    not flip under the repair most likely to land.
+
+    A REFUSAL IS A RESULT. An `HTTPError` out of the transport is
+    recorded as the closure's `refusal` and nothing else is caught: a
+    bench that swallowed the rest would report a broken driver as a
+    product decision, and both reds below are `@unittest.expectedFailure`
+    where an error and a failure read identically.
+
+    Returns:
+        One reading per entry of `_R88_DOORS`, each carrying
+        `_R88_SURFACES` plus `landed`; plus `minted` (all three records
+        before anything was said, for the guard's equality clause),
+        `waiting` (the `unread` record with its draft on it) and
+        `posted` (every string each close actually put on the wire).
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-close-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": _R88_PINS[door], "target": "n1",
+                     "question": _R88_QUESTION} for door in _R88_DOORS]})
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        app = canvas.ServerApp(project)
+        transport = _as_user_transport(app)
+
+        def record(pid: str) -> dict | None:
+            """Read one pin out of the live registry.
+
+            Args:
+                pid: The pin id.
+
+            Returns:
+                The registry record, or None once something has pruned
+                it — which no path here does, so None is a finding.
+            """
+            return next((p for p in app.store.registry["pins"]
+                         if p["id"] == pid), None)
+
+        out: dict[str, Any] = {
+            "minted": {door: _r88_scrub(record(_R88_PINS[door]),
+                                        _R88_PINS[door])
+                       for door in _R88_DOORS},
+            "posted": {}}
+        # THE AGENT'S ONLY TEXT DOOR, and the reason `unread` exists. Since
+        # the provenance repair landed, `x-as-user answer` posts here: the
+        # words park on the pin, `answer` stays empty and the pin stays
+        # open until the user promotes or discards. Driven as the route
+        # rather than as `Store.propose_pin_answer` so the `pin_proposal`
+        # event is real — it is the event a repair announcing the drop is
+        # likeliest to mirror.
+        transport(_AS_USER_URL + "api/pins/propose",
+                  {"id": _R88_PINS["unread"], "answer": _R88_ANSWER})
+        out["waiting"] = _r88_scrub(record(_R88_PINS["unread"]),
+                                    _R88_PINS["unread"])
+        for door in _R88_DOORS:
+            pid = _R88_PINS[door]
+            op: dict[str, Any] = {"op": "resolve_pin", "id": pid}
+            if door == "spoken":
+                op["answer"] = _R88_ANSWER
+            body = {"base_revn": app.store.head_revn(), "artifact": "flow",
+                    "ops": [op]}
+            # EVERY STRING THE BODY CARRIES, at any depth, so the guard's
+            # "the words crossed the door" clause reads what was SENT and
+            # not what this loop believes it sent.
+            out["posted"][door] = sorted(_prov_strings(body))
+            before = app.events.seq
+            resp: dict[str, Any] = {}
+            refusal = None
+            try:
+                resp = transport(_AS_USER_URL + "api/apply", body)
+            except urllib.error.HTTPError as exc:
+                refusal = "%s: %s" % (exc.code, exc.reason)
+            row = next((d for d in app.store.pin_debt() if d["id"] == pid),
+                       None)
+            out[door] = {
+                "record": _r88_scrub(record(pid), pid),
+                # THE THREE PROSE CHANNELS THE APPLY ANSWERS WITH, filtered
+                # to the lines naming this pin. Read off the response and
+                # not rebuilt from `intent_echo` here, because a repair may
+                # speak through any of the three and a transcription would
+                # only hear the one this file guessed.
+                "say": _r88_scrub(
+                    [line for key in ("intent_echo", "notes", "consequences")
+                     for line in (resp.get(key) or []) if pid in line], pid),
+                "events": _r88_scrub(
+                    [e for e in app.events.since(before)
+                     if pid in json.dumps(e, ensure_ascii=False)], pid),
+                # THE STANDING NAG, and it is the surface that catches the
+                # repair nobody expects to need catching: `Store.pin_debt`
+                # filters `status in ("open", "answered")`, so a repair
+                # that marks the closure with a NEW status and stops there
+                # renders here exactly as the silence it replaced.
+                "nag": _r88_scrub(canvas.pin_debt_entry(row) if row else "",
+                                  pid),
+                "refusal": _r88_scrub(refusal, pid),
+                "landed": refusal is None}
+        return out
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestAClosedPinSaysWhyItClosed(unittest.TestCase):
+    """Three reasons to shut a question, one record for all of them.
+
+    **r8-8**: an answer given in conversation is acted on and then
+    dropped, so a pin the user answered at length is indistinguishable
+    from one that merely stopped being relevant. Measured on the R8
+    session at revision 98: 43 pins, 42 resolved, 13 carrying stored
+    answer text and 29 carrying none — and the 13 are exactly the 13
+    that went through a `pin_answer` route, 1:1. The other 29 were closed
+    with `{"op": "resolve_pin", "id": ...}`, which carries an id and
+    nothing else. Only answers posted to the API keep their text.
+
+    THE RELATION, NOT THE INCIDENT: a closure records WHY it happened. A
+    pin closed on the user's answer and a pin closed because nobody cares
+    any more must not leave one reading, and a pin closed while a draft
+    nobody ruled on is still waiting must be refused or announced. Two
+    reds, because the halves fail apart and the measurement below shows
+    it: every repair that flips one leaves the other exactly where it
+    was, in both directions.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT, on the
+    `TestAnAnswerSaysWhoseWordsItIs` precedent. Every scene-level
+    detector is correctly quiet here: the scene is coherent, the ❓ is
+    gone because a resolve takes it down, and nothing a lint can be
+    handed knows what was said out loud. Registering a check name would
+    state a contract no rule over a list of elements can meet.
+
+    IT PRESCRIBES NO REPAIR, and eleven shapes were MEASURED rather than
+    argued — each monkeypatched from a throwaway plugin outside the repo
+    and applied alone against this tree on 2026-09-01, one process per
+    shape so no two stack. Three flip red 1:
+
+      (a) THE CLOSE KEEPS THE WORDS. `resolve_pin` reads the `answer` the
+          op already carries and writes it onto the record with a source
+          saying it was spoken. Red 1 green; red 2 untouched.
+      (b) A CLOSURE EVENT. Nothing is stored on the pin at all — the
+          apply appends a `pin_resolved` carrying what the op said, and
+          the event log is where the sentence survives. This is the one
+          that proves red 1 is not a disguised "add a field to the
+          record": it adds none.
+      (c) THE DOOR REFUSES WORDS IT CANNOT KEEP. A resolve carrying
+          anything beyond an id is refused, naming the pin and telling
+          the caller to have the user answer it first. The pin stays
+          open, which satisfies the red's second half rather than its
+          first: the answer was not kept, but it was not lost either,
+          because the question is still being asked.
+
+    Six flip red 2, and the last two are one repair measured twice:
+
+      (d) REFUSE WHILE A DRAFT WAITS. `resolve_pin` over a pin carrying
+          `proposed_answer` is refused; the user promotes or discards.
+      (e) REQUIRE THE DISCARD IN THE SAME BATCH. The same refusal with an
+          escape hatch — send the drop alongside the close and it lands.
+      (f) A DROP EVENT. The close emits the event a real discard emits,
+          carrying the wording that died with the pin.
+      (g) A HOUSEKEEPING NOTE. The apply's own `notes` name the pin whose
+          draft went unread, on the channel that already carries "its ❓
+          was already gone".
+      (h) PARK INSTEAD OF CLOSING. The resolve quietly does not close a
+          pin with a live draft; it stays open and stays on the nag.
+      (i) A STATUS OF ITS OWN, **with `Store.pin_debt` widened to carry
+          it**. Red 2 green.
+
+    FIVE THAT DO NOT FLIP EITHER RED, measured rather than predicted,
+    and kept because a negative result is the part a reader cannot
+    reconstruct:
+
+      * (j) THE ECHO REPEATS WHAT THE CLOSE CARRIED. `intent_echo` prints
+        the sentence back. Red 1's first half moves — the two closures
+        finally read differently — and its second does not, which is
+        correct and is the reason that half is phrased over the two
+        DURABLE surfaces: an echo is computed for one response and then
+        gone, so a product that recites the user's answer at apply time
+        and keeps none of it has fixed nothing r8-8 is about.
+      * (k) A `resolution` ENUM WITH NO TEXT, in both the flat form
+        (every close gets `"unspecified"`) and the derived form (a close
+        carrying words is filed `"answered"`, a bare one `"obsolete"`).
+        The derived form moves red 1's first half and not its second.
+        This is a JUDGEMENT and it is disclosed: a category records that
+        somebody answered and still throws the sentence away, and the
+        census this red was written from counts stored TEXT. An enum
+        plus the words flips it; the enum alone is half a repair.
+      * (l) A NEW STATUS WITH THE READER LEFT ALONE — (i) without its
+        second half. The pin closes into `closed_unread`, which is a
+        perfectly good record of what happened, and `Store.pin_debt`
+        filters `status in ("open", "answered")`, so the pin drops off
+        `PIN_DEBT=` entirely and red 2 stays red on all four surfaces.
+        THIS IS THE ONE TO READ IF YOU ARE HOLDING A REPAIR: whatever
+        slot you widen, its READERS widen too, and the nag is in red 2's
+        surface list precisely so that a repair which marks a closure by
+        making it invisible arrives as a failure rather than as a fix.
+
+    AND ONE REWRITE THEY BREAK UNDER, named because §8 says to name them:
+    a repair that adds a NEW, well-marked close verb and leaves
+    `resolve_pin` taking a bare id keeps both reds red. That is a
+    judgement and it is the one this pin makes — the census counted the
+    door the agent actually used 29 times, and an unmarked door left
+    standing beside a marked one is the defect surviving next to its own
+    fix.
+    """
+
+    @unittest.expectedFailure
+    def test_an_answered_close_and_a_lapsed_close_leave_one_record(
+            self) -> None:
+        """The record half: two reasons, one reading, on every surface.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS COLLAPSE. Five
+        surfaces, and the closure of a pin the user answered matches the
+        closure of a pin nobody cared about on FIVE of five — one
+        reading for two reasons. Not four, not one: the record, the
+        three prose channels the apply answers with, the events it
+        appended and the standing nag are all byte-identical once the id
+        is taken out, and the only thing that differed was a key the
+        door dropped on the floor.
+
+        REQUIRING ONE SURFACE OF FIVE AND NOT FIVE OF FIVE, deliberately.
+        A repair only has to make the two closures tell apart SOMEWHERE;
+        insisting on every surface would name the set of places a fix
+        must write, which is a repair wearing an assertion's clothes.
+        Candidate (b) writes to exactly one of the five and is honest.
+
+        THE SECOND HALF IS A DISJUNCTION AND BOTH ARMS ARE THE LAW: the
+        user's words survived the closure, OR the closure did not happen.
+        A door that refuses to shut a question it cannot record has not
+        lost the answer — the pin is still asking, and the user can still
+        answer it. A door that shuts and keeps the sentence has not lost
+        it either. What r8-8 names is the third case, which is the one
+        this tree ships.
+
+        AND THE SURVIVAL ARM IS READ OFF THE TWO DURABLE SURFACES ONLY.
+        Measured with candidate (j): a repair that recites the sentence
+        in the apply's echo makes the readings differ and stores nothing,
+        and an echo lives exactly as long as the response it rode in on.
+        The finding is that the TEXT is dropped, so the arm that says it
+        was kept looks where text is kept.
+
+        THE NEAREST FALSE GREEN is a difference that is not a reason —
+        two pins differ by id and two applies by revision — so
+        `_R88_VOLATILE` removes both before the comparison, all three
+        pins are minted in ONE batch carrying ONE question string, and
+        clause 1 of the guard asserts that the three were identical
+        before anything was said to them. Watched failing: minting the
+        three with different question text makes this red's first half
+        pass and the guard red.
+        """
+        bench = pin_closure_bench()
+        spoken, lapsed = bench["spoken"], bench["lapsed"]
+        same = [s for s in _R88_SURFACES if spoken[s] == lapsed[s]]
+        # THE STORES, NOT THE PROSE. See the docstring: an echo is not a
+        # place a sentence survives.
+        survived = _R88_ANSWER in json.dumps(
+            [spoken["record"], spoken["events"]], ensure_ascii=False)
+        # `open` IS THE WORD THE `pin` OP MINTS, so this arm tests the
+        # domain's own starting vocabulary rather than a repair's chosen
+        # ending one, and every terminal spelling passes it.
+        asking = "open" in _prov_strings(spoken["record"])
+        self.assertEqual(
+            (len(same) < len(_R88_SURFACES), survived or asking),
+            (True, True),
+            "a pin the user ANSWERED in conversation and a pin that "
+            "merely stopped mattering closed to the same reading on %d "
+            "of %d surfaces (%s) — 1 record for 2 reasons — and the "
+            "user's sentence survived in neither store while the pin "
+            "stopped asking. The close carried the words: %s. It kept "
+            "them nowhere: %s. Take them at the door, emit them on an "
+            "event, or refuse to shut a question you cannot record — "
+            "but a closure that says only `resolved` makes every "
+            "answered question in the project unverifiable at once"
+            % (len(same), len(_R88_SURFACES), ", ".join(same),
+               json.dumps(bench["posted"]["spoken"]),
+               json.dumps(spoken["record"], sort_keys=True)))
+
+    @unittest.expectedFailure
+    def test_a_draft_nobody_ruled_on_is_closed_in_silence(self) -> None:
+        """The waiting-draft half: the user is never asked.
+
+        SEPARATE FROM ITS NEIGHBOUR BECAUSE IT FAILS SEPARATELY, and the
+        separation is MEASURED in both directions rather than asserted.
+        Of the eleven shapes in the class docstring, three flip red 1 and
+        none of those three moves this one; six flip this one and none of
+        those six moves red 1. There is no rung of a ladder here — the
+        two halves do not share a repair at all.
+
+        THE SUBJECT is a pin carrying a draft the agent composed through
+        its own door, which the user has not promoted and has not
+        discarded. `resolve_pin` closes it: `status` becomes `resolved`,
+        `answer` stays None, the draft stays sitting on the record, and
+        the pin leaves the open list without the user ever ruling on it.
+        The provenance repair holds — no testimony was written, and the
+        agent's words never became the user's — and the pin is shut all
+        the same.
+
+        `record` IS NOT IN THIS COMPARISON, and that is the reason this
+        method exists rather than being a clause of its neighbour. The
+        abandoned draft IS still on the record, so the two records
+        differ, and a comparison including them would be green today
+        over exactly the defect. But that difference is a RESIDUE and
+        not a statement: an open pin with a draft on it and a closed pin
+        with a draft on it carry the same leftover, so the record
+        distinguishes "the user ruled" from "nobody looked" not at all.
+        What must differ is what somebody is TOLD.
+
+        THE NAG IS THE SHARP END, and it is here for a repair that has
+        not been written yet. `Store.pin_debt` filters
+        `status in ("open", "answered")`, so a closure marked with a new
+        status renders here as nothing — the same nothing it replaced —
+        and this red stays red until the reader is widened with the
+        writer. Measured as candidates (l) and (i), which are one repair
+        with and without its second half.
+
+        THE ALTERNATIVE ARM IS A REFUSAL. A close that will not shut a
+        question with an unruled draft on it satisfies this red without
+        announcing anything at all, because the pin is still asking and
+        the user still gets their say. Candidates (d), (e) and (h) all
+        take it.
+        """
+        bench = pin_closure_bench()
+        unread, lapsed = bench["unread"], bench["lapsed"]
+        same = [s for s in _R88_TOLD if unread[s] == lapsed[s]]
+        asking = "open" in _prov_strings(unread["record"])
+        self.assertTrue(
+            len(same) < len(_R88_TOLD) or asking,
+            "a pin closed while a draft answer nobody had ruled on was "
+            "waiting on it read identically to a pin closed with nothing "
+            "waiting, on %d of %d surfaces somebody reads (%s), and the "
+            "pin stopped asking. PIN_DEBT= printed %r for both. The "
+            "draft is still on the record (%s), which is a leftover and "
+            "not a sentence: an open pin carries the same one. Refuse "
+            "the close, or say that a draft died with it — a question "
+            "that leaves the open list without the user ever seeing the "
+            "wording put in their mouth is the provenance door being "
+            "walked around rather than through"
+            % (len(same), len(_R88_TOLD), ", ".join(same), lapsed["nag"],
+               json.dumps(unread["record"], sort_keys=True)))
+
+    def test_the_bench_shut_three_pins_and_every_reader_spoke(self) -> None:
+        """The vacuity guard: a sameness claim over a live measurement.
+
+        UNGATED AND ASSERTED IN EVERY COMMIT, because both reds above
+        fail on readings being EQUAL and a broken bench manufactures
+        DIFFERENCE with no effort at all. Three pins that were never
+        alike, a close aimed at the wrong id, a draft that was never
+        parked — each makes the readings differ, and each reads as a fix.
+        This claims the facts that make sameness mean something.
+
+        THE REDS NAME A RELATION AND SO DOES THIS. Every clause is
+        phrased over what a repair must ACHIEVE and none over where it
+        must write: `open` is the word the `pin` op mints, the sentence
+        is looked for at any depth in the posted body, and "the reader
+        spoke" asks that the closure produced a line naming its pin
+        rather than that any particular channel produced it.
+
+        WATCHED FAILING, ONE CLAUSE AT A TIME, by damaging the bench's
+        INPUTS in a throwaway copy outside the repo — never by replacing
+        a function, which is blind to anything cached or decorated
+        between the damage and the reading. Driven 2026-09-01 against
+        the tree that ships this, one process per row:
+
+            damage                       clause   reds while it fired
+            three different questions     1        red 1 half-passed
+            the control close aimed at
+              an id no pin carries        2        red 2 PASSED
+            the words left off the
+              spoken close's op body      3        both red
+            the proposal never posted     4        both red
+            the reading asked for a pin
+              that was never closed       5        both red
+
+        THE SECOND AND FIRST ROWS ARE THE POINT. Both damages turn a red
+        green over a tree where nothing was repaired, which is the exact
+        shape of every silent all-clear this harness exists to refuse,
+        and both arrive here as a failure somebody has to read.
+        """
+        bench = pin_closure_bench()
+        minted = list(bench["minted"].values())
+        self.assertEqual(
+            [m for m in minted if m != minted[0]], [],
+            "the three pins were not identical the moment they were "
+            "minted (%s), so the reds beside this are comparing closures "
+            "that differed before anything closed them — and a "
+            "difference the bench put there reads exactly like a repair"
+            % json.dumps(bench["minted"], sort_keys=True))
+        lapsed = bench["lapsed"]
+        self.assertEqual(
+            (lapsed["landed"], "open" in _prov_strings(lapsed["record"])),
+            (True, False),
+            "the control close — a pin nobody answered, shut the way the "
+            "agent shuts one — did not land and leave the pin closed "
+            "(landed=%r, record=%s%s). Both reds compare something "
+            "against that closure, so a door that is simply broken makes "
+            "them differ for a reason that has nothing to do with why "
+            "anything shut"
+            % (lapsed["landed"],
+               json.dumps(lapsed["record"], sort_keys=True),
+               "" if lapsed["refusal"] is None
+               else ", refused: %s" % lapsed["refusal"]))
+        self.assertIn(
+            _R88_ANSWER, bench["posted"]["spoken"],
+            "the user's sentence never crossed the door on the close "
+            "that is supposed to be carrying it: the body held %s. Red 1 "
+            "would then be accusing the product of dropping something "
+            "nobody handed it"
+            % json.dumps(bench["posted"]["spoken"]))
+        waiting = _prov_strings(bench["waiting"])
+        self.assertEqual(
+            (_R88_ANSWER in waiting, "open" in waiting), (True, True),
+            "no unruled draft was waiting on the third pin when it was "
+            "closed (%s), so red 2 is measuring an ordinary resolve and "
+            "calling it a draft closed unread"
+            % json.dumps(bench["waiting"], sort_keys=True))
+        mute = [door for door in _R88_DOORS
+                if (bench[door]["landed"] and not bench[door]["say"])
+                or (not bench[door]["landed"]
+                    and not bench[door]["refusal"])]
+        self.assertEqual(
+            mute, [],
+            "%d of %d closures said nothing at all — neither a line "
+            "naming the pin nor a reason for refusing: %s. Readings that "
+            "are empty for a bench reason are equal for a bench reason, "
+            "and both reds above are emptiness claims"
+            % (len(mute), len(_R88_DOORS),
+               json.dumps({d: bench[d] for d in mute}, sort_keys=True)))
 
 
 class TestCoverage(unittest.TestCase):
