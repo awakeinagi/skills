@@ -18176,21 +18176,31 @@ def _pin_drifted_but_clear_of_the_rival() -> list[dict]:
     sentence, and the reading this pair asserts lives inside that
     sentence.
 
-    THE `reach` CEILING IS NOT A CONSTRAINT ON THIS PAIR, and the
-    paragraph that used to stand here said it was — wrongly, twice, and
-    it is left contradicted rather than deleted because the error is the
-    instructive part. `pin_drift` grew a second arm on main: `stranded`
-    fires at `own > reach`, and `step`'s corner-to-corner reach is
-    116.6px against own-gaps of 58 (neighbour) and 84 (mutant). From
-    that the old paragraph concluded that crossing the ceiling would
-    take the else branch, emit a sentence with no rival clause, and
-    silence this check — and that a second application of the operator
-    would therefore break the pair.
+    THE `reach` CEILING IS NOT A CONSTRAINT ON THIS PAIR. A paragraph
+    here used to say it was; it is kept below and refuted rather than
+    deleted, because how a plausible mechanism got past two readers is
+    worth more than a clean statement. It is labelled at BOTH ENDS on
+    purpose — the failure mode of a preserved error is a reader who
+    stops halfway and carries off the wrong half, so the marking has to
+    arrive before the claim does and not after it.
 
-    BOTH HALVES ARE FALSE, measured at four multiplicities. The
-    arithmetic refutes the first on its own terms: 84 + 26 = 110, still
-    under 116.6, so a 26px shift cannot cross a 32.6px margin. And
-    crossing it silences nothing — at a THIRD application the ❓ is
+    ▽ FALSE — EVERY CLAUSE BETWEEN HERE AND THE NEXT MARKER IS WRONG,
+    and it is reproduced only because it shows what made it look right.
+    `pin_drift` grew a second arm on main; `stranded` fires at
+    `own > reach`; `step`'s corner-to-corner reach is 116.6px against
+    own-gaps of 58 (neighbour) and 84 (mutant). So (the old paragraph
+    said) were either pole to cross that ceiling, `pin_drift` would take
+    the else branch, emit a sentence with no rival clause, and this
+    check would go silent — a red for the wrong reason; and since the
+    margin is 32.6px at the mutant pole and the operator's own shift is
+    26px, a second application of that operator would break the pair.
+    △ END OF THE FALSE CLAIM.
+
+    IT IS WRONG TWICE, measured at four multiplicities. The arithmetic
+    refutes the first half on its own terms: 84 + 26 = 110, still under
+    116.6, so a 26px shift cannot cross a 32.6px margin — the sentence
+    contained both numbers and nobody divided them. And crossing the
+    ceiling silences nothing anyway: at a THIRD application the ❓ is
     `stranded` (own 136 > 116.6) and the sentence still carries the
     rival clause, because canvas.py:20743 is `if crowded:` and the
     crowded reading wins wherever both hold. The finding is
