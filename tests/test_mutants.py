@@ -670,6 +670,157 @@ def _collect_float_diamond(els: list[dict]) -> list[dict]:
             for h in hits]
 
 
+# The line `pin_drift` emits, matched only far enough to name the pin —
+# deliberately the same anchor `_PIN_DRIFT_RE` settled on, and for the
+# reason written above it. The reading below is taken from the SAME line,
+# so this is what pairs the two.
+_PIN_RIVAL_LINE = re.compile(r"pin (?P<element>[\w-]+) asks about ")
+# WHAT THE PIN-DRIFT SENTENCE SAYS ABOUT THE RIVAL'S SEPARATION, read back
+# out of `canvas.lint_layout`'s own words. This is an ADAPTER and not a
+# second instrument, and the distinction is the only thing that makes it
+# worth anything: every number it reports is lifted from the sentence, so
+# it cannot pass a scene the check answered wrongly. A collector that
+# re-measured the geometry here would be computing its own expectation and
+# would agree with itself on every input.
+#
+# IT SPEAKS ONLY FOR THE `crowded` ARM, which is the arm that names a
+# rival. The `stranded` arm (canvas.py:20729) reports a ❓ further from its
+# target than the target is wide, and its sentence has no rival clause at
+# all — none of the readings below match it, so this check is silent
+# there, correctly: there is no rival distance to be right or wrong about.
+#
+# THE LIST IS ORDERED AND ITS PLURALITY IS THE POINT. `_rect_gap`
+# (canvas.py:14976) is `hypot` of the two axis separations with EACH AXIS
+# CLAMPED AT ZERO, so when the boxes overlap both terms clamp and the
+# whole thing is `hypot(0, 0)` — one sentence for two pictures: a ❓ whose
+# slot ABUTS the rival and a ❓ whose slot is buried 10px inside it both
+# read "only 0px from <rival>". (The pair below is not that pair: it holds
+# 16px of real air against 10px of penetration, so the neighbour reads
+# 16/clear. The two readings the CHECK cannot tell apart are abutting and
+# buried, and both come back 0/clear.) More than one honest repair fixes
+# it, and a reading that accepted only one would have prescribed it:
+#
+#   (A) extend `_rect_gap` THROUGH ZERO — return the negated minimum
+#       translation distance when the boxes overlap, so the sentence
+#       reads "only -10px". Note the shape: this is NOT "put a sign on
+#       the hypotenuse". For DISJOINT boxes `hypot` already IS the
+#       minimum translation distance, and its continuation through zero
+#       is `-min(x_depth, y_depth)` — one axis binds, they do not
+#       combine. `hypot(10, 36) = 37.4` is a different quantity and the
+#       band below excludes it deliberately.
+#   (B) keep the clamp and add a clause naming the penetration:
+#       "overlaps <rival> by 10px".
+#   (C) drop "only Npx from" for an on-top phrasing when the boxes
+#       intersect: "drawn on top of <rival> by 10px", "10px into <rival>".
+#
+# THE RECOMMENDATION IS (A), and the first draft of this comment got the
+# reason for (B) backwards. It said the clamp "has callers that DO want 0
+# when they touch". IT HAS NO SUCH CALLERS: on main `grep -rn _rect_gap`
+# finds the definition at canvas.py:14976 and exactly two production
+# reads, `own` at :20680 and `d` at :20688, BOTH inside the pin loop under
+# repair (the rest are test scene constructors). There is no third party
+# to protect, so (B)'s stated justification does not exist. Measured cost
+# of (A) over the frozen corpus: 5 pin_drift sentences on 24 artifacts,
+# firing count changed on ZERO, text changed on exactly TWO — and both of
+# those are the defect (`argus-r4-arm4/admin-console-wireframe`
+# pin-rerun-unit at -10px, `argus-r4-arm4/dashboard-wireframe`
+# pin-report-page at -20px; both pins open, neither waived).
+#
+# AND (A) REMOVES A NONDETERMINISM THE CLAUSE REPAIRS LEAVE STANDING. The
+# rival is selected at canvas.py:20689 by `d < rival_gap` — the FIRST
+# minimum wins — so under the clamp every overlapping rival ties at 0 and
+# the sentence names whichever node comes first in the element list.
+# Measured on main, a ❓ overlapping two nodes at 6px and 16px: the
+# sentence names the SHALLOW one in one element order and the DEEP one in
+# the other. Extended through zero it names the deep one in both.
+#
+# EXTEND THE RIVAL READ AT :20688 ONLY — NOT THE `own` READ AT :20680, and
+# this is the one part of (A) that is not free. Both go through the same
+# helper, so changing the helper changes both, and `own` feeds `crowded`
+# at :20730 (`own - rival_gap >= PIN_HUG_PX`) and `stranded` at :20729
+# (`own > reach`). Under the clamp `crowded` can NEVER hold for a ❓
+# overlapping its own target: `own` clamps to 0 and `rival_gap` is
+# non-negative, so the difference is at most 0. Extended, it can. Measured
+# on main: a ❓ 4px onto its target and 12px into a neighbour is SILENT
+# today and fires under a helper-level (A) saying "drawn -4px from it" — a
+# nonsense phrase about a pin sitting on the very thing it asks about. The
+# population is not empty either: 5 of the corpus's 40 targeted pins sit
+# ON their own target, none currently firing, so today's inertness belongs
+# to those five scenes and not to the repair. Extend the rival read and
+# leave `own` clamped, or pin the gate on a ❓-over-its-own-target scene.
+# Nothing asserts that yet, which is why it is written down.
+#
+# Overlap spellings are tried FIRST and the clamped slot is the fallback,
+# so a repair that both extends the slot and adds a clause still reports
+# one finding with the penetration in it. A fix that spells this a fourth
+# way should ADD a row here in the open rather than leave the red red —
+# the contract is "the sentence names the penetration as a number", and
+# these are the spellings that count as naming it.
+#
+# TWO RESIDUALS, both bounded rather than waved at, because a reading that
+# scans the whole line can be fooled by the line:
+#
+#   1. Rows 2-4 would also match a px measurement written into the PIN'S
+#      OWN QUESTION, which `pin_drift` quotes. Both scenes below therefore
+#      ask a question with no digits in it, deliberately.
+#   2. `[^.]{0,40}?` in rows 2-3 is a real ceiling, not a formality. On a
+#      labelled rival the tail is the parenthetical `pin_drift` prints —
+#      `chart-heatmap ('Sector heat map')` is 25 chars, so today's corpus
+#      has 15 to spare — and a rival label past ~55 chars, or any label
+#      CONTAINING A PERIOD (`[^.]` stops there), drops the line to the
+#      `clear` row. The consequence runs the bad way: an honest fix would
+#      read as unfinished. Unreachable from this red, whose `gate` carries
+#      no label at all, so it is written down rather than guarded — widen
+#      the bound when a fix lands and a corpus rival outgrows it.
+_PIN_RIVAL_READINGS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("overlap", re.compile(r"only -(?P<mag>\d+(?:\.\d+)?)px from [\w-]+")),
+    ("overlap", re.compile(r"overlaps [\w-]+[^.]{0,40}? by "
+                           r"(?P<mag>\d+(?:\.\d+)?)px")),
+    ("overlap", re.compile(r"on top of [\w-]+[^.]{0,40}? by "
+                           r"(?P<mag>\d+(?:\.\d+)?)px")),
+    ("overlap", re.compile(r"(?P<mag>\d+(?:\.\d+)?)px "
+                           r"(?:into|inside|deep into) [\w-]+")),
+    ("clear", re.compile(r"only (?P<mag>\d+(?:\.\d+)?)px from [\w-]+")),
+)
+
+
+def _collect_pin_rival_gap(els: list[dict]) -> list[dict]:
+    """One finding per crowded pin: how far its ❓ is from the RIVAL.
+
+    `pin_drift` asserts the distance to the pin's own TARGET — that is
+    the magnitude in both its arms — and `_PIN_DRIFT_RE` deliberately
+    stops at `Npx from it` so it enforces no phrasing past that point.
+    The rival's distance is therefore the one number in that sentence
+    nothing has ever read: whether the ❓ is CLEAR of the node it now
+    reads as belonging to, or drawn ON it, and by how much.
+
+    Args:
+        els: The scene's element list.
+
+    Returns:
+        A findings list for the `pin_rival_gap` check, one per pin line
+        that names a rival, with `magnitude` the separation in px (always
+        positive) and `direction` either `"clear"` or `"overlap"`. The
+        `stranded` arm names no rival and yields nothing.
+    """
+    lint = canvas.lint_layout(els, artifact_type="flow")
+    findings: list[dict] = []
+    for line in lint["errors"] + lint["warnings"] + lint["notes"]:
+        head = _PIN_RIVAL_LINE.search(line)
+        if head is None:
+            continue
+        for direction, pattern in _PIN_RIVAL_READINGS:
+            hit = pattern.search(line)
+            if hit is None:
+                continue
+            findings.append({"check": "pin_rival_gap",
+                             "element": head.group("element"),
+                             "magnitude": float(hit.group("mag")),
+                             "direction": direction, "raw": line})
+            break
+    return findings
+
+
 DETECTORS: dict[str, dict] = {
     "endpoint_gap": {"lint_re": _ENDPOINT_RE,
                      "dirmap": {"away": "outside",
@@ -874,6 +1025,20 @@ DETECTORS: dict[str, dict] = {
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
     "float_diamond": {"collect": _collect_float_diamond},
+    # Curator, r8-7, 2026-09-01. The SECOND number in `pin_drift`'s
+    # crowded sentence, and the one no spec reaches: that check's regex
+    # stops at `Npx from it` on purpose (its magnitude is the target's,
+    # in both arms), so nothing has ever asserted the rival's. A
+    # `collect` and not a `lint_re` because the repair space is plural —
+    # see `_PIN_RIVAL_READINGS` — and a single regex would have picked
+    # the winner, which is the failure the widening of `_PIN_DRIFT_RE`
+    # was itself a correction for. It reads the same lint line
+    # `pin_drift` does, so the two rows rise and fall together and
+    # neither can be proven by a scene the other never saw. No dirmap,
+    # like the four `collect` siblings above: a dirmap translates a
+    # phrase a REGEX captured, and this adapter sets `direction` itself
+    # from which reading matched.
+    "pin_rival_gap": {"collect": _collect_pin_rival_gap},
     # The render tier's two detectors are registered HERE, not by
     # test_mutants_render.py updating this dict at import: `--coverage`
     # runs through this file's standalone `__main__` (file tail), which
@@ -17986,6 +18151,59 @@ def _pin_on_a_screen_stage() -> list[dict]:
                            "status": "open", "question": "which one?"})]
 
 
+def _pin_drifted_but_clear_of_the_rival() -> list[dict]:
+    """A drifted ❓ standing 16px CLEAR of the node it now reads as.
+
+    THE BASE AND THE NEIGHBOUR ARE ONE SCENE, which is what makes the
+    operator's single change legible: `shift_label` slides the ❓ 26px
+    right and nothing else about the drawing moves, so the only
+    difference between the two poles is that 16px of air becomes 10px of
+    ink-on-ink. Both poles are drifted — `pin_drift` fires on both, by
+    construction — because a pin that is NOT drifted produces no
+    sentence, and the reading this pair asserts lives inside that
+    sentence.
+
+    BOTH POLES TAKE THE `crowded` ARM AND NEITHER IS `stranded`, which
+    main's second arm makes a live constraint rather than a detail.
+    `stranded` fires at `own > reach`, and `step`'s corner-to-corner
+    reach is 116.6px against own-gaps of 58 (neighbour) and 84 (mutant).
+    Were either pole to cross that, `pin_drift` would take the else
+    branch, emit a sentence with NO rival clause, and this check would go
+    silent — a red for the wrong reason. The margin is 32.6px at the
+    mutant pole and it is the operator's own 26px shift that consumes
+    most of it, so a second application of that operator would break the
+    pair.
+
+    THE GEOMETRY, all of it on one axis. `step` spans x 0-100 and `gate`
+    spans x 200-300; the ❓'s 26px slot sits at x 158-184, so its own
+    target is 58px away and `gate` is 16. The check fires because
+    58 - 16 = 42 clears `PIN_HUG_PX`. The ❓ sits at y 10-36, wholly
+    inside `gate`'s 0-60 band, so the vertical separation is zero in
+    BOTH poles and `_rect_gap` is reading one axis: an operator that
+    changed the reading by moving the pin off `gate`'s band would be
+    changing two things at once.
+
+    WHAT THE +/-10% BAND AROUND 16 EXCLUDES, each a reading someone
+    could plausibly take here: 58 (the distance to its own TARGET, which
+    is `pin_drift`'s magnitude in both arms and the one number this check
+    must never duplicate), 26 (the slot's own width, and also the shift),
+    10 (the penetration the mutant pole asserts), 42 (the margin over the
+    threshold), and 53.5 (centre to centre).
+
+    Returns:
+        The three-element scene: the target `step`, the rival `gate`,
+        then the drifted pin `q1`.
+    """
+    return [el(id="step", type="rectangle", x=0, y=0, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="gate", type="rectangle", x=200, y=0, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="q1", type="text", x=158, y=10, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
+                           "status": "open", "question": "which one?"})]
+
+
 def _lone_pin_stage() -> list[dict]:
     """A ❓ at the mint spot of the ONLY node on the page.
 
@@ -24484,6 +24702,89 @@ _register(Mutant(
                                     magnitude=(40, 0.10),
                                     direction="outside"))))
 
+# Found during r8 assessment, finding r8-7, 2026-09-01, and it is IN THE
+# FROZEN CORPUS rather than only in the session that found it —
+# `argus-r4-arm4/artifacts/admin-console-wireframe.excalidraw`, which the
+# r7 and r8 runs then reproduced byte-for-byte. The ❓ `pin-rerun-unit`
+# asks about `btn-rerun-enrich`, stands 8px off it, and its 26px slot
+# (x 920-946) is drawn 10px INSIDE `btn-rerun-scoring` (x 936-1320).
+# `pin_drift` fires and does everything its own entries ask — names both
+# nodes, quotes the question, declines to guess whether the ❓ or the
+# `target` is the error, offers the waive key. This pin is not about that
+# behaviour and must not make it noisier.
+#
+# TWO OF THE FIVE, not one, and the denominator is the reason to say so.
+# The whole corpus emits FIVE pin_drift sentences across 24 artifacts, and
+# TWO are clamped overlaps: this one at 10px of burial, and
+# `argus-r4-arm4/dashboard-wireframe` where `pin-report-page` asks about
+# `card-digest` and reads "only 0px from chart-heatmap" over 20px. Both
+# pins are `open` and neither is waived in that project's `model.json`
+# (its only waive is a `q12:` key). 40% of everything this check says
+# about a rival's distance understates the picture.
+#
+# WHAT THE DRAWING GETS WRONG IS THE SECOND NUMBER. The sentence reports
+# the rival as "only 0px from btn-rerun-scoring", and 0 is not what a
+# reader gets: 0px is two boxes touching, and this ❓ is drawn ON the
+# button, 10px in, with the button's fill behind the glyph. An agent
+# relaying "0px" tells the user their marker is beside the wrong button
+# when it is on top of it, and those are different repairs — nudge it, or
+# get it out of there. The cause is `_rect_gap` (canvas.py:14976), which
+# is `hypot` of two independently clamped axis separations: when the
+# boxes overlap BOTH terms clamp and the result is `hypot(0, 0)`. So a ❓
+# ABUTTING a rival and a ❓ BURIED in one produce the same reading. That
+# is the conflated pair, and an earlier draft of this comment named the
+# wrong one: the two poles BELOW are 16/clear and 10/overlap, and the
+# neighbour reads its 16 correctly. What no scene can distinguish today is
+# 0px-of-air from 10px-of-burial.
+#
+# THE MAGNITUDE IS THE MINIMUM TRANSLATION DISTANCE, 10px, and the band
+# around it is where this entry does its work. `hypot` has discarded the
+# direction on both axes, so a repair has to choose what to report, and
+# three of the choices are wrong: 36 (the y-depth — the ❓ lies wholly
+# inside `gate`'s vertical band, so that axis is not what a reader would
+# move it along), 37.4 (`hypot(10, 36)`, which is "put a sign on the
+# hypotenuse" and is the mistake this shape invites, since for DISJOINT
+# boxes hypot IS the minimum translation distance and it stops being so
+# the moment they overlap — one axis binds, they do not combine), and 360
+# (the overlap AREA, measured to leave this red red). Also excluded: 84
+# (the own-gap), 26 (the shift and the slot width), 16 (the neighbour's
+# own reading).
+#
+# WHAT FLIPS IT is any repair that makes the sentence name the
+# penetration as a number — extending the gap through zero, adding an
+# overlap clause, or an on-top phrasing. `_PIN_RIVAL_READINGS` accepts
+# all of them by construction and each was measured to flip this red from
+# a throwaway plugin, precisely so the red does not prescribe one; two
+# WRONG repairs were measured to leave it red. That comment also carries
+# the recommendation, (A), with its corpus cost and the two things it
+# must not do.
+#
+# IT IS NOT A `pin_spot` RED, which was the reported diagnosis. That
+# function's collision set already covers every non-target rectangle,
+# diamond and ellipse, and on this scene today's `pin_spot` returns the
+# inside-the-target fallback `(884, 622)` while the artifact holds
+# `(920, 612)` — which is exactly the hug spot the scene USED to allow.
+# The placement is stale, not mis-computed: a pin left behind by a scene
+# that changed after it was minted, which is the class `pin_drift` exists
+# to report — and it reports it, at the wrong magnitude.
+#
+# THE NEIGHBOUR IS THE OTHER POLE OF THE SAME READING, not a quiet
+# scene: 16px of real air between the ❓ and the rival, direction
+# `clear`, asserted ungated in every commit. It is the live half in the
+# strict sense — it runs the same lint line through the same collector,
+# so a `pin_drift` that went silent or crashed takes the neighbour down
+# rather than hiding inside this mutant's mask.
+_register(Mutant(
+    "pin_buried_in_a_rival_reads_as_adjacent",
+    build=_pin_drifted_but_clear_of_the_rival,
+    op="shift_label", args={"text_id": "q1", "dx": 26, "dy": 0},
+    expect=FindingSpec("pin_rival_gap", element="q1",
+                       magnitude=(10, 0.10), direction="overlap"),
+    neighbour=Neighbour(_pin_drifted_but_clear_of_the_rival,
+                        FindingSpec("pin_rival_gap", element="q1",
+                                    magnitude=(16, 0.10),
+                                    direction="clear"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -26296,6 +26597,19 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_pin_left_behind_by_its_moved_target(self) -> None:
         """A minted ❓ with a bystander 2px nearer is not a drifted one."""
         self._run_neighbour("pin_left_behind_by_its_moved_target")
+
+    @unittest.expectedFailure
+    def test_mutant_pin_buried_in_a_rival_reads_as_adjacent(self) -> None:
+        """A ❓ drawn 10px INSIDE a rival is reported as 0px from it."""
+        # Red by assertion: `pin_drift` speaks, and about the rival it
+        # says 0px/clear where the picture is 10px/overlap. Flips when
+        # the sentence names the penetration — several spellings count,
+        # see `_PIN_RIVAL_READINGS`, which also says which quantity.
+        self._run("pin_buried_in_a_rival_reads_as_adjacent")
+
+    def test_neighbour_pin_buried_in_a_rival_reads_as_adjacent(self) -> None:
+        """16px of air between the same ❓ and the same rival reads clear."""
+        self._run_neighbour("pin_buried_in_a_rival_reads_as_adjacent")
 
     def test_mutant_border_run_reads_an_unbound_neighbour(self) -> None:
         """80px of drop lies on a box the arrow binds neither end to."""
@@ -28594,7 +28908,24 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"pin_buried_in_a_rival_reads_as_adjacent"}
+# REFILLED on 2026-09-01 by the curator, from r8 finding r8-7, and it is a
+# third drain shape's opposite: nothing was fixed and nothing was
+# re-judged, a check that has been reporting correctly for weeks was found
+# to be reporting correctly about the WRONG ONE OF ITS TWO NUMBERS.
+# `pin_drift` carries the distance to the pin's TARGET — in both arms —
+# and `_PIN_DRIFT_RE` deliberately stops there, so the rival's distance
+# was the one number in that sentence nothing had ever read. `_rect_gap`
+# clamps each axis before taking the hypotenuse, so an overlap comes back
+# `hypot(0, 0)`: "0px" is what an agent is told about a ❓ merely touching
+# a button and about a ❓ drawn 10px inside one, and 2 of the 5 pin_drift
+# sentences the frozen corpus emits are the second case. The red belongs
+# to WHICHEVER WP OWNS `pin_drift`, and that is the whole population —
+# `_rect_gap`'s only two production call sites are the `own` and `d` reads
+# inside that one loop. Four honest repairs were measured to flip it and
+# three wrong ones to leave it red; `_PIN_RIVAL_READINGS` names them all
+# and recommends (A).
+#
 # TWO DRAINS ON ONE DAY AND THEY ARE NOT THE SAME REPAIR, which is what
 # the R6 integration merge had to decide and did not decide by picking a
 # branch: WP-A and WP-B each emptied this set on 2026-08-30, through
