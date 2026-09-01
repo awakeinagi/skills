@@ -426,6 +426,45 @@ Nothing here is a reason to fix a defect inline while you are near it. The
 temptation is strongest exactly when the fix looks obvious, and an obvious
 fix with no red is how a class comes back.
 
+### What a curator owns — two files, and the roster is one of them
+
+**A curator writes `tests/test_mutants.py` and `tests/RED-ROSTER.md`, and
+nothing else.** Not `SESSION-HANDOVER.md`, not `V0.9-PLAN.md`, not a file
+another agent is editing. If a red seems to require a third file, that is a
+finding to report to whoever dispatched you, not a scope to widen.
+
+**Landing a hand-authored red means editing both of them, in one change.**
+`HAND_AUTHORED_RED_CLASSES` in `tests/test_mutants.py` declares the class;
+`tests/RED-ROSTER.md` transcribes it as one bulleted line — the class name in
+backticks, then its red count in parentheses. Two `TestCoverage` guards
+compare each of those against the live `@unittest.expectedFailure`
+decorators, so a red that edits one and not the other fails the default
+suite. Flip a class's LAST red and its line leaves the roster entirely
+rather than dropping to `(0)`. An empty roster is written `- *none*` and
+never as a blank, because at zero reds a truncated file and an honest one
+enumerate the same nothing. The file's own header states the grammar and the
+reader's docstring says why each rule exists; read the failure message before
+you edit, because it names the exact shape you have.
+
+**The roster is a literal with a guard over it, and never a live value.** Do
+not put a `<!-- live: -->` marker in `tests/RED-ROSTER.md`. `tests/livedoc.py`
+rules that a marker may carry a TOTAL and never a ROSTER: `refresh` silently
+repairs, so a drift tool cannot hold a roster as a floor — truncate one and
+its prescribed repair is to agree with the truncation. A class arriving by
+name is the event a human is meant to stop and read.
+
+**Why the roster is not in `SESSION-HANDOVER.md` any more** (ruled
+2026-09-01). It was that file's census paragraph for its whole life, and
+three curators in one session each landed a red, each were stopped by the
+guard, and each edited the handover under protest. The constraint did not
+give — the roster moved. Concurrent curators now add distinct lines to a
+roster-only file instead of rewording one line of one shared prose document,
+and the anti-rot property survives untouched because the roster is still
+typed by a hand and never generated. The handover keeps a one-sentence
+pointer and no roster; a roster line left behind at the old address is itself
+a guard failure, since that fact has exactly one home.
+
+
 ## Known debt
 
 Tracked in `pyproject.toml` under `[tool.ruff.lint.per-file-ignores]`. Each
