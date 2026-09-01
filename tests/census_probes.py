@@ -277,11 +277,12 @@ PROBES: dict[str, dict[str, str]] = {
     # recorded times as unguarded prose, and the paragraph holding it
     # published its own casualty list and the instruction "Read the dict,
     # not this sentence" — a pointer at a checked fact, which is not a
-    # check. The four probes below take one hazard each, and the last two
-    # exist because THIS SUBJECT IS EMPTY TODAY.
+    # check. The probes below take one hazard each, and they are NOT
+    # COUNTED in this sentence: it said "four" while seven stood beneath
+    # it, which is this file's own subject arriving in its own preamble.
     #
-    # AN EMPTY SUBJECT IS THE HARD CASE and it is why there are four
-    # probes here where the other guards have one or two. At zero reds the
+    # AN EMPTY SUBJECT IS THE HARD CASE and it is why this guard has more
+    # probes than any other here. At zero reds the
     # honest transcription enumerates nothing, so a reader that simply
     # collected `Test...` names would return `{}` for the correct line,
     # for a deleted line and for a line replaced with a shopping list —
@@ -310,33 +311,59 @@ PROBES: dict[str, dict[str, str]] = {
     # for the same reason; the SHAPE each probes — a phantom entry, an
     # unreadable line, a bare name with a count, a bare name in prose —
     # is unchanged and is what the `why` describes.
+    #
+    # AND THEY DIED AGAIN ON 2026-09-01, this time because the SUBJECT
+    # MOVED and not because an anchor was chasing a value. The roster left
+    # SESSION-HANDOVER.md's census paragraph for `tests/RED-ROSTER.md`, a
+    # file whose only content is the roster, so that curators stop
+    # serialising on one line of a document they do not own. Six anchors
+    # went to zero hits at once and took the file's whole run with them a
+    # second time.
+    #
+    # SWAPPING THE `file` KEY WOULD HAVE BEEN THE WRONG REPAIR, and that is
+    # the half worth writing down, because it looks right and it fails
+    # QUIETLY. In the moved roster the label is a DELIMITER: the reader
+    # takes the lines BELOW it and treats the label's own line as the
+    # label. Every injection here appended to that line, so a probe merely
+    # re-filed against the new path would have landed on text the guard
+    # never parses, watched it stay green, and reported the guard SILENT —
+    # a healthy clause accused, which is the degeneracy the `/ 00**` note
+    # above rejects arriving through a different door. So each `new` now
+    # injects a BODY LINE beneath the label rather than text beside it,
+    # and the anchor takes a trailing newline for the same reason: it
+    # makes the injection a line and not a suffix. Every one was run and
+    # watched come back `caught` before it was written down here.
     "roster-phantom-class": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
-        "file": "SESSION-HANDOVER.md",
+        "file": "tests/RED-ROSTER.md",
         "why": "the roster names a class the live decorators do not carry "
                "— a flip nobody transcribed, the OVER-reporting pole the "
                "flip contract cannot see",
-        "old": "Non-catalog red classes:",
-        "new": "Non-catalog red classes: `TestNobodyFlippedThis` (2),",
+        "old": "Non-catalog red classes:\n",
+        "new": "Non-catalog red classes:\n"
+               "\n- `TestNobodyFlippedThis` (2)\n",
     },
     "roster-deleted": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
-        "file": "SESSION-HANDOVER.md",
-        "why": "THE SUBJECT IS ABSENT: the roster line is reworded away. A "
-               "check that passes when its subject is gone is not a check, "
-               "and at zero reds gone and correct both enumerate nothing",
-        "old": "Non-catalog red classes:",
-        "new": "Non-catalogue red-bearing classes are:",
+        "file": "tests/RED-ROSTER.md",
+        "why": "THE SUBJECT IS ABSENT: the label the roster hangs under is "
+               "reworded away, and everything below it is read only "
+               "because that label says where the roster starts. A check "
+               "that passes when its subject is gone is not a check, and "
+               "at zero reds gone and correct both enumerate nothing",
+        "old": "Non-catalog red classes:\n",
+        "new": "Red classes, non-catalog:\n",
     },
     "roster-garbled": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
-        "file": "SESSION-HANDOVER.md",
+        "file": "tests/RED-ROSTER.md",
         "why": "NON-DISCRIMINATION: the line survives but says something "
                "the grammar cannot read — a backticked class carrying no "
                "count. A reader that parsed this to an empty roster would "
                "agree with it and with the truth alike",
-        "old": "Non-catalog red classes:",
-        "new": "Non-catalog red classes: `TestSeeTheDictInstead`,",
+        "old": "Non-catalog red classes:\n",
+        "new": "Non-catalog red classes:\n"
+               "\n- `TestSeeTheDictInstead`\n",
     },
     # THE OTHER POLE, and it is perturbed in the CODE rather than in the
     # prose because that is the only place it can happen: a red that
@@ -379,33 +406,72 @@ PROBES: dict[str, dict[str, str]] = {
     # A probe whose subject can be caught by two mechanisms proves neither.
     "roster-bare-name-after-none": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
-        "file": "SESSION-HANDOVER.md",
+        "file": "tests/RED-ROSTER.md",
         "why": "the roster names classes in the ENTRY GRAMMAR with the "
                "BACKTICKS DROPPED — the line's own history after one "
                "reflow, invisible to every check that reads inside ticks",
-        "old": "Non-catalog red classes:",
-        "new": "Non-catalog red classes: TestBatchPathIntegrity "
-               "(3), TestLoadFindingsReachTheAgent (4),",
+        "old": "Non-catalog red classes:\n",
+        "new": "Non-catalog red classes:\n"
+               "\n- TestBatchPathIntegrity (3)\n",
     },
     "roster-bare-name-in-prose": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
-        "file": "SESSION-HANDOVER.md",
+        "file": "tests/RED-ROSTER.md",
         "why": "the same hole reached through ordinary prose rather than "
                "through the entry grammar: a named exception carrying no "
                "parenthesised count at all",
-        "old": "Non-catalog red classes:",
-        "new": "Non-catalog red classes: (except "
-               "TestLoadFindingsReachTheAgent, 4 reds)",
+        "old": "Non-catalog red classes:\n",
+        "new": "Non-catalog red classes:\n"
+               "\n(except TestLoadFindingsReachTheAgent, 4 reds)\n",
     },
     "roster-duplicate": {
         "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
-        "file": "SESSION-HANDOVER.md",
+        "file": "tests/RED-ROSTER.md",
         "why": "THE SILENT DIRECTION: a correct copy above a stale "
                "original. A first-match-wins reader agrees with the copy "
                "while the human reads the original",
-        "old": "Non-catalog red classes:",
+        "old": "Non-catalog red classes:\n",
+        "new": "Non-catalog red classes:\n"
+               "\n- *none*\n\n"
+               "Non-catalog red classes:\n",
+    },
+    # THE CLAUSE THE MOVE ITSELF CREATED, probed for the reason this whole
+    # file exists: a guard clause nobody has watched fail is decoration.
+    # The roster lived in SESSION-HANDOVER.md for its entire life, so the
+    # next agent to rebuild that paragraph from memory, resolve a
+    # conflicted hunk the lazy way, or revert a commit across it puts a
+    # roster line back at the old address — and one fact at two addresses
+    # is a correct copy beside a stale original waiting to happen, which
+    # is the silent direction every guard in this family was written
+    # about. The reader therefore refuses the label in the handover
+    # outright rather than ignoring it.
+    #
+    # THE INJECTED LINE CANNOT BE CAUGHT BY ANYTHING ELSE, which is what
+    # makes this probe discriminating rather than merely red. The one-home
+    # refusal runs BEFORE the roster is opened, so the equality assertion
+    # and every grammar check downstream are unreachable while it fires:
+    # no second mechanism can claim this catch. `*none*` is the injected
+    # spelling because it is the one legal roster line that never goes
+    # stale — a class name here would have to be re-typed the day the
+    # roster changes, which is the anchor disease five comments above,
+    # arriving in a `new` string instead of an `old` one.
+    #
+    # Anchored on the live marker's OPEN comment, per the rule
+    # `durable-counts-drift` states: the marker name is the most stable
+    # declaration this file has, because `livedoc check` fails if it stops
+    # naming a real derivation, while the prose around it may be rewritten
+    # freely. The injection is a whole line BEFORE it, so the
+    # durable-count sentence it sits in is left byte-identical and this
+    # probe perturbs exactly one subject.
+    "roster-back-at-the-old-address": {
+        "test": "test_the_handover_transcribes_the_hand_authored_red_classes",
+        "file": "SESSION-HANDOVER.md",
+        "why": "the roster comes BACK to the file it left, so the fact has "
+               "two homes and the reader agrees with the one it reads "
+               "while the human reads the other",
+        "old": "<!-- live:durable_red_counts -->",
         "new": "Non-catalog red classes: *none*\n"
-               "Non-catalog red classes:",
+               "\n<!-- live:durable_red_counts -->",
     },
 }
 
