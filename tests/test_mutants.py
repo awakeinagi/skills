@@ -40432,12 +40432,11 @@ class TestTheBundleCitationsNameAFileThatExists(unittest.TestCase):
 # pins it to the shipping bundle, by an offset that resolves to that very
 # symbol or by a quoted rename-invariant slice of code that does — or
 # SCOPED, saying IN THAT NAME'S OWN SENTENCE, in the tree's own past-tense
-# vocabulary, that it belonged to a bundle that no longer ships — or it is
-# not a citation at all but a META-MENTION, a sentence reporting where the
-# name appears in THIS repo rather than what it means in the client. There
-# is no fourth state, and an unanchored present-tense name is unverifiable
-# BY ANYONE, which is the property that let four of five rot into live
-# unrelated functions and go on reading correct for two more rebuilds.
+# vocabulary, that it belonged to a bundle that no longer ships. There is no
+# third state — one was tried and withdrawn, and the paragraph on prose
+# about prose below is why — and an unanchored present-tense name is
+# unverifiable BY ANYONE, which is the property that let four of five rot
+# into live unrelated functions and go on reading correct for two rebuilds.
 #
 # THE ASYMMETRY BETWEEN THE TWO EXITS IS DELIBERATE and is the C-1 repair
 # (independent re-curation review, 2026-09-01). An anchor reaches the whole
@@ -40469,14 +40468,17 @@ class TestTheBundleCitationsNameAFileThatExists(unittest.TestCase):
 # is not a shortcut — it is one specific false statement per citation, each
 # saying of one name that it belonged to a build that no longer ships, and
 # no reading of text can tell a deliberate lie from a true sentence. What
-# the repair buys is measurable and was measured cleanly, marker inserted
-# straight after each loose name's own backtick span: 76 insertions, and
+# the repair buys is measurable, and NO FIGURE FOR IT IS WRITTEN HERE for
+# the reason two paragraphs up: an insertion count is the loose-occurrence
+# count wearing a hat, and it rots on the first repair. The guard below runs
+# the attack instead — one marker straight after each loose name's own
+# backtick span — and what it demonstrates is a SHAPE rather than a number:
 # the survivors are EXACTLY the citations whose sentence carries a
-# `SYMBOL_PRESENT_TENSE` phrase, about a quarter of the list, identical set
-# by name. Those cannot be scoped at all — clearing them means deleting a
-# false present-tense claim, which is a repair and not an exemption. So the
-# refusal converts a paste into work, and the lie that remains has to be
-# told in the sentence it falsifies, where a reviewer meets it.
+# `SYMBOL_PRESENT_TENSE` phrase, identical set by name, and they cannot be
+# scoped at all. Clearing those means deleting a false present-tense claim,
+# which is a repair and not an exemption. So the refusal converts a paste
+# into work, and the lie that remains has to be told in the sentence it
+# falsifies, where a reviewer meets it.
 #
 # THE HALF THIS CANNOT REACH, said plainly, because a limit that is not
 # written down gets re-discovered as a defect. The vocabulary below is a
@@ -40565,41 +40567,51 @@ SYMBOL_SCOPE_MARKERS: tuple[str, ...] = (
 # name is true of the build shipping NOW cannot be excused by a past-tense
 # clause pasted into the same sentence — that is not scoping, it is a
 # sentence contradicting itself, and it was the residue left after C-1's
-# region-wide hole was closed. The live example is the claim made about
-# `ai` at tests/test_backend.py:24240, which four appended words would
-# otherwise green while it went on asserting the opposite. Measured across
-# the whole tree: with the past-tense clause written beside EVERY loose
-# name, this refusal is what still holds 29% of them, and clearing those
-# means deleting a false present-tense claim, which is a repair rather than
-# an exemption.
+# region-wide hole was closed. The live example is the claim at
+# tests/test_backend.py:24240, which four appended words would otherwise
+# green while it went on asserting the opposite. NO PROPORTION IS WRITTEN
+# HERE: this note carried "29%" for one commit, inherited from the tree
+# before it while the truth had moved to a quarter, which is exactly the
+# rot the paragraph above forbids. The guard runs the attack and asserts
+# the SET, not its size.
 SYMBOL_PRESENT_TENSE: tuple[str, ...] = (
     "in the shipped bundle", "in the bundle that ships", "the file that ships",
     "in the shipped file")
 
-# WHERE A NAME IS SPELLED, RATHER THAN USED. Prose that reports where a
-# symbol APPEARS IN THIS REPO is a statement about this tree's own text and
-# not about the client, so it has nothing to anchor and nothing to scope —
-# and this curation wrote four such sentences before anything noticed the
-# category existed. One of them, the roster below, names a symbol precisely
-# to say that NOTHING claims anything about it; there is no honest repair
-# for that under a rule with only the other four exits.
+# THERE IS NO EXIT FOR PROSE ABOUT PROSE, and this paragraph is the ruling
+# rather than a gap. A curator writing the note above reached for one: prose
+# that reports where a symbol APPEARS IN THIS REPO claims nothing about the
+# client, so a sentence naming a `file.py:line` was exempted, provided the
+# named line really carried the name and was not inside the sentence's own
+# region. It shipped for one commit and it was WRONG, in a way worth keeping
+# written down because it is the failure this whole class is about.
 #
-# THE SIGNAL IS A SITE, and it is deliberately not a quotation. A symbol
-# inside double quotes was the other candidate and it is unsafe: a docstring
-# opens with `\"\"\"`, so the quote scan pairs a closing delimiter with the next
-# quote in the prose and swallows live claims — measured, it exempted the
-# `$$` defect at canvas.py:2194 along with the meta-mention it was aimed at.
-# A `file.py:line` is exact instead, and it is a FALSIFIABLE claim: the
-# reader can go and look.
+# IT VERIFIED THE WRONG PROPOSITION. An anchor checks the very thing it
+# licenses: the bundle resolves this offset to this name, so the sentence's
+# subject is what got examined. The site read-back checked something else
+# entirely — SOME line somewhere spells this token — and licensed a verdict
+# about tense and subject that nothing looked at. The two are orthogonal,
+# and orthogonal is fatal here: every citation is itself a line carrying its
+# own symbol, so a verifying site always exists. Measured on the tree that
+# shipped it, all 27 vocabulary names had a carrying line, all 54 loose
+# pairs had one available OUTSIDE their own region, and the same paste
+# budget the scoping clause survives took the whole list to ZERO. A live
+# defect could be excused, still saying what the client does, by pointing at
+# another citation of the same name.
 #
-# AND THE SITE IS READ BACK. A sentence citing a line inside its own region
-# is circular — "this claim is about prose, namely this claim" — and a
-# sentence citing any other line must be RIGHT: the named line has to carry
-# the named symbol, read out of the source. Both refusals are what stop this
-# exit being the free one, because pasting `(canvas.py:1)` after a loose
-# name would otherwise buy an exemption for nine characters. Like an anchor
-# and unlike a scoping clause, this exit is verified rather than believed.
-_REPO_SITE = re.compile(r"([\w./-]*\.py):(\d+)")
+# AND IT CONTRADICTED THE SCANNER BESIDE IT. `symbol_spans` goes to trouble
+# to refuse `p[ai]`, this repo's own along-axis index, as noise; the
+# read-back then accepted an unrelated Python local of the same name as
+# proof that a sentence about the client's minified one was not about the
+# client. One function's noise was the other's evidence.
+#
+# SO THE FOUR EXITS ARE THE WHOLE RULE, and they were always enough: every
+# sentence that tripped this — including the roster below, which reports a
+# fact about prose and then makes a live claim about the bundle in its next
+# breath — repairs by anchoring the name or by naming the site and not
+# spelling the name. Both were taken here. A syntactic rule that pretends to
+# be a check is worse than a judgement that admits it is one, and worse
+# again than not needing either.
 
 _SYMBOL_OFFSET = re.compile(r"@(\d{4,7})")
 _BACKTICK_SPAN = re.compile(r"`([^`\n]{1,200})`")
@@ -40872,51 +40884,6 @@ def _parse_complaint(path: str, source: str) -> str | None:
     return None
 
 
-def meta_mention_site(sentence: str, symbol: str, sources: dict[str, str],
-                      path: str, first: int, last: int) -> str | None:
-    """Where this sentence says the name appears — read back and verified.
-
-    A sentence that locates a symbol at a file and line in THIS tree is
-    reporting on this tree's own prose, so there is nothing in it to
-    anchor or to scope. Two conditions keep that from being the cheap
-    exit C-1 was, and both are refusals rather than trust:
-
-    SELF-REFERENCE DOES NOT COUNT. A sentence pointing at a line inside
-    its own region proves only that it exists.
-
-    AND THE CLAIM IS CHECKED. The named line must actually carry the
-    named symbol, read out of the source. Pasting `(canvas.py:1)` after
-    a loose name would otherwise excuse it in nine characters; with the
-    read-back it excuses nothing, because line 1 does not carry the
-    name. That makes this exit VERIFIED, like an anchor, rather than
-    asserted, like a scoping clause.
-
-    Args:
-        sentence: The sentence to read.
-        symbol: The minified name whose mention is being judged.
-        sources: `{display_path: file_text}` for the tracked tree.
-        path: The display path of the file the sentence lives in.
-        first: The region's first line.
-        last: The region's last line.
-
-    Returns:
-        `"file.py:line"` for the first site that checks out, or None.
-    """
-    for name, digits in _REPO_SITE.findall(sentence):
-        line = int(digits)
-        if path.endswith(name) and first <= line <= last:
-            continue
-        for other, text in sources.items():
-            if not other.endswith(name):
-                continue
-            lines = text.splitlines()
-            if line <= len(lines) and re.search(
-                    r"(?<![\w$])%s(?![\w$])" % re.escape(symbol),
-                    lines[line - 1]):
-                return "%s:%d" % (name, line)
-    return None
-
-
 @functools.lru_cache(maxsize=4)
 def _flattened_bundle(bundle: str) -> tuple[str, tuple[int, ...]]:
     """The bundle with whitespace removed, plus each character's home.
@@ -40933,6 +40900,32 @@ def _flattened_bundle(bundle: str) -> tuple[str, tuple[int, ...]]:
     """
     keep = tuple(i for i, ch in enumerate(bundle) if not ch.isspace())
     return "".join(bundle[i] for i in keep), keep
+
+
+@functools.lru_cache(maxsize=4096)
+def _slice_site(bundle: str, flat: str) -> tuple[int, int] | None:
+    """Where a whitespace-free slice sits in the bundle, if uniquely.
+
+    THE CACHE STOPS HERE ON PURPOSE. `code_slice_owner`'s length floor
+    is a module constant its own guard damages, and a cache wrapped
+    round the whole function held the pre-damage answer and let that
+    case pass — the guard went quiet about a floor that had been
+    removed. Only the million-character `find` is memoised; every
+    refusal is re-decided on every call.
+
+    Args:
+        bundle: The bundle source.
+        flat: The slice, whitespace already removed.
+
+    Returns:
+        `(start, stop)` in the ORIGINAL text, or None when the slice is
+        absent or appears more than once.
+    """
+    text, home = _flattened_bundle(bundle)
+    at = text.find(flat)
+    if at < 0 or text.find(flat, at + 1) >= 0:
+        return None
+    return home[at], home[at + len(flat) - 1] + 1
 
 
 def code_slice_owner(bundle: str, quoted: str) -> str | None:
@@ -40966,11 +40959,10 @@ def code_slice_owner(bundle: str, quoted: str) -> str | None:
     flat = _WHITESPACE.sub("", quoted)
     if len(flat) < _CODE_SLICE_MIN or not _CODE_SYNTAX.search(flat):
         return None
-    text, home = _flattened_bundle(bundle)
-    at = text.find(flat)
-    if at < 0 or text.find(flat, at + 1) >= 0:
+    site = _slice_site(bundle, flat)
+    if site is None:
         return None
-    start, stop = home[at], home[at + len(flat) - 1] + 1
+    start, stop = site
     # A SLICE THAT STRADDLES TWO FUNCTIONS ANSWERS THE FIRST, which is
     # the one false-positive shape this anchor has: a quote running from
     # the tail of one binding into the head of the next would name the
@@ -41054,18 +41046,87 @@ def symbol_citations(sources: dict[str, str], bundle: str,
                       and not any(p in low[sa:sz]
                                   for p in SYMBOL_PRESENT_TENSE)]
             for sym, start, end in occurrences:
-                here = [(sa, sz) for sa, sz in sentences
-                        if sa <= start and end <= sz]
                 out.append({
                     "where": "%s:%d-%d" % (path, first, last),
                     "symbol": sym,
                     "scoped": any(sa <= start and end <= sz
                                   for sa, sz in marked),
-                    "meta": any(meta_mention_site(
-                        region[sa:sz], sym, sources, path, first, last)
-                        for sa, sz in here),
                     "owner": sym if sym in anchors else None})
     return out
+
+
+def paste_a_scope_beside_every_loose_name(
+        sources: dict[str, str], loose: list[str], vocabulary: dict[str, str],
+        marker: str) -> dict[str, str]:
+    """The cheapest dishonest repair, applied everywhere, as sources.
+
+    One scoping clause per unverifiable citation, inserted straight
+    after that name's own closing backtick so it lands in the name's
+    own sentence. This is the attack the sentence-binding repair has to
+    survive, and running it is the only way to know what survives it —
+    the answer is a SET, and the guard asserts the set rather than its
+    size so that nothing here rots into a stale count.
+
+    Args:
+        sources: `{display_path: file_text}`.
+        loose: What `unverifiable_symbol_citations` returned.
+        vocabulary: The names to look for.
+        marker: The scoping phrase to paste.
+
+    Returns:
+        The same mapping with the clause inserted; input untouched.
+    """
+    wanted: dict[str, set[str]] = {}
+    for entry in loose:
+        where, sym = entry.rsplit(" ", 1)
+        wanted.setdefault(where, set()).add(sym)
+    pat = _symbol_span(tuple(sorted(vocabulary))) if vocabulary else None
+    out = dict(sources)
+    for path, text in sources.items():
+        lines, edits = text.splitlines(), {}
+        for first, last, _ in prose_regions(text):
+            want = wanted.get("%s:%d-%d" % (path, first, last))
+            if not want or pat is None:
+                continue
+            for lineno in range(first, min(last, len(lines)) + 1):
+                for m in _BACKTICK_SPAN.finditer(lines[lineno - 1]):
+                    hit = pat.fullmatch(m.group(1).strip())
+                    if hit and hit.group(1) in want:
+                        edits.setdefault(lineno, []).append(m.end())
+        for lineno, ends in sorted(edits.items(), reverse=True):
+            for at in sorted(ends, reverse=True):
+                line = lines[lineno - 1]
+                lines[lineno - 1] = line[:at] + " " + marker + line[at:]
+        out[path] = "\n".join(lines) + "\n"
+    return out
+
+
+def tense_refused_citations(sources: dict[str, str], loose: list[str],
+                            vocabulary: dict[str, str]) -> list[str]:
+    """Which unverifiable citations a present-tense clause forbids scoping.
+
+    Args:
+        sources: `{display_path: file_text}`.
+        loose: What `unverifiable_symbol_citations` returned.
+        vocabulary: The names to look for.
+
+    Returns:
+        `"where symbol"` for every loose pair with an occurrence in a
+        sentence that claims the name of the build shipping now.
+    """
+    keep = {tuple(e.rsplit(" ", 1)) for e in loose}
+    out = set()
+    for path, text in sources.items():
+        for first, last, region in prose_regions(text):
+            low = region.lower()
+            for sa, sz in sentence_spans(region):
+                if not any(p in low[sa:sz] for p in SYMBOL_PRESENT_TENSE):
+                    continue
+                for sym, start, end in symbol_spans(region, vocabulary):
+                    where = "%s:%d-%d" % (path, first, last)
+                    if sa <= start and end <= sz and (where, sym) in keep:
+                        out.add("%s %s" % (where, sym))
+    return sorted(out)
 
 
 def unverifiable_symbol_citations(cites: list[dict[str, Any]]) -> list[str]:
@@ -41075,17 +41136,15 @@ def unverifiable_symbol_citations(cites: list[dict[str, Any]]) -> list[str]:
         cites: What `symbol_citations` returned, or a damaged stand-in.
 
     Returns:
-        `"where symbol"` per citation that is none of the three:
-        anchored to something the bundle resolves to it, scoped in its
-        own sentence to a build that no longer ships, or a
-        META-MENTION whose sentence locates the name at a line of this
-        repo instead. Deduplicated and sorted: one loose occurrence
-        condemns the pairing, and a second adds nothing a reader has to
-        be told twice. Empty is the healthy answer.
+        `"where symbol"` per citation that is neither anchored to
+        something the bundle resolves to it nor scoped, in its own
+        sentence, to a build that no longer ships. Deduplicated and
+        sorted: one loose occurrence condemns the pairing, and a second
+        adds nothing a reader has to be told twice. Empty is the
+        healthy answer.
     """
     return sorted({"%s %s" % (c["where"], c["symbol"]) for c in cites
-                   if c["owner"] is None and not c["scoped"]
-                   and not c.get("meta")})
+                   if c["owner"] is None and not c["scoped"]})
 
 
 class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
@@ -41353,28 +41412,33 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
             "a sentence that scopes a name to a dead build AND claims "
             "it of the shipping one reads as scoped, so the tense "
             "refusal is not biting")
-        # And the same on the live tree, as corroboration rather than
-        # as the sharp edge: the phrase pasted once per region must not
-        # dissolve the list. A quarter may legitimately go — the head
-        # line of a region is a real sentence and really does scope
-        # what stands in it — where region-wide scoping halves it.
-        cheap = dict(tracked)
-        for where in {c["where"] for c in real
-                      if c["owner"] is None and not c["scoped"]}:
-            path, span = where.rsplit(":", 1)
-            head = int(span.split("-")[0])
-            lines = cheap[path].splitlines()
-            lines[head - 1] += " " + SYMBOL_SCOPE_MARKERS[0]
-            cheap[path] = "\n".join(lines) + "\n"
+        # And on the live tree, the attack run to completion: one clause
+        # beside every loose name, which is the honest repair told as a
+        # lie fifty-odd times over. WHAT SURVIVES IS ASSERTED AS A SET
+        # and never as a count — a count here is the loose-occurrence
+        # count wearing a hat, and this class has already shipped two
+        # figures that rotted where they stood.
         before = unverifiable_symbol_citations(real)
-        after = unverifiable_symbol_citations(
-            symbol_citations(cheap, bundle))
-        self.assertGreater(
-            len(after) * 4, len(before) * 3,
-            "pasting the bare phrase %r once into each unverifiable "
-            "region took the violation list from %d to %d without "
-            "making one citation checkable"
-            % (SYMBOL_SCOPE_MARKERS[0], len(before), len(after)))
+        after = unverifiable_symbol_citations(symbol_citations(
+            paste_a_scope_beside_every_loose_name(
+                tracked, before, CLIENT_SYMBOLS, SYMBOL_SCOPE_MARKERS[0]),
+            bundle))
+        refused = tense_refused_citations(tracked, before, CLIENT_SYMBOLS)
+        self.assertEqual(
+            after, refused,
+            "with a scoping clause written beside EVERY unverifiable "
+            "name, what survives is no longer exactly the set a "
+            "present-tense claim forbids scoping. Survivors not "
+            "refused on tense: %s. Refused but not surviving: %s. The "
+            "first means an exemption is reaching past its own "
+            "sentence; the second means the tense refusal has stopped "
+            "biting" % (sorted(set(after) - set(refused)),
+                        sorted(set(refused) - set(after))))
+        self.assertNotEqual(
+            after, [],
+            "every unverifiable citation in the tree can be excused by "
+            "pasting one phrase beside it, so the cheapest repair is "
+            "again the one that verifies nothing")
         # A COLON DOES NOT END A SENTENCE HERE, and nothing held that
         # decision until the second re-curation asked. Adding one to
         # `_SENTENCE_BREAK` moves the census by eight, in the fail-safe
@@ -41388,34 +41452,27 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
             "a colon split a scoping clause from the name it excuses, "
             "so every list-shaped historical note in this tree now "
             "reports its own contents as unverifiable")
-        # A META-MENTION IS NOT A CITATION — three probes, one per way
-        # that exit could become the cheap one C-1 was. All three run
-        # on synthetic sources so each names exactly one property.
-        says = '"""`ai` is named at %s."""\n'
-        # `q.py`'s line carries the name as CODE, so the read-back finds
-        # it and the scan does not count it as a citation of its own.
+        # C-2: POINTING AT A LINE IS NOT AN EXIT, and this pins the
+        # absence. A "meta-mention" exemption shipped for one commit —
+        # a sentence naming a `file.py:line` that really carried the
+        # name was read as prose about prose — and it was cheaper than
+        # the clause C-1 was raised to close: every citation is itself a
+        # line carrying its own symbol, so a verifying site always
+        # exists, and the same paste budget took the whole list to zero.
+        # The probe below is the attack in one sentence: a live claim
+        # about the shipping bundle, with a true site reference stapled
+        # on. It must stay loose.
+        stapled = ('"""`ai` %s wraps a bound label (q.py:1)."""\n'
+                   % SYMBOL_PRESENT_TENSE[0])
         self.assertEqual(
             unverifiable_symbol_citations(symbol_citations(
-                {"p.py": says % "q.py:1", "q.py": "ai = 1\n"}, bundle)),
-            [],
-            "a sentence reporting where a name appears in this repo, "
-            "at a line that really does carry it, is read as a claim "
-            "about the client — so prose about prose has no honest "
-            "repair available to it at all")
-        self.assertEqual(
-            unverifiable_symbol_citations(symbol_citations(
-                {"p.py": says % "q.py:1", "q.py": "nothing = 1\n"},
-                bundle)),
+                {"p.py": stapled, "q.py": "ai = 1\n"}, bundle)),
             ["p.py:1-1 ai"],
-            "a site reference nobody checked excused a name, so nine "
-            "pasted characters buy an exemption and the meta exit is "
-            "the free one")
-        self.assertEqual(
-            unverifiable_symbol_citations(symbol_citations(
-                {"p.py": says % "p.py:1"}, bundle)),
-            ["p.py:1-1 ai"],
-            "a sentence pointing at its OWN line counted as a report "
-            "about this repo's prose, so the exemption is circular")
+            "a true statement about where a name appears in this repo "
+            "excused a live claim about what it means in the client. "
+            "Those are different propositions and the second is the "
+            "one being licensed — an exit verified against the wrong "
+            "sentence is a scoping clause with a receipt attached")
         # THE CODE-SLICE ANCHOR MUST RESOLVE, AND MUST REFUSE — four
         # ways, each of which left the guard green when the second
         # re-curation went looking (M-7, M-8, M-11). The refusals run
@@ -41470,6 +41527,15 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
         # pure function and is a silent 70% blindness for this class:
         # docstrings are most of the prose and the `blind` clause above
         # only notices a file that yields NOTHING at all.
+        # THE DETECTOR FIRST, then the tree. Without this line the
+        # clause below passes with `_parse_complaint` replaced by a
+        # function that always answers None — it was the one non-
+        # synthetic clause in this guard and nothing exercised it.
+        self.assertIsNotNone(
+            _parse_complaint("p.py", "def (\n"),
+            "the parse detector answers nothing about a file that "
+            "cannot be parsed, so the clause below is watching a tree "
+            "through an instrument that is switched off")
         unparsed = [w for w in
                     (_parse_complaint(p, t) for p, t in sorted(
                         tracked.items())) if w]
@@ -41485,19 +41551,28 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
         # BOTH BINDING FORMS, and the second one is not pedantry. FOUR
         # sites in this tree reassure their reader that a superseded
         # name is "assigned nowhere" in the file that ships, carrying
-        # TWO names between them — `Yn` three times (canvas.py:2132,
-        # test_mutants.py:16985 and :40145) and `bd` once
-        # (canvas.py:14797). Both are live `function` DECLARATIONS in
-        # the bundle that ships, which an `X=` search walks straight
-        # past, and a census repeating that search inherits the blind
-        # spot. CORRECTION TO `c3f7b95`, whose message says "three
-        # sites ... each of the three names": the mechanism it claims
-        # is right and its roster is not. It counted the sites as three
-        # and folded in `Zr`, which appears in prose exactly once
-        # (canvas.py:2348), inside a quoted code block, with nothing
+        # TWO names between them — `Yn` (index-DTzHdgzu.js @798191), at
+        # canvas.py:2132, test_mutants.py:16985 and :40145, and `bd`
+        # (index-DTzHdgzu.js @737843), at canvas.py:14797. Both are
+        # live `function` DECLARATIONS, which an `X=` search walks
+        # straight past, and a census repeating that search inherits
+        # the blind spot. CORRECTION TO `c3f7b95`, whose message says
+        # "three sites ... each of the three names": the mechanism it
+        # claims is right and its roster is not. It counted the sites
+        # as three and folded in `Zr` (index-DTzHdgzu.js @267578, an
+        # assert helper), which appears in prose exactly once, at
+        # canvas.py:2348, inside a quoted code block, with nothing
         # claiming it is unassigned. Recorded here rather than by
         # rewriting the commit, because a reader meets this line and
         # not that one.
+        #
+        # THOSE THREE OFFSETS ARE THE REPAIR AND NOT DECORATION. This
+        # comment reports a fact about PROSE and then makes a live
+        # claim about the bundle in its next breath, so the red was
+        # right to flag it; anchoring is the honest exit and it makes
+        # the paragraph checkable besides. A curator briefly gave prose
+        # about prose an exit of its own — see the ruling at the head
+        # of this section for why that was withdrawn.
         landed = [s for s in CLIENT_SYMBOLS
                   if re.search(r"(?:function\s+%s\s*\(|(?<![\w$.])%s\s*"
                                r"=(?!=))" % (re.escape(s), re.escape(s)),
