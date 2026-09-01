@@ -28663,7 +28663,18 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestAStoredCaptionAnchorTheClientDisagreesWithIsReported": 1}
+# `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` ARRIVED ON
+# 2026-09-01 as `r8-2`, the persisted-scene sibling of the caption-anchor
+# class this dict emptied a day earlier — and it is the reason a drained
+# entry is not the same as a closed class. `84f33fb` moved the WRITER onto
+# `BOUND_TEXT_PADDING` and flipped the mint-time red; every caption that
+# writer had ALREADY written is still on disk a pixel from where the tab
+# draws it, and no reader in the product says a word about it. One red,
+# because the relation is one thing (reported OR repaired) measured over
+# twelve cells; the two alignments, the two signs and the two routes are a
+# population and not four defects.
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
@@ -40896,6 +40907,464 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
             "meet on `middle` for a rectangle only. Cells: %s"
             % (len(narrated), len(self.CASES) * 2,
                canvas.BOUND_TEXT_PADDING, self.rules["padding"], narrated))
+
+
+# ---------------------------------------------------------------------------
+# THE PERSISTED-SCENE SIBLING OF THE CLASS ABOVE. Filed by the
+# mutant-curator as `r8-2`, 2026-09-01, out of the R8 assessment's
+# `mint-time-only-repair` class — the same shape as R6's `r6-1` one field
+# over: the fix stopped the gesture MANUFACTURING the state and left every
+# instance it had already manufactured sitting on disk.
+#
+# `84f33fb` moved `recenter_label` onto `BOUND_TEXT_PADDING`, so what this
+# product WRITES now agrees with what the tab DRAWS. Nothing re-read what
+# it had already written. The load-time repair catalogue covers structural
+# damage only — `_label_detached` asks whether the two boxes overlap AT
+# ALL — so a caption stored one pixel from where it is drawn is inside
+# every threshold the loader owns, and `catch_up()` re-reads it unchanged
+# every session for the life of the project.
+#
+# THE CLASS BELOW IS ABOUT THE READERS AND NOT ABOUT THE PIXEL. Which
+# repair closes it is deliberately unnamed: a lint note, a load-time
+# re-anchor that narrates, a migration on save, a silent migration and a
+# fossil line are all honest, and all five were measured to flip it (see
+# the red's own docstring). What it refuses is silence — and, because it is
+# DIFFERENTIAL against a scene whose caption already agrees, it also
+# refuses a reader that says the same thing about every caption in the
+# project, which would be noise wearing a repair's name.
+# ---------------------------------------------------------------------------
+class TestAStoredCaptionAnchorTheClientDisagreesWithIsReported(
+        unittest.TestCase):
+    """`r8-2`: a caption already on disk, against the tab that draws it.
+
+    THE FINDING, in one line: **v0.9.1's caption-anchor repair is
+    mint-time only — persisted scenes keep the pre-fix offset and no
+    reader says so.** `onboarding-domain` stores all seven entity
+    captions at `container.y + 6`; `recenter_label` produces
+    `container.y + BOUND_TEXT_PADDING` now and the shipped client draws
+    there, and `lint` says nothing about caption placement at all.
+
+    THE RELATION, which is what is pinned: a stored caption whose anchor
+    differs from where the client will draw it is either REPORTED by
+    some reader or REPAIRED before a reader sees it. The disjunction is
+    deliberate — pinning "reported" alone would refuse an honest silent
+    migration, and pinning "repaired" alone would prescribe touching the
+    picture. Neither happens today, at any magnitude short of the two
+    boxes coming apart.
+
+    NO SERVER-SIDE COORDINATE LITERAL LIVES IN THIS CLASS. `6` and `5`
+    are two spellings of one disagreement; every caption below is built
+    at the CLIENT's own anchor plus a signed delta, so the population
+    survives a rebuild that moves the padding and fails loudly on one
+    that renames it.
+
+    FIVE REPAIR SHAPES WERE MEASURED TO FLIP IT and it prescribes none.
+    They sit at five different layers, none of them had been tried
+    before this red, and each was monkeypatched over a scratch import of
+    the module — never edited into it — with every ungated pole of this
+    class still green in all five:
+
+      (a) THE LOADER. `_label_detached` widened from "the two boxes do
+          not touch" to "the loader would move it", so the existing
+          ART-007 arm re-glues a stale caption and names it. Reports AND
+          repairs.
+      (b) THE LINT. `project_lint` gains a note per caption whose stored
+          anchor is not the writer's — report-only, picture untouched.
+      (c) A SILENT MIGRATION AT LOAD. `validate_scene` re-anchors and
+          files no `Issue`. Flips the REPAIRED arm alone, which is the
+          whole reason that arm is in the disjunction: a repair that
+          mends the picture without a sentence is still a repair, and a
+          red demanding a sentence would have refused it.
+      (d) A FOSSIL NOTE. `legacy_routing_notes` gains a line — the
+          "noticed and deliberately left alone" surface, a third reader
+          again, repairing nothing.
+      (e) A MIGRATION ON SAVE. `Store.commit` re-anchors before it
+          writes, so the next load reads an agreeing scene.
+
+    THREE MORE WERE RUN AND DO NOT FLIP IT, and each is worth its line:
+
+      * `label_position_sticks` refusing a stale caption. It is the
+        right predicate at the wrong end — no reader prints its answer,
+        so the file and the screen still disagree in silence.
+      * ANNOTATING THE `catch_up` HEADLINE. Measured: it closes all six
+        SERVED cells and leaves all six OFFLINE ones, which the red then
+        reports by route. `catch_up` has one caller and only
+        `run_server` reaches it; eleven of the twelve `Store(...)` sites
+        are CLI commands that never do.
+      * A NOTE ON EVERY BOUND CAPTION. Identical on the agreeing
+        control, so the differential cancels it — noise wearing a
+        repair's name.
+
+    AND THE REPAIR THAT ALREADY LANDED DOES NOT FLIP IT EITHER, which is
+    not a fourth entry in that list but the finding itself: `84f33fb` is
+    in the tree this red is red on.
+
+    Attributes:
+        rules: What `client_bound_text_rules` read out of the bundle.
+    """
+
+    AID: ClassVar[str] = "d"
+    # One rectangle and one caption, on round coordinates. A rectangle
+    # because `client_caption_y` is a rectangle's rule and an ellipse's
+    # divergence is a different, larger, still-open class; `domain`
+    # because that is the artifact type the finding was found on.
+    BOX: ClassVar[dict[str, Any]] = {
+        "id": "c", "type": "rectangle", "x": 200, "y": 100,
+        "width": 160, "height": 120}
+    CAP_W: ClassVar[int] = 90
+    CAP_H: ClassVar[int] = 22
+    # SIGNED DELTAS OFF THE CLIENT'S OWN ANCHOR, never absolute offsets.
+    # Both signs, because the corpus holds both — 23 rectangle captions
+    # at +1 and 12 at -1 — and a repair that closes one sign only is a
+    # repair this red must keep reporting. `20` is here so that no
+    # reading of this class can be that it is about one pixel.
+    DELTAS: ClassVar[tuple[float, ...]] = (-1.0, 1.0, 20.0)
+    # BOTH ROUTES. `catch_up` has one caller and only `run_server`
+    # reaches it, so a repair sited there leaves every CLI command —
+    # eleven of the twelve `Store(...)` sites — reading the stale anchor.
+    ROUTES: ClassVar[tuple[bool, ...]] = (True, False)
+    # Far enough that the two boxes come apart, which is the one
+    # magnitude today's loader does answer. The live half below.
+    DETACHED: ClassVar[tuple[float, ...]] = (-400.0, 400.0)
+
+    def setUp(self) -> None:
+        """Read the client's rules once; every pole asserts on them."""
+        self.rules = client_bound_text_rules()
+
+    def _scene(self, align: str, delta: float) -> list[dict[str, Any]]:
+        """One container and one caption stored `delta` off the client's.
+
+        Args:
+            align: The caption's `verticalAlign` — `top` or `bottom`,
+                the two the writer and the client can disagree on.
+            delta: Signed pixels between the stored `y` and the `y`
+                `computeBoundTextPosition` will draw it at. `0` is the
+                agreeing control every red cell is measured against.
+
+        Returns:
+            The two elements, as a pre-fix session left them on disk.
+        """
+        box = dict(self.BOX,
+                   boundElements=[{"id": "c-label", "type": "text"}])
+        cap = {"id": "c-label", "type": "text", "containerId": "c",
+               "width": self.CAP_W, "height": self.CAP_H,
+               "verticalAlign": align, "textAlign": "center",
+               "text": "Term", "originalText": "Term", "fontSize": 16,
+               "lineHeight": canvas.NUNITO_LINE_HEIGHT,
+               "x": box["x"] + (box["width"] - self.CAP_W) / 2, "y": 0}
+        cap["y"] = client_caption_y(self.rules, box, cap) + delta
+        return [box, cap]
+
+    def _reading(self, align: str, delta: float, served: bool
+                 ) -> tuple[tuple[str, ...], float | None, float]:
+        """Put the scene on disk and ask every reader what it says.
+
+        THE DOOR IS THE FILE AND NOT A REQUEST, which is the whole
+        difference from the class above. A pre-fix scene was written by
+        a session that has ended; the only way to reach it is to write
+        the artifact and construct a NEW `Store`, because a store that
+        never reloaded would be reading its own memory.
+
+        Args:
+            align: The caption's `verticalAlign`.
+            delta: Signed pixels off the client's own anchor.
+            served: Reconcile the way a running server does. False is
+                the agent with no server — the route that reaches the
+                readers before anything reconciles.
+
+        Returns:
+            `(said, stored_y, client_y)`, where `said` is every line
+            every reader emitted and `stored_y` is where the caption
+            ended up — `None` when nothing on disk carries it any more.
+        """
+        root = Path(tempfile.mkdtemp(prefix="r8-2-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({"base_revn": 0, "artifact": self.AID,
+                           "create": {"id": self.AID, "name": "D",
+                                      "type": "domain"}, "ops": []})
+        path = project.artifacts_dir / (self.AID + ".excalidraw")
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        doc["elements"] = self._scene(align, delta)
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        store = canvas.Store(project)
+        said: list[str] = []
+        record = store.catch_up() if served else None
+        said.extend(self._record_lines("catch_up", record))
+        said.extend("issue=%s: %s" % (i.get("code"), i.get("msg"))
+                    for i in store.issues)
+        said.extend("scene_repair=%s: %s" % (i.get("code"), i.get("msg"))
+                    for i in getattr(store, "scene_repairs", None) or [])
+        lines = store.lint_lines().get(self.AID) or {}
+        for tier in ("errors", "warnings", "notes"):
+            said.extend("lint.%s=%s" % (tier, msg)
+                        for msg in lines.get(tier) or [])
+        said.extend("legacy=%s" % line
+                    for line in store.legacy_routing_notes())
+        said.append("debt=%s" % json.dumps(store.lint_debt(),
+                                           sort_keys=True, default=str))
+        # The save door, last: a client posting the scene back unchanged
+        # is the other moment a migration could honestly happen.
+        posted = [copy.deepcopy(e) for e in store.scenes[self.AID]]
+        said.extend(self._record_lines("save", store.commit(
+            author="user", new_scenes={self.AID: posted},
+            base_revn=store.head_revn())))
+        live = canvas.Store(canvas.Project(root))
+        els = live.scenes.get(self.AID) or []
+        cap = next((e for e in els if e["id"] == "c-label"), None)
+        box = next((e for e in els if e["id"] == "c"), None)
+        if cap is None or box is None:
+            return tuple(sorted(said)), None, 0.0
+        return (tuple(sorted(said)), cap.get("y"),
+                client_caption_y(self.rules, box, cap))
+
+    @staticmethod
+    def _record_lines(door: str, record: dict[str, Any] | None
+                      ) -> list[str]:
+        """Flatten one commit record into the lines it says out loud.
+
+        Args:
+            door: Which reader produced it, used as the line's prefix.
+            record: The record, or None when that door minted none.
+
+        Returns:
+            Its headline and every `by_element` entry, one line each.
+        """
+        if not record:
+            return []
+        summary = record.get("summary") or {}
+        out = ["%s=%s" % (door, summary.get("headline"))]
+        for part in (record.get("artifacts") or {}).values():
+            out.extend("%s.by_element=%s"
+                       % (door, json.dumps(entry, sort_keys=True,
+                                           default=str))
+                       for entry in part.get("by_element") or [])
+        return out
+
+    def _cells(self, deltas: tuple[float, ...]
+               ) -> list[tuple[str, float, bool]]:
+        """The population, as `(align, delta, served)` triples.
+
+        Args:
+            deltas: The signed offsets to build cells at.
+
+        Returns:
+            Every alignment crossed with every delta and every route.
+        """
+        return [(align, delta, served) for align in ("top", "bottom")
+                for delta in deltas for served in self.ROUTES]
+
+    def _vacuity_says(self, deltas: tuple[float, ...]) -> str | None:
+        """What this class's own vacuity clause says about a population.
+
+        Args:
+            deltas: The signed offsets a population would be built at.
+
+        Returns:
+            The message the red would raise, or None when the
+            population really does hold the failing case — which is a
+            SURVIVOR when the deltas were damaged to remove it.
+        """
+        apart = []
+        for align, delta, served in self._cells(deltas):
+            box, cap = self._scene(align, delta)
+            gap = cap["y"] - client_caption_y(self.rules, box, cap)
+            if gap:
+                apart.append((align, served, gap))
+        signs = {gap > 0 for _, _, gap in apart}
+        if apart and len(signs) == 2:
+            return None
+        return ("this class's population holds %d cells the client "
+                "disagrees with, at %d of the 2 signs. A red over a "
+                "population with no failing case in it passes on every "
+                "input, and one with a single sign in it cannot see a "
+                "repair that closes one direction only — the corpus "
+                "holds both. Deltas were %s" % (len(apart), len(signs),
+                                                list(deltas)))
+
+    def test_the_bundle_still_says_what_this_class_reads(self) -> None:
+        """The staleness guard, ungated: an unread client is a failure."""
+        assert_the_client_rules_were_read(self, self.rules)
+
+    def test_the_population_contains_the_failing_case(self) -> None:
+        """The vacuity guard, and the damage that makes it speak.
+
+        THE INPUTS ARE DAMAGED, NOT THE FUNCTION. Replacing the clause
+        with a stub would prove only that a stub can be called; what is
+        wanted is the clause deciding, over a population somebody built
+        wrong. So the deltas — this class's one input — are replaced by
+        an agreeing set and by a single-signed one, and the clause is
+        watched saying so in each. A guard nobody has seen fail is worth
+        nothing, and this one is all that stands between a repair and a
+        red that would have passed over any scene at all.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        self.assertIsNone(
+            self._vacuity_says(self.DELTAS),
+            "the population this class actually measures is refused by "
+            "its own vacuity clause, so the red below is asserting over "
+            "no failing case: %s" % self._vacuity_says(self.DELTAS))
+        damaged = [("every caption already agrees", (0.0,), "0 cells"),
+                   ("one sign only", (1.0, 20.0), "1 of the 2 signs"),
+                   ("the other sign only", (-1.0,), "1 of the 2 signs")]
+        survived = [(name, want) for name, deltas, want in damaged
+                    if want not in (self._vacuity_says(deltas) or "")]
+        self.assertEqual(
+            survived, [],
+            "the vacuity clause did not notice %s. A survivor here is "
+            "the finding: the clause is decoration, and the red below "
+            "could be handed a population with nothing wrong in it and "
+            "would report success" % [n for n, _ in survived])
+
+    def test_the_shipped_corpus_really_holds_this_state(self) -> None:
+        """The reach pole: real drawings are in this state, both signs.
+
+        A red over a hand-built scene is a red about a scene somebody
+        could argue nobody has. This walks the frozen corpus and asserts
+        the state exists in it at BOTH signs — which is also what makes
+        the two-signed population above a measurement rather than a
+        preference. The census is in the message and not in the
+        assertion, because which fixtures are tracked is not this
+        class's subject.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        apart: list[tuple[str, str, str, float]] = []
+        agreed = 0
+        corpus = sorted((Path(__file__).resolve().parent
+                         / "fixtures").rglob("*.excalidraw"))
+        for path in corpus:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            els = doc.get("elements") if isinstance(doc, dict) else doc
+            if not isinstance(els, list):
+                continue
+            by = {e.get("id"): e for e in els if isinstance(e, dict)}
+            for e in els:
+                if not isinstance(e, dict) or e.get("type") != "text":
+                    continue
+                box = by.get(e.get("containerId"))
+                if not box or box.get("type") != "rectangle":
+                    continue
+                gap = e.get("y", 0) - client_caption_y(self.rules, box, e)
+                if gap:
+                    apart.append((path.name, e["id"],
+                                  e.get("verticalAlign"), gap))
+                else:
+                    agreed += 1
+        signs = {row[3] > 0 for row in apart}
+        self.assertEqual(
+            (bool(apart), sorted(signs)), (True, [False, True]),
+            "the frozen corpus holds %d rectangle-bound captions stored "
+            "away from where the client draws them (%d agree), at signs "
+            "%s. The red below needs both signs present in real "
+            "drawings for its two-signed population to be a measurement "
+            "rather than a preference; if this has gone to one sign or "
+            "to none, re-derive the population before reading the red. "
+            "Sample: %s" % (len(apart), agreed, sorted(signs),
+                            apart[:6]))
+
+    def test_the_readers_do_speak_when_the_boxes_come_apart(self) -> None:
+        """The live half: the battery is not dead, and here is its edge.
+
+        UNGATED, AND IT IS WHAT MAKES THE RED'S SILENCE MEAN SOMETHING.
+        Same scene, same element, same readers, same two routes — only
+        the magnitude differs. At `±400` the loader answers: ART-007
+        names the caption and `recenter_label` puts it back at the
+        client's own anchor EXACTLY, which is the direction half and not
+        merely "somewhere". So the readers can see a caption's position;
+        the threshold they see it at is `_label_detached`'s, and that
+        clause asks whether the two boxes touch at all.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        mute, misplaced = [], []
+        for align, delta, served in self._cells(self.DETACHED):
+            said, stored, drawn = self._reading(align, delta, served)
+            base, _, _ = self._reading(align, 0.0, served)
+            spoke = [line for line in sorted(set(said) - set(base))
+                     if "c-label" in line]
+            if not spoke:
+                mute.append((align, delta, served))
+            if stored != drawn:
+                misplaced.append((align, delta, served, stored, drawn))
+        self.assertEqual(
+            (mute, misplaced), ([], []),
+            "a caption stored 400px off its container is not named by "
+            "any reader in %s, and is not put back on the client's own "
+            "anchor in %s. Until this pole is green the red below can "
+            "be satisfied by a battery that reads nothing, which is the "
+            "one way it must never be satisfied" % (mute, misplaced))
+
+    @unittest.expectedFailure
+    def test_a_stored_caption_the_client_disagrees_with_is_read(
+            self) -> None:
+        """`r8-2`, RED: nothing reads a caption already on disk.
+
+        WHAT THE DRAWING GETS WRONG. Every pre-fix domain artifact
+        stores its entity captions a pixel from where the tab draws
+        them. The picture self-heals on the first write that touches the
+        container — measured at R8 turn 5, where a resize moved all
+        seven captions unasked — and until then the file and the screen
+        disagree, and every surface an agent can read says the project
+        is clean. 43 of the 273 rectangle-bound captions in this repo's
+        own frozen corpus are in that state right now, at both signs.
+
+        WHAT IS ASSERTED. For each cell: the readers are handed the
+        stale scene and the AGREEING scene, and the stale one must
+        either produce a line the agreeing one does not, or come back
+        with the caption on the client's anchor. The differential is the
+        anti-noise clause — a reader that says the same thing about
+        every bound caption in the project cancels, and rightly, since
+        it has not distinguished the defect from the health.
+
+        WHY IT IS NOT THE MINT-TIME CLASS AGAIN. `84f33fb` closed the
+        writer and this red is red anyway, which is the finding: it is
+        `r6-1` one field over. The class's own message says so out loud
+        — it prints the writer's anchor beside the client's and they
+        AGREE, so a reader who arrives here looking for a wrong constant
+        will find two right ones and the wrong scenes underneath them.
+
+        WHAT MUST NOT FLIP IT: deleting the caption (the `vanished` arm
+        refuses it); noting every caption regardless (the differential
+        refuses it); and closing the served route alone, which leaves
+        the six offline cells and is reported by name.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        self.assertIsNone(
+            self._vacuity_says(self.DELTAS),
+            "this red's population no longer holds the failing case, so "
+            "a pass below would mean nothing: %s"
+            % self._vacuity_says(self.DELTAS))
+        unread, vanished = [], []
+        for align, delta, served in self._cells(self.DELTAS):
+            said, stored, drawn = self._reading(align, delta, served)
+            base, _, _ = self._reading(align, 0.0, served)
+            if stored is None:
+                vanished.append((align, delta, served))
+                continue
+            if sorted(set(said) - set(base)):
+                continue
+            if stored == drawn:
+                continue
+            unread.append({"align": align, "route":
+                           "served" if served else "offline",
+                           "stored_y": stored, "client_draws_it_at": drawn,
+                           "delta": stored - drawn})
+        self.assertEqual(
+            (unread, vanished), ([], []),
+            "%d of %d cells store a caption away from where the client "
+            "draws it, and no reader — `catch_up`, the load issues, the "
+            "scene repairs, `lint`, the fossil notes, the standing debt "
+            "or the save record — says one word the agreeing scene does "
+            "not, and nothing moves it. The writer's own anchor is "
+            "`container.y + %g` (canvas.BOUND_TEXT_PADDING) and the "
+            "client's is `container.y + %g` (read from the bundle); "
+            "they agree, which is the point — this is not the writer, "
+            "it is every caption the writer had already written. %s "
+            "cells lost the caption entirely. Cells: %s"
+            % (len(unread), len(self._cells(self.DELTAS)),
+               canvas.BOUND_TEXT_PADDING, self.rules["padding"],
+               len(vanished), unread))
 
 
 # ---------------------------------------------------------------------------
