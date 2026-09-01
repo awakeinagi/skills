@@ -28663,7 +28663,25 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestAConfigChangeSaysWhoseHandTurnedIt": 2}
+# `TestAConfigChangeSaysWhoseHandTurnedIt` ARRIVED ON 2026-09-01, both
+# halves in one change, and it arrived as a LINE rather than as a number.
+# Filed as r8-9 during the R8 optimizer assessment: `config_changed`
+# records `{seq, ts, type, patch}` and no actor, and `x-as-user config`
+# posts the rail's own body to the rail's own route, so the 05:26:01Z
+# event that turned review-before-landing off could not say whose hand
+# did it. Two reds because the halves fail apart in BOTH directions —
+# marking the durable config alone leaves the emission red, splitting the
+# event type alone leaves the durable red — and both were driven.
+#
+# THE SAME SHAPE AS `TestAnAnswerSaysWhoseWordsItIs`, ONE EVENT OVER, and
+# it reuses that class's bench pattern rather than restating it:
+# `_prov_recorder`, `_prov_control` and `_PROV_DECIDED_STATUSES` are
+# borrowed whole. What it does NOT borrow is the one-world shape — a pin
+# can be minted twice and a config cannot, so `_cfg_drive` gives each
+# door its own project, which is also what keeps a refused agent door
+# from reading as two identical snapshots.
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
@@ -50261,6 +50279,1058 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "identically (%r), so it distinguishes no provenance and "
             "cannot be held to distinguishing this one"
             % marks["nag"]["user"])
+
+
+# ---------------------------------------------------------------------------
+# r8-9 — a config change records the patch and not the actor.
+#
+# A HAND-AUTHORED RED, not a catalogue mutant, and named in
+# `HAND_AUTHORED_RED_CLASSES`. BASE: a bare project, twice — no artifact,
+# no scene, nothing but the config a fresh `ensure_tree` mints. MUTATION:
+# none, and there is no operator, because the subject IS the shipped
+# behaviour: two doors post the same body to `/api/config` and the record
+# they leave cannot tell them apart. MAGNITUDE: a count and a direction —
+# 2 distinct origins collapse to 1 distinct reading, on 4 of 4 surfaces
+# that store, emit or render the change. NEIGHBOUR, green and in the same
+# class: the SAME product stamps `author` on every scene write and splits
+# the event by hand (`save` vs `agent_revision`), so this is a gap in a
+# living faculty rather than an accusation against a dead one.
+# ---------------------------------------------------------------------------
+
+#: The two hands that can turn a project setting, and the names the
+#: readings are keyed by. `typed` is the rail's own POST — the browser
+#: crossing `/api/config` when the user moves the cadence toggle.
+#: `composed` is `canvas.py x-as-user config KEY=VALUE`, the shipped verb
+#: an agent reaches for when the user says "put it on pulled for me".
+#: Both send the same body to the same route, which is the finding stated
+#: as machinery rather than as a complaint.
+_CFG_DOORS = ("typed", "composed")
+#: The setting turned, its new value, and the value a fresh project MINTS.
+#: `canvas_updates` on purpose: it is the one settable key with a
+#: rendering of its own (`cadence_of` -> `CADENCE=` on `start` and on
+#: `status`), so the reading half of this class has a shipped surface to
+#: measure rather than a hypothetical one. `per-round` occurs exactly ONCE
+#: in a default config — counted, not assumed — which is what lets the
+#: vacuity guard ask "the minted value is gone" without naming the key it
+#: left, and without a second occurrence making the question unanswerable.
+_CFG_KEY = "canvas_updates"
+_CFG_VALUE = "pulled"
+_CFG_MINTED = "per-round"
+#: Keys whose value differs between two runs whoever made the change, and
+#: which would therefore manufacture a difference the subject did not put
+#: there. NARROWER THAN `_PROV_VOLATILE` DELIBERATELY: that set strips
+#: `id` and `element` as well, and a config repair is perfectly free to
+#: record the hand under a key called `id`. Scrubbing more than varies is
+#: the safe direction for an emptiness claim only while the extra keys
+#: cannot carry the answer, and here they can.
+_CFG_VOLATILE = frozenset({"ts", "seq"})
+
+
+def _cfg_scrub(obj: Any) -> Any:
+    """Strip the keys that differ per run regardless of who turned the dial.
+
+    Recursive because the readings nest: the event feed arrives as a list
+    of dicts and the config holds maps of its own.
+
+    Args:
+        obj: Any part of a reading — dict, list or scalar.
+
+    Returns:
+        The same structure with `_CFG_VOLATILE` keys removed at every
+        depth, and dict keys sorted so two readings compare as text as
+        well as by value.
+    """
+    if isinstance(obj, dict):
+        return {k: _cfg_scrub(v) for k, v in sorted(obj.items())
+                if k not in _CFG_VOLATILE}
+    if isinstance(obj, list):
+        return [_cfg_scrub(v) for v in obj]
+    return obj
+
+
+def _cfg_addressed(payload: Any) -> set[str]:
+    """Collect every string a request body could be ADDRESSING, keys included.
+
+    THE ONE PLACE THIS BENCH DEPARTS FROM `_prov_strings`, and the
+    departure has a reason rather than being an oversight. That helper
+    drops dict KEYS on the stated ground that a key is a spelling and a
+    value is what the caller said — right for a pin, whose subject is an
+    id travelling as a value. A config change's subject IS a key name:
+    `{"patch": {"canvas_updates": "pulled"}}` says what it is about in
+    the key and only how far in the value. Reading values alone would
+    leave the aim clause below unable to see the subject at all, so it
+    would assert that the verb mentioned `pulled` somewhere and nothing
+    whatever about which setting it moved.
+
+    Args:
+        payload: Any JSON-shaped structure — dict, list, or scalar.
+
+    Returns:
+        Every string reachable in it, as a key or as a value, at any
+        depth. Non-strings are ignored rather than coerced: `2` and `"2"`
+        are different claims and a subject comparison should not merge
+        them.
+    """
+    if isinstance(payload, dict):
+        out = {k for k in payload if isinstance(k, str)}
+        for value in payload.values():
+            out |= _cfg_addressed(value)
+        return out
+    if isinstance(payload, (list, tuple)):
+        out: set[str] = set()
+        for value in payload:
+            out |= _cfg_addressed(value)
+        return out
+    return {payload} if isinstance(payload, str) else set()
+
+
+def _cfg_taping(
+        transport: Callable[..., dict]) -> tuple[Callable[..., dict],
+                                                 list[Any]]:
+    """Keep a copy of every body that crosses a transport, in call order.
+
+    A SECOND LAYER RATHER THAN A WIDENED `_prov_recorder`, because that
+    recorder belongs to `TestAnAnswerSaysWhoseWordsItIs` and its
+    `body_names` is deliberately values-only — a discipline four review
+    rounds paid for over there. This bench needs KEYS as well
+    (`_cfg_addressed` says why), and teaching the shared recorder two
+    vocabularies would put this class's needs inside that class's
+    evidence. Wrapping outside costs one list and changes nothing.
+
+    The two logs align by INDEX: both append exactly once per call, in
+    the same order, so `bodies[i]` is the payload of `calls[i]`.
+
+    Args:
+        transport: The already-recording transport to wrap.
+
+    Returns:
+        The wrapper, and the list of payloads it appends to.
+    """
+    bodies: list[Any] = []
+
+    def taping(url: str, payload: dict | None = None,
+               timeout: float = 10.0) -> dict:
+        """Record one body and pass the call straight through.
+
+        Args:
+            url: The absolute URL the driver built.
+            payload: JSON body for a POST; None for a GET.
+            timeout: Passed straight through.
+
+        Returns:
+            Whatever the wrapped transport returned. Nothing is
+            swallowed — an exception propagates unchanged, because the
+            driver's own error handling is part of the subject.
+        """
+        bodies.append(payload)
+        return transport(url, payload, timeout)
+
+    return taping, bodies
+
+
+def _cfg_status(project: canvas.Project) -> str:
+    """Run `status` for real and return what a reader would be shown.
+
+    THE RENDERING SURFACE, and it is DRIVEN rather than restated.
+    `status` is the first command an agent runs on resume and the only
+    shipped place a config value is rendered in English: `CADENCE=` comes
+    out of `cadence_of`, which the `start` banner prints too. A
+    transcription of that function here would be a second copy free to
+    agree with a broken original.
+
+    THE TWO SUBSTITUTIONS ARE THE WHOLE SCRUB, and both are tempdir noise
+    rather than anything a hand could have written. The doors run in
+    separate projects (see `_cfg_drive`), so `PROJECT=` carries a random
+    basename and `EVENTS_LOG=` a path hashed from it. Verified on an
+    unscrubbed diff, 2026-09-01: those two lines are the ONLY ones that
+    differ between the doors, which is why this is a pair of replacements
+    and not a line filter — a filter would also drop whatever a repair
+    added.
+
+    Args:
+        project: The project whose running server the command reports on.
+
+    Returns:
+        The printed block, with the project name and the events-log path
+        replaced by placeholders.
+    """
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed), \
+            contextlib.suppress(SystemExit):
+        canvas.cmd_status(argparse.Namespace(project=str(project.root)))
+    return (printed.getvalue()
+            .replace(str(project.events_path), "<events-log>")
+            .replace(project.root.name, "<project>"))
+
+
+def _cfg_drive(door: str) -> dict[str, Any]:
+    """Turn one setting through one door and read every surface behind it.
+
+    ONE WORLD PER DOOR, which is the shape decision this bench rests on
+    and the opposite of `answer_provenance_bench`'s. A pin is a subject
+    you can mint twice; a config is ONE slot, so two changes in one
+    project overwrite each other and the second reading is the first plus
+    a clock. Worse, sharing a world would build a false RED against an
+    honest repair: candidate (d) refuses the agent's door, nothing is
+    written, and two snapshots of one config are then identical BECAUSE
+    the repair worked.
+
+    Two projects are equal by construction instead — same `ensure_tree`,
+    same minted config, same empty event log, same revision — so the only
+    thing that differs between the readings is which door was driven.
+
+    A REFUSAL IS A RESULT, not an error, on either door. Shutting the
+    agent's route is one of the honest product answers, so `SystemExit`
+    out of the verb is caught and reported as `refused`; the rail's own
+    POST is allowed to be refused too, and clause 1 of the guard is what
+    says so in a sentence rather than this function crashing.
+
+    Args:
+        door: `typed` for the rail's POST, `composed` for the CLI verb.
+
+    Returns:
+        `config`, `events`, `feed`, `status` and `status_before` for
+        that world; `cadence` and `cadence_before`, the config's own
+        reader run over the file on either side of the change; plus
+        `outcome` and `refusal` for the door, `control` from
+        `_prov_control`, `writes` (every non-control POST the door made,
+        with what each addressed) and `feed_size`.
+
+    Raises:
+        ValueError: If `door` is not one of `_CFG_DOORS`. A typo in a
+            caller would otherwise silently drive the rail twice and read
+            as a product with no defect at all.
+    """
+    if door not in _CFG_DOORS:
+        raise ValueError("unknown door %r" % (door,))
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-cfg-prov-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        # NO ARTIFACT AND NO SCENE. A config change touches neither, and
+        # a drawing in the project would put a `LINT_DEBT=` line into the
+        # rendering reading that has nothing to do with who turned a
+        # dial. The outer `Store` exists only so the control can read a
+        # revision floor off an instance the server never writes through
+        # — see `_prov_control`, which wants exactly that lag.
+        store = canvas.Store(project)
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        app = canvas.ServerApp(project)
+        recording, calls = _prov_recorder(_as_user_transport(app))
+        transport, bodies = _cfg_taping(recording)
+        with mock.patch.object(canvas, "http_json", transport):
+            before = _cfg_status(project)
+        cadence_before = canvas.cadence_of(
+            canvas.read_json(project.config_path))
+        outcome: str = "landed"
+        refusal: Any = None
+        # EVERYTHING FROM HERE IS THIS DOOR'S OWN TRAFFIC. The control
+        # judges what the DOOR did, and the baseline `status` above made
+        # calls of its own; counting those would make every run look like
+        # a door that was answered.
+        door_from = len(calls)
+        with mock.patch.object(canvas, "http_json", transport):
+            if door == "typed":
+                # DOOR ONE — the rail. `apiPost("/api/config", { patch })`
+                # is the whole of what the client sends when the user
+                # moves the cadence toggle. Reproduced here rather than
+                # reached through a browser because the model tier has
+                # none. The server sees this body and no other fact about
+                # its caller, which is the finding stated as a fixture.
+                #
+                # THROUGH THE TRANSPORT, not `app.handle_post` directly:
+                # a route that refuses with `err(403, …)` must reach this
+                # door as an `HTTPError` and not as a raw `_Err`, and
+                # calling the app direct skips that translation — which
+                # blows the bench up, and an `@expectedFailure` reports
+                # an ERROR exactly as it reports a FAILURE.
+                try:
+                    transport(_AS_USER_URL + "api/config",
+                              {"patch": {_CFG_KEY: _CFG_VALUE}})
+                except Exception as exc:
+                    # The user's own door is allowed to be refused by a
+                    # product; clause 1 is what says so in a sentence.
+                    outcome = "refused"
+                    refusal = "%s: %s" % (type(exc).__name__, exc)
+            else:
+                # DOOR TWO — the agent, instructed. Driven through
+                # `cmd_x_as_user` rather than by posting the same body
+                # again, because a repair that marks the door has to have
+                # a door to mark: two identical POSTs would erase the
+                # distinction this measures, and no honest fix could then
+                # flip it.
+                with contextlib.redirect_stdout(io.StringIO()):
+                    try:
+                        canvas.cmd_x_as_user(argparse.Namespace(
+                            project=str(tmp), verb="config", artifact=None,
+                            target="", text="%s=%s" % (_CFG_KEY, _CFG_VALUE),
+                            dx=0, dy=0, note=None))
+                    except SystemExit as exc:
+                        outcome, refusal = "refused", exc.code
+            # TAKEN INSIDE THE SAME PATCH, and immediately: the question
+            # it answers is whether the transport the door just used is
+            # still alive, so it has to be that transport and not a fresh
+            # one. The floor comes off the OUTER `store`, a second
+            # instance over the same files that never sees the server's
+            # writes and can therefore only LAG — which is what makes it
+            # a floor worth having rather than a comparison of a source
+            # against itself.
+            control = _prov_control(_AS_USER_URL, store.head_revn(),
+                                    calls[door_from:])
+            # AND THEN READ BACK THE WAY THE AGENT READS. `wait --for
+            # user` and `status` are both run for real, filters and all,
+            # so the classification that lets an agent hear its own
+            # config change come back under the user's heading is
+            # exercised rather than restated.
+            printed = io.StringIO()
+            with contextlib.redirect_stdout(printed), \
+                    contextlib.suppress(SystemExit):
+                # SUPPRESSED AND NOT CAUGHT, unlike the verb above,
+                # because `cmd_wait`'s exits carry no information this
+                # bench wants: it returns 3 on a quiet window, and the
+                # feed clauses say more than an exit code would.
+                canvas.cmd_wait(argparse.Namespace(
+                    project=str(tmp), since=0, timeout=1, types=None,
+                    for_whom="user"))
+            feed = [json.loads(line)
+                    for line in printed.getvalue().splitlines()
+                    if line.startswith("{")]
+            after = _cfg_status(project)
+        # WHICH POSTS WERE THE DOOR'S OWN WRITES, BY EXCLUSION rather
+        # than by path prefix. `api/config` is where the write goes
+        # today and a repair is free to move it — to a settings route, to
+        # a propose route, into a batch. What is certainly NOT the door's
+        # write is the control's own liveness traffic, and that is two
+        # fixed paths this bench itself issues. Excluding what we sent is
+        # a fact; naming where a repair must post would be a
+        # prescription, and this class makes none.
+        writes = [dict(call, addressed=sorted(_cfg_addressed(body)))
+                  for call, body in zip(calls[door_from:],
+                                        bodies[door_from:])
+                  if call["post"] and not call["path"].startswith(
+                      ("api/heartbeat", "api/health"))]
+        stored = canvas.read_json(project.config_path)
+        out = {"config": _cfg_scrub(stored),
+               # THE DOMAIN'S OWN READER, run rather than transcribed, and
+               # kept out of the two reds because `status` already carries
+               # what it renders. The guard needs it: "the setting moved"
+               # has to be asked of the product's interpretation of the
+               # file, not of a spelling this bench chose, or a repair
+               # that encodes the hand inside the value reads as a config
+               # that never changed.
+               "cadence": canvas.cadence_of(stored),
+               "events": _cfg_scrub(app.events.since(0)),
+               "feed": _cfg_scrub(feed), "status": after,
+               "status_before": before, "cadence_before": cadence_before,
+               "outcome": outcome,
+               "refusal": refusal, "control": control, "writes": writes,
+               "feed_size": len(feed)}
+        # `landed` MEANS THE CHANGE IS SOMEWHERE IN THE READING, over the
+        # whole of it and not under a named key. A door that posts, is
+        # answered 200 and does nothing leaves a world identical to the
+        # one before it — and a comparison of two doors would then differ
+        # for a reason that is not provenance while both reds read green.
+        # Searching the serialised reading rather than a key list is what
+        # keeps a proposal repair `landed`: its value arrives inside a
+        # `config_proposal` event that no key list written today names.
+        marks = _cfg_addressed([out["config"], out["events"], out["feed"]])
+        if outcome == "landed" and _CFG_VALUE not in marks \
+                and _CFG_VALUE not in out["status"]:
+            out["outcome"] = "vanished"
+        return out
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def config_authorship_bench() -> dict[str, Any]:
+    """Turn one setting twice — once by the user's hand, once by the agent's.
+
+    THE GROUND TRUTH IS WHICH ENTRY POINT WAS DRIVEN, and that is the
+    only place it can live: the tool has nowhere to record it, which is
+    the finding. Both doors set the SAME key to the SAME value, so any
+    difference between the readings is provenance and nothing else.
+
+    Returns:
+        One `_cfg_drive` reading per door, keyed `typed` and `composed`.
+    """
+    return {door: _cfg_drive(door) for door in _CFG_DOORS}
+
+
+def save_marks_whose_hand_it_was() -> dict[str, Any]:
+    """Read the authorship mark on a scene write from each of the two hands.
+
+    THE LIVE POLE FOR THE FACULTY THE REDS ACCUSE. Both reds below say
+    that a config change records no actor, and an accusation of silence
+    is satisfied perfectly by machinery that has stopped saying anything
+    at all. This drives the provenance the SAME product does keep, over
+    the same two hands, through the two writers that set it: `/api/save`
+    commits `author="user"`, an op batch commits `author="agent"`, and
+    the event log splits by hand as well — `save` against
+    `agent_revision`.
+
+    That is the argument the reds rest on, and it is why they are a gap
+    rather than a wish. The design took "which hand did this" seriously
+    enough to stamp every revision with it AND to give the two hands
+    different event types, so that `wait --for user` can filter one out.
+    A config change is that same ruling, one write along.
+
+    Returns:
+        `author`, a dict keyed `user`/`agent` with each revision record's
+        stamp, and `types`, the same keys against the event type each
+        write emitted.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-cfg-live-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        # ONE STORE, THE SERVER'S OWN, unlike `_cfg_drive` next door: that
+        # bench wants a second, lagging instance so its control has an
+        # honest revision floor, and this one takes no control.
+        app = canvas.ServerApp(project)
+        # The agent's hand: an op batch, through the route the CLI posts.
+        app.handle_post("/api/apply", {
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        agent_revn = app.store.head_revn()
+        # The user's hand: the client's own save, moving that one node.
+        scene = [dict(e) for e in app.store.scenes["flow"]]
+        for elem in scene:
+            if elem["id"] == "n1":
+                elem["x"] = 200.0
+        app.handle_post("/api/save", {"base_revn": agent_revn,
+                                      "scenes": {"flow": scene}})
+        user_revn = app.store.head_revn()
+        records = app.store.records
+        return {
+            "author": {"agent": records[agent_revn].get("author"),
+                       "user": records[user_revn].get("author")},
+            "types": {who: sorted({e["type"] for e in app.events.since(0)
+                                   if e["type"] in wanted})
+                      for who, wanted in (("agent", canvas.AGENT_EVENT_TYPES),
+                                          ("user", canvas.USER_EVENT_TYPES))}}
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestAConfigChangeSaysWhoseHandTurnedIt(unittest.TestCase):
+    """Two hands, one dial, and no record that can tell them apart.
+
+    r8-9. THE RELATION, NOT THE INCIDENT: a project setting turned by the
+    user's own hand and the same setting turned by the agent's verb leave
+    DIFFERENT records, and a change the agent made cannot be read back as
+    one the user made. Two reds, because the property has two halves that
+    fail independently — a repair that marks everything the change is
+    STORED IN AND EMITTED AS, and stops there, has built provenance
+    nobody renders, and the second red is what would still be pointing at
+    it. Measured in both directions, not assumed: the ladder is in
+    `test_no_reader_can_tell_which_hand_moved_the_dial`.
+
+    WHAT WENT WRONG. `config_changed` carries `{seq, ts, type, patch}`
+    and nothing else; `/api/config` writes the merged config to disk with
+    no mark; and `canvas.py x-as-user config KEY=VALUE` posts the rail's
+    exact body to the rail's exact route. In the R8 session the 05:26:01Z
+    event turned review-before-landing OFF — the control the onboarding
+    owner had specifically asked for — and no surface in the project
+    could say by whom. A human had to be asked; that is what makes this
+    demonstrated rather than argued.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT, on the
+    `TestAnAnswerSaysWhoseWordsItIs` precedent and for the same reason:
+    every scene-level detector is correctly quiet, because there is no
+    scene. What disagrees is the record and the WORLD, and no rule handed
+    a list of elements can reach whose hand moved a toggle. Registering a
+    check name for it would state a contract no lint can meet.
+
+    IT PRESCRIBES NO REPAIR, and TEN shapes were MEASURED rather than
+    argued. Each monkeypatched from a throwaway plugin outside the repo,
+    applied alone against this tree on 2026-09-01, both reds turning
+    green under every one and the guard staying green:
+
+      (a) A DECLARED SOURCE AT THE DOOR. `/api/config` reads an actor off
+          the body and defaults it to the user — the browser IS the user,
+          so an unmarked POST is theirs — while `x-as-user config`
+          declares itself. The event carries it, the config records it,
+          and `CADENCE=` grows `(set by agent)`.
+      (b) NO NEW KEY ANYWHERE: THE HAND IS ENCODED IN THE VALUE.
+          `canvas_updates` becomes `pulled|agent`, with `validate_config`
+          and `cadence_of` widened in the same change. This is the shape
+          that proves the class is not a disguised "add a field": it adds
+          none. Its unwidened twin is in the guard's table and is the
+          reason the readers paragraph below exists.
+      (c) A PROPOSAL THE USER PROMOTES. The verb posts a proposal, the
+          config is NOT written, the change waits as a `config_proposal`
+          in `AGENT_EVENT_TYPES`, and `status` says one is pending. The
+          sharpest of the ten: the agent stops being able to hear its own
+          dial-turn come back under the user's heading.
+      (d) A DOOR THAT SHUTS, driven in BOTH placements and both pass.
+          `d_server_err` refuses a declared agent source at the route
+          with this repo's own `err(403, …)`; `d_client` refuses in the
+          CLI verb before it posts. WHERE THE REFUSAL LIVES IS NOT THIS
+          PIN'S BUSINESS — a refusal in the verb guards one caller, a
+          refusal at the route guards every HTTP client, and the guard
+          judges the STATUS a door was answered with rather than whether
+          a call raised. `_PROV_DECIDED_STATUSES` is borrowed whole from
+          the pin bench for exactly that.
+      (e) A PER-KEY SIDECAR MAP PLUS ITS READERS. `config["changed_by"]`,
+          the same map on the event, and `CADENCE=` rendering it.
+      (f) AN APPEND-ONLY CHANGE LOG in the durable config, keeping the
+          old value as well as the new, its tail on the event, and the
+          last entry's hand rendered.
+      (g) PROVENANCE BY ORIGIN, NOT BY ROLE. Nothing declares itself: the
+          route records WHICH PROCESS asked, reusing the `origin: {pid}`
+          stamp `Store.commit` already puts on every revision.
+      (h) A CAPABILITY THE AGENT CANNOT MINT. The rail's POST carries the
+          session token the page was served with; the CLI has none, and
+          the route records `via: rail` or `via: cli` off its presence —
+          so a caller cannot lie about being the user by declaring
+          itself. THIS ONE CARRIES A CONDITION, and it is the fixture's
+          rather than the law's: `_cfg_drive` TRANSCRIBES the body
+          `App.tsx` posts, so a repair that changes the client changes
+          the transcription IN THE SAME CHANGE. Driven both ways —
+          without the update both reds stay RED, with it both flip.
+      (i) A SECOND, MARKED ROUTE THE VERB MOVES ONTO. `/api/config` stays
+          the user's door; the agent posts `/api/config/as-agent`, and
+          the route each change came through IS the provenance.
+
+    Nine mechanisms and ten drivings, one law. Not one of them is
+    "add a key called `actor`", and (b), (g) and (i) each satisfy the law
+    without adding a provenance field at all.
+
+    FIVE REPAIRS THAT DO **NOT** FLIP BOTH, measured rather than
+    predicted, and kept because a negative result is the part a reader
+    cannot reconstruct:
+
+      * THE EVENT TYPE SPLITS AND THE DURABLE STORE IS LEFT ALONE — the
+        agent's door emits `agent_config_changed` and `config.json` is
+        untouched. Red 1 RED on `config`, red 2 GREEN. The event log
+        lives in `tempfile.gettempdir()/wysiwyg-grilling/`, keyed by a
+        hash of the project path, so a mark that lives only there is gone
+        on the next reboot and gone again if the project moves. r8-9 was
+        a question asked the NEXT DAY.
+      * THE DURABLE STORE ALONE — `config["changed_by"]` written and
+        nothing emitted or rendered. Red 1 RED on `events`, red 2 RED.
+      * BOTH STORES AND NO RENDERING. Red 1 GREEN, red 2 RED on `status`.
+        This is the ladder's second rung and the reason the two reds are
+        separate methods: a product can be fully marked everywhere it
+        STORES a change and still tell a human nothing.
+      * A RENDERING WITH NOTHING BEHIND IT — `CADENCE=` prints the hand
+        off an out-of-band variable the stores never kept. Red 1 RED on
+        both, red 2 RED on `feed`. The mirror of the row above.
+      * PROVENANCE FILED IN THE SAVE HISTORY. The config write is
+        committed as a revision so it inherits the `author` every
+        revision already carries, `status` renders that author, and
+        neither the config file nor the `config_changed` event is
+        touched. BOTH REDS STAY RED, and that is a JUDGEMENT this class
+        makes rather than a spelling difference: the mark is reachable
+        only by joining a config value to a revision record, so an
+        auditor holding `config.json` cannot answer, and a watcher on the
+        event feed cannot either. Echo the author onto either surface and
+        both flip.
+
+    AND ONE REWRITE THEY BREAK UNDER, named because §8 says to name them:
+    a repair that adds a NEW marked route for the agent and leaves
+    `x-as-user config` posting to the old unmarked one keeps both reds
+    red. Measured. That is the same judgement (i) is blessed for making
+    the other way — an unmarked door the agent still holds is the defect
+    surviving beside its own fix.
+
+    ONE THING A REPAIR MUST CARRY WITH IT, learned by building (b)
+    without it: whatever slot widens, its READERS widen too.
+    `validate_config` is the one that bites — it runs on every load AND
+    on every `/api/config` write, and CFG-008 repairs a `canvas_updates`
+    it does not recognise back to `per-round`. Driven: the guard reddens
+    at CLAUSE 1 with the change nowhere in the config, `cadence_of` then
+    reports a cadence no server is running, and the mark was bought by
+    making the setting unreadable. The other readers a fixer should not
+    have to hunt for: `cadence_of` (the `CADENCE=` line on `start` and on
+    `status`), `USER_EVENT_TYPES` (which decides whether `wait --for
+    user` shows an agent its own change), and `api_state`'s `config`
+    block (what the rail draws the toggle from).
+    """
+
+    @unittest.expectedFailure
+    def test_two_hands_leave_one_indistinguishable_record(self) -> None:
+        """The storage half: neither store can say which hand it was.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS COLLAPSE. Two
+        origins produce ONE distinct reading where they must produce two,
+        on both stored surfaces at once. Asserted as a difference between
+        two readings and never as the presence of a named key, because
+        naming a key names a repair: an actor field, a split event type,
+        a proposal awaiting promotion and a refused route are all honest,
+        and a guard that greps for one fails the other three while the
+        behaviour is correct.
+
+        BOTH SURFACES ARE HERE ON PURPOSE, and the asymmetry between
+        them is the argument. `config.json` lives in
+        `project_knowledge/` and survives everything; the event log lives
+        in `tempfile.gettempdir()/wysiwyg-grilling/`, under a filename
+        hashed from the project's path, so a mark that lives only there
+        is gone on the next reboot and gone again if the project moves.
+        r8-9 was a question asked the NEXT DAY. They fail together today
+        and they repair apart — MEASURED, both ways: an actor on the
+        event alone leaves red 1 RED on `config`, and a mark in the file
+        alone leaves it RED on `events`, which is a live watcher told
+        nothing while the change is happening.
+
+        THE NEAREST FALSE GREEN is a difference that is not provenance.
+        The two doors run in separate projects, so `_cfg_scrub` removes
+        the per-run clock and sequence and nothing else, and every other
+        fact is equal by construction: same `ensure_tree`, same minted
+        config, same empty log, same revision, same key set to the same
+        value. Verified key-by-key on an unscrubbed diff, 2026-09-01 —
+        the two worlds differ on `ts` alone.
+        """
+        bench = config_authorship_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("config", "events")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "a setting the user turned and the same setting the agent "
+            "turned on their instruction left the SAME record on %d of 2 "
+            "stored surfaces (%s) — 1 distinct reading for 2 distinct "
+            "origins. `config_changed` carries %s and the config on disk "
+            "carries no mark at all, so a change that switched a control "
+            "off is unattributable the moment the session ends. Declare "
+            "the source at the door, split the event type, park it where "
+            "the user promotes it, or refuse the route and say why — but "
+            "a store that cannot say whose hand this was makes every "
+            "setting in the project unverifiable at once. Typed events: "
+            "%s. Composed events: %s"
+            % (len(same), ", ".join(same),
+               sorted(set().union(*(set(e) for e in typed["events"]))
+                      if typed["events"] else set()),
+               json.dumps(typed["events"], sort_keys=True),
+               json.dumps(composed["events"], sort_keys=True)))
+
+    @unittest.expectedFailure
+    def test_no_reader_can_tell_which_hand_moved_the_dial(self) -> None:
+        """The rendering half: the resume banner reports a cadence and no hand.
+
+        SEPARATE FROM ITS NEIGHBOUR ABOVE BECAUSE IT FAILS SEPARATELY,
+        and the separator is MEASURED rather than asserted — in BOTH
+        directions, which is what makes them two methods rather than one
+        with a longer list. 2026-09-01, one repair per rung, both reds
+        read at each:
+
+            the durable config marked, alone   red 1 RED,   red 2 RED
+            the config AND the event marked    red 1 GREEN, red 2 RED
+            + `CADENCE=` rendering the hand    red 1 GREEN, red 2 GREEN
+            the event type split, config mute  red 1 RED,   red 2 GREEN
+
+        So a product can be fully marked everywhere it STORES a change
+        and still tell a human nothing. `status` is the first command an
+        agent runs on resume and it prints `CADENCE=` off `cadence_of`,
+        which reads one key and renders one word; the line is identical
+        whoever turned the dial, and it is the line a returning agent
+        uses to decide how to read every apply response for the rest of
+        the session.
+
+        THE FEED IS THE SHARP END. `config_changed` is a member of
+        `USER_EVENT_TYPES`, so the classification is STATIC — a config
+        change is user activity because of what KIND of event it is,
+        never because of who sent it. `cmd_wait` is driven for real here,
+        with its own filter, so a repair anywhere on that path (a new
+        event type, a field the filter consults, a route that emits
+        nothing) moves this reading. An agent that turns a dial and then
+        watches `--for user` is served its own move as the user's, which
+        is the channel the pin proposal route was built to close one
+        surface over.
+
+        AND IT IS THE EXACT POLE OF `test_a_scene_write_still_says_whose
+        _hand_it_was`. That proves the event feed DOES split by hand for
+        a scene write; this proves it does not split for a config write.
+        """
+        bench = config_authorship_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("status", "feed")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "the two changes render identically on %d of 2 surfaces "
+            "somebody reads (%s). `status` prints the same %r block for "
+            "both, and `wait --for user` served the agent's own dial-turn "
+            "under the user's heading (%d event(s) on the typed door, %d "
+            "on the composed one). The same product splits `save` from "
+            "`agent_revision` so that this filter can do its job for the "
+            "drawing; for a setting it emits one type whoever turned it"
+            % (len(same), ", ".join(same),
+               next((ln for ln in typed["status"].splitlines()
+                     if ln.startswith("CADENCE=")), typed["status"]),
+               typed["feed_size"], composed["feed_size"]))
+
+    def test_the_bench_turned_both_dials_and_every_reader_spoke(self) -> None:
+        """The vacuity guard: an emptiness claim over a live measurement.
+
+        UNGATED AND ASSERTED IN EVERY COMMIT, because both reds above are
+        `assertEqual(same, [])` and an empty list is what a broken bench
+        produces most easily. A door that never posted, a reader that
+        stopped reading, a feed that printed nothing — each makes the two
+        readings differ, and each reads as a fix. So this claims the
+        facts that make `same == []` mean something.
+
+        THE REDS NAME A RELATION; THIS GUARD MUST TOO. Every clause below
+        is phrased as what a repair must ACHIEVE, never where it must
+        write it — the discipline `TestAnAnswerSaysWhoseWordsItIs` paid
+        four review rounds for, inherited here rather than re-learned.
+        Two of its bets were re-made and re-corrected here anyway, which
+        is worth recording: clause 1 asked for the new value as a WHOLE
+        STRING and refused candidate (b), which stores it as `pulled|
+        agent`; clause 7 asked whether the printed `status` block moved
+        and passed over a rendering replaced by a constant, because
+        `EVENTS_SEQ=` advances on any event whatever. Both are relations
+        now — the value is looked for as a SUBSTRING of what the config
+        holds, and the movement is asked of `cadence_of`, the product's
+        own reader, run over the file on either side of the change.
+
+        WATCHED FAILING, ONE CLAUSE AT A TIME, by damaging the bench's
+        INPUTS in throwaway plugins outside the repo — the route's
+        answers, the verb's body, the constants the readers consult —
+        never by replacing the bench's own functions, which is blind to
+        caches and decorators. Every row was driven 2026-09-01 against
+        the tree that ships it, and the WHICH CLAUSE column is the point
+        of the table: a stage that reddens the guard by tripping some
+        OTHER clause proves nothing about the one it is filed under.
+
+        Clause order, since the rows refer to it: 1 the user's door
+        landed the change, 2 the config's own reader no longer reports
+        the minted value, 3 the agent's door landed or refused out loud,
+        4 the verb addressed the setting this bench named, 5 the control,
+        on BOTH doors, 6 no accepted write behind a refusal, 7 the
+        rendering surface is alive, 8 the feed was non-empty.
+
+          * `wrong_key` — the verb is handed `nudge_after_minutes=pulled`
+            -> CLAUSE 4, ISOLATING. The route 400s it, the whole chain
+            reads as a decision (`refused`, exit 5), and BOTH REDS GO
+            GREEN over a bench that turned no dial. The worst damage in
+            the table and this clause is the only thing that speaks.
+          * `unwrapped_body` — the verb posts `{key: value}` with no
+            `patch` wrapper -> CLAUSE 5, traffic half, ISOLATING. Both
+            reds GREEN. The route answers 400, which says the BODY was
+            wrong, and this bench writes the body.
+          * `agent_write_500` — only the agent's POST answers 500 ->
+            CLAUSE 5, traffic half, ISOLATING. Both reds GREEN.
+          * `typed_door_500` — every config POST answers 500 -> CLAUSE 1,
+            NOT CLAUSE 5. Listed with its true attribution so nobody
+            reads its red as evidence about the control: the user's door
+            crosses the same transport and breaks first. A stage that
+            refuses BOTH doors is a different product rather than a
+            refusal of the agent's, which is why `agent_write_500` had to
+            be narrowed to one door before it measured what it claims.
+          * `server_lost_revisions` — the heartbeat reports `head_revn`
+            -1 -> CLAUSE 5, liveness half, ISOLATING, and it fires on the
+            TYPED door first, which is the half the pin bench does not
+            probe at all.
+          * `heartbeat_raises` — the liveness write raises `OSError` ->
+            CLAUSE 5, control half, ISOLATING.
+          * `posted_ok_noop` — the route answers the agent 200 and writes
+            nothing -> CLAUSE 3, `vanished`, ISOLATING. Both reds GREEN.
+          * `accepted_then_dies` — the same write ACCEPTED 200 and the
+            verb dies afterwards -> CLAUSE 6, ISOLATING. Nothing stopped,
+            the server is healthy, the exit code is real, and the dial
+            did move. `vanished` cannot reach it, being gated on
+            `landed`, and the control cannot, nothing having failed.
+          * `frozen_cadence` — `cadence_of` answers the NEW value always
+            -> CLAUSE 7, ISOLATING. This is the clause that keeps red 2
+            honest: a rendering that cannot move at all makes "it did not
+            move with the hand" unremarkable.
+          * `dead_cadence` — `cadence_of` answers the MINTED value always
+            -> CLAUSE 2, NOT CLAUSE 7. The pair with the row above is
+            deliberate: the same damage in two flavours reaches two
+            different clauses, and filing this one under 7 would have
+            left 7 unwitnessed.
+          * `dead_feed` — `config_changed` is taken out of
+            `USER_EVENT_TYPES`, so `wait --for user` shows nothing ->
+            CLAUSE 8, ISOLATING. A damaged CONSTANT and not a replaced
+            `cmd_wait`, so the real filter runs over a real feed.
+          * `provenance_in_value_no_widen` — the hand encoded inside the
+            value with `validate_config` left alone -> CLAUSE 1. CFG-008
+            repairs `pulled|user` back to `per-round` on the way in, so
+            the change is nowhere in the config at all. Correct rather
+            than prescriptive: a repair that marks provenance by making
+            the setting unreadable has moved the defect.
+
+        AND THE STAGES THAT MUST STAY GREEN, which are half the value of
+        the table: a guard that reddens on every perturbation is not
+        discriminating, it is just loud. NO COUNT IS WRITTEN for either
+        list — a hand-maintained total beside a list that grows every
+        review is the thing this file has been bitten by most. Count the
+        bullets.
+
+          * `d_client` — the verb refuses before posting, with a `die`.
+            GUARD GREEN, both reds flipped.
+          * `d_server_err` — the route refuses with `err(403, …)`, the
+            shape a real repair takes, reaching the door as an
+            `HTTPError` rather than a raw `_Err`. GUARD GREEN.
+          * `a_actor_field`, `e_sidecar_and_reader`, `n1_change_log`,
+            `n2_origin_stamp`, `n5_second_route` — the five marking
+            repairs from the class docstring. GUARD GREEN, both reds
+            flipped, and no clause here privileges any of their
+            spellings.
+          * `b_provenance_in_value` — the hand inside the value WITH
+            `validate_config` and `cadence_of` widened in the same
+            change. GUARD GREEN, both reds flipped, no new key anywhere.
+            The blessed half of the pair whose other half is
+            `provenance_in_value_no_widen` above, and the two together
+            separate "the guard refuses this shape" from "the guard
+            caught half a repair".
+          * `c_proposal` — the agent's change waits for a promotion. The
+            config is NOT written and the `--for user` feed never sees
+            it; `landed` survives because clause 3 asks whether the
+            change is SOMEWHERE in the reading rather than in the config.
+          * `renamed_body_key` — the same repair addressing the route as
+            `{"settings": …}` rather than `{"patch": …}`. GUARD GREEN;
+            clause 4 reads keys at any depth.
+          * `batch_write` — the repair sets the key through a batch body
+            with the patch nested inside `ops`. GUARD GREEN.
+          * `moved_route` — the repair posts to `api/settings` instead.
+            GUARD GREEN; clause 4 identifies the door's writes by
+            EXCLUDING the control's own two paths rather than by naming
+            where a repair must post.
+
+        KNOWN LIMITS, in the same shape as the rows above so that a gap
+        is a record rather than a discovery. Each was driven; each leaves
+        the guard silent over a bench that should not have satisfied it:
+
+          * `value_into_a_second_key` — the user's door writes the new
+            cadence into a key nobody reads and clears the minted one.
+            Clause 1 asks only that the value be SOMEWHERE in the config
+            and clause 2 asks `cadence_of`, so a repair that satisfies
+            both while storing the setting where the product cannot use
+            it passes here. Tightening means naming the key that counts,
+            which is the generator returning.
+          * A CLIENT-SIDE MECHANISM IS INVISIBLE UNTIL THE FIXTURE
+            FOLLOWS IT. `_cfg_drive` transcribes the body `App.tsx`
+            posts, so candidate (h) — a session token the CLI cannot mint
+            — reads as unrepaired until the transcription is updated in
+            the same change. Driven both ways; both reds RED without the
+            update, both GREEN with it. This is a false RED and it is
+            disclosed rather than closed, because the model tier has no
+            browser and the alternative is a fixture that guesses.
+          * CLAUSE 4 ASKS THAT ONE WRITE ADDRESSED THE SETTING, not that
+            every one did, so a repair that writes a note beside the
+            change passes with only one of its two writes on target. The
+            damage actually hunted is a driver that aimed at the WRONG
+            setting, and `wrong_key` still catches every case of it.
+
+        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 to 6
+        are shaped around TOGETHER, and no one of them is sufficient.
+        `_x_post` turns a product refusal, an HTTP 500, a 400 and a dead
+        socket into one `SystemExit`, so `refused` names the exception
+        and not its cause. Clause 4 asks whether the verb addressed the
+        right setting at all; clause 5 asks whether anybody reached a
+        DECISION and then whether the server survived; clause 6 catches
+        the corner where everything answered and the write was accepted
+        anyway.
+
+        THREE JUDGEMENTS ARE BAKED INTO CLAUSES 1, 2 AND 8, written here
+        rather than left implicit, because a guard whose subject is
+        unstated judgements should not carry any. Clauses 1 and 2 require
+        the USER's door to move the setting; clause 8 requires at least
+        one event on the `--for user` feed. A repair that turned BOTH
+        doors into proposals — nobody's setting changes until someone
+        promotes it — would fail this guard rather than flip the reds.
+        That is deliberate: it is a different product, one where the user
+        cannot change their own project's settings, and it should arrive
+        as a failing guard somebody has to look at rather than as a
+        quietly satisfied emptiness claim.
+        """
+        bench = config_authorship_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        # CLAUSE 1 — THE CHANGE IS IN THE CONFIG, wherever the config
+        # chose to put it. Not `config[_CFG_KEY] == _CFG_VALUE`: a repair
+        # that stores the setting as a record rather than a scalar keeps
+        # the value and moves the shape, and the relation is "the user's
+        # change is in the store".
+        self.assertTrue(
+            any(_CFG_VALUE in s for s in _prov_strings(typed["config"])),
+            "the user's own door did not land the change anywhere in the "
+            "config, so the reds beside this are comparing a setting that "
+            "was never turned: %s%s"
+            % (json.dumps(typed["config"], sort_keys=True),
+               "" if typed["outcome"] != "refused"
+               else ". The rail's own POST was refused: %r"
+                    % (typed["refusal"],)))
+        # CLAUSE 2 — THE MINTED VALUE IS GONE, which is what "the setting
+        # moved" means without naming where it moved TO. `per-round` is
+        # what `ensure_tree` writes and what CFG-008 repairs a bad value
+        # back to, so testing against it tests the domain's own starting
+        # vocabulary rather than a repair's chosen ending one — and it is
+        # the one word no repair has a reason to keep. It occurs exactly
+        # once in a default config, which is what makes the question
+        # answerable at all.
+        self.assertNotIn(
+            _CFG_MINTED, str(typed["cadence"]),
+            "the config's OWN reader still reports the cadence a fresh "
+            "project MINTS (%r off %s). Either nothing moved, or a reader "
+            "repaired it back — `validate_config` runs on every write and "
+            "resets a value it does not recognise, so a repair that "
+            "encodes provenance inside the value must widen that reader "
+            "in the same change"
+            % (typed["cadence"], json.dumps(typed["config"],
+                                            sort_keys=True)))
+        # CLAUSE 3 — THE AGENT'S DOOR SAID SOMETHING. A route that
+        # silently does nothing makes the two readings differ for a
+        # reason that has nothing to do with provenance.
+        self.assertIn(
+            composed["outcome"], ("landed", "refused"),
+            "the agent's door neither moved the setting nor refused out "
+            "loud (%r), so both reds above would pass over a bench that "
+            "drove one door" % composed["outcome"])
+        # CLAUSE 4 — AND IT AIMED AT THE SETTING THIS BENCH NAMED.
+        # Unconditional on the outcome: aiming wrong is always the
+        # driver's fault and never a product decision, whatever the
+        # server then said about it — a 400 for a key that is not
+        # settable arrives as a 4xx that clause 5 would otherwise read as
+        # the server making a decision.
+        #
+        # "AT LEAST ONE ADDRESSED IT", not "every write did": a repair
+        # that records a note beside the change writes twice, and only
+        # one of the two is about the setting. Gated on there being a
+        # write at all, because a client-side refusal makes none and is
+        # clauses 3 and 5's subject rather than this one's.
+        writes = composed["writes"]
+        aimed = [w for w in writes
+                 if _CFG_KEY in w["addressed"] and _CFG_VALUE in
+                 w["addressed"]]
+        self.assertTrue(
+            not writes or aimed,
+            "the agent's door made %d write(s) and NOT ONE of them "
+            "addressed %r at %r, the setting this bench asked it to turn: "
+            "%s. Whatever the server then answered, the dial did not move "
+            "because the DRIVER aimed wrong"
+            % (len(writes), _CFG_KEY, _CFG_VALUE,
+               [(w["path"], w["addressed"], w["status"]) for w in writes]))
+        # CLAUSE 5 — THE CONTROL, ON BOTH DOORS. `_prov_control` is
+        # borrowed whole from the pin bench, including
+        # `_PROV_DECIDED_STATUSES`: a 4xx is a DECISION only when the
+        # server understood a well-formed request about a subject that
+        # exists, and this bench writes every body and mints every
+        # project it names. Both doors, because a dead world on the
+        # user's side makes the readings differ exactly as readily.
+        for door in _CFG_DOORS:
+            control = bench[door]["control"]
+            self.assertTrue(
+                control["ok"],
+                # BRANCHED ON WHICH HALF FAILED. One message for both
+                # sends a fixer hunting the wrong thing, which is the
+                # defect this clause exists to stop.
+                ("the %s door " % door) +
+                {"traffic": "never reached a DECISION: %s. Any of "
+                            + str(sorted(_PROV_DECIDED_STATUSES)) +
+                            " would be one and would pass here",
+                 "liveness": "was answered, but the server did not "
+                             "survive it: %s. The readings the reds "
+                             "compare were taken off a server that is "
+                             "no longer serving",
+                 "control": "could not be probed at all: %s"}
+                .get(control["half"], "failed its control: %s")
+                % (control["why"] or control,))
+        # CLAUSE 6 — NO ACCEPTED WRITE BEHIND A REFUSAL. The one corner
+        # neither `vanished` nor the control reaches: a verb that posts,
+        # is answered 200, and dies afterwards. A door that was told yes
+        # did not refuse.
+        if composed["outcome"] == "refused":
+            self.assertIsNotNone(
+                composed["refusal"],
+                "the agent's door refused without an exit code, so the "
+                "refusal is not something a caller could act on")
+            self.assertEqual(
+                [w for w in writes if w["status"] == 200], [],
+                "the agent's door reported a refusal, but %d write(s) "
+                "came back 200 first: %s. A write the server ACCEPTED is "
+                "not a door that was shut"
+                % (len([w for w in writes if w["status"] == 200]),
+                   [(w["path"], w["status"]) for w in writes]))
+        # CLAUSE 7 — THE RENDERING SURFACE IS ALIVE. Red 2 says `status`
+        # does not move with the HAND; that is worth nothing unless
+        # `status` moves with the CHANGE. Phrased as "it moved" rather
+        # than "it says `pulled`", because candidates (c) and (d) both
+        # leave the cadence where it was on purpose and a word-match
+        # would refuse them.
+        self.assertNotEqual(
+            typed["cadence_before"], typed["cadence"],
+            "the config's own reader answered %r both before and after "
+            "the user turned the setting, so the fact `status` renders "
+            "cannot move at all — and red 2's accusation that it does not "
+            "move with the HAND says nothing about a reading that does "
+            "not move with the CHANGE. Asked of `cadence_of` and not of "
+            "the printed block, because the block moves for free: "
+            "`EVENTS_SEQ=` advances on any event whatever, so a status "
+            "comparison here would pass over a rendering that had been "
+            "replaced by a constant" % (typed["cadence"],))
+        self.assertTrue(
+            typed["status"].strip(),
+            "`status` printed nothing at all, so red 2's `status` reading "
+            "is two empty strings agreeing with each other")
+        # CLAUSE 8 — AND THE FEED SPOKE. `wait --for user` printing
+        # nothing makes red 2's `feed` comparison a pair of empty lists
+        # that agree.
+        self.assertGreater(
+            typed["feed_size"], 0,
+            "`wait --for user` served nothing at all after the user's own "
+            "change, so red 2's feed reading compares two empty lists and "
+            "agrees with itself")
+
+    def test_a_scene_write_still_says_whose_hand_it_was(self) -> None:
+        """The live pole: the faculty the reds accuse of missing is alive.
+
+        UNGATED, AND IT IS THE ARGUMENT THE REDS REST ON. Both of them
+        accuse the project of recording no actor for a change, and an
+        accusation of silence is satisfied perfectly by machinery that
+        has stopped saying anything at all. This drives the SAME two
+        hands over a scene write, where the product does keep the mark:
+        `/api/save` commits `author="user"`, an op batch commits
+        `author="agent"`, and the event log splits them into `save` and
+        `agent_revision` so that `wait --for user` can filter one out.
+
+        BOTH HALVES ARE ASSERTED because the reds have both halves. The
+        record's `author` is the storage pole of red 1; the event-type
+        split is the emission pole of red 2, and it is the exact
+        mechanism candidate (b) proposes for config — which is what
+        makes (b) a reuse of a shipped design rather than an invention.
+
+        A config change is that same ruling one write along: the design
+        took "which hand did this" seriously enough to stamp every
+        revision with it and to give the two hands different event types.
+        """
+        marks = save_marks_whose_hand_it_was()
+        self.assertEqual(
+            marks["author"], {"agent": "agent", "user": "user"},
+            "a revision record no longer follows the hand that wrote it "
+            "(%s), so the store has stopped carrying authorship at all "
+            "and the reds beside this would be measuring a dead field "
+            "rather than a missing one" % (marks["author"],))
+        self.assertEqual(
+            marks["types"], {"agent": ["agent_revision"], "user": ["save"]},
+            "the event log no longer splits a scene write by the hand "
+            "that made it (%s). That split is what `wait --for user` "
+            "filters on, and it is the mechanism red 2 says a config "
+            "change does not get — held against a product that had "
+            "stopped making it anywhere, that red would be pointing at "
+            "nothing" % (marks["types"],))
 
 
 class TestCoverage(unittest.TestCase):
