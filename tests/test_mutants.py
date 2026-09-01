@@ -28,6 +28,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+import urllib.error
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -1988,16 +1989,44 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
         Args:
             url: The absolute URL the driver built.
             payload: JSON body for a POST; None for a GET.
-            timeout: Accepted and ignored — nothing here blocks.
+            timeout: The long-poll budget for `api/events`; ignored by
+                every other arm, none of which blocks.
 
         Returns:
             The decoded response the real server would have sent.
+
+        Raises:
+            urllib.error.HTTPError: When the route refused with `err()`,
+                translated to the status and body the real server's
+                `do_POST` would have put on the wire.
         """
         path = url.split(_AS_USER_URL, 1)[-1]
         if path == "api/health":
             return {"ok": True}
         if path == "api/state":
             return app.api_state()
+        if path.startswith("api/events"):
+            # ADDITIVE, and `drag_as_user` never walks it. The pin-answer
+            # provenance bench below drives the same verb machinery and
+            # then reads the feed `canvas.py wait` prints, which is the
+            # surface the agent itself reads an answer off.
+            #
+            # THE `timeout` IS HONOURED AND CLAMPED, both halves of what
+            # `do_GET` does. Answering `since` alone and returning at
+            # once is correct only when there is something to return: on
+            # an empty window `cmd_wait` re-asks immediately and spins
+            # the rest of its budget at full tilt. The `min(…, 50.0)` is
+            # the server's own ceiling, copied because a double that
+            # matches "minus one clause" is a double whose divergence
+            # nobody has written down.
+            query = dict(
+                pair.partition("=")[::2]
+                for pair in path.partition("?")[2].split("&") if pair)
+            since = int(query.get("since", 0))
+            wait = min(float(query.get("timeout", 0)), 50.0)
+            return {"ok": True, "seq": app.events.seq,
+                    "events": (app.events.wait_since(since, wait) if wait > 0
+                               else app.events.since(since))}
         if path.startswith("api/artifact/"):
             # DEEP-COPIED, and this line was a reference until a
             # fix-agnosticism probe caught it. A real read crosses a
@@ -2013,7 +2042,29 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
             # way an instrument can be wrong.
             return {"ok": True, "elements": copy.deepcopy(
                 app.store.scenes[path.rsplit("/", 1)[1]])}
-        return app.handle_post("/" + path, payload or {})
+        try:
+            return app.handle_post("/" + path, payload or {})
+        except canvas._Err as exc:
+            # THE REFUSAL IDIOM, TRANSLATED. `err(status, msg)` raises
+            # `_Err`, and the real server turns it into an HTTP status
+            # plus a JSON body in `do_POST`'s `except _Err` arm. This
+            # double returned `handle_post` untranslated, so a route that
+            # refused by the repo's OWN idiom sent `_Err` straight past
+            # `_x_post` — which catches `HTTPError`/`URLError`/`OSError`
+            # and none of those — and out through `cmd_x_as_user`. The
+            # provenance bench then died on the one path a candidate
+            # repair is most likely to take, and because an
+            # `@expectedFailure` reports an ERROR exactly as it reports a
+            # FAILURE, both reds went on reading as healthy reds.
+            #
+            # ONLY `_Err`, deliberately. `do_POST` also has a blanket arm
+            # turning any other exception into a 500, and copying that
+            # here would dress a bug in this bench up as a server fault
+            # and swallow its traceback. A divergence that reports
+            # LOUDLY is the right one to keep.
+            raise urllib.error.HTTPError(
+                url, exc.status, exc.payload.get("error", ""), None,
+                None) from exc
     return transport
 
 
@@ -28540,7 +28591,13 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # which is two phantom captions disappearing under a browser's own witness.
 # A GREEN UNDER A DARK GATE IS THE SHAPE THIS FILE EXISTS TO REFUSE.
 #
-# WHAT IS NOT CLOSED, so the empty dict is not read as an all-clear.
+# AND THE DICT IS NO LONGER EMPTY, as of 2026-09-01: the paragraphs above
+# describe the 2026-08-30 drain and were written while it read `{}`. Two
+# entries stand now — see the note under the dict itself — so "the empty
+# dict" below means the state this section was written in, not the state
+# the file is in. The residual it names is still open and still unpinned.
+#
+# WHAT IS NOT CLOSED, so that emptiness was not read as an all-clear.
 # `recenter_label` models no shape inset, so an ellipse's and a diamond's
 # captions still sit where the tab will not draw them at every alignment
 # including `middle` — reachable and narrated, 29 and 14 of 116 middle
@@ -28548,7 +28605,17 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # a whole-placement-rule repair, seeded above this file's anchor class,
 # and no red here should prescribe it.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestAnAnswerSaysWhoseWordsItIs": 2}
+# FILLED 2026-09-01 by the mutant-curator: a pin answer records nothing
+# about whose composition it is, on either of the two stores that already
+# model authorship for the QUESTION. Two reds because the halves fail
+# apart — one over what an answer is stored in and emitted as, one over
+# the two surfaces that render it — and a repair landing only the first
+# leaves the second pointing at provenance nobody renders. Which repairs
+# move which red is MEASURED and written into the class, not summarised
+# here; the one-line version of it went stale within a day of being
+# written and this sentence is deliberately the shape that cannot.
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -47262,6 +47329,1426 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
             "defect this sweep exists to name"
             % (sorted((k, d) for k, d, _ in found["looped"]),
                sorted(_TRAPPED_PAIRS)))
+
+
+# ---------------------------------------------------------------------------
+# AUTHORSHIP IS MODELLED FOR THE QUESTION AND DROPPED FOR THE ANSWER. Filed
+# 2026-09-01, at P2.
+#
+# NOTHING BELOW RESTS ON AN INCIDENT, and that is deliberate rather than
+# modest. This class was first written against a narrative from an
+# assessment run — an agent that had answered pins on the user's out-of-band
+# instruction and then could not tell its own answers from theirs. That
+# narrative was WITHDRAWN by the user afterwards, twice over, and every
+# sentence resting on it has been struck from this file. What is left is
+# constructed evidence: two pins, one question, two doors, driven here. The
+# class stands on that alone and would stand if no run had ever happened,
+# which is the only footing a durable red can have.
+#
+# THE PIN IS NOT SHORT OF AN AUTHORSHIP FIELD — IT HAS TWO, ON THE OTHER
+# HALF. This is the claim a first reading gets backwards, so it is written
+# out per store:
+#
+#   * THE ELEMENT, `customData` on the ❓ glyph, six keys: `answer`,
+#     `author`, `question`, `role`, `status`, `target`. `author` is set at
+#     mint by `apply_ops` and says WHO ASKED. It sits directly beside
+#     `answer`, which has no counterpart of its own.
+#   * THE REGISTRY, `model.json`'s pin record — a DIFFERENT record with a
+#     different shape and no `author` at all. It carries `direction`, also
+#     WHO ASKED, written explicitly by both minters (the op path files
+#     `agent`, the save ingest files `user`).
+#
+# So the design decided twice that authorship is worth storing, and renders
+# it in two places: `pin_debt_entry` prints `pin-pay(user, open, ...)` off
+# `direction` on every `status` and every apply, and `Rail.tsx:345` draws a
+# `yours`/`agent` chip off the same field. Both answer a question that is
+# almost always "agent" — the agent asks nearly all the pins. The half where
+# authorship actually VARIES, who composed the answer, has no field in either
+# store and no mark on either surface.
+#
+# THE CHIP IS WORSE PLACED THAN THAT PARAGRAPH SOUNDS, and the detail is
+# owed because "the rail draws a chip off the same field" implies a badge
+# sitting beside the answer. It does not. `Rail.tsx:336` renders the chip
+# inside `openPins.map`, so it is drawn on OPEN cards only; an answered pin
+# moves to `resolvedPins`, and its archive card (`:400-408`) draws the
+# question and `↳ {p.answer}` with NO CHIP AT ALL. The moment an answer
+# exists is the moment the rail stops marking authorship of any kind.
+#
+# WHY THE FEED IS PART OF THE SUBJECT. `pin_answer` is a member of
+# `USER_EVENT_TYPES`, so `canvas.py wait --for user` serves every answer as
+# user activity BY CLASSIFICATION — because of what KIND of event it is,
+# never because of who sent it. That filter is the agent's own read surface,
+# and it cannot consult a fact neither store carries.
+#
+# MEASURED BEFORE IT WAS WRITTEN, on this tree, through the two doors that
+# exist. Two pins minted in one batch with identical question text; one
+# answered by the body `App.tsx` posts, one by `canvas.py x-as-user answer`.
+# Registry record, element `customData`, `pin_answer` event, `PIN_DEBT=` line
+# and the `wait --for user` feed came back BYTE-IDENTICAL on both once the
+# pin id and the wall clock are normalised away — `author` reading `"agent"`
+# on the user's own answer, because it is describing the question. One
+# distinct reading for two distinct origins: the direction is COLLAPSE, a
+# surface saying fewer things than there are facts, never one saying the
+# wrong thing.
+#
+# WHAT THIS DELIBERATELY DOES NOT PIN, so the omissions are arguable rather
+# than invisible:
+#
+#   * Any particular answer text. Strings from a run are one incident; the
+#     class is the unmodelled half and the unmarked rendering, and a pin on
+#     a sentence would go green the moment the sentence changed.
+#   * `/api/pins/answer` as a door that ought to be shut, guarded or
+#     authenticated. It is a legitimate door; nothing here authenticates
+#     anything.
+#   * The answer's VOICE — whether a sentence overclaims, or speaks in a
+#     first person that did not do the thing it describes. That is a
+#     judgement about free text, and this repo refuses those on purpose:
+#     `_glossary_ruling` (canvas.py:24007-24021) says so in as many words,
+#     "interpreting free text to decide whether the ruling counts would be
+#     this check issuing a verdict on an answer, which is the one thing a
+#     tripwire is built not to do". A mark saying whose COMPOSITION an
+#     answer is makes such a sentence readable correctly without anything
+#     having to parse it — but that is an argument for the mark, not a
+#     claim about any sentence anyone wrote.
+#   * `export --with-footnotes`. Measured, not assumed: it renders tooltips
+#     and the glossary, and a pin's answer never reaches it. A surface that
+#     does not show the answer cannot mis-attribute it.
+#   * The rail itself, which is TypeScript and outside both tiers. What is
+#     asserted instead is the necessary condition plus the exact pole:
+#     `api_state()["pins"]` is the rail's entire input and is read here, and
+#     `pin_debt_entry` renders the SAME `direction` field the chip does, so
+#     the pair below says the two things the chip cannot be asked directly —
+#     that mark moves when the QUESTION's source moves, and does not move
+#     when the ANSWER's source moves.
+# ---------------------------------------------------------------------------
+
+#: The two doors, named for the ORIGIN of the answer that comes through
+#: them. Their contents are deliberately the same string through both: an
+#: answer that differed in wording would let a reading tell them apart for a
+#: reason that is not provenance, which is the one false green available here.
+_PROV_DOORS = ("typed", "composed")
+#: Door -> the pin id it answers, and the ids are DELIBERATELY NOT the door
+#: names. `_prov_reading` substitutes the id out of the rendered nag line so
+#: two pins compare, and "typed"/"composed" are exactly the two English words
+#: a repaired provenance rendering is likeliest to print — an id that is also
+#: a plausible rendering would mangle the repaired line inside the very
+#: failure message a reader uses to judge the repair. Non-word ids cost
+#: nothing and cannot collide.
+_PROV_PINS = {"typed": "q1", "composed": "q2"}
+#: One question, asked twice, in one batch — so `author`, `direction`,
+#: `asked_at_revn` and `round` are equal by construction and cannot stand in
+#: for an attribution nobody made.
+_PROV_QUESTION = "Does anything retry?"
+#: The answer. A flat assertion of fact, worth exactly as much as knowing who
+#: wrote it — which is the whole subject. Invented here, like everything else
+#: in this bench; no sentence from any run survives in this file.
+_PROV_ANSWER = "Nothing retries."
+#: Keys whose value differs between two pins whoever answered them, and which
+#: would therefore manufacture a difference the subject did not put there.
+#: `answered_at` is here even though a repair COULD in principle mark
+#: provenance temporally; none of the four candidates does, and a per-pin
+#: wall clock is a flake generator in every run that does not.
+_PROV_VOLATILE = frozenset({"id", "pin", "element", "answered_at", "ts",
+                            "seq", "proposed_at"})
+
+
+def _prov_scrub(obj: Any) -> Any:
+    """Strip the keys that differ per pin regardless of who answered.
+
+    Recursive because the readings nest: a pin's events arrive as a list
+    of dicts and the served record holds lists of its own.
+
+    Args:
+        obj: Any part of a reading — dict, list or scalar.
+
+    Returns:
+        The same structure with `_PROV_VOLATILE` keys removed at every
+        depth, and dict keys sorted so two readings compare as text as
+        well as by value.
+    """
+    if isinstance(obj, dict):
+        return {k: _prov_scrub(v) for k, v in sorted(obj.items())
+                if k not in _PROV_VOLATILE}
+    if isinstance(obj, list):
+        return [_prov_scrub(v) for v in obj]
+    return obj
+
+
+def _prov_strings(obj: Any) -> set[str]:
+    """Every string anywhere in a structure, at any depth.
+
+    THE GUARD'S ANSWER TO ITS OWN GENERATOR, and the reason it is
+    recursive rather than a `.values()` comprehension. The two reds in
+    this class compare whole readings and name no key, deliberately —
+    "naming a key names a repair". The guard was not written to that
+    discipline, and every literal in it turned out to be a bet on how a
+    repair would be SPELLED: a top-level scan of the request body read
+    an id nested inside an `ops` list as absent, and reported a repair
+    that had answered the pin as a driver that aimed at nothing.
+
+    Keys are deliberately NOT collected. A key is a spelling; a value is
+    what the caller actually said. Collecting both would let a body that
+    merely happens to have a key named after the pin satisfy a check
+    about what the body ADDRESSED.
+
+    Args:
+        obj: Any JSON-shaped structure — dict, list, or scalar.
+
+    Returns:
+        The set of every string VALUE reachable in it. Non-strings are
+        ignored rather than coerced: `2` and `"2"` are different claims
+        and an id comparison should not merge them.
+    """
+    if isinstance(obj, dict):
+        return set().union(*(_prov_strings(v) for v in obj.values())) \
+            if obj else set()
+    if isinstance(obj, (list, tuple)):
+        return set().union(*(_prov_strings(v) for v in obj)) if obj else set()
+    return {obj} if isinstance(obj, str) else set()
+
+
+def _prov_reading(app: canvas.ServerApp, pid: str,
+                  feed: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collect what every shipped surface says about one answered pin.
+
+    BOTH STORES AND BOTH RENDERINGS, because the defect is not confined
+    to either: `record` is the registry copy (and the rail's whole
+    input), `element` is the ❓ glyph's own six-key `customData` where
+    `author` sits beside `answer`, and `nag` is the CLI rendering of the
+    same `direction` the rail chip draws. A repair that marked one store
+    and left the other is a pin whose two copies disagree about who
+    spoke, which is the class `pin_glyph_notes` already exists to catch
+    for status.
+
+    The nag has the pin id SUBSTITUTED OUT rather than sliced off, so a
+    repair that rewords `PIN_DEBT=` entirely still compares — slicing on
+    the `(` would hand back two empty strings and read as agreement.
+
+    Args:
+        app: The live server the bench drove both doors against.
+        pid: The pin to read.
+        feed: The events `canvas.py wait --for user` actually printed.
+
+    Returns:
+        Keys `record`, `element`, `events`, `nag` and `feed`.
+    """
+    served = {p["id"]: p for p in app.api_state().get("pins") or []}
+    rows = {d["id"]: d for d in app.store.pin_debt()}
+    glyphs = {e["id"]: e for e in app.store.scenes["flow"]}
+    row = rows.get(pid)
+    return {
+        "record": _prov_scrub(served.get(pid)),
+        "element": _prov_scrub((glyphs[pid].get("customData") or {})
+                               if pid in glyphs else None),
+        "events": _prov_scrub([e for e in app.events.since(0)
+                               if e.get("pin") == pid]),
+        "nag": (canvas.pin_debt_entry(row).replace(pid, "<pin>")
+                if row else None),
+        "feed": _prov_scrub([e for e in feed if e.get("pin") == pid]),
+    }
+
+
+#: The 4xx codes that mean THE SERVER DECIDED, as opposed to the ones that
+#: mean THE DRIVER IS BROKEN. An allowlist, so an unrecognised code falls to
+#: the second — a legitimate repair using an unusual status then gets a loud
+#: guard failure somebody looks at, while a damaged bench never gets a quiet
+#: green. That is the safe direction and it is the same one
+#: `_prov_recorder` takes for an exception with no status at all.
+#:
+#: THE RULE, from which the list is derived rather than the other way round:
+#: a 4xx is a DECISION when the server understood a WELL-FORMED request
+#: about a subject that EXISTS, and declined it anyway. This bench owns both
+#: of those halves — it builds every request body, and
+#: `answer_provenance_bench` mints both pins two statements before it drives
+#: either door. So a route that answers "your body is wrong" or "no such
+#: pin" is not declining anything; it is telling the bench the bench is
+#: broken, and the bench must believe it.
+#:
+#:   * 401 / 403 — declined on who is asking. The shape candidate (d) takes.
+#:   * 405 — declined on the method: the route exists and no longer accepts
+#:     this write. A repair that closes the route lands here.
+#:   * 423 / 429 / 451 — declined on lock, rate and law. None is reachable
+#:     from this bench today; they are here because they are decisions
+#:     under the rule above, and leaving a decision out would fail a
+#:     repair for spelling.
+#:
+#: EXCLUDED, and each one is a measured false green rather than a judgement
+#: call: 400 (this codebase's commonest, and it means the body was wrong —
+#: the bench wrote the body), 404 (the subject was missing — the bench
+#: minted the subject), 422 (used here as a batch/internal backstop, which
+#: is a failure wearing a 4xx). All three were driven and all three reported
+#: GUARD GREEN with both reds green before this list existed.
+#:
+#: 409 WAS ON THIS LIST FOR A DAY AND THE JUSTIFICATION WAS BACKWARDS,
+#: which is worth more than the correction. It was admitted as "declined on
+#: state, and this codebase already uses it that way, at two sites" — and
+#: both sites (`canvas.py:27318`, `:27416`) are `err(409, str(e),
+#: stale=True, head_revn=…)` raised from a `StaleError`. That is the server
+#: saying THE CALLER'S VIEW OF THE WORLD IS OUT OF DATE, which is the
+#: caller being wrong: the same category as 400 and 404, not the opposite
+#: of it. The evidence cited for including it was evidence for excluding
+#: it, and nothing in the rule above ever supported it.
+#:
+#: AND THIS BENCH IS BUILT TO GENERATE THE TRIGGER, which is what made it
+#: Critical rather than untidy. `_prov_control`'s revision floor depends on
+#: the outer `Store` lagging permanently behind the server's — see the
+#: comment at its call site, which states that lag as the reason the floor
+#: is worth having. A stale revision is exactly what produces a 409. So the
+#: single 4xx this bench is PREDISPOSED to emit was the one waved through
+#: as a product decision. Driven: a route 409-ing the verb's stale
+#: `base_revn` gave GUARD GREEN with both reds green and the composed pin
+#: unanswered. A repair wanting conflict semantics for refusing the agent
+#: has 403, which is on the list and is the natural code.
+_PROV_DECIDED_STATUSES = frozenset({401, 403, 405, 423, 429, 451})
+
+
+def _prov_recorder(
+        transport: Callable[..., dict]) -> tuple[Callable[..., dict],
+                                                 list[dict[str, Any]]]:
+    """Wrap the driver's transport and record what actually crossed it.
+
+    A PRODUCT REFUSAL AND A BROKEN PIPE ARRIVE AS THE SAME `SystemExit`,
+    and the difference between them is not in the exception's TYPE — it
+    is in what the server said. Both come out of `_x_post` as
+    `die("ERROR=… refused by the server", 5)`.
+
+    SO THE TEST IS THE STATUS, NOT "DID IT RAISE", and the first version
+    of this recorder got that wrong. A refusal written at the ROUTE with
+    this repo's own `err(403, …)` idiom raises `HTTPError` exactly as a
+    500 does; judging on the raise alone called a deliberate product
+    decision broken plumbing, and said so in the failure message.
+
+    BUT "4xx MEANS DECISION" IS TOO COARSE, and taking it whole opened a
+    silent all-clear the round before this one. See
+    `_PROV_DECIDED_STATUSES` for the taxonomy and the reasoning; the
+    short version is that a 4xx is a decision only when the server
+    understood a well-formed request about a subject that EXISTS, and
+    this bench owns both of those.
+
+    Args:
+        transport: The in-process transport double to wrap.
+
+    Returns:
+        The wrapper, and the list it appends to — one entry per call,
+        carrying the path, whether it was a POST, the `body_names` it
+        carried (every string value, so no key spelling is privileged),
+        the HTTP status when there was one, whether the call was
+        `stopped` (nobody answered, or nobody could have) and the
+        exception text if it did not return.
+    """
+    calls: list[dict[str, Any]] = []
+
+    def recording(url: str, payload: dict | None = None,
+                  timeout: float = 10.0) -> dict:
+        """Pass one call through, recording how it ended.
+
+        Args:
+            url: The absolute URL the driver built.
+            payload: JSON body for a POST; None for a GET.
+            timeout: Passed straight through.
+
+        Returns:
+            Whatever the wrapped transport returned. Anything the
+            transport raises is recorded and re-raised UNCHANGED: the
+            driver's own error handling is the subject here, and
+            swallowing a failure would rewrite the behaviour under test.
+        """
+        entry: dict[str, Any] = {"path": url.split(_AS_USER_URL, 1)[-1],
+                                 "post": payload is not None, "raised": None,
+                                 "status": None, "stopped": False,
+                                 # EVERY STRING THE BODY CARRIES, AT ANY
+                                 # DEPTH, not `payload["id"]` and not its
+                                 # top level either. Both narrower forms
+                                 # shipped and both were false REDs over
+                                 # repairs that answered the pin: reading
+                                 # one key refused a body naming the pin
+                                 # as `pin_id`, and reading one level
+                                 # refused a batch body carrying it
+                                 # inside `ops`. The bet each time was on
+                                 # how a repair would be WRITTEN.
+                                 "body_names": sorted(_prov_strings(payload))}
+        calls.append(entry)
+        try:
+            resp = transport(url, payload, timeout)
+        except BaseException as exc:
+            # `BaseException` AND NOT `Exception`, for one word's cost: a
+            # `SystemExit` or a `KeyboardInterrupt` raised inside the
+            # transport would otherwise be recorded as neither answered
+            # nor stopped, which is the one state this classification has
+            # no name for. Broad for the same reason either way — a real
+            # transport crosses a socket, so what it can raise is open,
+            # and an unclassified failure is the defect this recorder
+            # exists to end. Nothing is swallowed; the re-raise is
+            # unconditional.
+            entry["raised"] = "%s: %s" % (type(exc).__name__, exc)
+            # READ OFF THE TYPE, never off a `.code` attribute. `SystemExit`
+            # carries `.code` too, and `SystemExit(5)` would have been read
+            # as HTTP status 5 by a `getattr(exc, "code", None)`.
+            entry["status"] = (exc.code
+                               if isinstance(exc, urllib.error.HTTPError)
+                               else None)
+            entry["stopped"] = entry["status"] not in _PROV_DECIDED_STATUSES
+            raise
+        entry["status"] = 200
+        return resp
+
+    return recording, calls
+
+
+def _prov_control(url: str, expect_revn: int,
+                  calls: list[dict[str, Any]]) -> dict[str, Any]:
+    """Decide whether the agent's door said no, or the bench fell over.
+
+    THE FIRST VERSION OF THIS BENCH COULD NOT TELL, and reported
+    `refused` for both. Measured with every `api/pins/*` POST answering
+    HTTP 500: `_x_post` died, `composed_outcome` read `refused` with an
+    exit code, and BOTH reds went green over a tree where nothing had
+    been repaired. Found in review, and it is the same shape as the
+    `vanished` hole one door over — an exception that means four
+    different things read as the one that flatters the tree.
+
+    TWO QUESTIONS, AND THE FIRST IS THE ONE THAT BITES. A liveness probe
+    alone is not enough and was tried: `api/heartbeat` came back healthy
+    while the pins route was answering 500, because a server can be up
+    and one endpoint broken. So the first question is about the verb's
+    OWN traffic — was any call it made STOPPED, in `_prov_recorder`'s
+    sense of nobody answering — and only the second is about the server
+    still being there afterwards.
+
+    A 4xx IS NOT A STOPPED CALL, which is the correction that matters
+    here and the reason `stopped` exists rather than `raised`. See the
+    ruling in `TestAnAnswerSaysWhoseWordsItIs`: a refusal written at the
+    route with `err(403, …)` is a product decision and must pass.
+
+    `api/heartbeat` is the liveness POST because it is the one live write
+    with no side effect and no event. `api/config` would append a
+    `config_changed` that the `--for user` feed then counts, and a
+    control that perturbs the measurement it protects is not a control.
+
+    THE REVISION CLAUSE IS A FLOOR AND NOT AN EQUALITY, corrected after
+    it failed a legitimate repair. `expect_revn` is read off the bench's
+    OUTER `Store` while the heartbeat reports the server's — two
+    instances over the same files, and the outer one never sees the
+    server's writes. A candidate that COMMITS when it records an answer
+    therefore read `head_revn=4 (expected 2)` and was reported as broken
+    plumbing while `alive=True ok=True`. A floor keeps the clause alive
+    (a server that has lost revisions still fails) without legislating
+    that a repair may not write.
+
+    Args:
+        url: The base URL the driver posts against.
+        expect_revn: A revision the store is known to have reached, used
+            as a FLOOR — so a server answering `ok` out of a rolled-back
+            or empty state fails rather than passing on the truthiness of
+            a dict.
+        calls: `_prov_recorder`'s log of what the verb actually sent.
+
+    Returns:
+        `ok` (no call was stopped, the server is alive, a write is
+        accepted and the revision is at or past the floor) plus
+        `stopped`, `alive`, `beat` and a `why` naming whichever half
+        failed — `half` says which, so a caller can word its own message
+        without re-deriving it.
+    """
+    stopped = [c for c in calls if c["stopped"]]
+    try:
+        alive = bool(canvas.server_alive({"url": url}))
+        beat = canvas.http_json(url + "api/heartbeat", {"dirty": False})
+    except Exception as exc:
+        # Broad for `_prov_recorder`'s reason: a control that cannot be
+        # taken is a dead bench, whatever killed it.
+        return {"ok": False, "stopped": stopped, "alive": None, "beat": None,
+                "half": "control",
+                "why": "the control itself could not be taken (%s: %s)"
+                       % (type(exc).__name__, exc)}
+    revn = beat.get("head_revn")
+    served = bool(alive and beat.get("ok")
+                  and isinstance(revn, int) and revn >= expect_revn)
+    why, half = "", ""
+    if stopped:
+        half = "traffic"
+        # TWO WORDINGS, because `stopped` covers two situations and one
+        # sentence for both misnames whichever it is not. A call with no
+        # status was never answered; a call answered 400 or 404 WAS
+        # answered, with a code that indicts the request or the subject —
+        # and the bench wrote the request and minted the subject, so that
+        # is the bench being told it is broken.
+        answered = [c for c in stopped if c["status"] is not None]
+        why = ("%d of the %d call(s) the verb made did not reach a "
+               "decision: %s. " % (len(stopped), len(calls),
+                                   [(c["path"], c["status"], c["raised"])
+                                    for c in stopped])
+               + ("Those with a status were ANSWERED, but with a code "
+                  "that says the request or the subject was wrong — and "
+                  "this bench writes every request and mints every pin "
+                  "it names, so it owns both."
+                  if answered else
+                  "Nothing answered at all, so the verb was cut off "
+                  "rather than told no."))
+    elif not served:
+        half = "liveness"
+        why = ("the server did not answer a control write afterwards: "
+               "alive=%r ok=%r head_revn=%r (floor %r)"
+               % (alive, beat.get("ok"), revn, expect_revn))
+    return {"ok": bool(not stopped and served), "stopped": stopped,
+            "alive": alive, "beat": beat, "half": half, "why": why}
+
+
+def answer_provenance_bench() -> dict[str, Any]:
+    """Answer one question twice — once by the user's hand, once by the agent.
+
+    THE GROUND TRUTH IS WHICH ENTRY POINT WAS DRIVEN, and that is the
+    only place it can live: the tool has nowhere to record it, which is
+    the finding. `typed` goes through the exact body `App.tsx` posts from
+    the rail, `composed` through `canvas.py x-as-user answer` — the
+    shipped verb an agent reaches for when the user says "answer them for
+    me". Both land the same sentence, so any difference in the readings
+    is provenance and nothing else.
+
+    A REFUSAL IS A RESULT, not an error. Shutting the agent's route is
+    one of the honest product answers, so `SystemExit` out of the verb is
+    caught and reported as `refused`; what must never happen is
+    `vanished`, a door that did nothing and said nothing, which is a
+    broken bench wearing a passing test's clothes.
+
+    AND `refused` IS NOT SELF-EVIDENCING, which is what the first version
+    of this function got wrong. `_x_post` turns a product refusal, an
+    HTTP 500, a refused connection and a timeout into the same `ERROR=`
+    line and the same `SystemExit`, so the exception says only that
+    SOMETHING stopped the verb. `control` is therefore taken after the
+    verb runs, through the same transport, and it is what separates the
+    two — see `_prov_control`.
+
+    Returns:
+        `typed` and `composed` readings from `_prov_reading`, plus
+        `composed_outcome` (`landed`/`refused`/`vanished`), `refusal`
+        (the exit code, when there was one), `control` (the liveness
+        probe, asserted by the guard) and `feed_size` (how many events
+        `wait --for user` printed in total).
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-prov-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": _PROV_PINS[door], "target": "n1",
+                     "question": _PROV_QUESTION} for door in _PROV_DOORS]})
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        app = canvas.ServerApp(project)
+        transport, calls = _prov_recorder(_as_user_transport(app))
+        # DOOR ONE — the rail. `apiPost("/api/pins/answer", { id, answer })`
+        # is the whole of what the client sends, from THREE call sites in
+        # App.tsx — the anchored popover, the rail card and the detail
+        # modal — all posting that same body. Reproduced here rather than
+        # reached through a browser because the model tier has none. The
+        # server sees this body and no other fact about its caller.
+        #
+        # THROUGH THE TRANSPORT, not `app.handle_post` directly, and the
+        # difference is not cosmetic: the browser crosses HTTP, so a route
+        # that refuses with `err(403, …)` must reach this door as an
+        # `HTTPError` and not as a raw `_Err`. Calling the app directly
+        # skipped the translation and blew the bench up — and an
+        # `@expectedFailure` reports an ERROR exactly as it reports a
+        # FAILURE, so both reds went on looking healthy while the bench
+        # was in pieces.
+        typed_refusal = None
+        with mock.patch.object(canvas, "http_json", transport):
+            try:
+                transport(_AS_USER_URL + "api/pins/answer",
+                          {"id": _PROV_PINS["typed"],
+                           "answer": _PROV_ANSWER})
+            except Exception as exc:    # the user's door is allowed to be
+                # refused by a product; it is clause 1's job to say so in
+                # a sentence rather than this function's to crash.
+                typed_refusal = "%s: %s" % (type(exc).__name__, exc)
+        # DOOR TWO — the agent, instructed. Driven through `cmd_x_as_user`
+        # rather than by posting the same body again, because a repair that
+        # marks the door has to have a door to mark: two identical POSTs
+        # would erase the distinction this is measuring, and no honest fix
+        # could then flip it.
+        outcome, refusal = "landed", None
+        # EVERYTHING FROM HERE IS THE VERB'S OWN TRAFFIC. The control and
+        # the accepted-write clause both judge what the AGENT's door did,
+        # and door one's successful write is in the same log — counting it
+        # would make every run look like a door that was told yes.
+        verb_from = len(calls)
+        with mock.patch.object(canvas, "http_json", transport), \
+                contextlib.redirect_stdout(io.StringIO()):
+            try:
+                canvas.cmd_x_as_user(argparse.Namespace(
+                    project=str(tmp), verb="answer", artifact="flow",
+                    target=_PROV_PINS["composed"], text=_PROV_ANSWER,
+                    dx=0, dy=0, note=None))
+            except SystemExit as exc:
+                outcome, refusal = "refused", exc.code
+            # TAKEN INSIDE THE SAME PATCH, and immediately: the question
+            # it answers is whether the transport the verb just used is
+            # still alive, so it has to be that transport and not a fresh
+            # one. A control outside this block would prove the store is
+            # readable and nothing about the door.
+            #
+            # THE FLOOR COMES OFF THE OUTER `store` DELIBERATELY. That is
+            # a second `Store` over the same files and it never sees the
+            # server's writes, so it can only ever LAG — which is what
+            # makes it a floor worth having, and why the comparison is
+            # `>=` rather than `==`. Reading the floor off `app.store`
+            # would make the clause compare the heartbeat's own source
+            # against itself and assert nothing at all.
+            control = _prov_control(_AS_USER_URL, store.head_revn(),
+                                    calls[verb_from:])
+        # AND THEN READ BACK THE WAY THE AGENT READS. `wait --for user` is
+        # run for real, filter and all, so the classification that made the
+        # agent unable to separate its own words is exercised rather than
+        # restated — a transcription of `USER_EVENT_TYPES` here would be a
+        # second copy free to agree with a broken original.
+        printed = io.StringIO()
+        with mock.patch.object(canvas, "http_json", transport), \
+                contextlib.redirect_stdout(printed), \
+                contextlib.suppress(SystemExit):
+            # SUPPRESSED AND NOT CAUGHT, unlike the verb above, because
+            # `cmd_wait`'s exits carry no information this bench wants:
+            # it returns 3 on a quiet window and dies only when no server
+            # answered, and the feed assertions below say more about
+            # either than an exit code would.
+            canvas.cmd_wait(argparse.Namespace(
+                project=str(tmp), since=0, timeout=1, types=None,
+                for_whom="user"))
+        feed = [json.loads(line) for line in printed.getvalue().splitlines()
+                if line.startswith("{")]
+        # WHICH PIN WRITES WERE ACCEPTED, kept so the guard can refuse
+        # the one corner neither `vanished` nor `control` reaches: a verb
+        # that POSTS, is answered 200, and dies afterwards. Nothing was
+        # stopped, the server is healthy, the exit code is real — and the
+        # pin is unanswered. `vanished` cannot see it, being gated on
+        # `landed`. A door that was told yes did not refuse.
+        # THE TRIPLE FILTER IS LOAD-BEARING AND IS SPELLED OUT BECAUSE IT
+        # WAS CORRECT BY COINCIDENCE. This slice runs to the end of the
+        # log, so it also holds `cmd_wait`'s `api/events` GETs and the
+        # control's own health/heartbeat calls; `post` drops the GETs,
+        # the path prefix drops the control, and `status == 200` drops
+        # anything refused. Each of the three is doing real work — remove
+        # one and this counts calls that are not pin writes.
+        pin_calls = [c for c in calls[verb_from:]
+                     if c["post"] and c["path"].startswith("api/pins/")]
+        pin_writes = [c for c in pin_calls if c["status"] == 200]
+        # AND THE VERB HAS TO HAVE AIMED AT THE PIN THIS BENCH MINTED.
+        # Unconditional, not gated on the outcome: aiming wrong is always
+        # the driver's fault and never a product decision, whatever the
+        # server then said about it. A `refused` from a 404 was a silent
+        # all-clear on exactly this — see `_PROV_DECIDED_STATUSES`, which
+        # is the other half of the same repair.
+        #
+        # "AT LEAST ONE NAMED IT", NOT "EVERY ONE NAMED IT", and the
+        # difference is a prescription this class is not allowed to make.
+        # RULED 2026-09-01 after the strict form reddened a legitimate
+        # repair: one that parks the agent's draft on a companion record
+        # and then answers the pin normally writes two pins, only one of
+        # them `composed`. That repair answered the pin, flipped both
+        # reds, and the guard called it damage — which is the class
+        # claiming to prescribe no repair while forbidding one. The
+        # alternative on offer was to keep the strict form and DISCLOSE
+        # it as a judgement, the way the (d) placement ruling is
+        # disclosed. Rejected: disclosure is right when a judgement earns
+        # its keep, and this one earns nothing. The damage actually being
+        # hunted is a driver that aimed at the WRONG pin, and `any` still
+        # catches every case of it — `wrong_pin_id` writes only
+        # `no-such-pin`, so no write names the composed pin and the
+        # clause fires exactly as before. Narrowing past that buys no
+        # detection and costs a repair.
+        #
+        # GATED ON THERE BEING A WRITE AT ALL, because candidate (d)
+        # refusing client-side makes no pin write whatever, and an
+        # `any()` over an empty list is False. A door that never posted
+        # is clauses 3 and 5's subject, not this one's.
+        #
+        # AND IT HAS A DISCLOSED FALSE NEGATIVE, RULED 2026-09-01 rather
+        # than closed. Widening from "every write named it" to "one of
+        # them did" also widened "AIMED at the pin" to "MENTIONED the
+        # pin": a driver posting `{"id": "no-such-pin", …, "context":
+        # "q2"}` against a route that answers a DECIDED status is silent
+        # here, silent at clause 5, and never reaches `vanished`. Driven,
+        # and the whole class went green over a bench that answered one
+        # door.
+        #
+        # NOT CLOSED, AND THE REASON IS STRUCTURAL RATHER THAN LAZY. The
+        # remedy on offer — look only at the strings a route would read
+        # as an id — is the generator returning: it names the id-bearing
+        # keys, which is the bet M-3 removed and the `ops` nesting
+        # removed again one level down. And the honest version of the
+        # question is unanswerable from here: "where did the route read
+        # the id" can only be settled by watching the route read it, and
+        # under a refusal nothing was read. The bench has no observable.
+        #
+        # WHY THIS IS NOT THE ROUND-3 404 MISTAKE, which is the objection
+        # to answer, because that disposition was also argued from
+        # reachability and was wrong. There the SIMPLE case was uncaught:
+        # a plain wrong id, the first typo anyone makes, sailed through.
+        # Here the simple case is caught twice over — `wrong_pin_id` is
+        # red at this clause and red again at clause 5.
+        #
+        # THE SPARE FIELD CAN BE A BY-PRODUCT, corrected after this
+        # comment claimed it "exists for no reason but to be there". It
+        # can: a driver that normalises `args.target` into `id` and posts
+        # the raw argument alongside sends a second copy for an ordinary
+        # reason, and `cmd_x_as_user` really is handed `--target q2`.
+        # What the miss still needs is that field AND a route answering a
+        # DECIDED status for a pin that does not exist — and nothing in
+        # this codebase does that. All ten `err(404, …)` sites answer the
+        # natural 404 for a missing subject, which is not a decided
+        # status and reddens clause 5. Driven both ways: with the
+        # normalising driver and a 403, GUARD GREEN; the same driver
+        # against the natural 404, GUARD RED. The conjunction is what the
+        # ruling rests on, not the field's implausibility.
+        #
+        # Trading it for a key-name bet would buy this corner and re-open
+        # the class of false REDs that four rounds were spent closing,
+        # which is the wrong direction for a guard whose measured error
+        # mode is over-refusal.
+        wrote_composed = any(_PROV_PINS["composed"] in c["body_names"]
+                             for c in pin_calls)
+        misaimed = [] if not pin_calls or wrote_composed else pin_calls
+        out: dict[str, Any] = {"composed_outcome": outcome,
+                               "refusal": refusal, "control": control,
+                               "pin_writes_accepted": pin_writes,
+                               "misaimed": misaimed,
+                               "typed_refusal": typed_refusal,
+                               "feed_size": len(feed)}
+        for door in _PROV_DOORS:
+            out[door] = _prov_reading(app, _PROV_PINS[door], feed)
+        # `landed` MEANS THE SENTENCE IS SOMEWHERE IN THE READING, and the
+        # first draft of this line asked whether the pin's record existed
+        # instead. It always does — the pin is in the registry from the
+        # moment it is minted — so a driver that silently did nothing
+        # reported `landed`, the two readings differed because one pin was
+        # unanswered, and BOTH reds went green over a bench that had
+        # driven one door. Caught by damaging this guard rather than by
+        # reading it. Searching the serialised reading rather than a named
+        # key is what keeps candidate (c) `landed`: its text arrives under
+        # `proposed_answer`, which no key list written today would name.
+        if outcome == "landed" and _PROV_ANSWER not in json.dumps(
+                out["composed"], ensure_ascii=False):
+            out["composed_outcome"] = "vanished"
+        return out
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def pin_marks_whose_question_it_is() -> dict[str, Any]:
+    """Read both authorship marks for a pin the agent asked and one the user drew.
+
+    THE LIVE POLE FOR THE HALF THAT WORKS. Both reds below accuse the
+    same two stores and the same rendering of saying nothing about who
+    ANSWERED, and an accusation of silence is satisfied perfectly by
+    machinery that has stopped saying anything at all. This drives the
+    provenance those surfaces DO carry, through the two writers that set
+    it: the op path files its own pins `agent`, and the save ingest files
+    a ❓ the user drew as `user`.
+
+    `nag` is the reading that matters most, because `pin_debt_entry`
+    renders the same `direction` the rail's `yours`/`agent` chip does —
+    the chip itself is TypeScript and out of reach, so this is the
+    nearest surface that can be asserted from here.
+
+    Returns:
+        `author` and `direction` and `nag`, each a dict keyed `agent` and
+        `user` by which hand asked the question.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-nag-"))
+    project = canvas.Project(tmp)
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": "asked-by-agent", "target": "n1",
+                     "question": _PROV_QUESTION}]})
+        # The user's own ❓, arriving the only way one can: on their save.
+        # Copied off the agent's glyph so the two differ in id, position
+        # and `customData` alone — a glyph that differed in shape would be
+        # testing the minter rather than the ingest, which keys on `role`.
+        scene = list(store.scenes["flow"])
+        drawn = dict(scene[-1])
+        drawn.update({"id": "asked-by-user", "x": 300, "y": 300,
+                      "customData": {"role": "pin", "target": "n1",
+                                     "question": _PROV_QUESTION,
+                                     "status": "open", "answer": None,
+                                     "author": "user"}})
+        store.commit(author="user", new_scenes={"flow": [*scene, drawn]},
+                     base_revn=store.head_revn())
+        glyphs = {e["id"]: e for e in store.scenes["flow"]}
+        pins = {p["id"]: p for p in store.registry["pins"]}
+        rows = {d["id"]: canvas.pin_debt_entry(d) for d in store.pin_debt()}
+        return {
+            "author": {who: (glyphs["asked-by-%s" % who]
+                             .get("customData") or {}).get("author")
+                       for who in ("agent", "user")},
+            "direction": {who: pins["asked-by-%s" % who].get("direction")
+                          for who in ("agent", "user")},
+            "nag": {who: rows.get("asked-by-%s" % who, "")
+                    for who in ("agent", "user")}}
+    finally:
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
+    """Two hands, one sentence, and no surface that can tell them apart.
+
+    THE RELATION, NOT THE INCIDENT: an answer on a pin carries the door
+    it came through, and an answer the agent supplied cannot be read as
+    one the user gave. Two reds, because the property has two halves that
+    fail independently — a repair that marks everything an answer is
+    STORED IN AND EMITTED AS, and stops there, has built provenance
+    nobody renders, and the second red is what would still be pointing at
+    it. Measured, not assumed: the ladder is in
+    `test_the_rendered_mark_does_not_move_with_the_answers_source`, and
+    it takes both stores AND the `pin_answer` event to turn the first red
+    green — marking the two stores alone leaves it RED on `events`.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT, on the
+    `TestADeclaredDatumSurvivesTheDoorItCameThrough` precedent and for
+    the same reason: every scene-level detector here is correctly quiet,
+    because the scene is internally coherent. What disagrees is the
+    record and the WORLD, and no rule handed a list of elements can reach
+    who typed something. Registering a check name for it would state a
+    contract no lint can meet.
+
+    IT PRESCRIBES NO REPAIR, and four shapes were MEASURED rather than
+    argued. Each monkeypatched from a throwaway plugin outside the repo,
+    applied alone against this tree on 2026-09-01, both reds turning
+    green under every one:
+
+      (a) A SIBLING FIELD AT THE DOOR. `answer_pin` grows a `by`, the
+          verb declares itself, the event and `pin_debt_entry` carry it.
+          The nag prints `<pin>(answered, ..., answered by agent)`.
+      (b) `author` WIDENED TO A PER-FIELD RECORD. No new key anywhere:
+          the authorship slot stops being a scalar about the question and
+          becomes `{"question": "agent", "answer": "user"}`. THE
+          MEASURED VERSION TOUCHES THREE SURFACES, and this sentence used
+          to name one — corrected in review after the reviewer built it
+          literally and found it flips NEITHER red. `answer_pin` widens
+          `customData.author` on the glyph, mirrors the same map onto the
+          registry record as `author`, and `handle_post` carries it on
+          the `pin_answer` event; `pin_debt_entry` then reads it and
+          prints `..., answer by agent)`. The element-only version is a
+          real datum and is kept below rather than discarded.
+      (c) A PROPOSAL THE USER PROMOTES. The verb posts to a `propose`
+          route, `proposed_answer` lands, `answer` stays None and the pin
+          stays `open`. The composed answer then does not reach the
+          `--for user` feed AT ALL, which is the sharpest of the four:
+          the agent stops being able to hear its own voice come back as
+          the user's.
+      (d) A DOOR THAT SHUTS. The route or the verb refuses, naming the
+          reason. The bench records `refused` and the readings differ
+          because one pin is answered and the other is not.
+
+          WHERE THE REFUSAL LIVES IS NOT THIS PIN'S BUSINESS, and that
+          is a RULING, recorded 2026-09-01 because the first version of
+          the guard silently decided otherwise. I wrote (d) as a
+          client-side `die` in `cmd_x_as_user` because it was the
+          shortest plugin to write, NOT because I judged client-side to
+          be the only honest placement — and the guard I then built
+          judged on "did a call raise", which fails a refusal written at
+          the ROUTE with `err(403, …)`, this repo's own idiom. Measured:
+          a route-level 403 read as broken plumbing and the failure
+          message asserted the opposite of the truth.
+          SERVER-SIDE IS LEGITIMATE AND MUST PASS. A refusal in the CLI
+          verb guards one caller; every other HTTP client still walks
+          through. The §8 note below argues an unmarked route the agent
+          still holds is the defect surviving — which points AT the
+          route, so a guard that fails a route-level refusal prescribes
+          the weaker of the two placements while the class claims to
+          prescribe none.
+
+    Four mechanisms, one law, and (b) is the one that proves this is not
+    a disguised "add a field": it adds none.
+
+    THREE REPAIRS THAT DO **NOT** FLIP THEM, measured rather than
+    predicted, and kept because a negative result is the part a reader
+    cannot reconstruct:
+
+      * (b) BUILT LITERALLY, widening `customData.author` on the glyph
+        and nothing else. Neither red moves — `record`, `events`, `nag`
+        and `feed` all still read the same for both answers. One store
+        is not the subject; the pair of them plus what they emit is.
+      * MARKING BOTH STORES AND NOT THE EVENT. Red 1 stays red on
+        `events`. See the ladder in
+        `test_the_rendered_mark_does_not_move_with_the_answers_source`.
+      * A SIDE TABLE. Provenance recorded in
+        `registry["answer_provenance"]`, keyed by pin, with the pin
+        record itself untouched. Both reds stay red and the guard is
+        GREEN, so this arrives as "your repair does not satisfy the
+        law" rather than as a broken bench — which is the right signal,
+        but only if the reader knows it is deliberate. IT IS: red 2's
+        whole argument is that a store nothing renders is provenance
+        nobody has, and an audit table beside the record is exactly
+        that until something reads it. A side table PLUS a rendering
+        that consults it would flip both; the table alone is half a
+        repair and the reds say so.
+
+    AND ONE REWRITE THEY BREAK UNDER, named because §8 says to name them:
+    a repair that adds a NEW marked route for the agent and leaves
+    `x-as-user answer` writing unmarked testimony keeps both reds red.
+    That is a judgement and it is the one this pin makes — an unmarked
+    route the agent still has is the defect surviving beside its own fix,
+    not a spelling difference.
+
+    ONE THING A REPAIR MUST CARRY WITH IT, learned by building (b) as a
+    `status` widening rather than an `author` one: whatever slot grows,
+    its READERS grow too. `Store.pin_debt` filters on
+    `status in ("open", "answered")`, so a `status` of
+    `answered_by_agent` drops the pin off the standing `PIN_DEBT=` nag
+    entirely. The guard catches that — it reports the nag rendering
+    nothing — and the catch is correct rather than prescriptive: a
+    repair that marks provenance by making the pin invisible on the one
+    surface that prints every apply has moved the defect, not fixed it.
+    Widen the filter in the same change and both reds flip.
+    """
+
+    @unittest.expectedFailure
+    def test_two_hands_leave_one_indistinguishable_record(self) -> None:
+        """The storage half: neither store can say what happened.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS COLLAPSE. Two
+        origins produce ONE distinct reading where they must produce two,
+        on all three stored surfaces at once. Asserted as a difference
+        between two readings and never as the presence of a named key,
+        because naming a key names a repair: `answered_by`, a widened
+        `author`, `proposed_answer` and a status the promotion moves are
+        all honest, and a guard that greps for one fails the other three
+        while the behaviour is correct.
+
+        `element` IS IN THE COMPARISON ON PURPOSE. That is the six-key
+        `customData` where `author` sits directly beside `answer` — the
+        pin is not short of an authorship field, it has one for the
+        question and none for the answer, and today it reads `"agent"`
+        over the sentence the USER typed. A reading that only looked at
+        `model.json` would miss that the two stores are wrong in the same
+        direction for two different reasons.
+
+        THE NEAREST FALSE GREEN is a difference that is not provenance —
+        two pins always differ by id and by wall clock — so
+        `_PROV_VOLATILE` removes those before the comparison, and both
+        pins are minted in ONE batch carrying ONE question string so that
+        `author`, `direction`, `round` and `asked_at_revn` are equal by
+        construction. Verified key-by-key on an UNSCRUBBED diff, in
+        review: the record differs only on `id`, the event only on
+        `pin`/`seq`, the glyph only on `id`/`seed`. `_PROV_VOLATILE` is a
+        strict superset of what varies, which is the safe direction —
+        every entry beyond that set makes this red HARDER to flip, never
+        easier.
+
+        THIS SURFACE LIST IS THREE AND NOT TWO, and the third is the one
+        that does the work. Measured 2026-09-01: a repair marking BOTH
+        STORES and stopping there leaves this red RED, on `events` — the
+        `pin_answer` payload is built by hand in `handle_post` and does
+        not inherit from the record it was built from. It takes stores
+        AND event together to turn this green.
+        """
+        bench = answer_provenance_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("record", "element", "events")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "an answer the user typed and an answer the agent composed on "
+            "their instruction left the SAME record on %d of 3 stored "
+            "surfaces (%s) — 1 distinct reading for 2 distinct origins. "
+            "The ❓'s own `customData` carries `author` for the QUESTION "
+            "and nothing for the ANSWER, so it reads %r over both. Mark "
+            "it at the door, widen the slot that is already there, park "
+            "it where the user promotes it, or refuse the route and say "
+            "why — but a store that cannot say whose words these are "
+            "makes every answer in the project unverifiable at once. "
+            "Typed element: %s. Composed element: %s"
+            % (len(same), ", ".join(same),
+               (typed["element"] or {}).get("author"),
+               json.dumps(typed["element"], sort_keys=True),
+               json.dumps(composed["element"], sort_keys=True)))
+
+    @unittest.expectedFailure
+    def test_the_rendered_mark_does_not_move_with_the_answers_source(
+            self) -> None:
+        """The rendering half: the badge answers the question nobody asked.
+
+        SEPARATE FROM ITS NEIGHBOUR ABOVE BECAUSE IT FAILS SEPARATELY,
+        and the separator is MEASURED rather than asserted. This
+        paragraph used to say that marking both stores satisfies the
+        storage red; that was wrong, and the two-mark ladder is what the
+        review ran to find out. 2026-09-01, one repair per rung, both
+        reds read at each:
+
+            stores only  (record + element)          red 1 RED, red 2 RED
+            stores + event                           red 1 GREEN, red 2 RED
+
+        So the real separator is the SECOND rung: a repair that marks
+        both stores AND the `pin_answer` event turns the storage red
+        green and leaves this one red on `nag` — the standing `PIN_DEBT=`
+        line, printed on every `status` and every apply, still reads
+        `<pin>(answered, age 0r, target edited 0×)` for both answers. A
+        product can therefore be fully marked everywhere it is STORED and
+        still tell a human nothing, which is precisely the state this red
+        exists to keep pointing at.
+
+        AND IT IS THE EXACT POLE OF THE ONE BELOW. `pin_debt_entry`
+        renders `direction`, the same field the rail's `yours`/`agent`
+        chip draws. `test_the_asking_hand_is_still_marked` proves that
+        mark MOVES when the question's source moves; this proves it does
+        NOT move when the answer's source moves. A mark that is rendered
+        on every apply and cannot follow the fact that varies is worse
+        than no mark: it reads as an attribution.
+
+        THE FEED IS THE SHARP END. `pin_answer` is a member of
+        `USER_EVENT_TYPES`, so the classification is static — every
+        answer is user activity because of what KIND of event it is,
+        never because of who sent it. `cmd_wait` is driven for real here,
+        with its own filter, so a repair anywhere on that path (a new
+        event type, a field the filter consults, a route that emits
+        nothing) moves this reading.
+        """
+        bench = answer_provenance_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("nag", "feed")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "the two answers render identically on %d of 2 surfaces "
+            "somebody reads (%s). PIN_DEBT= prints %r for both, and "
+            "`wait --for user` served %d event(s) with the agent's own "
+            "composition among them under the user's heading. That same "
+            "line already marks WHOSE QUESTION it is, off `direction`, "
+            "and the rail draws a chip off that field on OPEN cards only "
+            "— an answered pin's archive card carries no mark at all. So "
+            "authorship is rendered on the half that is almost always "
+            "the agent, and vanishes on the half that varies"
+            % (len(same), ", ".join(same), typed["nag"], bench["feed_size"]))
+
+    def test_the_bench_drove_both_doors_and_every_reader_spoke(self) -> None:
+        """The vacuity guard: an emptiness claim over a live measurement.
+
+        UNGATED AND ASSERTED IN EVERY COMMIT, because both reds above are
+        `assertEqual(same, [])` and an empty list is what a broken bench
+        produces most easily. A driver that missed the pin, a reader that
+        stopped reading, a feed that printed nothing — each makes the two
+        readings differ, and each reads as a fix. So this claims the
+        facts that make `same == []` mean something.
+
+        THE REDS NAME A RELATION; THIS GUARD MUST TOO. Four review rounds
+        found the same defect wearing four costumes — a raise mistaken
+        for a refusal, a 404, a 409, a misaim clause reading "every write"
+        for "any write" — and the root was one habit: the reds compare
+        whole readings and mention no key, on the stated ground that
+        naming a key names a repair, and the guard was not written to
+        that discipline. Every literal in it was a bet on how a repair
+        would be SPELLED, and each bet refused a repair that satisfied
+        the law:
+
+            asked for `record["answer"]`      -> refused `answer_text`
+            asked for `status == "answered"`  -> refused `answered_by_user`
+            scanned the body's top level      -> refused an id inside `ops`
+
+        All three are now relations. The sentence must be SOMEWHERE in
+        the record; the pin must no longer read as OPEN; the id is looked
+        for at any depth. The rule for anyone adding a clause here: ask
+        what the repair must ACHIEVE, never where it must write it. If a
+        clause cannot be phrased without a key name, it belongs in the
+        break-under list as a disclosed judgement, not in the assertions.
+
+        WATCHED FAILING, ONE CLAUSE AT A TIME, by damaging this bench in
+        a throwaway copy outside the repo. Every row was re-driven
+        2026-09-01 against the tree that ships it, and the WHICH CLAUSE
+        column is the point of the table: a stage that reddens the guard
+        by tripping some OTHER clause proves nothing about the one it is
+        filed under, and this table said exactly that about `http500` for
+        a day. NAME THE ISOLATING STAGE, or the next editor weakens a
+        clause, runs a stage that never reached it, and sees red.
+
+        Clause order, since the rows refer to it: 1 the user's door landed
+        the sentence, 2 it left the pin `answered`, 3 `composed_outcome`
+        is `landed` or `refused`, 4 the verb aimed at the pin this bench
+        minted, 5 the control, 6 no accepted write behind a refusal, 7
+        the nag rendered, 8 the feed was non-empty.
+
+          * `wrong_pin_id` — the verb posts `id="no-such-pin"` -> CLAUSE
+            4. `answer_pin` raises, the route answers 404, and the whole
+            chain reads as a decision: outcome `refused`, exit 5. Before
+            the 2026-09-01 taxonomy this was GUARD GREEN with both reds
+            green — a silent all-clear on the worst damage in the table,
+            and a REGRESSION introduced by the round-2 narrowing from
+            `raised` to `stopped`. The bench mints `q2` two statements
+            earlier, so a 404 here never means the product declined
+            anything.
+          * `malformed_body` — the route answers 400 -> CLAUSE 5
+            (traffic). The same shape as the row above and the reason
+            the fix is a taxonomy rather than a 404 special case: 400
+            says the BODY was wrong and the bench writes the body.
+          * `stale_revn_409` — the verb posts the outer store's revision
+            and the route 409s it -> CLAUSE 5 (traffic). GUARD GREEN with
+            both reds green until 409 came off `_PROV_DECIDED_STATUSES`
+            on 2026-09-01. The sharpest row in the table: this bench
+            carries a permanently stale revision BY CONSTRUCTION — the
+            control's floor depends on it — so a 409 is the one 4xx the
+            bench is predisposed to produce, and it was the one being
+            waved through.
+          * `agent_write_500` — only the composed pin's write 500s ->
+            CLAUSE 5, traffic half, ISOLATING. Both reds go GREEN and
+            this is the only thing that speaks.
+          * `server_lost_revisions` — heartbeat reports `head_revn` 0 ->
+            CLAUSE 5, liveness half, ISOLATING. Traffic is clean, so this
+            is the only stage that reaches the second half of the control.
+          * `http500` — every `api/pins/*` POST answers 500 -> CLAUSE 1,
+            NOT CLAUSE 5. It stops at the first clause because door one
+            crosses the transport too and is broken by the same damage.
+            Kept because it is the damage that FOUND the control, and
+            listed here with its true attribution so nobody reads its red
+            as evidence about the control. THE SAME TRAP CAUGHT THE
+            MUST-PASS SIDE: a `d_server_http` that refused every answer
+            reddened clause 1 as well, and had to be narrowed to the
+            agent's write before it measured what it claimed to. A stage
+            that refuses BOTH doors is a different product, not a
+            refusal of the agent's route.
+          * `health_oserror` — `api/health` raises -> CLAUSE 5, on a
+            stopped call with no status. Before the control existed this
+            was caught only incidentally, by clause 8 noticing an empty
+            feed, which is not the same as being detected.
+          * `accepted_then_dies` — the route answers 200 and no-ops, the
+            verb dies after -> CLAUSE 6, ISOLATING. Nothing stopped,
+            server healthy, `refusal` 7, pin unanswered, both reds GREEN.
+            `vanished` cannot reach it (gated on `landed`) and the
+            control cannot (nothing failed).
+          * `posted_ok_noop_route` — the same no-op without the death ->
+            CLAUSE 3, `vanished`. The sibling that keeps clause 3 proven
+            now that `wrong_pin_id` is caught earlier.
+          * `empty_answer` — the user's door posts `""` -> CLAUSE 1.
+          * `dead_nag` — `Store.pin_debt` returns `[]` -> CLAUSE 7.
+          * `dead_feed` — `cmd_wait` driven `--for agent` -> CLAUSE 8.
+
+        AND THE STAGES THAT MUST STAY GREEN, which are half the value of
+        the table: a guard that reddens on every perturbation is not
+        discriminating, it is just loud. NO COUNT IS WRITTEN for either
+        list, here or anywhere — a hand-maintained total beside a list
+        that grows every review is the one thing this file has been
+        bitten by more than once. Count the bullets.
+
+          * `d_client` — the verb refuses before posting. GUARD GREEN.
+          * `d_server_http` — the route refuses 403 over the wire.
+          * `d_server_err_agent_only` — the route refuses with this
+            repo's own `err(403, …)`, the shape a real repair takes.
+            Before the `_Err` translation this crashed the bench outright
+            and both reds read as ordinary expected failures, because an
+            `@expectedFailure` reports an ERROR exactly as it reports a
+            FAILURE.
+          * `e_commits` — a repair that COMMITS when it records an
+            answer. GUARD GREEN, both reds still red. This one was a
+            false RED until the revision clause became a floor.
+          * `companion_pin_repair` — the agent's draft is parked on its
+            own pin record and the composed pin is then answered
+            normally. GUARD GREEN, both reds flipped. A false RED until
+            clause 4 widened from "every write named it" to "one of them
+            did"; see that clause's own comment for the ruling.
+          * `renamed_body_key` — the same repair addressing the pin as
+            `pin_id` rather than `id`. GUARD GREEN. A false RED until the
+            recorder stopped privileging one key spelling.
+          * `posts_twice` — the verb writes the same pin twice. GUARD
+            GREEN, and it is the control that proves clause 4
+            discriminates on WHICH pin rather than on how many writes.
+          * `batch_write` — the repair answers through a batch route with
+            the id nested inside `ops`. GUARD GREEN. A false RED until
+            `body_names` went recursive; the message had asserted the pin
+            was unanswered over a pin that was answered.
+          * `renamed_record_field` — the stored answer moves to
+            `answer_text` with `answer_author` beside it. GUARD GREEN. A
+            false RED until clause 1 stopped naming `answer`.
+          * `provenance_in_status_complete` — `status` widens to
+            `answered_by_user`/`answered_by_agent`, WITH `pin_debt`'s
+            filter widened in the same change. GUARD GREEN, both reds
+            flipped, and no new key anywhere. A false RED until clause 2
+            stopped naming `"answered"`.
+          * `provenance_in_status` — the SAME repair with the filter left
+            alone. GUARD RED at clause 7, and correctly: the pin drops
+            off `PIN_DEBT=` entirely, so the mark was bought by making
+            the pin invisible on the surface that prints every apply.
+            Kept as a row because "the guard refuses this shape" and "the
+            guard caught half a repair" look identical from one reading,
+            and the pair separates them. AND THE PAIR IS LOAD-BEARING FOR
+            A CLAUSE THAT IS NOT ITS OWN — see the coupling note under
+            clause 2. Widening that filter is the blessed half of this
+            pair, and it is also what removes clause 7's backstop.
+
+        KNOWN LIMITS, in the same shape as the rows above so that a gap
+        is a record rather than a discovery. Each was driven; each leaves
+        the guard silent over a bench that should not have satisfied it:
+
+          * `wrong_pin_but_echoed` — the driver misaims while carrying
+            the correct id in a field it had reason to send, against a
+            route answering a decided status. GUARD GREEN. Ruled and
+            disclosed at clause 4 rather than closed.
+          * `answer_into_detail` / `answer_into_examples` — the user's
+            door stores the sentence in `detail` or `examples` and leaves
+            `answer` null. Clause 1 asks only that the sentence be
+            SOMEWHERE in the record, so both pass it. GUARD GREEN in
+            both; only red 2 stays red, and for an unrelated reason (the
+            feed differs because no event was emitted). A door that
+            stored no answer is not what clause 1 means to allow.
+          * `joint_evasion` — the two limits composed, plus a terminal
+            `status` of `settled` and the `pin_debt` filter widened.
+            ALL EIGHT CLAUSES PASS and BOTH REDS GO GREEN over a typed
+            door that stored no answer: `{"answer": null, "detail":
+            "Nothing retries.", "status": "settled"}`, nag
+            `<pin>(settled, …)`, feed 1. This is the deepest hole in the
+            guard and it is written down rather than papered over.
+
+        WHY THE PARTS ARE HARMLESS AND THE WHOLE IS NOT, which is the
+        half a future editor could not reconstruct: the components do not
+        compose by accident, they are held apart by ONE reader. Moving
+        the sentence out of `answer` needs `status` moved too, or red 2
+        stays red on the nag; and moving `status` off `answered` drops
+        the pin out of `Store.pin_debt`'s `("open", "answered")` filter,
+        which trips clause 7. Measured both ways:
+        `joint_evasion_no_widen` -> GUARD RED at clause 7,
+        `joint_evasion` (filter widened) -> GUARD GREEN. THE SAFETY IS
+        INCIDENTAL. It comes from a status filter in product code that a
+        blessed repair — `provenance_in_status_complete`, a must-stay-
+        green row above — is expected to widen. Widen it and the
+        composition opens.
+
+        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 to 6
+        are shaped around TOGETHER, and no one of them is sufficient.
+        `_x_post` turns a product refusal, an HTTP 500, a 404 and a dead
+        socket into one `SystemExit`, so `refused` names the exception
+        and not its cause. Clause 4 asks whether the verb aimed at the
+        right pin at all. Clause 5 asks whether anybody reached a
+        DECISION — see `_PROV_DECIDED_STATUSES` for which codes count and
+        why — and then whether the server survived. Clause 6 catches the
+        corner where everything answered and the write was accepted
+        anyway.
+
+        THREE JUDGEMENTS ARE BAKED INTO CLAUSES 1, 2 AND 8, and they are
+        written here rather than left implicit, because a guard whose
+        subject is unstated judgements should not carry any. Clauses 1
+        and 2 require the USER's door to land the sentence and leave the
+        pin no longer asking; clause 8 requires at least one event on the
+        `--for user` feed. A repair that turned BOTH doors into proposals
+        — nobody's answer lands until someone promotes it — would fail
+        this guard rather than flip the reds. That is deliberate: it is a
+        different product, one where the user cannot answer their own
+        pin, and it should arrive as a failing guard somebody has to look
+        at rather than as a quietly satisfied emptiness claim.
+        """
+        bench = answer_provenance_bench()
+        typed = bench["typed"]
+        # CLAUSE 1 — THE SENTENCE IS IN THE RECORD, wherever the record
+        # chose to put it. This asked `record["answer"] == _PROV_ANSWER`
+        # and refused a repair that renamed the field to `answer_text`
+        # while storing the sentence and the author side by side. The
+        # relation is "the user's words are in the store", and the key
+        # they are under is the repair's business.
+        #
+        # AND IT IS LOOSER THAN THE PROPERTY IT NAMES, disclosed rather
+        # than tightened. `detail` and `examples` are fields the record
+        # already carries, so a door writing the sentence into either and
+        # leaving `answer` null satisfies this clause completely — driven
+        # as `answer_into_detail` and `answer_into_examples`, both GUARD
+        # GREEN. Tightening means naming the fields that do NOT count,
+        # which is the generator returning in negative form.
+        self.assertIn(
+            _PROV_ANSWER, _prov_strings(typed["record"]),
+            "the user's own door did not land the answer anywhere in the "
+            "record, so the reds beside this are comparing a record that "
+            "was never written: %s%s"
+            % (json.dumps(typed["record"], sort_keys=True),
+               "" if bench["typed_refusal"] is None
+               else ". The rail's own POST was refused: %s"
+                    % bench["typed_refusal"]))
+        # CLAUSE 2 — THE PIN IS NO LONGER ASKING, which is what "the user
+        # answered it" means. This asked for the literal `"answered"` and
+        # refused a repair widening `status` to `answered_by_user` —
+        # while the class next door celebrates candidate (b) for widening
+        # the `author` slot in exactly that way. Accepting one and
+        # refusing the other was incoherent. `open` is the state the
+        # `pin` op MINTS, so testing against it is testing the domain's
+        # own starting vocabulary rather than a repair's chosen ending
+        # one, and every terminal spelling passes.
+        #
+        # THE CHOICE OF `open` IS RIGHT AND THE RELATION IS LOOSE, and
+        # both are true at once, which is why this is disclosed rather
+        # than reformulated a fifth time. `open` is the one word in the
+        # vocabulary no repair has a reason to move, so a legitimate
+        # widening cannot invalidate the test. But "not open" is weaker
+        # than the property it names: `pruned`, `dismissed`, a re-opened
+        # pin under another word, and `zzzz` all satisfy it, and none of
+        # them is a pin somebody answered. Tightening means enumerating
+        # the terminal states, which names the repair's ending vocabulary
+        # — the exact bet this clause was rewritten to stop making. It is
+        # at the floor of that trade.
+        #
+        # AND ITS COVERAGE IS COUPLED TO CLAUSE 7, WHICH IS NOT OBVIOUS
+        # FROM EITHER. Every evasion of this clause measured so far is
+        # actually stopped by the NAG: `Store.pin_debt` filters
+        # `status in ("open", "answered")`, so a status this clause
+        # permits usually drops the pin off `PIN_DEBT=` and clause 7
+        # fires instead. That backstop is product code, and
+        # `provenance_in_status_complete` — a repair this class blesses —
+        # widens exactly that filter. So the guard's cover for "the user
+        # actually answered" rests on a reader a good repair is expected
+        # to change. `joint_evasion` in the table above is what that
+        # looks like when it opens: all eight clauses green over a door
+        # that stored nothing.
+        self.assertNotIn(
+            "open", _prov_strings(typed["record"]),
+            "the user's answer left the pin still reading as an OPEN "
+            "question (%s) — whatever the two reds above compare, it is "
+            "not a pin somebody has answered"
+            % json.dumps(typed["record"], sort_keys=True))
+        self.assertIn(
+            bench["composed_outcome"], ("landed", "refused"),
+            "the agent's door neither landed an answer nor refused out "
+            "loud (%r). A route that silently does nothing makes the two "
+            "readings differ for a reason that has nothing to do with "
+            "provenance, and both reds above then pass over a bench that "
+            "measured one door" % bench["composed_outcome"])
+        self.assertEqual(
+            bench["misaimed"], [],
+            "the agent's door made %d pin write(s) and NOT ONE of them "
+            "named %r, the pin this bench minted for it: %s. Whatever "
+            "the server then answered, the composed pin is unanswered "
+            "because the DRIVER aimed wrong — and a 404 for a pin that "
+            "does not exist arrives as a 4xx, which the clause below "
+            "would otherwise read as the server making a decision. "
+            "Writing OTHER pins as well is fine and is not what this "
+            "asks"
+            % (len(bench["misaimed"]), _PROV_PINS["composed"],
+               [(c["path"], c["body_names"], c["status"])
+                for c in bench["misaimed"]]))
+        control = bench["control"]
+        self.assertTrue(
+            control["ok"],
+            # BRANCHED ON WHICH HALF FAILED, because one message for both
+            # printed "so `landed` describes the plumbing" over a bench
+            # whose traffic was fine and whose revision floor was stale.
+            # A guard that misnames its own finding sends a fixer hunting
+            # the wrong thing, which is the defect this whole clause was
+            # added to stop.
+            # AND THE DECIDING CODES ARE INTERPOLATED, NOT TYPED. This
+            # message carried "401/403/405/409" — four of seven members
+            # hand-copied beside the constant that holds them, and wrong
+            # within a day when 409 came off the list. The one place this
+            # file has been bitten repeatedly is a derived fact written
+            # out as prose.
+            {"traffic": "the agent's door never reached a DECISION: %s. "
+                        "Any of %s would be one and would pass here. "
+                        "`_x_post` exits identically for a refusal, a "
+                        "500, a 404 and a dead socket, so without this "
+                        "clause a broken bench reports `refused` and "
+                        "BOTH reds above go green over a tree where "
+                        "nothing was repaired"
+                        % ("%s", sorted(_PROV_DECIDED_STATUSES)),
+             "liveness": "the agent's door was answered, but the server "
+                         "did not survive it: %s. The readings the reds "
+                         "compare were taken off a server that is no "
+                         "longer serving",
+             "control": "the control could not be taken at all: %s"}
+            .get(control["half"], "the control failed: %s")
+            % (control["why"] or control,))
+        if bench["composed_outcome"] == "refused":
+            self.assertIsNotNone(
+                bench["refusal"],
+                "the agent's door refused without an exit code, so the "
+                "refusal is not something a caller could act on")
+            self.assertEqual(
+                bench["pin_writes_accepted"], [],
+                "the agent's door reported a refusal, but %d pin write(s) "
+                "came back 200 first: %s. A write the server ACCEPTED is "
+                "not a refusal — something died after being told yes, and "
+                "the composed pin is unanswered for a reason that has "
+                "nothing to do with provenance. `vanished` cannot see "
+                "this corner: it is gated on `landed`"
+                % (len(bench["pin_writes_accepted"]),
+                   [(c["path"], c["status"])
+                    for c in bench["pin_writes_accepted"]]))
+        for door in _PROV_DOORS:
+            self.assertTrue(
+                bench[door]["nag"],
+                "PIN_DEBT= rendered nothing for the %s door (%s), so the "
+                "rendering red is comparing two absences rather than two "
+                "lines" % (door, _PROV_PINS[door]))
+        self.assertGreaterEqual(
+            bench["feed_size"], 1,
+            "`canvas.py wait --for user` printed no events at all, so "
+            "the feed half of the rendering red would pass over a "
+            "channel that says nothing — a corpse, not a clean bill")
+
+    def test_the_asking_hand_is_still_marked(self) -> None:
+        """The live pole: both stores DO carry authorship, for the question.
+
+        THE ONE THE REDS CANNOT OBSERVE. They accuse two stores and one
+        rendering of saying nothing about who answered, and machinery
+        that has stopped saying anything about anyone satisfies that
+        perfectly — the accusation and the corpse read alike. This drives
+        the half that works, through both writers and all three readings,
+        so the reds can be read as "the second half was never built"
+        rather than "the first half died".
+
+        It is also the argument they rest on. `author` sits in the ❓'s
+        own six-key `customData`; `direction` sits in the registry;
+        `pin_debt_entry` prints it on every apply and the rail draws a
+        chip off it. The design took authorship seriously enough to store
+        it twice and render it twice. Whose ANSWER it is is that same
+        ruling, one field along.
+        """
+        marks = pin_marks_whose_question_it_is()
+        self.assertEqual(
+            marks["author"], {"agent": "agent", "user": "user"},
+            "the ❓ glyph's own `customData.author` no longer follows the "
+            "hand that asked (%s), so the element store has stopped "
+            "carrying authorship at all and the reds beside this would "
+            "be measuring a dead field rather than a missing one"
+            % (marks["author"],))
+        self.assertEqual(
+            marks["direction"], {"agent": "agent", "user": "user"},
+            "the registry's `direction` no longer follows the hand that "
+            "asked (%s) — both pin writers set it explicitly, so this is "
+            "one of them having gone quiet" % (marks["direction"],))
+        self.assertIn(
+            "user", marks["nag"]["user"],
+            "a ❓ the user drew came back unmarked on the standing nag "
+            "(%r). That line and the rail chip render the same field, so "
+            "this is the nearest assertable evidence that the badge the "
+            "reds accuse of standing still is capable of moving at all"
+            % marks["nag"]["user"])
+        self.assertNotEqual(
+            marks["nag"]["agent"], marks["nag"]["user"],
+            "the nag renders an agent's question and a user's question "
+            "identically (%r), so it distinguishes no provenance and "
+            "cannot be held to distinguishing this one"
+            % marks["nag"]["user"])
 
 
 class TestCoverage(unittest.TestCase):
