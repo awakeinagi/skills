@@ -28650,6 +28650,18 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # it now runs on a forged source when the tree offers no subject. A guard
 # that can only run while its defect is present retires itself on the day
 # the defect is fixed, which is this file's own subject one level up.
+#
+# THE OTHER HALF OF THIS CENSUS IS `tests/RED-ROSTER.md`, and a red that
+# edits one without the other fails the suite. This dict and that roster
+# are two hand copies of the same fact, each compared against the LIVE
+# decorators by a guard of its own —
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` for the
+# dict, `test_the_handover_transcribes_the_hand_authored_red_classes` for
+# the file — so neither can be repaired by agreeing with the other. The
+# roster was SESSION-HANDOVER.md's census paragraph until 2026-09-01 and
+# moved so that a curator, who owns this file and that one and nothing
+# else, can land a red without editing a handover they are told not to
+# touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
@@ -30043,30 +30055,48 @@ def handover_render_reds() -> set[str]:
         if n.startswith("test_")}
 
 
-# The handover's roster of non-catalogue red CLASSES, by the label its line
-# starts with. A label and not a table row, because this fact was prose for
-# its whole life and a reader arriving mid-paragraph should still be able to
-# find the one line that is checked.
-_HANDOVER_HAND_AUTHORED = "Non-catalog red classes:"
-# One entry: a backticked class name followed by its red count in parens.
-_HAND_AUTHORED_ENTRY = re.compile(r"`(Test[A-Za-z0-9_]*)`\s*\((\d+)\)")
+# The roster of non-catalogue red CLASSES lives in its own file, whose only
+# content is the roster. `HAND_AUTHORED_RED_CLASSES` above is the derivation
+# side; this is the hand-typed side, and the reader below is what makes the
+# two disagree loudly. It MOVED here out of SESSION-HANDOVER.md's census
+# paragraph on 2026-09-01 — the ruling, and what the move does and does not
+# change, are in the reader's docstring.
+RED_ROSTER = Path(__file__).resolve().parent / "RED-ROSTER.md"
+# The line the roster BODY begins after, by the label it has carried since it
+# was a paragraph. A label and not "the whole file", so the file can explain
+# its own grammar above the line and still be read EXACTLY below it: prose
+# above the label cannot be mistaken for an entry, and an entry cannot hide
+# in prose.
+_ROSTER_LABEL = "Non-catalog red classes:"
+# One entry, matched against a WHOLE stripped line rather than searched for
+# inside one: a bullet, a backticked class name, its red count in parens, and
+# nothing else. Whole-line is the difference between "this line IS an entry"
+# and "this line CONTAINS one", and the second is what let a garbled line
+# half-parse while the reader reported only the half it understood.
+_ROSTER_ENTRY = re.compile(r"-\s+`(Test[A-Za-z0-9_]*)`\s*\((\d+)\)")
+# The positive spelling of "empty", which is the whole reason this reader is
+# longer than its four siblings. See the docstring. Spelled as its own whole
+# line for the reason above, and kept as a bare string as well because every
+# failure message here has to be able to name it.
+_HAND_AUTHORED_NONE = "*none*"
+_ROSTER_NONE_LINE = re.compile(r"-\s+\*none\*")
 # Everything the grammar reads lives inside backticks, so a class name that
 # LOST its backticks is invisible to both patterns above and to the `*none*`
 # contradiction check. Blanking the backticked spans and looking at what is
-# left is what makes "no class is named here" mean it.
+# left is what makes "no class is named here" mean it. Applied to the WHOLE
+# file and not only to the body: the file's own prose explains the grammar,
+# and an unbackticked name in that explanation reads to a human exactly like
+# an entry that has drifted above the label.
 _TICKED_SPAN = re.compile(r"`[^`]*`")
 _BARE_CLASS = re.compile(r"\bTest[A-Z]\w*")
-# The names `_HAND_AUTHORED_ENTRY` can express, as a whole-string match. The
-# guard's two halves must agree on this or no legal line can satisfy it; see
-# the `unspellable` assertion in the test.
+# The names `_ROSTER_ENTRY` can express, as a whole-string match. The guard's
+# two halves must agree on this or no legal line can satisfy it; see the
+# `unspellable` assertion in the test.
 _HAND_AUTHORED_SPELLABLE = re.compile(r"Test[A-Za-z0-9_]*\Z")
-# The positive spelling of "empty", which is the whole reason this reader is
-# longer than its four siblings. See the docstring.
-_HAND_AUTHORED_NONE = "*none*"
 
 
 def handover_hand_authored_red_classes() -> dict[str, int]:
-    """The non-catalogue red classes SESSION-HANDOVER.md transcribes.
+    """The non-catalogue red classes `tests/RED-ROSTER.md` transcribes.
 
     The SIXTH census guard's transcription half (v0.9, 2026-08-20). The
     roster of hand-authored red classes had been prose since batch 16 put
@@ -30077,154 +30107,212 @@ def handover_hand_authored_red_classes() -> dict[str, int]:
     *"Read the dict, not this sentence"*, which is a pointer at a checked
     fact and not a check: nothing failed, on any of the nine.
 
+    THE ROSTER MOVED OUT OF SESSION-HANDOVER.md ON 2026-09-01 and this
+    function reads `tests/RED-ROSTER.md` now. Three curators in one
+    session each landed a hand-authored red, each was stopped here, and
+    each edited SESSION-HANDOVER.md under protest — a file curators are
+    told not to touch. The ruling was that the constraint does not give
+    and the roster moves: curators own `tests/RED-ROSTER.md` alongside
+    `tests/test_mutants.py`, AGENTS.md's curation section says so, and
+    concurrent curators add DISTINCT LINES to a roster-only file instead
+    of rewording one line of one shared prose document.
+
+    WHAT THE MOVE DOES NOT CHANGE is the property this guard exists for.
+    The roster is still typed by a hand and never generated, so a red
+    arriving without its line fails here, and a line naming a class the
+    decorators do not carry fails here too. All nine drifts were
+    prose-versus-dict, and a file whose only content is one line per
+    class, under the same guard, has no prose to drift. This function's
+    name and its test's are deliberately unchanged: `handover_` is the
+    family prefix for the TRANSCRIPTION half of a census guard rather
+    than a claim about a path, `tests/census_probes.py` keys probes on
+    the test's name, and `tests/test_livedoc.py` cites this one — a
+    rename buys accuracy in one identifier at the price of every
+    citation of it.
+
     WHY THIS IS NOT A LIVEDOC VALUE, recorded here because the tool is
     right there and reaching for it would be the obvious move.
     `tests/livedoc.py`'s boundary section rules that a marker may carry a
     TOTAL and may not carry a ROSTER, because `refresh` silently repairs
     and a class arriving or leaving BY NAME is the event a human has to
-    open the paragraph for. This is a roster of class names, so it stays
-    a literal with a guard over it, and
+    stop and open the file for. This is a roster of class names, so it
+    stays a literal with a guard over it, and the move did not soften
+    that by an inch: it is a hand-typed literal at a new address, in a
+    file livedoc scans and finds no marker in, and
     `test_the_census_sentences_carry_only_the_two_live_totals` in
-    `tests/test_livedoc.py` enforces that mechanically — a marker added
-    here would fail it.
+    `tests/test_livedoc.py` still holds over the handover it left.
 
     WHY AN EMPTY ROSTER NEEDS A WORD FOR ITSELF, which is the part that
-    generalizes past this sentence. The tree is at zero reds, so the
-    honest transcription enumerates nothing — and so does a line that has
-    been reworded, truncated, half-deleted or replaced with a sentence
-    about something else. A reader that returned `{}` for all of those
-    would be green over every one of them and would say the same thing
-    about a correct paragraph and a destroyed one. `*none*` is therefore
-    a POSITIVE assertion of emptiness and the only accepted spelling of
-    it; anything the grammar does not recognise raises rather than
-    parsing to nothing. That is also why a drift-repair tool could not
-    have held this line as a floor: its repair is to agree with what it
-    finds, and what it finds when the roster is gone is nothing.
+    generalizes past this file. The tree can sit at zero non-catalogue
+    reds, so the honest transcription enumerates nothing — and so does a
+    file that has been truncated, half-deleted, reworded, or replaced
+    with a note about something else. A reader that returned `{}` for all
+    of those would be green over every one, and would say the same thing
+    about a correct roster and a destroyed one. `*none*` is therefore a
+    POSITIVE assertion of emptiness and the only accepted spelling of it;
+    anything the grammar does not recognise raises rather than parsing to
+    nothing. That is also why a drift-repair tool could not have held
+    this file as a floor: its repair is to agree with what it finds, and
+    what it finds when the roster is gone is nothing.
 
     THE HOLE THE FIRST DRAFT LEFT, kept because it is the same defect one
     level in and it survived a review that this file's author passed.
     Every check in the paragraph above reads what is INSIDE backticks —
-    `_HAND_AUTHORED_ENTRY` wants backticks plus a count, and the `*none*`
+    `_ROSTER_ENTRY` wants backticks plus a count, and the `*none*`
     contradiction check wanted a backticked `Test...`. So a class name
-    that lost its backticks was read by NOTHING, and
+    that lost its backticks was read by NOTHING, and a roster asserting
+    `*none*` beside an unbackticked class and a count parsed to `{}`,
+    agreed with an empty tree and passed, with a human reading a roster
+    that asserts emptiness while naming a class. That is not a contrived
+    shape: it is this roster's own recorded history with the backticks
+    dropped, which one reflow or one paste from a plain-text note
+    produces. Thirteen of fifteen attack shapes raised; these two did
+    not. The refusal blanks every backticked span across the WHOLE file
+    and rejects what is left if it looks like a class name — "no class is
+    named here" now means it, rather than meaning "no class is named here
+    in the one spelling I look at".
 
-        Non-catalog red classes: *none* — TestBatchPathIntegrity (3)
-
-    parsed to `{}`, agreed with an empty tree and passed, with a human
-    reading a line that asserts emptiness while naming a class. That is
-    not a contrived shape: it is this line's own recorded history with
-    the backticks dropped, which one reflow or one paste from a
-    plain-text note produces. Thirteen of fifteen attack shapes raised;
-    these two did not. The fix blanks every backticked span and refuses
-    what is left if it looks like a class name — "no class is named
-    here" now means it, rather than meaning "no class is named here in
-    the one spelling I look at".
+    THE OLD ADDRESS IS CHECKED TOO, which is new with the move and is the
+    failure the move itself creates. This roster lived in
+    SESSION-HANDOVER.md for its whole life, so the next agent to rebuild
+    that paragraph from memory, resolve a conflicted hunk the lazy way,
+    or revert a commit across it puts a roster line back there — and a
+    correct copy beside a stale original is the silent direction every
+    guard in this family was written about. So the label is refused in
+    SESSION-HANDOVER.md outright rather than merely ignored: the roster
+    has exactly ONE home, and a line at the old one is a finding and not
+    a duplicate to reconcile.
 
     RESIDUAL, stated rather than papered over, and it is inherited.
     `red_bearing_classes` scans THIS MODULE only, so this guard sees
     exactly what `HAND_AUTHORED_RED_CLASSES` sees and no more — a red in
     `tests/test_backend.py` or `tests/test_mutants_render.py` is outside
-    it. `TestSnapshotTierOne` was such a red and is the one this
-    paragraph had to be hand-edited for. The render file's names are
-    covered by `handover_render_reds`; `tests/test_backend.py`'s names
-    are covered by nothing, which the catalog-reds table's `other` row
-    now says in its own cell.
+    it. `TestSnapshotTierOne` was such a red and is the one this roster
+    had to be hand-edited for. The render file's names are covered by
+    `handover_render_reds`; `tests/test_backend.py`'s names are covered
+    by nothing, which the catalog-reds table's `other` row now says in
+    its own cell.
 
     Returns:
         Class name -> transcribed red count, empty for `*none*`.
 
     Raises:
-        AssertionError: If the file is absent, if the labelled line is
-            absent, if it appears more than once, if the text after the
-            label matches neither the sentinel nor the entry grammar, if
-            `*none*` is contradicted by an entry or a backticked `Test`
-            name on the same line, if a backticked token sits outside a
-            well-formed entry (a name whose count was dropped), or if a
-            class is transcribed twice. Every one of these is a state in
-            which the roster cannot be read, and a census reader that
-            reports agreement while reading nothing is the defect every
-            guard beside this one was written to close.
+        AssertionError: If the roster file is absent; if the label is
+            absent from it, appears twice in it, or survives in
+            SESSION-HANDOVER.md; if nothing follows the label; if a body
+            line matches neither the sentinel nor the entry grammar; if
+            `*none*` shares the roster with anything else; if a class
+            name anywhere in the file has lost its backticks; if a class
+            is transcribed twice; or if an entry is written at (0). Every
+            one of these is a state in which the roster cannot be read,
+            and a census reader that reports agreement while reading
+            nothing is the defect every guard beside this one was written
+            to close.
     """
-    if not HANDOVER.exists():
+    if not RED_ROSTER.exists():
         raise AssertionError(
             "%s is not in this tree, so the non-catalogue red roster "
-            "cannot be checked. If this is an isolated mutation-proof "
-            "tree, copy the file in beside tests/ — the guard is not what "
-            "you are measuring and this failure is not a finding"
-            % HANDOVER)
-    lines = [line for line in HANDOVER.read_text(encoding="utf-8").splitlines()
-             if line.startswith(_HANDOVER_HAND_AUTHORED)]
-    if not lines:
+            "cannot be checked. It moved out of %s on 2026-09-01 and is "
+            "the file curators own alongside this one. If this is an "
+            "isolated mutation-proof tree, copy it in beside tests/ — the "
+            "guard is not what you are measuring and this failure is not "
+            "a finding" % (RED_ROSTER, HANDOVER.name))
+    text = RED_ROSTER.read_text(encoding="utf-8")
+    if HANDOVER.exists():
+        stray = [ln for ln in HANDOVER.read_text(encoding="utf-8").splitlines()
+                 if ln.startswith(_ROSTER_LABEL)]
+        if stray:
+            raise AssertionError(
+                "%s still carries a %r line: %s. The roster moved to %s on "
+                "2026-09-01 and has exactly ONE home — a copy at the old "
+                "address is the silent direction this guard's whole family "
+                "is about, because the reader agrees with the file it reads "
+                "while the human reads the other one. Delete it there: the "
+                "handover keeps a pointer and no roster"
+                % (HANDOVER.name, _ROSTER_LABEL, stray, RED_ROSTER.name))
+    lines = text.splitlines()
+    labelled = [n for n, ln in enumerate(lines)
+                if ln.startswith(_ROSTER_LABEL)]
+    if not labelled:
         raise AssertionError(
-            "no line starting %r in %s: the non-catalogue red roster has "
-            "been reworded or deleted. At zero reds that line enumerates "
-            "nothing, so its absence and its correctness look identical "
-            "to any reader that does not demand it — which is why this is "
-            "a failure. If the roster is gone on purpose, delete this "
+            "no line starting %r in %s: the roster's label has been "
+            "reworded or deleted, and everything below it is read only "
+            "because that label says where the roster starts. At zero "
+            "non-catalogue reds a missing roster and a correct one both "
+            "enumerate nothing, so absence has to be a failure or it is "
+            "invisible. If the roster is gone on purpose, delete this "
             "function and its test in the same change"
-            % (_HANDOVER_HAND_AUTHORED, HANDOVER.name))
-    if len(lines) > 1:
+            % (_ROSTER_LABEL, RED_ROSTER.name))
+    if len(labelled) > 1:
         raise AssertionError(
-            "%d copies of the %r line in %s: %s. The roster is transcribed "
-            "ONCE and pointed at from everywhere else — a correct copy "
-            "above a stale original is the silent direction, because the "
-            "reader agrees with the copy and the human reads the original"
-            % (len(lines), _HANDOVER_HAND_AUTHORED, HANDOVER.name, lines))
-    rest = lines[0][len(_HANDOVER_HAND_AUTHORED):].strip()
-    entries = _HAND_AUTHORED_ENTRY.findall(rest)
-    ticked = re.findall(r"`(Test[A-Za-z0-9_]*)`", rest)
-    bare = _BARE_CLASS.findall(_TICKED_SPAN.sub(" ", rest))
+            "%d copies of the %r label in %s, at lines %s. The roster is "
+            "transcribed ONCE and pointed at from everywhere else — a "
+            "second label means everything under the first one is the "
+            "whole roster and everything under the second is invisible, "
+            "which is a correct copy above a stale original wearing a "
+            "different hat" % (len(labelled), _ROSTER_LABEL,
+                               RED_ROSTER.name, [n + 1 for n in labelled]))
+    bare = _BARE_CLASS.findall(_TICKED_SPAN.sub(" ", text))
     if bare:
         raise AssertionError(
-            "the roster line in %s names %s outside backticks. Every "
-            "check below reads only what is INSIDE backticks, so an "
-            "unbackticked class name is read by nothing: the line "
-            "'%s %s TestSomeClass (3)' would parse to an empty roster, "
-            "agree with an empty tree, and pass while a human read it "
-            "naming a class. One reflow or one paste from a plain-text "
-            "note is all it takes. Backtick the name, or delete it"
-            % (HANDOVER.name, sorted(set(bare)), _HANDOVER_HAND_AUTHORED,
-               _HAND_AUTHORED_NONE))
-    if rest.startswith(_HAND_AUTHORED_NONE):
-        if entries or ticked:
+            "%s names %s outside backticks. Every check here reads only "
+            "what is INSIDE backticks, so an unbackticked class name is "
+            "read by nothing: a roster saying '%s' and then 'TestSomeClass "
+            "(3)' with the ticks dropped would parse to empty, agree with "
+            "an empty tree, and pass while a human read it naming a class. "
+            "One reflow or one paste from a plain-text note is all it "
+            "takes. Backtick the name, or delete it"
+            % (RED_ROSTER.name, sorted(set(bare)), _HAND_AUTHORED_NONE))
+    body = [ln.strip() for ln in lines[labelled[0] + 1:] if ln.strip()]
+    if not body:
+        raise AssertionError(
+            "nothing follows the %r label in %s. An empty roster is "
+            "written '- %s' and never as a blank: a blank is what a "
+            "truncation, a botched merge and an honestly empty tree all "
+            "look like, and this reader must not say the same thing about "
+            "the three of them"
+            % (_ROSTER_LABEL, RED_ROSTER.name, _HAND_AUTHORED_NONE))
+    if any(_HAND_AUTHORED_NONE in ln for ln in body):
+        if len(body) > 1 or not _ROSTER_NONE_LINE.fullmatch(body[0]):
             raise AssertionError(
-                "the roster line in %s says %s and then names %s. One of "
-                "the two is wrong and nothing here can tell which"
-                % (HANDOVER.name, _HAND_AUTHORED_NONE,
-                   sorted(set(ticked)) or [e[0] for e in entries]))
+                "the roster in %s says %s and does not stop there: %s. %s "
+                "is a positive assertion that there are NO non-catalogue "
+                "reds, so it is the only line the roster may hold — one of "
+                "the two halves of this is wrong and nothing here can tell "
+                "which" % (RED_ROSTER.name, _HAND_AUTHORED_NONE, body,
+                           _HAND_AUTHORED_NONE))
         return {}
-    if not entries:
-        raise AssertionError(
-            "the roster line in %s reads %r, which matches neither %s nor "
-            "the `TestClassName` (N) grammar. An unreadable roster must "
-            "not parse to an empty one: at zero reds that would make this "
-            "guard say the same thing about this line and a correct one"
-            % (HANDOVER.name, rest, _HAND_AUTHORED_NONE))
-    if len(ticked) != len(entries):
-        raise AssertionError(
-            "the roster line in %s backticks %s but gives counts for only "
-            "%s. A class named without its count would be dropped "
-            "silently, and a dropped entry reads exactly like a drained "
-            "one" % (HANDOVER.name, sorted(ticked),
-                     sorted(e[0] for e in entries)))
+    entries = []
+    for line in body:
+        matched = _ROSTER_ENTRY.fullmatch(line)
+        if not matched:
+            raise AssertionError(
+                "the line %r in %s is neither '- %s' nor the "
+                "'- `TestClassName` (N)' grammar. Every line below the "
+                "label is an entry — a name whose count was dropped, a "
+                "note somebody left, or prose that drifted down here must "
+                "not be skipped, because a skipped line reads exactly like "
+                "a roster that never had it"
+                % (line, RED_ROSTER.name, _HAND_AUTHORED_NONE))
+        entries.append((matched.group(1), int(matched.group(2))))
     names = [name for name, _count in entries]
     if len(set(names)) != len(names):
         raise AssertionError(
-            "the roster line in %s transcribes %s twice; a dict would keep "
-            "the last count and hide the other"
-            % (HANDOVER.name,
+            "the roster in %s transcribes %s on more than one line; a dict "
+            "would keep the last count and hide the other"
+            % (RED_ROSTER.name,
                sorted({n for n in names if names.count(n) > 1})))
-    drained = sorted(n for n, c in entries if int(c) == 0)
+    drained = sorted(name for name, count in entries if count == 0)
     if drained:
         raise AssertionError(
-            "the roster line in %s transcribes %s at (0). "
-            "`red_bearing_classes` never emits a zero — a class whose last "
-            "red flips LEAVES the roster rather than dropping to 0, which "
-            "is the one thing this line's own paragraph tells you. The "
-            "comparison below would have failed anyway; this refuses the "
-            "shape here so the message names the rule instead of two "
-            "dicts" % (HANDOVER.name, drained))
-    return {name: int(count) for name, count in entries}
+            "the roster in %s transcribes %s at (0). `red_bearing_classes` "
+            "never emits a zero — a class whose last red flips LEAVES the "
+            "roster rather than dropping to 0, which is the one rule this "
+            "file's own header states. The comparison below would have "
+            "failed anyway; this refuses the shape here so the message "
+            "names the rule instead of two dicts" % (RED_ROSTER.name,
+                                                     drained))
+    return dict(entries)
 
 
 def red_bearing_classes() -> dict[str, int]:
@@ -50888,11 +50976,22 @@ class TestCoverage(unittest.TestCase):
 
         `test_the_hand_authored_red_classes_are_the_ones_that_exist` has
         compared the DICT to the decorators since batch 16 and has never
-        been wrong. The paragraph in SESSION-HANDOVER.md that transcribes
-        that dict drifted nine times underneath it, and the reason is the
-        same one batch 23 wrote down for the catalogue table: a guard
-        proves the property it evaluates and no part of the property its
-        author had in mind. That sibling never opens the file.
+        been wrong. The prose that transcribes that dict drifted nine
+        times underneath it, and the reason is the same one batch 23 wrote
+        down for the catalogue table: a guard proves the property it
+        evaluates and no part of the property its author had in mind. That
+        sibling never opens the file.
+
+        THE TRANSCRIPTION IS `tests/RED-ROSTER.md` SINCE 2026-09-01 and
+        was SESSION-HANDOVER.md's census paragraph before that. This test
+        did not change with it, deliberately: the subject is the roster
+        and not the document holding it, and the name this method has
+        carried is keyed on by `tests/census_probes.py`. What the move
+        bought is written in `handover_hand_authored_red_classes` —
+        curators own the roster's file, so landing a red no longer means
+        editing a handover they are told not to touch, and concurrent
+        curators add distinct lines rather than rewording one shared
+        sentence. What it did NOT buy is any softening here.
 
         WHAT MAKES THIS THE WORST OF THE SIX, and the reason it is worth a
         docstring rather than a line. The paragraph did not merely go
@@ -50909,13 +51008,15 @@ class TestCoverage(unittest.TestCase):
         both at different counts is the drain-by-one this dict's own
         comments say is rarer here than losing a whole line.
 
-        NOT MUTE AT ZERO. The tree is at zero reds, so both sides are
-        empty and a naive comparison would be `{} == {}` — true of a
-        correct paragraph, a deleted one and a garbled one alike. The
-        reading half is what carries the discrimination: `*none*` is a
-        positive spelling of empty and every other shape of that line
-        raises. See `handover_hand_authored_red_classes` for the grammar
-        and for why a livedoc marker was rejected here.
+        NOT MUTE AT ZERO. The tree can sit at zero non-catalogue reds,
+        so both sides are empty and a naive comparison would be
+        `{} == {}` — true of a correct roster, a deleted one and a
+        garbled one alike. The reading half is what carries the
+        discrimination: `*none*` is a positive spelling of empty and
+        every other shape of that file raises. See
+        `handover_hand_authored_red_classes` for the grammar, for why a
+        livedoc marker was rejected here, and for why a roster line left
+        behind at the old address is itself a failure.
         """
         transcribed = handover_hand_authored_red_classes()
         live = {k: v for k, v in red_bearing_classes().items()
@@ -50927,7 +51028,7 @@ class TestCoverage(unittest.TestCase):
             "these red-bearing classes cannot be written in the roster's "
             "grammar: %s. `red_bearing_classes` collects EVERY TestCase "
             "subclass carrying a red and applies no name filter, while "
-            "`_HAND_AUTHORED_ENTRY` accepts only `Test...`, so the two "
+            "`_ROSTER_ENTRY` accepts only `Test...`, so the two "
             "halves of this guard disagree about what a class name is — "
             "and the disagreement makes it UNFIXABLY red, because no "
             "accepted spelling of the line can satisfy it. Rename the "
@@ -50936,12 +51037,14 @@ class TestCoverage(unittest.TestCase):
             "the two problems you have" % (unspellable,))
         self.assertEqual(
             transcribed, live,
-            "SESSION-HANDOVER.md's non-catalogue red roster says %s while "
-            "the live decorators in this file say %s. Listed but drained: "
-            "%s. Red but undisclosed: %s. Transcribed at the wrong count: "
-            "%s. Edit the roster line — and note that a class whose LAST "
-            "red flips leaves the line entirely rather than dropping to 0, "
-            "and that an empty roster is written %s and never as a blank"
+            "tests/RED-ROSTER.md says %s while the live decorators in "
+            "this file say %s. Listed but drained: %s. Red but "
+            "undisclosed: %s. Transcribed at the wrong count: %s. Edit "
+            "tests/RED-ROSTER.md, which curators own for exactly this and "
+            "which is NOT SESSION-HANDOVER.md — and note that a class "
+            "whose LAST red flips leaves the roster entirely rather than "
+            "dropping to 0, and that an empty roster is written %s on its "
+            "own bullet and never as a blank"
             % (dict(sorted(transcribed.items())) or "nothing",
                dict(sorted(live.items())) or "nothing",
                sorted(set(transcribed) - set(live)) or "none",

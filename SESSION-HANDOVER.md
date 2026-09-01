@@ -150,8 +150,6 @@ had carried since Task 56 were wrong for a week and are right again today
 for different reasons. A matching total proves nothing here; only the split
 does, and only because something now checks it.
 
-Non-catalog red classes: `TestALandedLabelPositionNarratesThroughEitherDoor` (2)
-
 A REAL BROWSER IS THE REFEREE FOR THE PHANTOM-CAPTION CLASS since
 2026-08-31, after ELEVEN closures argued it against a model of one.
 `pin-untouched-captions.spec.ts` drags one of eight labelled boxes in a
@@ -678,6 +676,14 @@ day. Derive it if you need it (`MUTANTS_RENDER=1` and without, over
 `tests/test_mutants_render.py`), and read the parity as an event rather
 than a state reached: the moment any gated red is added the two runs
 differ again.
+
+The roster of non-catalogue red CLASSES is not in this file: it is one
+line per class in `tests/RED-ROSTER.md`, hand-typed, guarded by
+`TestCoverage.test_the_handover_transcribes_the_hand_authored_red_classes`
+and owned by curators, having left this file on 2026-09-01 because three
+curators in one session each had to edit a document they are told not to
+touch in order to land a red — and a line naming a red class HERE is now
+itself a failure, because that fact has exactly one home.
 
 The durable form of the counts, since totals here go stale between commits:
 `grep -cE '^\s*@unittest\.expectedFailure\s*$' tests/<file>.py` reads
