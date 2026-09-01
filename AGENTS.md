@@ -433,37 +433,47 @@ nothing else.** Not `SESSION-HANDOVER.md`, not `V0.9-PLAN.md`, not a file
 another agent is editing. If a red seems to require a third file, that is a
 finding to report to whoever dispatched you, not a scope to widen.
 
-**Landing a hand-authored red means editing both of them, in one change.**
-`HAND_AUTHORED_RED_CLASSES` in `tests/test_mutants.py` declares the class;
-`tests/RED-ROSTER.md` transcribes it as one bulleted line — the class name in
-backticks, then its red count in parentheses. Two `TestCoverage` guards
-compare each of those against the live `@unittest.expectedFailure`
-decorators, so a red that edits one and not the other fails the default
-suite. Flip a class's LAST red and its line leaves the roster entirely
-rather than dropping to `(0)`. An empty roster is written `- *none*` and
-never as a blank, because at zero reds a truncated file and an honest one
+**Landing a red means editing both halves of its census, in one change.**
+The roster file carries two labelled sections and every red belongs in one
+of them:
+
+| the red you landed | declare it in | transcribe it in |
+|---|---|---|
+| a hand-authored test class | `HAND_AUTHORED_RED_CLASSES` | the *Non-catalogue red classes* section, as `` - `TestName` (N) `` |
+| a catalogue mutant | `CATALOGUE_RED_IDS` | the *Catalogue red ids* section, as `` - `mutant_id` `` |
+
+Guards in `TestCoverage` compare each side against the live
+`@unittest.expectedFailure` decorators, in both directions, so a red that
+edits one and not the other fails the default suite. Flip a class's LAST red
+and its line leaves the roster entirely rather than dropping to `(0)`; a
+catalogue id carries no count at all. An empty section is written `- *none*`
+and never as a blank, because at zero a truncated file and an honest one
 enumerate the same nothing. The file's own header states the grammar and the
-reader's docstring says why each rule exists; read the failure message before
+readers' docstrings say why each rule exists; read the failure message before
 you edit, because it names the exact shape you have.
 
-**The roster is a literal with a guard over it, and never a live value.** Do
-not put a `<!-- live: -->` marker in `tests/RED-ROSTER.md`. `tests/livedoc.py`
+**Both rosters are literals with guards over them, and never live values.**
+Do not put a `<!-- live: -->` marker in `tests/RED-ROSTER.md`. `tests/livedoc.py`
 rules that a marker may carry a TOTAL and never a ROSTER: `refresh` silently
 repairs, so a drift tool cannot hold a roster as a floor — truncate one and
-its prescribed repair is to agree with the truncation. A class arriving by
-name is the event a human is meant to stop and read.
+its prescribed repair is to agree with the truncation. A red arriving BY
+NAME is the event a human is meant to stop and read.
 
-**Why the roster is not in `SESSION-HANDOVER.md` any more** (ruled
-2026-09-01). It was that file's census paragraph for its whole life, and
-three curators in one session each landed a red, each were stopped by the
-guard, and each edited the handover under protest. The constraint did not
-give — the roster moved. Concurrent curators now add distinct lines to a
-roster-only file instead of rewording one line of one shared prose document,
-and the anti-rot property survives untouched because the roster is still
-typed by a hand and never generated. The handover keeps a one-sentence
-pointer and no roster; a roster line left behind at the old address is itself
-a guard failure, since that fact has exactly one home.
-
+**Why neither roster is in `SESSION-HANDOVER.md` any more** (ruled
+2026-09-01, both halves the same day for different reasons). The classes were
+that file's census paragraph for their whole life, and three curators in one
+session each landed a red, were stopped by the guard, and edited the handover
+under protest. The catalogue ids were the model row of its catalog-reds
+table, where a narrative cell and a machine-read roster shared one syntax:
+the guard harvested every backticked token in the row, so the prose could not
+use a backtick and escaped its own subjects' underscores to get past the
+reader. The constraint did not give in either case — the rosters moved.
+Concurrent curators now add distinct lines to a roster-only file instead of
+rewording one line of one shared prose document, and the anti-rot property
+survives untouched because both rosters are still typed by a hand and never
+generated. The handover keeps a pointer and no reds; a roster line left
+behind at either old address is itself a guard failure, since each fact has
+exactly one home.
 
 ## Known debt
 
