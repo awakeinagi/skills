@@ -54,3 +54,4 @@ serialising on one sentence.
 Non-catalog red classes:
 
 - `TestALandedLabelPositionNarratesThroughEitherDoor` (2)
+- `TestAnAnsweredPinIsNotNarratedAsARemoval` (2)

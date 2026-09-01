@@ -28663,7 +28663,12 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    # found during the R8 close (pin-removed-verb, 2026-09-01):
+    # settling a ❓ somebody ANSWERED narrates byte-identically to
+    # throwing an unanswered one away. Two reds because the verb and
+    # the name fail apart; the class docstring carries the matrix.
+    "TestAnAnsweredPinIsNotNarratedAsARemoval": 2}
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
@@ -52434,6 +52439,427 @@ class TestDiscovery(unittest.TestCase):
                          [s["id"] for s in rec["survivors"]],
                          "the recorded sweep is stale — "
                          "run: python3 tests/test_mutants.py --sweep")
+
+
+# ---------------------------------------------------------------------------
+# pin-removed-verb — A PIN SOMEBODY ANSWERED IS NARRATED AS A REMOVAL.
+# Filed by curator-r8-1 (2026-09-01) as the narrower half of r7-2 and
+# reproduced here on `f29c3f3` before a line of this was written. R8 revns
+# 96, 97 and 98 headline `removed pin pin-benchmark`, `removed pin
+# pin-rerun-unit` and `removed pin pin-deadline` — three saves that closed
+# pins a named person had ANSWERED, narrated with the verb the record keeps
+# for a deletion and naming each pin by its raw machine id. The same
+# session's revn 95 headlines `rewired SEC EDGAR->Fundamentals to Data
+# vendor->Fundamentals (+6 more)`, in human labels, so the surface is
+# capable of both and this producer is not.
+#
+# THE SCENE IS TWO ELEMENTS AND TWO SAVES, which is the fewest that can
+# hold the contrast: one node, one ❓ pinned on it, and then two histories
+# that differ in NOTHING a reader can see except what happened to the
+# question. Same pin id, same question, same target label, deliberately —
+# see `assert_the_pin_close_puts_the_case` on why identical spellings are
+# what make the inequality below a claim about the VERB.
+R8_PIN_ARTIFACT = "flow"
+R8_PIN = "p1"                       # raw machine id on purpose, as in R8
+R8_PIN_TARGET = "a1"
+R8_PIN_TARGET_LABEL = "Checkout"
+R8_PIN_QUESTION = "Does checkout retry on timeout?"
+R8_PIN_ANSWER = "Yes, three times."
+# Both surfaces a reader could recognise the pin by, because "names the
+# pin" is a claim about the SUBJECT and not about which one a repair
+# picks. The question is the product's own established name for a pin —
+# `headline_for` renders `pin_added` as `asked: %r` off exactly this
+# field — and the target's label is how the rail lists it. 33 characters,
+# so the 60-character truncation on that sibling arm is a no-op here and
+# a repair that reuses it still matches.
+R8_PIN_NAMES = (R8_PIN_QUESTION, R8_PIN_TARGET_LABEL)
+# The record's OWN deletion vocabulary, read off `headline_for` rather
+# than invented: `pin_deleted` renders "removed pin", `annotation_deleted`
+# renders "removed note", `tooltip_removed` renders "removed the tooltip",
+# and the `_deleted` suffix arm renders "deleted". Refusing these two
+# words prescribes no replacement — "answered", "resolved", "settled",
+# "closed" and "you answered" all pass.
+R8_REMOVAL_VERBS = ("removed", "deleted")
+# Every way this record has of saying nothing worth reading happened —
+# `mechanical_summary`'s own two literals and the empty-save sentinel.
+# The verb red refuses these as hard as it refuses the removal verbs,
+# because suppressing the fact is the cheapest thing that makes a
+# headline stop saying "removed" and it is doctrine §1's exact shape:
+# silence read as health. Two of the five refused shapes below reach
+# the verb red through here and through nothing else.
+R8_SILENCE_SURFACES = (canvas.EMPTY_SAVE_HEADLINE, "housekeeping only",
+                       "no changes")
+
+
+def r8_pin_close(answered: bool = True,
+                 resolved: bool = True) -> dict[str, Any]:
+    """Stage one pin's whole life and read back the save that closed it.
+
+    The first batch draws Checkout and pins a ❓ on it. The answer, when
+    there is one, goes through `ServerApp.handle_post` on
+    `/api/pins/answer` — THE USER'S DOOR, and the only door that writes
+    testimony — so `answer_source` is written by the product and not by
+    this builder. The second batch closes the ❓, and the headline this
+    function returns is the one a real save produced.
+
+    Args:
+        answered: Post the user's answer before closing. False leaves
+            the pin open, which is the pole where the record's deletion
+            vocabulary is CORRECT.
+        resolved: Close the pin with `resolve_pin` — settling it, which
+            the registry records as `resolved`. False closes it with a
+            front-door `del` on the ❓, which the registry records as
+            `dismissed`: somebody threw the question away.
+
+    Returns:
+        A reading of the closing save: `headline`, `verbs` (its
+        `verb_counts`), `facts`, `status` and `answer_source` from the
+        pin's registry record after the save, and `question` — carried
+        rather than assumed so the guard can compare the two poles'
+        spellings instead of trusting that they match.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-pin-close-"))
+    app = None
+    project = canvas.Project(root)
+    try:
+        project.ensure_tree()
+        # ONE STORE, the app's own: a second `Store` over the same
+        # project reads the registry off disk at construction and then
+        # never sees the answer, so a builder holding its own would
+        # report `status: open` on a pin the product had answered — and
+        # the guard below would refuse the case for the builder's fault.
+        app = canvas.ServerApp(project)
+        store = app.store
+        store.apply_batch({
+            "base_revn": 0, "artifact": R8_PIN_ARTIFACT,
+            "create": {"id": R8_PIN_ARTIFACT, "name": "Flow",
+                       "type": "flow", "concept": "pipe",
+                       "concept_name": "Pipe"},
+            "ops": [
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": R8_PIN_TARGET,
+                    "label": R8_PIN_TARGET_LABEL, "x": 0, "y": 0,
+                    "width": 100, "height": 60, "role": "node"}},
+                {"op": "pin", "id": R8_PIN, "question": R8_PIN_QUESTION,
+                 "target": R8_PIN_TARGET}]})
+        if answered:
+            app.handle_post("/api/pins/answer",
+                            {"id": R8_PIN, "answer": R8_PIN_ANSWER})
+        closing = ({"op": "resolve_pin", "id": R8_PIN} if resolved
+                   else {"op": "del", "id": R8_PIN})
+        landed = store.apply_batch({"base_revn": store.head_revn(),
+                                    "artifact": R8_PIN_ARTIFACT,
+                                    "ops": [closing]})
+        record = landed[0] if isinstance(landed, tuple) else landed
+        pin = next((p for p in store.registry["pins"]
+                    if p["id"] == R8_PIN), {})
+        reading = {
+            "headline": (record.get("summary") or {}).get("headline") or "",
+            "verbs": (record.get("summary") or {}).get("verb_counts") or {},
+            "facts": list((((record.get("artifacts") or {})
+                            .get(R8_PIN_ARTIFACT)) or {}).get("facts") or []),
+            "status": pin.get("status"),
+            "answer_source": pin.get("answer_source"),
+            "question": pin.get("question") or ""}
+    finally:
+        if app is not None:
+            app.log_file.close()
+        # Runtime state lives OUTSIDE the project root — `Project` keys
+        # it by a hash of that root under the shared temp dir — so
+        # removing the tree alone would leak three files per call.
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(root, ignore_errors=True)
+    return reading
+
+
+def assert_the_pin_close_puts_the_case(case: unittest.TestCase,
+                                       subject: dict[str, Any],
+                                       control: dict[str, Any]) -> None:
+    """Refuse a pair in which neither red below could fail.
+
+    Both reds are claims about a CONTRAST — a question somebody
+    answered and settled against a question somebody threw away — and a
+    pair that does not hold both poles satisfies them over nothing.
+    Five clauses, and the last two are the ones that are easy to lose:
+    a control whose headline never says "removed" would let the
+    subject's clause pass over a producer that has no deletion
+    vocabulary at all, and two pins spelled differently would let the
+    inequality flip for a repair that only humanised the id.
+
+    Asserts through `case` rather than raising on its own account, so a
+    refused pair is reported against the test that built it and reads
+    as the ordinary failure it is.
+
+    Args:
+        case: The test asserting, so a failure is reported against it.
+        subject: A reading of the answered-then-resolved close.
+        control: A reading of the open-then-deleted close.
+    """
+    case.assertEqual(
+        (subject["status"], subject["answer_source"]),
+        ("resolved", "user"),
+        "the subject pin closed as %r with answer_source %r, not as a "
+        "question a person ANSWERED and then settled — so a red "
+        "demanding the headline say it was answered would be demanding "
+        "an invention" % (subject["status"], subject["answer_source"]))
+    case.assertEqual(
+        (control["status"], control["answer_source"]), ("dismissed", None),
+        "the control pin closed as %r with answer_source %r, not as an "
+        "unanswered question somebody threw away — so the pole where "
+        "the record's removal verb is CORRECT is not in this pair and "
+        "the subject has nothing to be told apart from"
+        % (control["status"], control["answer_source"]))
+    for name, reading in (("subject", subject), ("control", control)):
+        # COUNTED AND ADDRESSED, never named: a repair is allowed to
+        # rename the fact kind — one of the four measured below mints
+        # `pin_answered` — and a clause spelling `pin_deleted` would
+        # refuse the pair for the repair having worked.
+        case.assertEqual(
+            (sum(reading["verbs"].values()),
+             {f.get("element") for f in reading["facts"]}),
+            (1, {R8_PIN}),
+            "the %s save narrates %s about %s, not one close of the pin "
+            "under test — the headline contest measured below is then "
+            "about some other change and the reds are reading a sentence "
+            "they were not written about"
+            % (name, reading["verbs"],
+               sorted({str(f.get("element")) for f in reading["facts"]})))
+    case.assertTrue(
+        any(v in control["headline"] for v in R8_REMOVAL_VERBS),
+        "the control headline is %r and uses none of the record's "
+        "removal verbs %s. The subject's clause below refuses exactly "
+        "those words, so a producer that had stopped saying them would "
+        "make it pass while narrating a settled question as anything at "
+        "all" % (control["headline"], list(R8_REMOVAL_VERBS)))
+    case.assertEqual(
+        subject["question"], control["question"],
+        "the two pins ask different questions (%r vs %r), so their "
+        "headlines can differ over their CONTENT. The inequality below "
+        "is a claim about the verb and it only is one while every "
+        "other spelling in the two sentences is identical"
+        % (subject["question"], control["question"]))
+
+
+class TestAnAnsweredPinIsNotNarratedAsARemoval(unittest.TestCase):
+    """pin-removed-verb: settling a question is narrated as deleting it.
+
+    THE FINDING, in one line: when a save closes a ❓ that a named
+    person ANSWERED, the headline calls it a removal and names the pin
+    by its raw machine id — the same sentence, byte for byte, that the
+    record produces when somebody throws an unanswered question away.
+
+    THE PARENT IS r7-2 ("a move can never be a CAUSE; headline names a
+    raw id"), and this is its narrower half: R8 revns 96, 97 and 98
+    headline `removed pin pin-benchmark`, `removed pin pin-rerun-unit`
+    and `removed pin pin-deadline`. r7-2's other half — a derived
+    re-route outranking authored work — lives in a different class over
+    a different producer (`mark_consequences` and SALIENCE, reached
+    through `apply_batch`); this one is `semantic_facts`' `pin_deleted`
+    arm reached through `/api/pins/answer` and `resolve_pin`. Filing
+    them together would make one red stand for two defects.
+
+    TWO REDS BECAUSE THE TWO HALVES FAIL APART, and the matrix below
+    measures it rather than guessing: the verb is decided by which fact
+    `headline_for` is handed, the name by what that branch renders out
+    of it, and four of the seven candidates move exactly one.
+
+    WHAT THE REDS DO NOT SAY. Neither asks for a particular word. The
+    verb red refuses the record's own two deletion verbs and accepts
+    every other spelling — "answered", "resolved", "settled", "closed",
+    "you answered" all pass, and three of the four measured repairs
+    below pick three different words. It additionally refuses SILENCE,
+    because `mechanical_summary` will happily narrate a suppressed
+    fact as "housekeeping only" and a question somebody answered being
+    settled is not housekeeping. The name red accepts the question text
+    or the target's label, so the two honest answers are both allowed
+    and neither is prescribed.
+
+    MEASURED ON `f29c3f3`, 2026-09-01, every candidate monkeypatched
+    from a throwaway plugin under `/tmp/curator-pin-removed-verb/` and
+    never by editing `canvas.py`:
+
+        repair                                    verb    name
+        (today's tree)                            red     red
+        fact carries the pin's status at close    GREEN   GREEN
+        a distinct `pin_answered` fact kind       GREEN   GREEN
+        verb from status, raw id kept             GREEN   red
+        `resolve_pin` marks its own fact          GREEN   red
+        the id humanised, "removed" kept          red     GREEN
+
+    FOUR SHAPES FLIP THE VERB AND THREE FLIP THE NAME, so neither red
+    prescribes a repair. The last row is the one the finding names
+    explicitly: humanising the id is the tempting cheap fix, it is a
+    real improvement to the name, and it leaves a settled question
+    narrated as a deletion — so the verb red must not move for it, and
+    does not.
+
+    FIVE SHAPES NOBODY HAD TRIED WERE RUN IN THE OTHER DIRECTION, and
+    all five are REFUSED:
+
+      * the `pin_deleted` fact marked `low_signal` — refused, and the
+        SILENCE clause is the only thing that refuses it: the save
+        narrates "housekeeping only (1 low-signal change)", which
+        carries no removal verb and differs from the control, so the
+        other two clauses both went green. Suppressing the fact is the
+        cheapest thing that stops a headline saying "removed", and
+        without that clause this no-repair would have read as the fix.
+        Doctrine §1 turned on our own record.
+      * the fact dropped entirely — refused twice over, which is the
+        healthier answer: the silence clause reads `saved without
+        changing anything` about a save that took an element off the
+        canvas, and the population guard refuses the pair outright
+        because the subject no longer narrates a close of this pin.
+      * the pin named by its TARGET's raw id (`a1`) — refused by the
+        NAME red while the verb red goes green, which is right: the
+        verb really was repaired and a different machine's id is still
+        not a name a reader has seen.
+      * the CONTROL's headline changed instead of the subject's, so
+        that a dismissal reads "deleted pin p1" while a settled
+        question still reads "removed pin p1" — refused, and this is
+        the shape the verb red's first clause exists for. Measured:
+        the inequality clause DID go green and `['removed']` alone
+        held the red. An inequality on its own would have blessed a
+        change that never touched the subject.
+      * "removed" kept with the answer's source appended — `removed
+        pin p1 (answered by user)` — refused. Naming the answerer is
+        not what the verb red wants; it wants the sentence to stop
+        saying the question was thrown away.
+
+    WHAT THIS CLASS DOES NOT REACH. It does not assert that the
+    headline names WHO answered, though `answer_source` is written and
+    available: every spelling of an attribution is a wording choice,
+    and a red demanding one would be prescribing prose. The guard below
+    asserts `answer_source` is populated so that a repair which wants
+    to say it can, and the verb red passes whether it does or not.
+    """
+
+    def test_the_pair_puts_the_case(self) -> None:
+        """Assert the premise before either red's colour is believed.
+
+        Both reds are claims over a contrast between two closes, and a
+        pair missing either pole satisfies them vacuously — invisibly
+        so, since `expectedFailure` swallows errors as readily as
+        failures.
+        """
+        assert_the_pin_close_puts_the_case(
+            self, r8_pin_close(), r8_pin_close(answered=False,
+                                               resolved=False))
+
+    @unittest.expectedFailure
+    def test_a_settled_question_is_not_narrated_as_a_deletion(self) -> None:
+        """The verb half: closing an answered pin is not a removal.
+
+        Three clauses, all relations. The subject may not use the
+        record's own deletion verbs; it may not fall back on one of the
+        record's ways of saying nothing happened; and it may not be the
+        same sentence the record produces for the opposite event.
+        """
+        subject = r8_pin_close()
+        control = r8_pin_close(answered=False, resolved=False)
+        said_removed = [v for v in R8_REMOVAL_VERBS
+                        if v in subject["headline"]]
+        went_quiet = [s for s in R8_SILENCE_SURFACES
+                      if s in subject["headline"]]
+        self.assertEqual(
+            (said_removed, went_quiet,
+             subject["headline"] == control["headline"]),
+            ([], [], False),
+            "this save settled a question %s answered (%r) and headlines "
+            "it %r. The record's own removal verbs are %s; a save that "
+            "threw the SAME question away unanswered headlines %r. The "
+            "two events are opposite and the sentence is identical."
+            % (subject["answer_source"], R8_PIN_ANSWER,
+               subject["headline"], list(R8_REMOVAL_VERBS),
+               control["headline"]))
+
+    @unittest.expectedFailure
+    def test_a_closed_pin_is_named_by_its_question_not_its_id(self) -> None:
+        """The name half: a ❓ has a question, and the headline has an id.
+
+        Satisfied by the question text or by the target's label, so
+        both surfaces a reader could recognise the pin by are accepted
+        and neither is prescribed.
+        """
+        subject = r8_pin_close()
+        self.assertTrue(
+            any(name in subject["headline"] for name in R8_PIN_NAMES),
+            "the headline of this save is %r. It names the pin by the id "
+            "the store minted for it and by nothing a reader has ever "
+            "seen: not the question it asked (%r), not the label of what "
+            "it was pinned to (%r). The record holds both — `pin_added` "
+            "already headlines this same pin as `asked: %r`."
+            % (subject["headline"], R8_PIN_QUESTION, R8_PIN_TARGET_LABEL,
+               R8_PIN_QUESTION))
+
+    def _guard_says(self, subject: dict[str, Any],
+                    control: dict[str, Any]) -> str | None:
+        """Report what the population guard says about one damaged pair.
+
+        Args:
+            subject: The answered-and-settled reading, possibly damaged.
+            control: The thrown-away reading, possibly damaged.
+
+        Returns:
+            The assertion message the guard raised, or None when it
+            raised nothing — which is a survivor and the finding.
+        """
+        try:
+            assert_the_pin_close_puts_the_case(self, subject, control)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
+    def test_the_population_guard_notices_a_pair_that_lost_a_pole(
+            self) -> None:
+        """The vacuity mutants, watched failing before the reds are read.
+
+        THE INPUTS ARE DAMAGED AND NOT THE FUNCTION. The first three
+        re-stage the pin's life through the product with one step
+        changed, so the pair under the guard is one the store really
+        writes; the last three forge the READING, because no sequence
+        of ops makes this producer emit a control with no removal verb,
+        a save narrating two pin closes, or two pins asking different
+        questions — and those are exactly the states an upstream change
+        could put the guard in without anybody noticing.
+
+        Each mutant is required to trip the clause it targets rather
+        than merely to trip something: a mutant that fails a later
+        clause has proved that clause twice and its own not at all.
+        """
+        subject = r8_pin_close()
+        control = r8_pin_close(answered=False, resolved=False)
+        mutants: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
+            ("the subject never answered",
+             r8_pin_close(answered=False), control, "ANSWERED"),
+            ("the subject thrown away rather than settled",
+             r8_pin_close(resolved=False), control, "ANSWERED"),
+            ("the control settled rather than thrown away",
+             subject, r8_pin_close(answered=False), "threw away"),
+            ("the control's removal verb gone",
+             subject, dict(control, headline="pin %s is gone" % R8_PIN),
+             "removal verbs"),
+            ("the subject narrating a second close as well",
+             dict(subject, verbs={"pin_deleted": 1, "deleted": 1}),
+             control, "not one close of the pin"),
+            ("the two pins asking different questions",
+             dict(subject, question="Something else entirely?"), control,
+             "different questions")]
+        verdicts = [(name, expected, self._guard_says(sub, ctl))
+                    for name, sub, ctl, expected in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, expected, (said or "")[:200])
+                 for name, expected, said in verdicts
+                 if said is not None and expected not in said]
+        self.assertEqual(
+            (survived, [w[:2] for w in wrong]), ([], []),
+            "the population guard did not notice %s, and answered the "
+            "wrong clause for %s. A survivor is the finding: that clause "
+            "is decoration and the two reds above are one builder edit "
+            "away from passing over a pair with no contrast in it. "
+            "Detail: %s" % (survived, [w[0] for w in wrong], wrong))
 
 
 if __name__ == "__main__":
