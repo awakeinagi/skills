@@ -5270,6 +5270,372 @@ class TestPaintOrder(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE FILL-OVER-TEXT CLASS. Found in the R8 close (pipeline r8-close, leaf
+# 1.3.1) on 2026-09-01, and filed as a RECURRENCE rather than a first
+# sighting: n=2 inside one assessment run — the retention rows on
+# `onboarding-data`, then three boxes shaded yellow on `onboarding-infra`
+# whose pre-computed blast-radius lines the fill painted out. The assessor
+# caught both in the RENDER and nothing in the product said a word either
+# time. Their sentence for it: "a solid fill and a `role: decoration` text
+# on the same box always loses."
+#
+# It is the hole task 45 knowingly left. `normalize_z_order` bands every
+# TAGGED composed part above the owner it is drawn on, so a kpi's value and
+# a checkbox's tick survive an opaque owner (`TestComposedContentVisibility`
+# in the render tier holds both poles of that). The UNTAGGED `role:
+# decoration` still bands at 1, beneath nodes at 3, because layout.md reads
+# it as a standalone BACKDROP. A backdrop is a shape. This class is about
+# the case where it is a TEXT, and a text is never furniture: it is ink an
+# agent wrote for a reader, and an opaque host declared after it erases it.
+#
+# BASE: one 240x100 node with a bound label and one `role: decoration` text
+# line drawn inside it, both through `canvas.make_element` and ordered by
+# `canvas.normalize_z_order` — the shipped funnel every agent op goes
+# through, so the arrangement under test is the product's own and not this
+# file's. MUTATION: one documented `backgroundColor` on the host, which is
+# a first-class property of both `add` and `mod`. MAGNITUDE: the emitted
+# order — the host's fill lands at SVG offset 431 and the line's glyphs at
+# 327, so 100% of a 168x22 box of ink goes under paint, against 0% with the
+# fill left off. DIRECTION: the picture UNDER-reports, which is the unsafe
+# direction — the reader sees a tidy shaded box and has no way to be
+# suspicious of a sentence that leaves no mark. NEIGHBOUR, green and in
+# this class: the identical scene with a transparent host keeps the line.
+#
+# MEASURED IN A REAL BROWSER BEFORE IT WAS WRITTEN, because the whole claim
+# is about a picture. The shipped Excalidraw bundle, driven headless
+# through `canvas.py`'s screenshot protocol on this exact scene, paints
+# "Work queue" on a yellow box and nothing else; the transparent pole
+# paints "Work queue" and "the 2-day sweep stops". `render_svg` agrees, and
+# the render tier reads the line at 0px of ablation ink under the fill
+# against 663px without it. So the two renderers are not at fault: both
+# honour array order faithfully, and the defect is in the order the model
+# hands them. The pin lives HERE, in the model tier, for that reason and
+# for one more — the render tier's red census is transcribed in
+# SESSION-HANDOVER.md, which a curator may not edit.
+#
+# THE ASSERTION IS A DISJUNCTION, not "the text is on top". Three arms, and
+# every honest repair satisfies one of them: the composition is REFUSED, or
+# the line reaches the PICTURE, or a reader REPORTS the burial. Measured to
+# flip under nine separate repairs monkeypatched from a throwaway tree —
+# banding the untagged decoration text above nodes; banding every text
+# above nodes; banding by ink-bearing content; per-pair containment
+# banding; correcting the role at mint; refusing the op; softening the
+# fill to hachure; a lint that names the covered element; and paint-order
+# repair inside `render_svg` alone. Two of those the pair REJECTS on the
+# neighbour's evidence rather than the red's, which is the neighbour doing
+# the job doctrine 3 gives it: refusing the op kills the transparent pole
+# too, and softening the fill is caught by the shade-survives control.
+# ---------------------------------------------------------------------------
+
+# The yellow the R8 agent shaded three boxes with, kept as the literal it
+# was and not neutralized: it is the string the measurement FINDS in the
+# emitted markup, so it has to be a colour nothing else in the scene wears.
+_SHADE = "#ffec99"
+# One of the blast-radius lines from `onboarding-infra`, verbatim. Its job
+# is the same — a string unique in the emitted SVG — and keeping the real
+# sentence rather than "lorem" is what lets a reader of a failure message
+# recognize the artifact it came from.
+_RADIUS_LINE = "the 2-day sweep stops"
+
+
+def _shaded_host_scene(fill: str) -> list[dict]:
+    """A node with a `role: decoration` line drawn on it, at `fill`.
+
+    Composed through `canvas.make_element` and ordered by
+    `canvas.normalize_z_order` rather than assembled by hand, for the
+    reason `_kpi_tile` gives in the render tier: the defect is not a
+    scene anyone drew, it is what the mint and the banding produce
+    between them, and a hand-built stack would be this file asserting
+    its own arrangement instead of the product's.
+
+    Round coordinates and one line of text, which is as small as the
+    class gets: the line sits at y=160 rather than centred so it clears
+    the bound label at y=139 and no `text_over_text` warning rides
+    along — an incidental finding here would make the silence arm read
+    as satisfied by the wrong check.
+
+    Args:
+        fill: The host's `backgroundColor`. `_SHADE` is the R8 scene;
+            `"transparent"` is the neighbour and the whole corpus.
+
+    Returns:
+        The three-element scene in paint order as the funnel leaves it:
+        `radius`, `host`, `host-label`.
+
+    Raises:
+        RuntimeError: If `make_element` refused either spec or returned
+            a different number of parts. Said out loud because a refused
+            spec returns an empty list, and a scene with no decoration
+            in it would make every measurement below agree vacuously —
+            including the red's, which would then be a broken pin
+            reading as a healthy one.
+    """
+    ids: set[str] = set()
+    errors: list[str] = []
+    parts = list(canvas.make_element(
+        {"id": "host", "type": "rectangle", "x": 100, "y": 100,
+         "width": 240, "height": 100, "label": "Work queue",
+         "backgroundColor": fill}, ids, errors))
+    parts += canvas.make_element(
+        {"id": "radius", "type": "text", "x": 120, "y": 160,
+         "text": _RADIUS_LINE, "role": "decoration"}, ids, errors)
+    if errors or len(parts) != 3:
+        raise RuntimeError(
+            "make_element refused the shaded-host scene: errors=%s, "
+            "parts=%s" % (errors, [p.get("id") for p in parts]))
+    return canvas.normalize_z_order(parts)
+
+
+def _box_covers(host: dict, deco: dict) -> bool:
+    """Whether `host`'s stored box contains `deco`'s entirely.
+
+    Containment and not mere overlap, because a partly-covered line is a
+    legibility argument and a wholly-covered one is not an argument at
+    all. The red only ever claims the second.
+
+    Args:
+        host: The candidate covering element.
+        deco: The element being covered.
+
+    Returns:
+        True if every corner of `deco`'s box lies inside `host`'s.
+    """
+    return (host["x"] <= deco["x"]
+            and host["y"] <= deco["y"]
+            and host["x"] + host["width"] >= deco["x"] + deco["width"]
+            and host["y"] + host["height"] >= deco["y"] + deco["height"])
+
+
+def fill_over_text_verdict(els: list[dict], deco_id: str = "radius") -> str:
+    """What becomes of `deco_id`: refused, visible, reported, or buried.
+
+    The relation the red pins, as one word. Only `"buried"` is a
+    finding: the other three are the three ways the product can be
+    honest about a line an agent wrote — it declined to make the scene,
+    it put the line in the picture, or it told somebody the fill covers
+    it. Written as a disjunction on purpose, so the red asserts a
+    property rather than prescribing which layer repairs it.
+
+    Emission order in `render_svg`'s markup is the picture here, the
+    same substrate `_paint_offsets` and `TestPaintOrder` use and for the
+    same reasons — cheap, exact, on every commit. It is licensed for
+    THIS scene by measurement rather than by assumption: the shipped
+    client, driven headless on these elements, paints the same two
+    pictures the markup describes. The general caveat still stands and
+    is written in the render tier's paint-order section: markup order
+    and occlusion come apart wherever anything is transparent or
+    clipped, and nothing here is.
+
+    Args:
+        els: The scene, as the funnel leaves it.
+        deco_id: The decoration whose fate is being read.
+
+    Returns:
+        `"visible"` when no opaque fill covering `deco_id` is emitted
+        after its glyphs; `"reported"` when one is and some line of
+        `lint_layout` or some finding names the element; `"buried"`
+        otherwise.
+
+    Raises:
+        ValueError: If `deco_id` emitted no glyphs at all, or if a
+            covering element emitted no fill. Both are EXPORT
+            COMPLETENESS rather than paint order — `_paint_offsets`
+            refuses the same way and for the same reason — and a scene
+            with nothing to bury must never come back `"visible"`.
+    """
+    svg = canvas.render_svg(els)[0]
+    deco = next(e for e in els if e["id"] == deco_id)
+    at = svg.find(deco.get("text") or "")
+    if not (deco.get("text") or "").strip() or at < 0:
+        raise ValueError(
+            "%s emitted no glyphs at all — that is export completeness, "
+            "not paint order, and this scene cannot answer the question "
+            "it was built to ask" % deco_id)
+    buried = []
+    for e in els:
+        bg = e.get("backgroundColor")
+        if (e["id"] == deco_id or e.get("fillStyle") != "solid"
+                or bg in (None, "transparent")
+                or not _box_covers(e, deco)):
+            continue
+        where = svg.find("fill='%s'" % bg)
+        if where < 0:
+            raise ValueError(
+                "%s carries a solid %s fill that the export never emitted "
+                "— export completeness again, not paint order"
+                % (e["id"], bg))
+        if where > at:
+            buried.append(e["id"])
+    if not buried:
+        return "visible"
+    lint = canvas.lint_layout(els, artifact_type="flow")
+    spoke = [ln for ln in lint["errors"] + lint["warnings"] + lint["notes"]
+             if deco_id in ln]
+    spoke += [f["raw"] for f in collect_findings(els)
+              if f.get("element") == deco_id]
+    return "reported" if spoke else "buried"
+
+
+class TestAShadedBoxKeepsTheLineWrittenOnIt(unittest.TestCase):
+    """The fill-over-text class: a solid fill must not erase a decoration.
+
+    ONE LINE: shading a box with a documented `backgroundColor` paints
+    that box OVER a `role: decoration` text already drawn inside it, and
+    no lint, no finding and no narration says so — the agent learns it
+    only by looking at the render, twice in R8 alone.
+
+    REPAIRS MEASURED TO FLIP IT, all nine monkeypatched from
+    `/tmp/curator-fill-over-text/` and never by editing `canvas.py`:
+    banding an untagged `role: decoration` TEXT above the node band;
+    banding every `type: text` above it; banding by ink-bearing content
+    rather than by type; per-pair containment banding; correcting the
+    role to `annotation` at mint; refusing the spec at mint; softening
+    the burying fill to `hachure`; a `lint_layout` rule that names the
+    covered element; and reordering inside `render_svg` alone. The last
+    three the class as a whole still rejects — the lint one legitimately
+    (that is the `"reported"` arm doing its job), the refusal because
+    the neighbour dies with it, and the hachure because the shade
+    control below holds the fill the user asked for.
+
+    NOT A DETECTOR MISS IN THE RENDER TIER — a product defect the render
+    tier can already see, which is the same shape task 44's red had.
+    `ablation_existence` reads the line at 0px under the fill and 663px
+    without it (2026-09-01). What is missing is any reader on the model
+    side, and the disjunction is written so that supplying one is a
+    legitimate repair rather than a second-best one.
+    """
+
+    @unittest.expectedFailure
+    def test_red_a_solid_fill_paints_out_the_line_drawn_on_the_box(self
+                                                                   ) -> None:
+        """Curator, pipeline r8-close leaf 1.3.1, 2026-09-01. RED.
+
+        The R8 turn-10 scene, minimized to one box and one line. The
+        agent shaded three boxes to group them and the shade swallowed
+        the pre-computed blast radii it had written on them — the
+        sentences it had just argued were the payload of the diagram,
+        "because at three in the morning nobody traces a graph". It
+        found out by looking. The product's whole loop is that the
+        drawing is narrated back, and this is content that leaves the
+        drawing without leaving the model, so there is nothing to
+        narrate the loss of.
+
+        Asserted as a disjunction and not as an ordering, because a
+        curated red that demanded "the text is emitted last" would be
+        prescribing the banding repair over the four others that are
+        equally honest here. What the drawing gets wrong is that a
+        sentence an agent wrote for a reader is gone and nobody is told;
+        any of refusing, showing, or reporting fixes that.
+        """
+        self.assertNotEqual(
+            fill_over_text_verdict(_shaded_host_scene(_SHADE)), "buried",
+            "shading `host` %s paints its solid fill over the "
+            "`role: decoration` line 'radius' already drawn inside it — "
+            "and lint_layout and collect_findings both say nothing about "
+            "`radius` at all. The line is not in the picture and not in "
+            "any report: a reader sees a tidy shaded box" % _SHADE)
+
+    def test_neighbour_a_transparent_host_leaves_the_same_line_visible(
+            self) -> None:
+        """The other pole, and where this pair keeps its literals.
+
+        One variable moves — the host's `backgroundColor` — so a
+        difference in verdict is the fill and nothing else. The red
+        holds the RELATION and this holds the numbers, which is the
+        split that lets an honest repair change the arrangement without
+        leaving the pin red over a correct drawing.
+
+        It also carries the live half the red's `"reported"` arm needs.
+        That arm is a silence — no line of lint names `radius` — and a
+        silence is what a dead lint produces too, so this asserts that
+        `lint_layout` SPEAKS on this very scene: it emits exactly one
+        note, about the host being unconnected. The lint is alive, it
+        looks at these elements, and it has nothing to say about a
+        sentence going under paint.
+        """
+        scene = _shaded_host_scene("transparent")
+        self.assertEqual([e["id"] for e in scene],
+                         ["radius", "host", "host-label"],
+                         "the funnel bands the untagged decoration first; "
+                         "if that changed, the red above is measuring "
+                         "something else")
+        deco = next(e for e in scene if e["id"] == "radius")
+        host = next(e for e in scene if e["id"] == "host")
+        self.assertEqual((deco["width"], deco["height"]), (168, 22))
+        self.assertTrue(
+            _box_covers(host, deco),
+            "the line must sit wholly inside the host in BOTH poles, or "
+            "the red's silence is about geometry rather than about fill")
+        self.assertEqual(fill_over_text_verdict(scene), "visible")
+        lint = canvas.lint_layout(scene, artifact_type="flow")
+        self.assertEqual(
+            (lint["errors"], lint["warnings"], lint["notes"]),
+            ([], [], ["unconnected node(s): host ('Work queue')"]),
+            "the lint has to be awake on this scene for the red's "
+            "silence to be about the drawing and not about the check")
+
+    def test_the_shade_the_agent_asked_for_survives_the_funnel(self) -> None:
+        """The control that refuses a repair which softens the fill.
+
+        Green today and it has to stay green under whatever lands: one
+        of the nine measured repairs reaches `"visible"` by demoting the
+        burying `solid` to `hachure`, which delivers a hatched box to
+        somebody who asked for a shaded one. The red alone accepts that
+        — it only ever asks whether the line survived — so the refusal
+        lives here, as a separate positive fact about the picture rather
+        than as an extra clause bolted onto the red.
+
+        Stated about the STORED scene, not the markup, because that is
+        where such a repair would have to write: `add`/`mod` document
+        `backgroundColor` and `fillStyle` as first-class, and a funnel
+        that silently rewrites either has answered a different request
+        than the one it was given.
+        """
+        host = next(e for e in _shaded_host_scene(_SHADE)
+                    if e["id"] == "host")
+        self.assertEqual((host["backgroundColor"], host["fillStyle"]),
+                         (_SHADE, "solid"),
+                         "the funnel must hand back the fill it was given: "
+                         "keeping a line legible by quietly restyling the "
+                         "box is a different drawing, not a repair")
+
+    def test_a_line_with_no_glyphs_is_refused_and_never_read_as_visible(
+            self) -> None:
+        """The vacuity guard, damaged at the INPUT and watched failing.
+
+        The hazard is not the red going green — it is the red staying
+        red about a scene whose subject has vanished. Blank the line's
+        text and `str.find("")` answers 0, so a covering fill emitted
+        anywhere at all is emitted "after" it and the verdict comes back
+        `"buried"`: the pin reports that a sentence was painted out of a
+        drawing that never had one. That is the -1 hazard
+        `_paint_offsets` refuses in its own docstring, met through the
+        other end of the same function, and an `expectedFailure` cannot
+        tell it from the real reading.
+
+        Damaging the INPUT rather than the function is the point — a
+        probe that replaced `render_svg` wholesale would be blind to
+        exactly this — and the guard was WATCHED FAILING: lift the
+        emptiness refusal in a throwaway copy and this method reports
+        `ValueError not raised` while the blanked scene reads
+        `"buried"`, measured 2026-09-01.
+
+        The second damage is the population's other end. Move the line
+        clear of the host and the verdict must be `"visible"` on its
+        own, which is what says the red is keyed on the COVERAGE and not
+        on the word `decoration`.
+        """
+        blanked = _shaded_host_scene(_SHADE)
+        next(e for e in blanked
+             if e["id"] == "radius").update(text="", originalText="")
+        with self.assertRaises(ValueError):
+            fill_over_text_verdict(blanked)
+        moved = _shaded_host_scene(_SHADE)
+        next(e for e in moved if e["id"] == "radius")["x"] = 600.0
+        self.assertEqual(fill_over_text_verdict(moved), "visible")
+
+
+# ---------------------------------------------------------------------------
 # The bounds loop and the paint loop must read the SAME text (curator batch
 # 23 item 3, from task 46 §9 C1 and that task's review, 2026-08-15).
 #
@@ -28663,7 +29029,21 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestAShadedBoxKeepsTheLineWrittenOnIt": 1}
+# `TestAShadedBoxKeepsTheLineWrittenOnIt` ARRIVED 2026-09-01 with the R8
+# close's fill-over-text finding (pipeline r8-close, leaf 1.3.1) — a
+# RECURRENCE at n=2 inside one run, and the first entry here whose subject
+# is a hole a previous fix left on purpose rather than one nobody had seen.
+# Task 45 lifted every TAGGED composed part above its owner and wrote down
+# that an untagged `role: decoration` stays beneath because it is a
+# backdrop; R8 shaded three boxes and the fill ate the blast-radius TEXT
+# lines drawn on them, which is that sentence meeting an element a backdrop
+# can never be. One red because the class has one subject and the arms of
+# its disjunction fail together: refused, visible and reported are three
+# ways of being honest about the same line, and today's tree is none of
+# them.
+#
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
