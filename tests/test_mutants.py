@@ -690,9 +690,17 @@ _PIN_RIVAL_LINE = re.compile(r"pin (?P<element>[\w-]+) asks about ")
 # there, correctly: there is no rival distance to be right or wrong about.
 #
 # THE LIST IS ORDERED AND ITS PLURALITY IS THE POINT. `_rect_gap`
-# (canvas.py:14976) is `hypot` of the two axis separations with EACH AXIS
-# CLAMPED AT ZERO, so when the boxes overlap both terms clamp and the
-# whole thing is `hypot(0, 0)` — one sentence for two pictures: a ❓ whose
+# (canvas.py:14976) is quoted WHOLE here, because a fragment of it is what
+# sent one review down a wrong branch — read as `max(bx1 - ax2, ax1 - bx2,
+# 0)` alone it looks like a single-axis clamp, and the repair space for
+# that is a different space:
+#
+#     return math.hypot(max(bx1 - ax2, ax1 - bx2, 0),
+#                       max(by1 - ay2, ay1 - by2, 0))
+#
+# A 2D box distance with EACH AXIS CLAMPED INDEPENDENTLY. When the boxes
+# overlap both terms clamp and the whole thing is `hypot(0, 0)` — one
+# sentence for two pictures: a ❓ whose
 # slot ABUTS the rival and a ❓ whose slot is buried 10px inside it both
 # read "only 0px from <rival>". (The pair below is not that pair: it holds
 # 16px of real air against 10px of penetration, so the neighbour reads
@@ -24728,10 +24736,16 @@ _register(Mutant(
 # button, 10px in, with the button's fill behind the glyph. An agent
 # relaying "0px" tells the user their marker is beside the wrong button
 # when it is on top of it, and those are different repairs — nudge it, or
-# get it out of there. The cause is `_rect_gap` (canvas.py:14976), which
-# is `hypot` of two independently clamped axis separations: when the
-# boxes overlap BOTH terms clamp and the result is `hypot(0, 0)`. So a ❓
-# ABUTTING a rival and a ❓ BURIED in one produce the same reading. That
+# get it out of there. The cause is `_rect_gap` (canvas.py:14976), whose
+# whole body is
+#
+#     return math.hypot(max(bx1 - ax2, ax1 - bx2, 0),
+#                       max(by1 - ay2, ay1 - by2, 0))
+#
+# — two axis separations clamped INDEPENDENTLY and then combined, so when
+# the boxes overlap BOTH terms clamp and the result is `hypot(0, 0)`. So
+# a ❓ ABUTTING a rival and a ❓ BURIED in one produce the same reading.
+# That
 # is the conflated pair, and an earlier draft of this comment named the
 # wrong one: the two poles BELOW are 16/clear and 10/overlap, and the
 # neighbour reads its 16 correctly. What no scene can distinguish today is

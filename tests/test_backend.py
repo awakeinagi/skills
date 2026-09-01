@@ -20762,7 +20762,50 @@ class TestPictureIsTheTruth(Base):
         self.assertNotIn("Switched off by default since Aug 2026", terms)
 
     def test_pin_spot_dodges_dense_neighbours_hugs_on_flows(self):
-        # D15: constant offset was layout-density-blind.
+        """A crowded hug spot falls back inside; an airy one still hugs.
+
+        D15: the constant top-right offset was layout-density-blind, so on
+        a wireframe grid the ❓ landed in the NEXT panel's column and read
+        as that panel's question. Both poles are here — the dense one that
+        must dodge and the airy one that must not — because a `pin_spot`
+        that dodged unconditionally would pass a test asserting only the
+        first.
+
+        THE ARM THIS TEST DOES NOT HOLD is the fallback's own clearance,
+        and it is written here rather than in `canvas.py` because that
+        file's sha256 is pinned by both browser capture records and any
+        edit, docstring included, silently downgrades two classes in
+        `test_mutants.py` from an exact comparison against the browser's
+        facts to `assertNotEqual(facts, [])`. `pin_spot` returns
+        `anchor.x + width - size - 2` unconditionally once it has decided
+        to fall back, so whenever `width < PIN_SLOT_PX + 2` (28px) the
+        slot extends PAST the target's left edge and can land on a left
+        neighbour. Nothing re-tests it.
+
+        IT TAKES TWO RIVALS TO REACH, which is the part a first write-up
+        of this got wrong by describing a one-rival scene that does not
+        reproduce: one rival must cover the hug spot to force the
+        fallback, and a second must sit to the left for the fallback to
+        hit. Measured against main, `canvas.py` at `eb460cea2e211d1d` —
+        target x 300-320 (20px wide), `rival-right` x 324-524 covering the
+        hug, `rival-left` x 100-295, all on the y 100-150 band:
+        `pin_spot` returns `(292, 102)`, a slot spanning x 292-318 that
+        overlaps `rival-left` by 3px, and `_rect_gap` of the two is 0.
+        Drop either rival and it never fires — with `rival-left` alone the
+        hug spot at `(328, 92)` is clear and is what comes back.
+
+        WHY IT IS NOT REPAIRED. Censused 2026-09-01 over the frozen
+        corpus: of 291 pin-eligible elements — the same population
+        `pin_spot`'s own docstring counts — ZERO are narrower than 28px,
+        so no drawing this repo owns can reach it. It is bounded
+        downstream too: `pin_spot` mints new placements and never rewrites
+        stored geometry, and a ❓ that did land on a non-target node is
+        exactly what `pindrift` reports at lint time. Recorded rather than
+        fixed so that the day a 20px-wide node is drawn, the reproduction
+        is already written (r8-7 curation, and not that finding's
+        subject — that one is the rival DISTANCE `pindrift` reports, and
+        it is `pin_buried_in_a_rival_reads_as_adjacent`).
+        """
         target = {"id": "t", "type": "rectangle", "x": 100, "y": 100,
                   "width": 120, "height": 80}
         neighbour = {"id": "n", "type": "rectangle", "x": 232, "y": 60,
