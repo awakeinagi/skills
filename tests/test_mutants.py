@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import argparse
 import ast
+import bisect
 import builtins
 import contextlib
 import copy
 import datetime
+import functools
 import hashlib
 import importlib.util
 import inspect
@@ -38,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
 import canvas
 import focus_probe
+import guard_mutants
 import instruments
 from tests_helpers import el, ink_box, measured
 
@@ -28020,7 +28023,18 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # cells driven through a real `Store`. That is unpinned on purpose: it is
 # a whole-placement-rule repair, seeded above this file's anchor class,
 # and no red here should prescribe it.
+#
+# AND ONE ARRIVED ON 2026-09-01, `...StillMeansWhatTheProseSaysItMeans`,
+# filed by the mutant-curator after a re-review found the citation rot alive
+# behind two sweeps that had each declared it closed. Its single red says
+# every minified name this tree spells for the client is anchored to an
+# offset the shipping bundle resolves to that same name, or scoped to a
+# build that no longer ships. It is HAND-AUTHORED rather than a catalogue
+# entry for the usual reason: the subject is prose, not a scene, and no
+# operator can forge a docstring. The repair belongs to whoever owns those
+# checks; three different repairs clear it and it asks for none of them.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
+    "TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans": 1,
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
@@ -40389,6 +40403,581 @@ class TestTheBundleCitationsNameAFileThatExists(unittest.TestCase):
             _BUNDLE_CITATION.findall("see %s @555678" % live), [live],
             "the citation pattern no longer matches a real citation, so "
             "it would be green over any rot at all")
+
+
+# ---------------------------------------------------------------------------
+# THE SYMBOL BESIDE THE FILENAME, AND THE THIRD ROUND OF THE SAME ROT. Filed
+# by the mutant-curator, 2026-09-01, from a re-review that found the class
+# alive after two hand sweeps had each declared it closed.
+#
+# THE NOTE ABOVE IS NOT WRONG AND THIS DOES NOT OVERTURN IT. It says a check
+# that PINNED minified names would fail on every rebuild and be relaxed into
+# uselessness by the third one. True, and this check pins none. It READS the
+# name back out of the file that ships, at the offset the prose itself
+# supplies, and compares the two. A rebuild moves the offsets, the read
+# answers whatever the new name is, and the message names it. Nothing here
+# is a baseline anybody could be tempted to re-take: no minified name is
+# written down as an expectation at any point in this section.
+#
+# WHY IT TOOK THREE ROUNDS. The first repair swept dangling FILENAMES. The
+# second swept every citation carrying an OFFSET, which is the form the
+# repaired sites take, and repaired nine. Neither could see a citation that
+# names a symbol and supplies no offset at all, because there was nothing to
+# check it against — and that shape is the majority of them. So the class
+# was twice declared closed by a sweep whose instrument could not reach it,
+# which is this repo's oldest failure wearing a new hat.
+#
+# WHAT IS BEING ASSERTED, and it is a RELATION rather than a roster: a name
+# this tree spells for the client is either ANCHORED — the same prose region
+# carries an offset that the shipping bundle resolves to that very symbol —
+# or SCOPED, saying in the tree's own past-tense vocabulary that the name
+# belonged to a bundle that no longer ships. There is no third state, and an
+# unanchored present-tense name is unverifiable BY ANYONE, which is the
+# property that let four of five rot into live unrelated functions and go on
+# reading correct for two more rebuilds.
+#
+# THE HALF THIS CANNOT REACH, said plainly, because a limit that is not
+# written down gets re-discovered as a defect. The vocabulary below is a
+# DECLARED list of names, so a citation that spells a minified symbol this
+# table does not carry is invisible. That list cannot be derived: a scan for
+# short backticked tokens that the bundle happens to bind answers 108
+# distinct names over this tree, almost all of them Python-side coincidences
+# (x, y, t1, n1, b, d), and a check with that false-positive rate is one
+# nobody keeps. So the cost of a NEW client symbol is one line here, and the
+# guard below asks whether this vocabulary still MOSTLY lands in the bundle
+# that ships rather than whether it is complete, which it cannot know.
+#
+# THE SECOND UNREACHABLE HALF is a symbol named inside a quoted CODE block
+# rather than on its own. Two of the live sites hide a wrong name there —
+# the shipping bundle renamed both the wrapper and the measure it calls, and
+# the prose quotes the call. Matching those needs identifier-blind matching
+# of a minified statement against the bundle, which is a different
+# instrument; here they are reached only because the same region also names
+# a symbol in the open.
+
+# The client's minified names this tree talks about, each with the reason
+# the token is unambiguous HERE — not what the function does, which is
+# exactly the thing that rots. Adding a name is the cost of citing one.
+CLIENT_SYMBOLS: dict[str, str] = {
+    "$$": "no Python identifier can spell it",
+    "F$": "no Python identifier can spell it",
+    "z$": "no Python identifier can spell it",
+    "Ed": "two-letter mixed case; this tree binds no such Python name",
+    "Cd": "two-letter mixed case; this tree binds no such Python name",
+    "Id": "two-letter mixed case; this tree binds no such Python name",
+    "Kn": "two-letter mixed case; this tree binds no such Python name",
+    "Yn": "two-letter mixed case; this tree binds no such Python name",
+    "Ts": "two-letter mixed case; this tree binds no such Python name",
+    "Qg": "two-letter mixed case; this tree binds no such Python name",
+    "Kg": "two-letter mixed case; this tree binds no such Python name",
+    "Zr": "two-letter mixed case; this tree binds no such Python name",
+    "Kr": "two-letter mixed case; this tree binds no such Python name",
+    "Bp": "two-letter mixed case; this tree binds no such Python name",
+    "Wp": "two-letter mixed case; this tree binds no such Python name",
+    "gY": "two-letter mixed case; this tree binds no such Python name",
+    "mY": "two-letter mixed case; this tree binds no such Python name",
+    "dd": "cited only in client arithmetic; no Python meaning in this tree",
+    "md": "cited only in client arithmetic; the span form below keeps it "
+          "off every `*.md` filename, which is where the ambiguity is",
+    "bd": "cited only in client arithmetic; no Python meaning in this tree",
+    "yd": "cited only in client arithmetic; no Python meaning in this tree",
+    "qg": "cited only in client arithmetic; no Python meaning in this tree",
+    "ii": "cited only in client arithmetic; no Python meaning in this tree",
+    "ri": "cited only in client arithmetic; no Python meaning in this tree",
+    "ai": "cited only in client arithmetic; the span form keeps it off "
+          "`p[ai]`, this repo's own along-axis index",
+    "_s": "cited only in client arithmetic; no Python meaning in this tree",
+    "js": "cited only in client arithmetic; the span form keeps it off "
+          "every `*.js` filename, which is where the ambiguity is",
+}
+
+# The tree's OWN past-tense vocabulary for "that name belonged to a bundle
+# that no longer ships", quoted from the sites that already say it. Every
+# phrase carries the word "bundle" on purpose: scoping a minified name is a
+# claim about WHICH BUILD it was true of, and a marker that does not name a
+# build is a blanket. Extending this tuple is a legitimate part of a repair;
+# padding it is not, and the guard below refuses a marker nothing uses and a
+# marker too short to be a sentence. `RETIRED_BUNDLES`' keys join it at the
+# point of use rather than being spelled here: naming the dead build IS the
+# scoping act, it is already a table with reasons, and a filename written
+# into this module would be a citation of its own.
+SYMBOL_SCOPE_MARKERS: tuple[str, ...] = (
+    "in the previous bundle", "in the bundle that shipped before",
+    "bundles that no longer exist", "bundle that no longer exists",
+    "bundle whose symbols rotted", "in the bundle that shipped at the time")
+
+_SYMBOL_OFFSET = re.compile(r"@(\d{4,7})")
+_BACKTICK_SPAN = re.compile(r"`([^`\n]{1,200})`")
+# A minified binding, in the two forms an esbuild bundle emits. Used only to
+# walk LEFT from a cited offset to the definition that encloses it; nothing
+# downstream compares a name to a name this file wrote.
+_JS_BINDING = re.compile(
+    r"(?:function\s+([A-Za-z_$][\w$]*)\s*\("
+    r"|(?<![\w$.])([A-Za-z_$][\w$]*)\s*=\s*"
+    r"(?:function\b|async\b|\([^()]{0,80}\)\s*=>|[A-Za-z_$][\w$]*\s*=>))")
+_JS_BINDING_HERE = re.compile(r"\A(?:function\s+)?([A-Za-z_$][\w$]*)\s*[=(]")
+_TRACKED_PROSE = ("tests/*.py",)
+
+
+def shipped_bundle_text() -> str:
+    """The entry bundle the canvas server actually serves, as text.
+
+    Derived from `index.html` through the single reader
+    `guard_mutants.frontend_bundle` rather than globbing, because the
+    assets directory ships more than one `index-*.js` and only one of
+    them is the app. A second copy of that derivation is a second thing
+    to get wrong on the next rebuild.
+
+    Returns:
+        The bundle source, decoded. Read as CHARACTERS: every offset in
+        this tree's prose is a character offset, and the two readings
+        differ by more than a thousand over this file.
+    """
+    return guard_mutants.frontend_bundle().read_text(
+        encoding="utf-8", errors="replace")
+
+
+@functools.lru_cache(maxsize=4)
+def _js_bindings(bundle: str) -> tuple[tuple[int, ...], tuple[str, ...]]:
+    """Every minified binding in one bundle, by ascending offset.
+
+    Cached because the walk is per-citation and the file is over a
+    million characters: without it this class costs sixteen seconds in
+    a suite that budgets three minutes for two thousand tests. Two
+    parallel tuples rather than pairs so the offsets bisect directly.
+
+    Args:
+        bundle: The bundle source.
+
+    Returns:
+        `(offsets, names)`, index-aligned and sorted by offset.
+    """
+    found = sorted((m.start(), m.group(1) or m.group(2))
+                   for m in _JS_BINDING.finditer(bundle))
+    return tuple(o for o, _ in found), tuple(n for _, n in found)
+
+
+def bundle_symbol_owner(bundle: str, offset: int) -> str | None:
+    """Which minified name owns the code at this character offset.
+
+    Two cases, because the tree's citations use both: an offset may
+    point AT a binding (the repaired form does) or INTO the body of one
+    (the form that quotes a statement does). The first is read
+    directly; the second walks left to the nearest enclosing function
+    binding.
+
+    Args:
+        bundle: The bundle source to read. Passed rather than read so
+            the guard's own mutants can hand over a damaged one.
+        offset: A character offset into it.
+
+    Returns:
+        The name, or None when the offset is off the end of the file or
+        no binding precedes it — which is what a rebuild that shortened
+        the bundle looks like.
+    """
+    if not 0 <= offset < len(bundle):
+        return None
+    here = _JS_BINDING_HERE.match(bundle[offset:offset + 60])
+    if here:
+        return here.group(1)
+    offsets, names = _js_bindings(bundle)
+    at = bisect.bisect_right(offsets, offset)
+    return names[at - 1] if at else None
+
+
+@functools.lru_cache(maxsize=32)
+def prose_regions(source: str) -> tuple[tuple[int, int, str], ...]:
+    """Every docstring and comment run in one Python file, joined.
+
+    THE REGION IS THE UNIT OF A CLAIM, and neither a line nor a
+    function will do. A line splits "the redraw that runs whenever a
+    container changes (@553083)" from the name three words earlier; a
+    function lumps a class's honest historical note together with a
+    live falsehood two methods down and lets the first vouch for the
+    second. A docstring or an unbroken run of comment lines is one
+    thing somebody wrote in one sitting, which is the granularity an
+    offset and a scoping clause actually apply at.
+
+    Args:
+        source: The file's text. Cached on it, because both poles and
+            the guard walk the same dozen files and the parse is the
+            expensive half.
+
+    Returns:
+        `(first_line, last_line, joined_text)` per region, in file
+        order, with each region's lines stripped and space-joined so a
+        sentence that wraps reads as one.
+    """
+    lines = source.splitlines()
+    spans: list[tuple[int, int]] = []
+    inside: set[int] = set()
+    try:
+        tree: ast.AST | None = ast.parse(source)
+    except SyntaxError:
+        tree = None
+    for node in ast.walk(tree) if tree is not None else ():
+        if not isinstance(node, (ast.Module, ast.FunctionDef,
+                                 ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        body = getattr(node, "body", None) or []
+        first = body[0] if body else None
+        if (isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)):
+            span = (first.lineno, first.end_lineno or first.lineno)
+            spans.append(span)
+            inside.update(range(span[0], span[1] + 1))
+    run: list[int] = []
+    for lineno, line in enumerate(lines, 1):
+        if line.lstrip().startswith("#") and lineno not in inside:
+            run.append(lineno)
+        elif run:
+            spans.append((run[0], run[-1]))
+            run = []
+    if run:
+        spans.append((run[0], run[-1]))
+    return tuple((a, b, " ".join(x.strip() for x in lines[a - 1:b]))
+                 for a, b in sorted(spans))
+
+
+@functools.lru_cache(maxsize=8)
+def _symbol_span(names: tuple[str, ...]) -> re.Pattern[str]:
+    """One alternation over a vocabulary, in the forms a citation uses.
+
+    Args:
+        names: The vocabulary, as a hashable tuple.
+
+    Returns:
+        A pattern whose first group is the symbol, matching a whole
+        backticked span and nothing less.
+    """
+    alt = "|".join(re.escape(n) for n in
+                   sorted(names, key=len, reverse=True))
+    return re.compile(
+        r"(%s)(?:\s*=\s*[-\w.]+|\(.*\)|\.[\w.]+(?:\(.*\))?)?" % alt)
+
+
+def _region_names(text: str, vocabulary: dict[str, str]) -> list[str]:
+    """Which vocabulary symbols this region spells AS symbols.
+
+    THE SPAN FORM IS THE WHOLE DISCRIMINATOR. A backticked span counts
+    only when it is the bare name, a call on it, an attribute of it, or
+    an assignment of it to a literal — which is how a citation spells a
+    symbol and is not how a filename, a subscript or a sentence spells
+    one. Without it the scan reports every `*.md` document and every
+    `p[ai]` in this repo, and a check nobody can keep green is a check
+    nobody keeps.
+
+    Args:
+        text: The joined region.
+        vocabulary: `CLIENT_SYMBOLS`, or a stand-in.
+
+    Returns:
+        The symbols named, sorted, without duplicates.
+    """
+    if not vocabulary:
+        return []
+    pat = _symbol_span(tuple(sorted(vocabulary)))
+    out = set()
+    for span in _BACKTICK_SPAN.findall(text):
+        hit = pat.fullmatch(span.strip())
+        if hit:
+            out.add(hit.group(1))
+    return sorted(out)
+
+
+def symbol_citations(sources: dict[str, str], bundle: str,
+                     vocabulary: dict[str, str] | None = None,
+                     markers: tuple[str, ...] | None = None
+                     ) -> list[dict[str, Any]]:
+    """Every client-symbol citation in tracked prose, with its verdict.
+
+    Split from both assertions so the guard's own mutants run the REAL
+    walk over a damaged inventory. A demonstration that re-implements
+    the rule it demonstrates proves the copy.
+
+    Args:
+        sources: `{display_path: file_text}`.
+        bundle: The shipping bundle's source.
+        vocabulary: The names to look for; `CLIENT_SYMBOLS` when None.
+        markers: The past-tense scoping phrases; `SYMBOL_SCOPE_MARKERS`
+            plus every declared-retired filename when None.
+
+    Returns:
+        One record per (region, symbol): `where`, `symbol`, `scoped`,
+        and `owner` — the name the bundle puts at the region's offset
+        that resolves to this symbol, None when no offset in the region
+        does. `owner == symbol` is the anchored, verified state.
+    """
+    vocab = CLIENT_SYMBOLS if vocabulary is None else vocabulary
+    marks = (SYMBOL_SCOPE_MARKERS + tuple(sorted(RETIRED_BUNDLES))
+             if markers is None else markers)
+    marks = tuple(m.lower() for m in marks)
+    out: list[dict[str, Any]] = []
+    for path, text in sorted(sources.items()):
+        for first, last, region in prose_regions(text):
+            owners = {bundle_symbol_owner(bundle, int(o))
+                      for o in _SYMBOL_OFFSET.findall(region)}
+            low = region.lower()
+            scoped = any(m in low for m in marks)
+            out.extend({"where": "%s:%d-%d" % (path, first, last),
+                        "symbol": sym, "scoped": scoped,
+                        "owner": sym if sym in owners else None}
+                       for sym in _region_names(region, vocab))
+    return out
+
+
+def unverifiable_symbol_citations(cites: list[dict[str, Any]]) -> list[str]:
+    """Which citations name a symbol nothing in the tree can check.
+
+    Args:
+        cites: What `symbol_citations` returned, or a damaged stand-in.
+
+    Returns:
+        `"where symbol"` per citation that is neither anchored to an
+        offset the bundle resolves to it nor scoped to a build that no
+        longer ships. Empty is the healthy answer.
+    """
+    return ["%s %s" % (c["where"], c["symbol"]) for c in cites
+            if c["owner"] is None and not c["scoped"]]
+
+
+class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
+        unittest.TestCase):
+    """The names this repo reads the client at, kept honest by reading.
+
+    THE INVARIANT: a minified name this tree spells for the client is
+    anchored to an offset the SHIPPING bundle resolves to that same
+    name, or scoped to a build that no longer ships. Nothing may make a
+    present-tense claim about a symbol that nobody, including its
+    author, has any way to check.
+
+    NOT A STYLE RULE, and the history is the argument. The class above
+    keeps the FILENAMES resolvable and says in its own note that a
+    citation whose file exists and whose symbol has been reassigned
+    passes it. That is the defect that has now been repaired by hand
+    twice and returned twice: four of five names in the first round
+    resolved, in the bundle that shipped at the time, to live unrelated
+    functions, and a reader following one lands in working code with no
+    signal at all that it is the wrong code.
+    """
+
+    @staticmethod
+    def _tracked() -> dict[str, str]:
+        """The Python whose prose is scanned, as `{path: text}`.
+
+        The same surface the filename check walks — tracked tests plus
+        the single-file writer — because a citation is prose and prose
+        is where this repo answers "what does the tab actually do".
+
+        Returns:
+            Display path to file text.
+        """
+        root = Path(__file__).resolve().parents[1]
+        paths = [p for pat in _TRACKED_PROSE for p in sorted(root.glob(pat))]
+        paths.append(root / "skills" / "wysiwyg-grilling" / "scripts"
+                     / "canvas.py")
+        return {str(p.relative_to(root)):
+                p.read_text(encoding="utf-8", errors="replace")
+                for p in paths}
+
+    def test_every_anchored_client_symbol_still_owns_its_offset(self) -> None:
+        """The live half, ungated: every anchor reads back its own name.
+
+        This is the pole that survives a rebuild rather than being
+        broken by one. After `npm run build` the offsets land somewhere
+        else, this reads whatever name is now there, and the message
+        below hands the reader the replacement instead of asking them
+        to go find it. It is also the proof that the reader WORKS,
+        which is what stops the red beside it from being red because
+        the machinery is dead.
+        """
+        bundle = shipped_bundle_text()
+        self.assertGreater(
+            len(bundle), 100_000,
+            "the entry bundle is %d characters, which is not an "
+            "Excalidraw build — every symbol read below would answer "
+            "None and both poles of this class would go quiet"
+            % len(bundle))
+        tracked = self._tracked()
+        cites = symbol_citations(tracked, bundle)
+        anchored = [c for c in cites if c["owner"] is not None]
+        self.assertNotEqual(
+            anchored, [],
+            "not one client-symbol citation in this tree resolves to an "
+            "offset in the bundle that ships. Either the offsets are all "
+            "stale (a rebuild landed and nothing re-derived them) or the "
+            "region walk has stopped seeing prose; %d citations were "
+            "found in total" % len(cites))
+        wrong = []
+        for path, text in sorted(tracked.items()):
+            for first, last, region in prose_regions(text):
+                named = set(_region_names(region, CLIENT_SYMBOLS))
+                if not named:
+                    continue
+                for off in _SYMBOL_OFFSET.findall(region):
+                    owner = bundle_symbol_owner(bundle, int(off))
+                    if owner is not None and owner in named:
+                        continue
+                    wrong.append("%s:%d-%d @%s names %s, bundle says %r"
+                                 % (path, first, last, off,
+                                    sorted(named), owner))
+        self.assertEqual(
+            wrong, [],
+            "these citations carry an offset the shipping bundle does "
+            "not resolve to any name they spell: %s. Re-derive each by "
+            "anchoring on a rename-invariant slice of the CODE, finding "
+            "it in the file that ships and reading the name back out — "
+            "never by keeping the name and moving the offset, which is "
+            "the repair that put a live unrelated function into this "
+            "tree twice." % wrong)
+
+    @unittest.expectedFailure
+    def test_no_client_symbol_is_cited_without_an_anchor_or_a_scope(
+            self) -> None:
+        """The red: a name nobody can check is the defect itself.
+
+        RED BY INTENT, filed 2026-09-01. The repair belongs to whoever
+        owns these checks and deliberately not to whoever wrote this.
+        Three repairs satisfy it and it prescribes none of them: put an
+        offset beside the name, say which build the name was true of,
+        or drop the name and cite the shape — which is what the
+        citation note in `canvas.py` already tells its reader to do.
+        All three were run against one site before this was filed, and
+        a fourth — the right offset beside the WRONG name — was run
+        too and is caught by the pole above rather than by this one.
+
+        A NAME THAT IS CORRECT TODAY IS IN SCOPE, and that is not
+        over-reach. Correct-today is precisely what every rotted
+        citation was on the day it was written; three of the sites
+        this reports name the padding constant and name it rightly,
+        and the only thing separating them from the four that went bad
+        is luck the tree's own prose says out loud. Anchoring one of
+        them costs a parenthesis.
+        """
+        cites = symbol_citations(self._tracked(), shipped_bundle_text())
+        self.assertNotEqual(
+            cites, [],
+            "no client-symbol citation was found at all, which means "
+            "the vocabulary or the region walk stopped matching rather "
+            "than that the citations are gone")
+        loose = unverifiable_symbol_citations(cites)
+        self.assertEqual(
+            loose, [],
+            "%d of %d client-symbol citations are unverifiable: the "
+            "region spells a minified name, carries no offset the "
+            "shipping bundle resolves to it, and does not say the name "
+            "belonged to a build that no longer ships. THREE REPAIRS "
+            "SATISFY THIS AND IT ASKS FOR NONE — give the citation an "
+            "offset beside the name, in the form the repaired sites "
+            "already use; or scope it in this tree's own past-tense "
+            "vocabulary (`SYMBOL_SCOPE_MARKERS`, which a repair may "
+            "extend); or delete the name and cite the shape. Sites: %s"
+            % (len(loose), len(cites), loose))
+
+    def test_the_symbol_check_notices_each_way_it_can_go_blind(self) -> None:
+        """The guard, watched failing, one case per way it goes quiet.
+
+        A check nobody has seen fail is decoration, and this class's
+        entire history is checks that could not see it. Each clause
+        below was run against a deliberately damaged input and watched
+        to answer wrong before it was written down.
+        """
+        bundle = shipped_bundle_text()
+        tracked = self._tracked()
+        real = symbol_citations(tracked, bundle)
+        self.assertNotEqual(
+            real, [], "no citation exists to damage, so this "
+                      "demonstration has no subject")
+        # THE READER MUST NOT BE CONSTANT. A resolver that answered one
+        # name for every offset would mark every anchor verified and
+        # every bare name a violation, and both poles would be lying.
+        owners = {c["symbol"] for c in real if c["owner"] is not None}
+        self.assertGreater(
+            len(owners), 1,
+            "every anchored citation in the tree resolves to the same "
+            "name (%s), so the offset walk cannot be distinguished from "
+            "a constant" % sorted(owners))
+        # AND IT MUST ANSWER NONE OFF THE END, rather than the last
+        # binding in the file, which is how a shortened bundle would
+        # read as a tree full of valid anchors.
+        self.assertIsNone(
+            bundle_symbol_owner(bundle, len(bundle) + 1),
+            "an offset past the end of the bundle resolves to a name, "
+            "so a rebuild that shortened the file would leave every "
+            "anchor reading as verified")
+        # THE REGION WALK MUST FIND PROSE IN EVERY FILE IT IS GIVEN. An
+        # empty walk finds nothing wrong, which is the failure that made
+        # the retired-bundle guard inert one section above.
+        blind = sorted(p for p, t in tracked.items() if not prose_regions(t))
+        self.assertEqual(
+            blind, [],
+            "the region walk found no docstring and no comment in %s, "
+            "so every citation in them is invisible to both poles"
+            % blind)
+        # THE PREDICATE, over inventories with exactly one thing wrong.
+        cases: list[tuple[str, list[dict[str, Any]], bool]] = [
+            ("THE ROT ITSELF: a name with neither an anchor nor a scope",
+             [{"where": "canvas.py:1-2", "symbol": "ai", "owner": None,
+               "scoped": False}], True),
+            ("the same, beside a verified citation, so one good anchor "
+             "cannot vouch for a bare name",
+             [{"where": "canvas.py:1-2", "symbol": "ai", "owner": None,
+               "scoped": False},
+              {"where": "canvas.py:4-5", "symbol": "ii", "owner": "ii",
+               "scoped": False}], True),
+            ("an anchored citation — must not be flagged",
+             [{"where": "canvas.py:4-5", "symbol": "ii", "owner": "ii",
+               "scoped": False}], False),
+            ("a bare name SCOPED to a build that no longer ships — must "
+             "not be flagged",
+             [{"where": "canvas.py:1-2", "symbol": "ai", "owner": None,
+               "scoped": True}], False),
+            ("no citation at all: the walk went blind and the answer "
+             "must not be `healthy`",
+             [], False)]
+        missed = [name for name, cites, want in cases
+                  if bool(unverifiable_symbol_citations(cites)) != want]
+        self.assertEqual(
+            missed, [],
+            "the verifiability predicate answered wrong for %s. A "
+            "survivor here means this check is decoration and the "
+            "symbols are unguarded again" % missed)
+        # THE VOCABULARY MUST STILL BE ABOUT THIS CLIENT. It is declared
+        # rather than derived and therefore cannot be complete; what it
+        # can be asked is whether it still lands in the file that ships.
+        landed = [s for s in CLIENT_SYMBOLS
+                  if re.search(r"(?<![\w$.])%s\s*=(?!=)" % re.escape(s),
+                               bundle)]
+        self.assertGreater(
+            len(landed) * 2, len(CLIENT_SYMBOLS),
+            "only %d of the %d declared client symbols are bound in the "
+            "bundle that ships (%s), so most of this vocabulary is "
+            "describing some other build and the scan is watching "
+            "mostly nothing. A minority NOT landing is expected and is "
+            "the rot itself — a name that has been reassigned away."
+            % (len(landed), len(CLIENT_SYMBOLS), landed))
+        # AND THE SCOPING VOCABULARY MUST NOT BE A BLANKET. A marker is
+        # a claim about WHICH BUILD, so it carries the word; a marker
+        # nobody uses is a stale exemption, exactly as an unused retired
+        # bundle is one.
+        regions = [r for t in tracked.values() for _, _, r in
+                   prose_regions(t)]
+        for marker in SYMBOL_SCOPE_MARKERS:
+            self.assertIn(
+                "bundle", marker,
+                "the scope marker %r does not name a build, so it "
+                "exempts a name without saying what it was true of"
+                % marker)
+            self.assertGreaterEqual(
+                len(marker), 20,
+                "the scope marker %r is short enough to appear by "
+                "accident, which makes it a blanket exemption" % marker)
+            self.assertTrue(
+                any(marker in r.lower() for r in regions),
+                "nothing in the tree uses the scope marker %r; it "
+                "outlived the site it was written for" % marker)
 
 
 # ---------------------------------------------------------------------------
