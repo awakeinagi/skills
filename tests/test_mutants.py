@@ -28663,7 +28663,17 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # else, can land a red without editing a handover they are told not to
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
+    "TestOnePairGetsOneVerdictOnWhetherItMayStand": 2}
+# `TestOnePairGetsOneVerdictOnWhetherItMayStand` ARRIVED 2026-09-01 carrying
+# R8's finding r8-4 (P2, half-waivable-warning-pair). Two warnings fire on one
+# arrow pair; the lane one offers a waive key and cleared 4W -> 3W, the
+# shared-attach one offers none and its three remedies are all geometry —
+# including the very move the user had just forbidden. Two reds because the
+# halves fail apart: the ROUND TRIP (every door taken, the pair still warned)
+# and the AFFORDANCE (the surviving warning has no door of its own). Nine
+# repair shapes were driven and flip them; a tenth that only rewords the
+# remedy flips neither, which is what the class is for.
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
 # a number — the twelfth time that has been the shape here. Filed because
@@ -50261,6 +50271,408 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "identically (%r), so it distinguishes no provenance and "
             "cannot be held to distinguishing this one"
             % marks["nag"]["user"])
+
+
+# ---------------------------------------------------------------------------
+# r8-4 (P2, half-waivable-warning-pair). Found during the R8 capability
+# assessment, 2026-09-01, by a persona who told the drawing "it is not going
+# to change and I don't need to be told again — but don't redraw it", then
+# verified in canvas.py source rather than inferred. Two warnings fire on ONE
+# arrow pair; the lane warning offers `waive {op: registry, ...}` and cleared
+# (4W -> 3W), the shared-attach warning offers no key and its three remedies
+# are all geometry. `HAND_AUTHORED_RED_CLASSES` names the class below.
+# ---------------------------------------------------------------------------
+
+_R8_4_PAIR = ("e-a-t", "e-b-t")
+_R8_4_WAIVE_RE = re.compile(
+    r"waive \{op: registry, action: waive, key: '(?P<key>[^']+)'")
+
+
+def _r8_4_node(nid: str, x: float, y: float) -> dict[str, Any]:
+    """One 120x60 flow node, round-numbered so the feet arithmetic is read.
+
+    Args:
+        nid: The element id, which doubles as the name the warnings print.
+        x: Left edge.
+        y: Top edge.
+
+    Returns:
+        A `role: node` rectangle.
+    """
+    return el(id=nid, type="rectangle", x=float(x), y=float(y),
+              width=120.0, height=60.0,
+              customData={"role": "node", "label": nid})
+
+
+def _r8_4_arrow(aid: str, pts: list[tuple[float, float]],
+                src: str, dst: str) -> dict[str, Any]:
+    """One bound elbow arrow, BOUND BY ITS `points` AND NOT BY `width`.
+
+    The stored `width`/`height` are derived from the point list here
+    rather than given, because both checks under test read
+    `canvas.bbox_pts`, which walks `points` — a builder that set an
+    extent by hand could put the feet somewhere the lint never looks and
+    the class would measure a scene that is not the one drawn.
+
+    `routed: "authored"` is the sharpest form of the finding rather than
+    a convenience: `server_owns_geometry` reads that mark and answers
+    False, so the product KNOWS this path is the user's own and warns
+    about it anyway.
+
+    Args:
+        aid: The arrow's element id.
+        pts: Absolute (x, y) waypoints, first to last.
+        src: `startBinding` target id.
+        dst: `endBinding` target id.
+
+    Returns:
+        A `role: edge` arrow whose extent agrees with its point list.
+    """
+    x0, y0 = pts[0]
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return el(id=aid, type="arrow", x=float(x0), y=float(y0),
+              width=max(xs) - min(xs), height=max(ys) - min(ys),
+              points=[[float(px - x0), float(py - y0)] for px, py in pts],
+              startBinding={"elementId": src, "focus": 0, "gap": 1},
+              endBinding={"elementId": dst, "focus": 0, "gap": 1},
+              customData={"role": "edge", "routed": "authored"})
+
+
+def a_pair_arriving_at_one_point(sep: float = 10.0) -> list[dict[str, Any]]:
+    """Two authored edges converging on `n-t` with their feet `sep` apart.
+
+    The whole scene is three nodes and two arrows: fewer elements and
+    neither check has two arrows to compare. `sep` is a parameter for the
+    vacuity guard alone — at the shipped 10.0 the feet are inside both
+    `FAN_LANE_PITCH` (18px, the shared-attach radius) and `LANE_TOL`
+    (16px, the one-thick-stroke band), so both warnings are on the table;
+    the guard drives it past 18 to watch its own population empty.
+
+    The elbows exist so the arrows leave their sources at a real border —
+    a straight horizontal pair would have to start 60px off `n-a` and the
+    endpoint lint would fill the scene with errors about a defect this
+    class is not about.
+
+    Args:
+        sep: Vertical separation between the two feet on `n-t`, in px.
+
+    Returns:
+        The element list, in wire order.
+    """
+    return [
+        _r8_4_node("n-a", 280, 60), _r8_4_node("n-b", 280, 300),
+        _r8_4_node("n-t", 500, 200),
+        _r8_4_arrow("e-a-t", [(340, 120), (340, 220), (500, 220)],
+                    "n-a", "n-t"),
+        _r8_4_arrow("e-b-t", [(340, 300), (340, 220 + sep),
+                              (500, 220 + sep)], "n-b", "n-t"),
+    ]
+
+
+def a_pair_that_only_runs_together() -> list[dict[str, Any]]:
+    """Two edges inside the lane band that arrive at DIFFERENT nodes.
+
+    The control for the machinery: `lint_layout`'s waive path is real and
+    a pair it fully owns does go quiet. Without it a red that says "the
+    waive did not settle the pair" is satisfied by a registry that waives
+    nothing at all, and the class would accuse the wrong half.
+
+    Returns:
+        The element list, in wire order.
+    """
+    return [
+        _r8_4_node("n-a", 100, 60), _r8_4_node("n-b", 100, 300),
+        _r8_4_node("n-p", 500, 180), _r8_4_node("n-q", 500, 260),
+        _r8_4_arrow("e-a-p", [(220, 90), (340, 90), (340, 210), (500, 210)],
+                    "n-a", "n-p"),
+        _r8_4_arrow("e-b-q", [(220, 360), (340, 360), (340, 220), (500, 220)],
+                    "n-b", "n-q"),
+    ]
+
+
+def warnings_about(els: list[dict[str, Any]], pair: tuple[str, str],
+                   aid: str, waives: set[str] | None = None,
+                   channels: tuple[str, ...] = ("warnings",)) -> list[str]:
+    """Every layout line in `channels` that names BOTH arrows of `pair`.
+
+    Named by ELEMENT ID and not by any phrase either emitter prints,
+    because a repair that rewords a remedy must not move this class and a
+    repair that folds the two sentences into one must. Both checks open
+    with `connector_noun`, so a prose key would also have to track that.
+
+    `channels` DEFAULTS TO WARNINGS ALONE because a warning is what asks
+    the user to clear something; the guard widens it to notes, which is
+    the one reading that must survive a repair moving the finding out of
+    the warning channel.
+
+    Args:
+        els: The scene.
+        pair: The two arrow ids the lines must both name.
+        aid: The artifact id the waive keys are built from.
+        waives: Keys already recorded in the registry, or None.
+        channels: Which of `lint_layout`'s output lists to read.
+
+    Returns:
+        The matching strings, channel order then emission order.
+    """
+    lint = canvas.lint_layout(els, artifact_type="flow", aid=aid,
+                              waives=set(waives or ()))
+    return [ln for ch in channels for ln in lint[ch]
+            if all(i in ln for i in pair)]
+
+
+def settle_the_pair(els: list[dict[str, Any]], pair: tuple[str, str],
+                    aid: str) -> tuple[list[str], set[str]]:
+    """Take every door the lint offers about `pair`, until none are left.
+
+    THE LOOP IS THE POINT, not a convenience over one call: "waivable"
+    means the key the message printed, fed back through the same lint,
+    stops that message — and a repair may legitimately answer the first
+    waive with a second, differently-keyed sentence. A single pass would
+    call that a survivor. The bound refuses a registry that keeps minting
+    fresh keys forever, which is a different defect and should not read
+    as this one.
+
+    Args:
+        els: The scene.
+        pair: The two arrow ids.
+        aid: The artifact id the waive keys are built from.
+
+    Returns:
+        `(survivors, keys)` — the warnings still naming both arrows once
+        every offered key is recorded, and the keys that were recorded.
+
+    Raises:
+        AssertionError: If the offered keys never stop growing.
+    """
+    keys: set[str] = set()
+    for _ in range(6):
+        mine = warnings_about(els, pair, aid, keys)
+        offered = {m.group("key") for ln in mine
+                   for m in [_R8_4_WAIVE_RE.search(ln)] if m}
+        if not offered - keys:
+            return mine, keys
+        keys |= offered
+    raise AssertionError(
+        "the lint kept offering new waive keys for %s and never ran out "
+        "(%s) — that is a registry defect, not this class's subject"
+        % (pair, sorted(keys)))
+
+
+class TestOnePairGetsOneVerdictOnWhetherItMayStand(unittest.TestCase):
+    """r8-4: half a pair's warnings are waivable and the other half is not.
+
+    THE RELATION, NOT THE SPELLING: a warning a user may legitimately
+    decide to live with has to be answerable without changing the drawing
+    — and two warnings about ONE arrow pair must not disagree about
+    whether that pair may stand. The key's own spelling (`lane:...`,
+    `attach:...`, per-pair or per-node) is a spelling and nothing here
+    asserts one; "waivable, or not a warning" is the relation.
+
+    THE INCIDENT, R8 2026-09-01. A user said of two arrows into
+    `sentiment-scorer`: "it is not going to change and I don't need to be
+    told again — but don't redraw it." The lane warning carried
+    `Deliberate? waive {op: registry, action: waive, key: 'lane:...'}`
+    and cleared, 4W -> 3W. The shared-attach warning on the SAME pair
+    carried no key at all, and its three remedies — `mod points`,
+    "simplify the path", "move the nodes apart" — are all geometry
+    changes, the last of them precisely the thing the user forbade. Reach
+    was confirmed by a second pair (`e-fundamentals-risk` /
+    `e-risk-agg` into `risk-model`), so this is not a sample of one: any
+    deliberate shared attach point anywhere is permanently un-silenceable.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT. Both detectors are
+    correctly LOUD here — the feet really are 10px apart and the strokes
+    really do merge — so there is no magnitude or direction to seed
+    wrong, and `collect_findings` never passes `waives` or `aid` at all.
+    What is defective is the pair of messages taken together, which is a
+    property of the lint's own affordances rather than of any scene.
+
+    TWO REDS BECAUSE THE HALVES FAIL APART. One is the ROUND TRIP — the
+    door the pair was offered does not settle it — and one is the
+    AFFORDANCE — the surviving warning offers no door of its own. A
+    repair that suppresses the second warning when the first is waived
+    flips the round trip and leaves the affordance exactly where it is,
+    which is the reading that repair deserves.
+
+    IT PRESCRIBES NO REPAIR, and NINE shapes were MEASURED rather than
+    argued — each monkeypatched over `canvas.lint_layout` from a
+    throwaway plugin outside the repo, applied alone against this tree on
+    2026-09-01. Flipping BOTH reds: (a) the shared-attach emitter grows
+    its own `attach:<artifact>:<a>:<b>` key; (b) the two warnings fold
+    into one waivable finding; (d) the shared-attach finding becomes a
+    NOTE and stops being a warning at all; (5) one `attachnode:` key per
+    TARGET NODE silences every shared foot on it; (6) the shared-attach
+    warning offers the LANE key as its own, so one decision answers both
+    sentences; (7) a registry op distinct from `waive` records
+    acceptance and the lint reads it; (8) a generic post-pass folds every
+    warning naming one unordered arrow pair into a single keyed finding;
+    (9) geometry marked `routed: "authored"` downgrades to a note,
+    because the product already knows whose it is. Flipping the ROUND
+    TRIP ONLY: (c) the shared-attach warning is suppressed when the lane
+    key for the same pair is waived.
+
+    AND ONE THAT FLIPS NEITHER, kept because a negative result is the
+    half a reader cannot reconstruct: REWORDING THE REMEDY SENTENCE. A
+    version that prints "this cannot be waived: two feet at one point is
+    a genuine ambiguity" beside the same three geometry remedies leaves
+    both reds exactly red. Saying why a door is shut is not opening one,
+    and a class that accepted prose would be satisfied by every future
+    rewording of the same dead end.
+
+    AND ONE THE GUARD REFUSES INSTEAD OF ACCEPTING: deleting the
+    shared-attach check outright. Both reds go green under it — there is
+    no doorless warning left because there is no warning left — and
+    `test_the_lint_still_has_something_to_say_about_this_pair` fails, so
+    it arrives as "your repair removed the subject" rather than as a
+    flip. That is the one way a class shaped like this one can be
+    satisfied dishonestly, and it was driven rather than predicted.
+    """
+
+    def test_the_lint_still_has_something_to_say_about_this_pair(
+            self) -> None:
+        """The vacuity guard: the population contains the failing case.
+
+        BOTH REDS ARE STATEMENTS ABOUT WARNINGS THAT EXIST, so a scene
+        that stopped producing them satisfies both — zero survivors and
+        zero doorless lines — and a healthy expected failure would be
+        reported over a lint that had gone silent. This method is what
+        refuses that.
+
+        IT READS EVERY CHANNEL AND COUNTS NOTHING, and both of those are
+        corrections made after the first draft was DRIVEN under the nine
+        candidate repairs rather than reasoned about. That draft asserted
+        two warnings and exactly one waive key — which is the defect
+        restated, so it failed under eight of the nine honest repairs and
+        would have blocked the fix it exists to accept. A guard may say
+        the subject is alive; the moment it says HOW the subject is
+        packaged it has become a second red with no `expectedFailure` on
+        it. The fold repairs emit one line where there were two and the
+        demotion repairs move one out of `warnings` entirely, so the only
+        reading that is invariant under a fix is that the lint is not
+        SILENT about this pair, and that the shared-attach check in
+        particular is still awake.
+
+        `attach point` IS A LIVENESS KEY AND NOT A CONTRACT. It is the
+        emitter's own noun for the thing the user is being told about,
+        and it is here so that deleting the check outright — the one
+        "repair" that satisfies both reds by removing the subject — is
+        refused rather than celebrated. A repair that renames the concept
+        updates this line and says so; that is a cheaper failure than a
+        guard that cannot tell a fix from a deletion.
+
+        WATCHED FAILING ON DAMAGED INPUTS rather than reasoned about, and
+        the inputs are what was damaged, not the function: widening the
+        feet to 18.0px (`FAN_LANE_PITCH` exactly, `<` being strict) and
+        again to 40.0px empties the population — 0 lines about the pair
+        on every channel at both — and this method fails at both while
+        the two reds below go quietly green. Recorded 2026-09-01.
+        """
+        said = warnings_about(a_pair_arriving_at_one_point(), _R8_4_PAIR,
+                              "demo", channels=("errors", "warnings",
+                                                "notes"))
+        self.assertTrue(
+            said,
+            "the two feet are 10px apart on `n-t`, inside both the 18px "
+            "shared-attach radius and the 16px lane band, so the lint has "
+            "to say SOMETHING about this pair on some channel and it said "
+            "nothing at all. The reds beside this one are about which of "
+            "what it says can be answered, and over a silent lint they "
+            "pass vacuously")
+        self.assertTrue(
+            [ln for ln in said if "attach point" in ln],
+            "no line on any channel tells this pair they share an attach "
+            "point (%r). Both reds are satisfied by deleting that check, "
+            "and deleting it does not give the user a way to record a "
+            "decision — it removes the decision" % (said,))
+
+    def test_a_lane_only_pair_settles_under_the_waive_it_was_offered(
+            self) -> None:
+        """The live half: the registry's waive path really does silence.
+
+        THE RED CANNOT OBSERVE THIS. "Waiving every offered key left a
+        survivor" is satisfied by a `lint_layout` that ignores `waives`
+        entirely, by an artifact id that never reaches the key, and by a
+        key format that drifted from the one the message prints — three
+        different broken registries wearing this defect's face. A pair
+        that trips ONLY the lane check is the same machinery with the
+        shared-attach half removed, and it must go to zero.
+        """
+        pair = ("e-a-p", "e-b-q")
+        before = warnings_about(a_pair_that_only_runs_together(), pair, "ctl")
+        self.assertEqual(
+            len(before), 1,
+            "the control pair runs 160px together 10px apart into two "
+            "DIFFERENT nodes, so exactly the lane warning should name "
+            "both arrows and nothing else — %d did (%r)"
+            % (len(before), before))
+        survivors, keys = settle_the_pair(
+            a_pair_that_only_runs_together(), pair, "ctl")
+        self.assertEqual(
+            survivors, [],
+            "the waive key the lane warning printed (%s) did not silence "
+            "the lane warning when fed back to the same lint (%r). The "
+            "reds beside this accuse the shared-attach check of lacking "
+            "a door; over a registry that honours no door at all they "
+            "would be accusing the wrong half"
+            % (sorted(keys), survivors))
+
+    @unittest.expectedFailure
+    def test_waiving_every_door_the_pair_was_offered_settles_the_pair(
+            self) -> None:
+        """The round trip: the user's decision does not reach the pair.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS WHAT SURVIVES. One
+        warning of two remains after every key on offer is recorded, and
+        it is the un-keyed one — the direction matters because a pair
+        where the KEYED warning survived its own waive would be a broken
+        registry, which the green method above rules out first.
+
+        Asserted as "nothing about this pair is still warned" rather than
+        as the presence of any named key, because naming a key names a
+        repair: a per-pair key, a per-node key, the lane key inherited, a
+        fold, a demotion to a note and a suppression are all honest and
+        all measured, and a guard that greps for one fails the other
+        five while the behaviour is correct.
+        """
+        survivors, keys = settle_the_pair(
+            a_pair_arriving_at_one_point(), _R8_4_PAIR, "demo")
+        self.assertEqual(
+            survivors, [],
+            "the user took every door this pair was offered (%s) and the "
+            "drawing still argues with them: %d warning(s) stand, and "
+            "the remedies on offer are geometry changes to a shape they "
+            "have ruled fixed — %r"
+            % (sorted(keys), len(survivors), survivors))
+
+    @unittest.expectedFailure
+    def test_every_warning_about_the_pair_offers_a_door_of_its_own(
+            self) -> None:
+        """The affordance: one of the two sentences has no door at all.
+
+        THE MAGNITUDE IS 1 OF 2 AND THE DIRECTION IS DOORLESS. Measured
+        with no waive recorded, which is what makes this half independent
+        of the round trip above: it asks what the drawing OFFERS a user
+        who has not yet decided anything, and the answer is that one
+        sentence about this pair can be answered from the registry and
+        the other can only be answered with a pencil.
+
+        A WARNING IS THE CHANNEL UNDER TEST, deliberately, and that is
+        what keeps the "make it a note" repair honest rather than a
+        dodge: a note is the product saying something it does not ask the
+        user to clear, and a finding that stops demanding an action stops
+        needing a door.
+        """
+        mine = warnings_about(a_pair_arriving_at_one_point(), _R8_4_PAIR,
+                              "demo")
+        doorless = [ln for ln in mine if not _R8_4_WAIVE_RE.search(ln)]
+        self.assertEqual(
+            doorless, [],
+            "%d of the %d warnings about this one arrow pair offer no way "
+            "to record a decision, so the pair gets two verdicts on "
+            "whether it may stand: %r"
+            % (len(doorless), len(mine), doorless))
 
 
 class TestCoverage(unittest.TestCase):
