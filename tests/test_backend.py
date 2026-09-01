@@ -3688,16 +3688,18 @@ class TestTextInTextRepair(Base):
         # `canvas.client_wrap_width` — a pin that asks the function under
         # test what to expect cannot notice that function being wrong.
         # A rectangle's bound text is capped at `width - BOUND_TEXT_
-        # PADDING * 2` and its box at `height - the same` (the bundle's
-        # `_s` and `qg`). Was `width - 20` and `height >= label + 16`,
-        # which were this file's inventions, not the client's.
+        # PADDING * 2` and its box at `height - the same` — the bundle's
+        # `js` (@555679) and `aU` (@555890). Was `width - 20` and
+        # `height >= label + 16`, which were this file's inventions, not
+        # the client's.
         self.assertLessEqual(lbl["width"], box["width"] - 10)
         self.assertGreater(lbl["height"], 22)           # multi-line room
         self.assertGreaterEqual(box["height"] - 10, lbl["height"])
         # `autoResize` IS NO LONGER WRITTEN, and its absence is the
         # claim. On a bound label the client wraps to the container
-        # whatever this flag says (`ai`: `i = t ? _s(t, e) : e.width`),
-        # and reads the flag only to decide whether to copy the measured
+        # whatever this flag says — `si` (@552896) runs
+        # `i=t?js(t,e):e.width` — and reads the flag only to decide
+        # whether to copy the measured
         # width back — which is now exactly what we stored. Writing it
         # here asserted a control over the wrap that this side has never
         # had.
@@ -15773,10 +15775,10 @@ class TestTheBidirectionalFindingReadsTheClientsDefaults(unittest.TestCase):
 
     THE LINE POLE IS THE STRONGER BUNDLE FACT, and it is not the
     destructuring default. `restoreElement`'s `case "line": case "draw":`
-    (offset 630427 of `scripts/web/assets/index-DTzHdgzu.js`) does
+    (offset 630429 of `scripts/web/assets/index-DMIFGF1r.js`) does
     default both ends to `null`, but the shape generator puts BOTH head
-    calls inside `if (e.type === "arrow")` (offset 503006, the
-    destructuring itself at 503028) — so a line never gets a head drawn
+    calls inside `if (e.type === "arrow")` (offset 503008, the
+    destructuring itself at 503026) — so a line never gets a head drawn
     whatever it stores, and an EXPLICIT `"arrow"` on both ends of a line
     is still not a bidirectional anything. `lint_layout` binds
     `arrows = [... type in ("arrow", "line") ...]`, so this check really
@@ -24380,21 +24382,22 @@ class TestShapeAwareLabelRoom(Base):
     (v0.9 TASK-TEXT-TRUTH § A6.3; fixed here by WP4-AND-GUARDS). The
     belief was re-derived here rather than taken on report:
 
-      * the shipped bundle, `ii` @553053 —
-        `(t||!e.autoResize)&&(i=t?Ts(t,e):e.width, ...)`. `t` is the
-        CONTAINER; when there is one the wrap width is `Ts(t, e)` and
+      * the shipped bundle, `si` @552896 —
+        `(t||!e.autoResize)&&(i=t?js(t,e):e.width, ...)`. `t` is the
+        CONTAINER; when there is one the wrap width is `js(t, e)` and
         the label's stored `width` is unreachable. `autoResize` is
         `||`-ed on the left, so it does not gate the wrap at all;
-      * `Ts` @555677 with `Kn = 5`: ellipse `round(w/2*sqrt(2)) - 10`,
-        diamond `round(w/2) - 10`, else `w - 10`;
-        (this bullet pair said `ai`, `_s` and `Yn` until the fix round
-        for the 2026-08-31 citation sweep, which is to say it carried
-        the names of the FIRST bundle whose symbols rotted through
-        every rebuild since. Both offsets still land on their sites and
-        no arithmetic here changed; `ai` and `_s` are both live in the
-        file that ships and neither is this, and `Yn` is assigned
-        nowhere. See the citation note above `_client_chop` in
-        `canvas.py`.)
+      * `js` @555679 with `Kn = 5` (@248729): ellipse
+        `round(w/2*sqrt(2)) - 10`, diamond `round(w/2) - 10`, else
+        `w - 10`;
+        (this bullet pair has carried four spellings of those two
+        functions across three rebuilds, and every superseded one is
+        still bound and still means something else: `ai` (@525989) is
+        the group-selection memo, `ii` (@1035588) is the `MainMenu`
+        component, `_s` (@486243) rescales an image crop, `Yn`
+        (@798193) multiplies a triple by a scalar, and `Ts` (@659125)
+        aliases the `Scene` class. No arithmetic here changed at any of them. See the
+        citation note above `_client_chop` in `canvas.py`.)
       * this repo's own `App.tsx`, whose `restoreForRender` passes
         `refreshDimensions: true` — the option its own comment calls
         "what re-wraps container-bound text" — nine lines under a
@@ -24505,13 +24508,13 @@ class TestShapeAwareLabelRoom(Base):
         untouched", and pinned the walk's BEST-candidate rule: the 171px
         label has a 180px chord at its own 20px band, so wrapping it
         would only spend height a rhombus charges for, so the fitter
-        declined. There is no decline. `ai` in the shipped bundle wraps
-        a bound label to `_s(container)` and never reads the label's own
-        `width` — `i = t ? _s(t, e) : e.width`, with `e.width` reachable
-        only when there is NO container. The walk was optimising a
-        variable the client does not consult, so the property worth
-        pinning is the one that makes the walk impossible rather than
-        merely unnecessary.
+        declined. There is no decline. The client's redraw `si`
+        (@552896) wraps a bound label to `js(container)` (@555679) and
+        never reads the label's own `width` — `i=t?js(t,e):e.width`,
+        with `e.width` reachable only when there is NO container. The
+        walk was optimising a variable the client does not consult, so
+        the property worth pinning is the one that makes the walk
+        impossible rather than merely unnecessary.
 
         The same scene, fed four different arrival widths — the 171 the
         old pin called "fits", a tenth of it, sixty times it, and zero —
@@ -24553,8 +24556,8 @@ class TestShapeAwareLabelRoom(Base):
         label_no_wrap_can_improve` that should not have gone with it. That
         pin had three clauses and the rewrite above closed two: its
         headline `(171, 20)` was a claim about the CLIENT — "a label that
-        fits unwrapped is left at its arrival width" — and `ai` in the
-        shipped bundle makes it unreachable, so it was rightly deleted
+        fits unwrapped is left at its arrival width" — and the redraw
+        `si` (@552896) makes it unreachable, so it was rightly deleted
         and re-pinned inverted. Its third clause, `cont["height"] == 80,
         "nothing to grow for"`, is not a claim about Excalidraw at all.
         It is a claim about THIS FILE'S WRITER: that `fit_label_in` does
@@ -24594,7 +24597,8 @@ class TestShapeAwareLabelRoom(Base):
         rewarding that repair would be worse than having no pin.
         """
         pad = canvas.BOUND_TEXT_PADDING * 2
-        # `qg` transcribed by hand, not `client_text_headroom`, which is
+        # `aU` (@555890) transcribed by hand, not
+        # `client_text_headroom`, which is
         # what the restraint consults and therefore cannot also be the
         # judge of whether a case reaches it.
         headroom = {
@@ -24633,7 +24637,8 @@ class TestShapeAwareLabelRoom(Base):
                          "`auto_grown` was written where nothing grew, "
                          "and the overlap lint drops its size gate on it")
         # THE LIVE POLE. Growth that is earned still happens, at the
-        # client's own extent (`yd`: e + 5 a side on a box) and with the
+        # client's own extent (`Ud` @555543: e + 5 a side on a box) and
+        # with the
         # flag carrying the delta, so the restraint cannot be "satisfied"
         # by deleting the growth.
         text = "Escalate to the regional compliance desk for manual review"
@@ -24688,16 +24693,19 @@ class TestShapeAwareLabelRoom(Base):
         said a rectangle "still gets `width - 24` and wraps exactly as
         before", so that the shape term would be inert where the bbox IS
         the shape and no rectangle label would move. The client's padding
-        is `Yn = 5` a side, not 12: a 160px rectangle allows **150**, and
-        every rectangle label wide enough to wrap moved by those 14px.
+        is `Kn = 5` (@248729) a side, not 12: a 160px rectangle allows
+        **150**, and every rectangle label wide enough to wrap moved by
+        those 14px.
         The half of the old subject that survives is the half about
         SHAPE, so that is what this pins — the rectangle arm is the one
         with nothing in it, which is exactly what makes the halving on
         the other two the finding.
 
-        The three caps are derived from the bundle's `_s` by hand rather
-        than from the function under test, which could not otherwise
-        notice itself being wrong.
+        The three caps are derived by hand from the bundle's wrap
+        helper `js` (@555679) rather than from the function under test,
+        which could not otherwise notice itself being wrong. That
+        helper was cited here as `_s` (@486243) while `_s` was already
+        the image-crop rescale it still is.
 
         THE HAND DERIVATION IS `Math.round` AND NOT `round` since
         2026-08-20 (v0.9 WP4 review, I-2). It was Python's `round` —

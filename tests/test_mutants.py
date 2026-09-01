@@ -11871,20 +11871,21 @@ class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
 # instead of through the field name.
 #
 # THE ANCHOR IS THE VENDORED BUNDLE, not this repo's belief about the client.
-# `skills/wysiwyg-grilling/scripts/web/assets/index-DTzHdgzu.js` carries the
+# `skills/wysiwyg-grilling/scripts/web/assets/index-DMIFGF1r.js` carries the
 # destructuring twice, and both spellings are `= "arrow"`:
 #
-#   restoreElement, case "arrow" (offset 630864):
+#   restoreElement — `aZ` (@629664) — case "arrow" (offset 630866):
 #     let{startArrowhead:o=null,endArrowhead:h="arrow"}=e
-#   the shape generator, where the mark is actually emitted (503028,
-#   guarded by `e.type==="arrow"` at 503006):
+#   the shape generator, where the mark is actually emitted (503026,
+#   guarded by `e.type==="arrow"` at 503008):
 #     let{startArrowhead:u=null,endArrowhead:f="arrow"}=e;
 #     if(u!==null){...} if(f!==null){...}
 #
-# CITED AGAINST `index-DIydcWDi.js` UNTIL 2026-08-31, which had stopped
-# existing at a rebuild. Both shapes were re-derived against the bundle that
-# ships and neither moved; see the citation note above `_client_chop` in
-# `canvas.py` for why a dangling bundle name is the mild half of that rot.
+# CITED AGAINST `index-DIydcWDi.js` UNTIL 2026-08-31, and against two
+# parallel rebuilds after it that neither of them ships. Both shapes were
+# re-derived against the bundle that ships and neither moved; see the
+# citation note above `_client_chop` in `canvas.py` for why a dangling
+# bundle name is the mild half of that rot.
 #
 # A destructuring default fires on `undefined` and NEVER on an explicit
 # `null`, and the draw guard is a null test rather than a truthy one — which
@@ -15934,9 +15935,9 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
     to design; the fix read the client instead, and the field set below
     is now asserted BECAUSE the bundle decided it rather than because a
     test guessed. What the bundle says, at
-    `scripts/web/assets/index-DTzHdgzu.js`: `restoreElement`'s
-    `case "freedraw"` (offset 630190) forwards all three fields with no
-    defaults, and the path builder (offset 496919) dereferences `points`
+    `scripts/web/assets/index-DMIFGF1r.js`: `restoreElement`'s
+    `case "freedraw"` (offset 630192) forwards all three fields with no
+    defaults, and the path builder (offset 496910) dereferences `points`
     on both of its arms and `pressures` only when `simulatePressure` is
     falsy. Cited against `index-QQVNNFtd.js`, then `index-KJTydiiR.js`;
     both stopped existing at a rebuild and both shapes re-derived
@@ -17174,9 +17175,10 @@ def _over_wide_token(height: int) -> list[dict]:
     only one of them can break a word. `wrap_label_text` (canvas.py) is
     `split()` plus a greedy join, so a token that fits nowhere is
     emitted whole on a line of its own and counted as one; the shipped
-    client chops it — `$$` hands a token that overflows an empty line
-    to `z$`, which walks it character by character and closes a chunk
-    the moment the next glyph would overrun the cap. Confirmed in
+    client chops it — `kd` (@274824 of `index-DMIFGF1r.js`) hands a
+    token that overflows an empty line to `F$` (@274997), which walks
+    it character by character and closes a chunk the moment the next
+    glyph would overrun the cap. Confirmed in
     chromium through the client tier, not transcribed: `'Acknowledged'`
     in this box paints as `'Acknowledge'` over `'d'`, two lines.
 
@@ -17214,17 +17216,15 @@ def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
                         font_size: int = 16) -> list[dict]:
     """A rhombus whose cap lands on a HALF PIXEL, carrying `text`.
 
-    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `Ts`
-    (index-DTzHdgzu.js @555677, read verbatim) is `Math.round(n/2) -
-    Kn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
-    as `round(w / 2) - pad`. This said `_s` and `Yn` in a bundle that
-    stopped existing at `3f57a17`, then `js` in `index-KJTydiiR.js`
-    which stopped existing at the v0.9.1 build; both dead names
-    resolved, in the bundle that shipped at the time, to something else
-    entirely (`_s` cropped images, `Yn` was assigned nowhere), and `_s`
-    is still live and still not this — in the bundle that ships it asks
-    whether a point path closes into a loop. The arithmetic has been
-    re-derived unchanged at every rebuild — see the citation note above
+    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's
+    wrap helper `js` (@555679 of `index-DMIFGF1r.js`, read verbatim) is
+    `Math.round(n/2)-Kn*2` on a diamond, and `client_wrap_width`
+    (canvas.py) writes that as `round(w / 2) - pad`. The same helper
+    has been cited here as `_s`, as `Yn` and as `Ts`, and all three are
+    live and none of them is it: `_s` (@486243) rescales an image crop,
+    `Yn` (@798193) multiplies a triple by a scalar, and `Ts` (@659125)
+    aliases the `Scene` class. The arithmetic has been re-derived
+    unchanged at every rebuild — see the citation note above
     `_client_chop` in `canvas.py`. `Math.round` is
     half-UP — confirmed in a JS
     engine, not assumed, and `floor(x + 0.5)` reproduces it on every
@@ -21324,8 +21324,10 @@ _register(Mutant(
 # Origin: found during the bound-text padding investigation (curator, routed
 # by v0.9 WP4-AND-GUARDS), 2026-08-19 — the one defect left standing after
 # the padding, the shape arms and the advance table were each measured and
-# cleared. `_s` was read verbatim from the shipped bundle rather than
-# recalled, which is how the rounding was noticed at all.
+# cleared. The wrap helper — `js` (@555679) in the bundle that ships,
+# and cited as `_s` (@486243) when this was written, which rescales an
+# image crop and never wrapped anything — was read verbatim rather
+# than recalled, which is how the rounding was noticed at all.
 _register(Mutant(
     "rhombus_half_pixel_cap",
     build=lambda: _half_pixel_rhombus("acceptance"),
@@ -28621,17 +28623,34 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # a whole-placement-rule repair, seeded above this file's anchor class,
 # and no red here should prescribe it.
 #
-# AND ONE ARRIVED ON 2026-09-01, `...StillMeansWhatTheProseSaysItMeans`,
-# filed by the mutant-curator after a re-review found the citation rot alive
-# behind two sweeps that had each declared it closed. Its single red says
-# every minified name this tree spells for the client is anchored to an
-# offset the shipping bundle resolves to that same name, or scoped to a
-# build that no longer ships. It is HAND-AUTHORED rather than a catalogue
-# entry for the usual reason: the subject is prose, not a scene, and no
-# operator can forge a docstring. The repair belongs to whoever owns those
-# checks; three different repairs clear it and it asks for none of them.
+# ONE ARRIVED AND LEFT ON 2026-09-01,
+# `...StillMeansWhatTheProseSaysItMeans`, filed by the mutant-curator after
+# a re-review found the citation rot alive behind two sweeps that had each
+# declared it closed, and drained the same day by the fix round for it. Its
+# single red said every minified name this tree spells for the client is
+# anchored to an offset the shipping bundle resolves to that same name, or
+# scoped to a build that no longer ships. It was HAND-AUTHORED rather than
+# a catalogue entry for the usual reason: the subject is prose, not a
+# scene, and no operator can forge a docstring. It left as a LINE and not
+# as a number, its class carrying exactly one red.
+#
+# THE REPAIR WAS ANCHORING AND NOT SCOPING, which is the half worth
+# reading, because the class advertised five repairs and the cheapest of
+# them verifies nothing. Of the 54 unverifiable citations it reported, the
+# fix round anchored the overwhelming majority to an offset or a quoted
+# code slice that the shipping bundle resolves back to the cited name, and
+# the tree's scoped-only count went DOWN by 30 rather than up. The
+# `landed` clause in that class's guard is what makes an anchor cost
+# something: a false one names a symbol the bundle does not bind, and the
+# always-run pole beside the red goes red over it.
+#
+# IT ALSO COST THAT GUARD A CLAUSE. Its live paste attack asserted that
+# scoping every loose name leaves survivors, which is unassertable on a
+# tree with no loose names — the clause failed over the REPAIRED tree, so
+# it now runs on a forged source when the tree offers no subject. A guard
+# that can only run while its defect is present retires itself on the day
+# the defect is fixed, which is this file's own subject one level up.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans": 1,
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
 # `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
 # THE SAME DAY, both halves at once, and it left as a LINE rather than as
@@ -31891,12 +31910,16 @@ _CLIENT_FONT_METRICS = re.compile(
 # has a space) and `dn` itself maps those names to the `fontFamily`
 # integers our elements carry.
 # BY SHAPE, NEVER BY MINIFIED NAME. Every identifier in these
-# patterns is reassigned on each bundle build: the font enum was
-# `dn` and is now `un`, its metrics map `wm` -> `Vm`,
-# `getLineHeight` `Hc` -> `bd`, `detectLineHeight` `x$` -> `_$`,
-# all four moving in the 2026-08-20 font-readiness rebuild alone. A
-# pin that spells one of them fails on the next `npm run build` and
-# teaches its owner to re-baseline rather than to read. The enum is
+# patterns is reassigned on each bundle build: the font enum, its
+# metrics map, `getLineHeight` and `detectLineHeight` all four moved
+# in the 2026-08-20 font-readiness rebuild alone, and three of the
+# four names that rebuild handed out have moved again since. The one
+# of them this file's own vocabulary polices makes the point on its
+# own — `getLineHeight` is `md` (@470173) in the bundle that ships,
+# while `bd`, the name it was given in 2026-08-20, is now the test for
+# a degenerate element (@660451). A pin that spells one of them fails
+# on the next `npm run build` and teaches its owner to re-baseline
+# rather than to read. The enum is
 # found by its own CONTENT — a map carrying Virgil and Nunito — and
 # the rows by their shape, with the table identifier captured
 # rather than assumed.
@@ -40500,7 +40523,8 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
                  [pattern.sub("/*renamed*/", whole, count=1)],
                  "0 of the tracked"))
         # THE SYMBOL COMES OUT OF THE BUNDLE, NEVER OFF THIS LINE. This
-        # mutant spelled `Kn` twice as a literal, inside a class whose
+        # mutant spelled `Kn` (@248729) twice as a literal, inside a
+        # class whose
         # stated doctrine three screens up is ANCHORED ON STRUCTURE,
         # NEVER ON MINIFIED NAMES. It fails safe and it fails WRONG: a
         # rebuild that renames the padding makes the `re.sub` match
@@ -40803,24 +40827,33 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
 # that guard SURVIVE.
 #
 # THE DANGLING NAME IS THE MILD HALF. Four of the five symbols `canvas.py`
-# named resolved, in the bundle that shipped at the time, to real functions
-# doing something else: `Yn` is assigned nowhere (the padding is `Kn`),
-# `_s` crops images (the wrap width is `Ts`), `qg` draws an arc (the max
-# height is `Qg`), `yd` aliases `useLayoutEffect` (the growth is `md`), and
-# `ai` handles text editing (the redraw is `ii`). Every transcribed
+# once named resolve to real functions doing something else, and every one
+# of the four is still bound in the bundle that ships: the padding was
+# cited as `Yn`, which multiplies a triple by a scalar (@798193); the wrap
+# width as `_s`, which rescales an image crop (@486243); the max height as
+# `qg`, which measures a point's distance to a shape (@511464); the growth
+# as `yd`, which walks a DOM node to its assigned slot or shadow host
+# (@737845); and the redraw as `ai`, which memoises which elements a
+# selected group contains (@525989). Every transcribed
 # ARITHMETIC was re-derived against the shipped file and every one was
 # correct — so what rotted was the address and never the rule. A reader
 # following one of those lands on working code and has no way to know they
 # are in the wrong function.
 #
-# THE SECOND REBUILD MADE THE POINT SHARPER, and this parenthesis is why
-# the paragraph above now spells FOUR different names than it did: the
-# v0.9.1 build renamed the wrap width `js`→`Ts`, the max height
-# `Kg`→`Qg`, the growth `bd`→`md` and the redraw `ri`→`ii`. Worse, `z$`
-# was the chop walker and is now the grapheme splitter that walker calls
-# — a live symbol, still resolving, pointing one function sideways. The
-# obvious repair for a dangling citation (swap the filename, keep the
-# symbol) would have written that error into the tree.
+# EVERY REBUILD SINCE HAS MADE THE POINT SHARPER, and the corrections rot
+# as fast as the errors did. `index-KJTydiiR.js` was rebuilt TWICE IN
+# PARALLEL on two branches that both landed here, and neither of those two
+# bundles is on disk; folding them rebuilt once more and produced
+# `index-DMIFGF1r.js`. Across those builds the wrap width has been cited as
+# `js`, `Ts` and `js` again, the max height as `Kg` and `Qg`, the growth as
+# `bd` and `md`, and the redraw as `ri` and `ii` — and in the file that
+# ships the wrap width is `js` (@555679) while `Ts` (@659125), `Kg`
+# (@507298), `Qg` (@512250), `bd` (@660451), `md` (@470173), `ri` (@275922)
+# and `ii` (@1035588) are all live and all something else. Sharper still,
+# `z$` (@274754) was the chop walker and is the grapheme splitter that
+# walker calls — a live symbol, still resolving, pointing one function
+# sideways. The obvious repair for a dangling citation (swap the filename,
+# keep the symbol) would have written that error into the tree.
 #
 # WHY THIS CHECK PINS FILENAMES AND NOT SYMBOLS. Minified names change on
 # every rebuild, so a check that pinned them would fail on every rebuild
@@ -40861,15 +40894,28 @@ RETIRED_BUNDLES: dict[str, str] = {
         "named in one retirement clause, on the arrowhead-default anchor "
         "comment in this file.",
     "index-KJTydiiR.js":
-        "the bundle that shipped until the v0.9.1 build added the 🐞 "
-        "bug-hunter to the client. Named in five historical clauses — "
-        "the citation note above `_client_chop`, which needs it twice "
-        "to say that `z$` survived the rebuild as a DIFFERENT function; "
-        "the freedraw field set; the `adjustXYWithRotation` rename; the "
-        "arrowhead line pole; and this file's `js`→`Ts` clause. Every "
-        "live citation was re-derived against `index-DTzHdgzu.js` by "
-        "anchoring on rename-invariant slices of the code and reading "
-        "the symbol back out, never by swapping the filename.",
+        "shipped from 3f57a17 until 2026-08-31 and named now only where "
+        "the rot is recorded — the citation note above `_client_chop`, "
+        "which needs it twice to say that `z$` came through that rebuild "
+        "as a DIFFERENT function; the freedraw field set; and the "
+        "paragraph above this table. It is the LAST COMMON ANCESTOR of "
+        "the two branches below, which is why it outlived both of them.",
+    "index-DFry315l.js":
+        "one of two parallel rebuilds of `index-KJTydiiR.js`, made on "
+        "the caption rail. Named in the citation note above "
+        "`_client_chop`, which records the fork. IT NEVER SHIPPED FROM "
+        "A MERGED TREE: it was current only on its own branch, and "
+        "folding that branch rebuilt past it.",
+    "index-DTzHdgzu.js":
+        "the other parallel rebuild, made on the v0.9.1 build that "
+        "added the 🐞 bug-hunter to the client, and named in the same "
+        "note for the same reason. THE PAIR IS THE LESSON: a citation "
+        "inherited from either branch names a build that no reader can "
+        "open, and taking one side of a merge conflict over a citation "
+        "is how a tree acquires them. Every live citation in this tree "
+        "was re-derived against `index-DMIFGF1r.js` by anchoring on "
+        "rename-invariant slices of the code and reading the symbol "
+        "back out, never by swapping a filename.",
 }
 
 
@@ -41207,6 +41253,19 @@ CLIENT_SYMBOLS: dict[str, str] = {
     "_s": "cited only in client arithmetic; no Python meaning in this tree",
     "js": "cited only in client arithmetic; the span form keeps it off "
           "every `*.js` filename, which is where the ambiguity is",
+    # ADDED BY THE 2026-09-01 RE-DERIVATION, and every one of them is a
+    # name this tree started spelling in that pass. The rule the header
+    # states is that citing a name costs a line here; these are that
+    # cost paid rather than the cheaper alternative, which is to cite a
+    # symbol the scan cannot see and call the class green.
+    "aU": "two-letter mixed case; this tree binds no such Python name",
+    "aZ": "two-letter mixed case; this tree binds no such Python name",
+    "iU": "two-letter mixed case; this tree binds no such Python name",
+    "Ud": "two-letter mixed case; this tree binds no such Python name",
+    "fd": "cited only in client arithmetic; no Python meaning in this tree",
+    "kd": "cited only in client arithmetic; no Python meaning in this tree",
+    "qr": "cited only in client arithmetic; no Python meaning in this tree",
+    "si": "cited only in client arithmetic; no Python meaning in this tree",
 }
 
 # The tree's OWN past-tense vocabulary for "that name belonged to a bundle
@@ -41219,11 +41278,23 @@ CLIENT_SYMBOLS: dict[str, str] = {
 # point of use rather than being spelled here: naming the dead build IS the
 # scoping act, it is already a table with reasons, and a filename written
 # into this module would be a citation of its own.
+#
+# SIX PHRASES LEFT ON 2026-09-01 AND THE TABLE IS SHORTER FOR IT. The fix
+# round for the red below repaired the loose citations by ANCHORING them —
+# an offset or a quoted code slice the shipping bundle resolves — rather
+# than by scoping them, so the sites those six phrases were quoted from
+# stopped saying them. The guard's own rule then applies: a marker nothing
+# writes is a stale exemption, indistinguishable from one padded in to
+# widen the exit. ONE PHRASE IS THE HONEST SIZE OF THIS TABLE TODAY, and
+# a reader should read that as the anchors having done the work rather
+# than as scoping having been withdrawn. Re-extending the tuple when a
+# genuine scoping repair needs a phrase is the legitimate move it always
+# was; what is not legitimate is keeping phrases in reserve so that a
+# later paste has a wider vocabulary to reach for. `RETIRED_BUNDLES`'
+# three new keys are the live scoping vocabulary in practice — naming the
+# dead build is the scoping act, and this tree now does that instead.
 SYMBOL_SCOPE_MARKERS: tuple[str, ...] = (
-    "in the previous bundle", "in the bundle that shipped before",
-    "bundles that no longer exist", "bundle that no longer exists",
-    "bundle whose symbols rotted", "in the bundle that shipped at the time",
-    "in the bundle that then shipped")
+    "in the bundle that shipped at the time",)
 
 # And the tree's vocabulary for the OPPOSITE claim. A sentence that says a
 # name is true of the build shipping NOW cannot be excused by a past-tense
@@ -41236,9 +41307,11 @@ SYMBOL_SCOPE_MARKERS: tuple[str, ...] = (
 # before it while the truth had moved to a quarter, which is exactly the
 # rot the paragraph above forbids. The guard runs the attack and asserts
 # the SET, not its size.
+# "in the shipped file" left the tuple in the same pass and for the same
+# reason as the six scope markers above: nothing in the tree writes it.
 SYMBOL_PRESENT_TENSE: tuple[str, ...] = (
-    "in the shipped bundle", "in the bundle that ships", "the file that ships",
-    "in the shipped file")
+    "in the shipped bundle", "in the bundle that ships",
+    "the file that ships")
 
 # THERE IS NO EXIT FOR PROSE ABOUT PROSE, and this paragraph is the ruling
 # rather than a gap. A curator writing the note above reached for one: prose
@@ -41606,11 +41679,18 @@ def code_slice_owner(bundle: str, quoted: str) -> str | None:
         bundle: The bundle source.
         quoted: One backticked span, as written in the prose.
 
-    PROVEN, NOT YET WALKED: on the tree this arrived with, thirteen
-    quoted spans resolve here and not one of them names a symbol its
-    own region also spells, so the anchored set is identical with this
-    function forced to None. It opens the path `canvas.py`'s note
-    recommends; nothing in the tree has taken it yet.
+    WALKED SINCE 2026-09-01, and the sentence this replaces is worth
+    keeping in view: it said thirteen quoted spans resolved here, that
+    none of them named a symbol its own region also spelled, and so
+    that the anchored set was identical with this function forced to
+    None — the path was open and nothing had taken it. Two citations
+    take it now, and they were chosen to be the two whose quoted
+    structure is least likely to move: `client_wrapped_lines`' wrap
+    test and `client_wrap_width`'s redraw slice, each carrying NO
+    offset beside the name, so a rebuild moves the address without
+    invalidating the citation. Force this function to None and both go
+    unverifiable, which is the property that sentence could not
+    assert.
 
     Returns:
         The owning name, or None when the slice is too short, carries
@@ -41919,7 +41999,6 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
             "the repair that put a live unrelated function into this "
             "tree twice." % wrong)
 
-    @unittest.expectedFailure
     def test_no_client_symbol_is_cited_without_an_anchor_or_a_scope(
             self) -> None:
         """The red: a name nobody can check is the defect itself.
@@ -42074,18 +42153,47 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
             "a sentence that scopes a name to a dead build AND claims "
             "it of the shipping one reads as scoped, so the tense "
             "refusal is not biting")
-        # And on the live tree, the attack run to completion: one clause
-        # beside every loose name, which is the honest repair told as a
-        # lie fifty-odd times over. WHAT SURVIVES IS ASSERTED AS A SET
-        # and never as a count — a count here is the loose-occurrence
-        # count wearing a hat, and this class has already shipped two
-        # figures that rotted where they stood.
-        before = unverifiable_symbol_citations(real)
+        # And the attack run to completion: one clause beside every
+        # loose name, which is the honest repair told as a lie once per
+        # name. WHAT SURVIVES IS ASSERTED AS A SET and never as a count
+        # — a count here is the loose-occurrence count wearing a hat,
+        # and this class has already shipped two figures that rotted
+        # where they stood.
+        #
+        # THE SUBJECT IS FORGED WHEN THE TREE NO LONGER OFFERS ONE, and
+        # that is a repair rather than a relaxation (2026-09-01, the
+        # fix round for the red above). This clause was written on a
+        # tree carrying fifty-odd unverifiable citations and it asserts
+        # that pasting a scope beside every one of them leaves
+        # survivors. The moment the red beside it went green the tree
+        # stopped having a subject: `before` empties, the paste edits
+        # nothing, the survivor set is empty for an uninteresting
+        # reason, and the clause fails OVER A REPAIRED TREE. A guard
+        # that can only run while the defect it guards is present
+        # retires itself on the day the defect is fixed, which is the
+        # failure this whole class exists to talk about, one level up.
+        # So the attack runs on the tree while the tree offers names
+        # and on a forged source when it does not, and the property
+        # asserted is identical either way — the survivors are exactly
+        # the citations a present-tense claim forbids scoping.
+        live = unverifiable_symbol_citations(real)
+        tracked_or_forged = tracked if live else {
+            "p.py": '"""`ai` %s wraps a bound label. `js` is bare in '
+                    'this one."""\n' % SYMBOL_PRESENT_TENSE[0]}
+        before = live or unverifiable_symbol_citations(
+            symbol_citations(tracked_or_forged, bundle))
+        self.assertNotEqual(
+            before, [],
+            "neither the tree nor the forged stand-in offers a single "
+            "unverifiable citation, so the paste attack below has no "
+            "subject and proves nothing about the tense refusal")
         after = unverifiable_symbol_citations(symbol_citations(
             paste_a_scope_beside_every_loose_name(
-                tracked, before, CLIENT_SYMBOLS, SYMBOL_SCOPE_MARKERS[0]),
+                tracked_or_forged, before, CLIENT_SYMBOLS,
+                SYMBOL_SCOPE_MARKERS[0]),
             bundle))
-        refused = tense_refused_citations(tracked, before, CLIENT_SYMBOLS)
+        refused = tense_refused_citations(tracked_or_forged, before,
+                                          CLIENT_SYMBOLS)
         self.assertEqual(
             after, refused,
             "with a scoping clause written beside EVERY unverifiable "
@@ -42098,9 +42206,9 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
                         sorted(set(refused) - set(after))))
         self.assertNotEqual(
             after, [],
-            "every unverifiable citation in the tree can be excused by "
-            "pasting one phrase beside it, so the cheapest repair is "
-            "again the one that verifies nothing")
+            "every unverifiable citation in the subject can be excused "
+            "by pasting one phrase beside it, so the cheapest repair "
+            "is again the one that verifies nothing")
         # A COLON DOES NOT END A SENTENCE HERE, and nothing held that
         # decision until the second re-curation asked. Adding one to
         # `_SENTENCE_BREAK` moves the census by eight, in the fail-safe
@@ -42210,25 +42318,29 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
         # THE VOCABULARY MUST STILL BE ABOUT THIS CLIENT. It is declared
         # rather than derived and therefore cannot be complete; what it
         # can be asked is whether it still lands in the file that ships.
-        # BOTH BINDING FORMS, and the second one is not pedantry. FOUR
-        # sites in this tree reassure their reader that a superseded
-        # name is "assigned nowhere" in the file that ships, carrying
-        # TWO names between them — `Yn` (index-DTzHdgzu.js @798191), at
-        # canvas.py:2132, test_mutants.py:16985 and :40145, and `bd`
-        # (index-DTzHdgzu.js @737843), at canvas.py:14797. Both are
-        # live `function` DECLARATIONS, which an `X=` search walks
-        # straight past, and a census repeating that search inherits
-        # the blind spot. CORRECTION TO `c3f7b95`, whose message says
-        # "three sites ... each of the three names": the mechanism it
-        # claims is right and its roster is not. It counted the sites
-        # as three and folded in `Zr` (index-DTzHdgzu.js @267578, an
-        # assert helper), which appears in prose exactly once, at
-        # canvas.py:2348, inside a quoted code block, with nothing
-        # claiming it is unassigned. Recorded here rather than by
-        # rewriting the commit, because a reader meets this line and
-        # not that one.
+        # BOTH BINDING FORMS, and the second one is not pedantry.
+        # `Yn` (@798193) is a `function` DECLARATION that an `X=`
+        # search walks straight past, and so is `Kr` (@267580); a
+        # census repeating that search would report both as gone and a
+        # roster of sites "reassuring their reader that the name is
+        # assigned nowhere" would inherit the blind spot. Four sites
+        # once carried exactly that reassurance, two names between
+        # them, and each one has since been replaced by an anchor.
         #
-        # THOSE THREE OFFSETS ARE THE REPAIR AND NOT DECORATION. This
+        # AND THE FORM IS NOT STABLE EITHER, which the rebuilds have
+        # now demonstrated: `bd` (@660451) and `Zr` (@959264) are arrow
+        # bindings here and one of them was a declaration a build ago,
+        # so a search that knew only the form it met last time would
+        # have gone quiet on whichever way round it landed.
+        # CORRECTION TO `c3f7b95`, whose message says "three sites ...
+        # each of the three names": the mechanism it claims is right
+        # and its roster is not. It counted the sites as three and
+        # folded in `Zr`, which appeared in prose exactly once, inside
+        # a quoted code block, with nothing claiming it was unassigned.
+        # Recorded here rather than by rewriting the commit, because a
+        # reader meets this line and not that one.
+        #
+        # THOSE FOUR OFFSETS ARE THE REPAIR AND NOT DECORATION. This
         # comment reports a fact about PROSE and then makes a live
         # claim about the bundle in its next breath, so the red was
         # right to flag it; anchoring is the honest exit and it makes
@@ -44119,8 +44231,9 @@ class TestTheBandIsScoredOnTheBodyTheClientDraws(unittest.TestCase):
     """The half of the same fold that no single control could see.
 
     I-3 made the band deep enough to run off the body, and the body on
-    disk is not always the body the browser paints: `ii` (@553053) grows
-    a container whose bound label outgrows its headroom. Scoring a
+    disk is not always the body the browser paints: the client's redraw
+    `si` (@552896) grows a container whose bound label outgrows its
+    headroom. Scoring a
     client-wrapped block against a STORED height turns true sizing
     findings into pinched ones that are false about the picture.
 

@@ -2949,7 +2949,11 @@ class TestRenderMutants(AblationLiveness, unittest.TestCase):
 # The wrap budget the client gives a bound label is `Math.round(width/2) -
 # BOUND_TEXT_PADDING*2` on a diamond, and `BOUND_TEXT_PADDING` is 5. Both
 # read out of the shipped bundle rather than remembered — the minified
-# expression is `e.type==="diamond"?Math.round(n/2)-Yn*2:n-Yn*2` with `Yn=5`.
+# expression is `e.type==="diamond"?Math.round(n/2)-Kn*2:n-Kn*2`, quoted
+# so it can be searched for rather than believed, and the padding it
+# spells is `Kn` (@248729). It said `Yn` (@798193) until 2026-09-01,
+# which multiplies the three components of a vector by a scalar and has
+# never had anything to do with text.
 _BOUND_TEXT_PAD = 5
 
 # The probe label and the two container widths, DERIVED rather than chosen.
