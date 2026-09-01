@@ -1814,14 +1814,24 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
             # ADDITIVE, and `drag_as_user` never walks it. The pin-answer
             # provenance bench below drives the same verb machinery and
             # then reads the feed `canvas.py wait` prints, which is the
-            # surface the agent itself reads an answer off. Answered from
-            # `since` alone: the long-poll arm blocks, and there is
-            # nothing here for it to wait on.
+            # surface the agent itself reads an answer off.
+            #
+            # THE `timeout` IS HONOURED, matching the real server's own
+            # `do_GET` arm. Answering `since` alone and returning at once
+            # is correct only when there is something to return: on an
+            # empty window `cmd_wait` re-asks immediately and spins the
+            # rest of its budget at full tilt. Harmless at this bench's
+            # 1s and not harmless at a realistic one, and a helper whose
+            # cost depends on a caller's constant is a trap for whoever
+            # widens it next.
             query = dict(
                 pair.partition("=")[::2]
                 for pair in path.partition("?")[2].split("&") if pair)
+            since = int(query.get("since", 0))
+            wait = float(query.get("timeout", 0))
             return {"ok": True, "seq": app.events.seq,
-                    "events": app.events.since(int(query.get("since", 0)))}
+                    "events": (app.events.wait_since(since, wait) if wait > 0
+                               else app.events.since(since))}
         if path.startswith("api/artifact/"):
             # DEEP-COPIED, and this line was a reference until a
             # fix-agnosticism probe caught it. A real read crosses a
@@ -28012,7 +28022,13 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # which is two phantom captions disappearing under a browser's own witness.
 # A GREEN UNDER A DARK GATE IS THE SHAPE THIS FILE EXISTS TO REFUSE.
 #
-# WHAT IS NOT CLOSED, so the empty dict is not read as an all-clear.
+# AND THE DICT IS NO LONGER EMPTY, as of 2026-09-01: the paragraphs above
+# describe the 2026-08-30 drain and were written while it read `{}`. Two
+# entries stand now — see the note under the dict itself — so "the empty
+# dict" below means the state this section was written in, not the state
+# the file is in. The residual it names is still open and still unpinned.
+#
+# WHAT IS NOT CLOSED, so that emptiness was not read as an all-clear.
 # `recenter_label` models no shape inset, so an ellipse's and a diamond's
 # captions still sit where the tab will not draw them at every alignment
 # including `middle` — reachable and narrated, 29 and 14 of 116 middle
@@ -46698,11 +46714,17 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
 
 # ---------------------------------------------------------------------------
 # AUTHORSHIP IS MODELLED FOR THE QUESTION AND DROPPED FOR THE ANSWER. Filed
-# 2026-09-01 out of an assessment run, at P2 after two corrections to the
-# account of it. The corrected account is the one that matters, because it
-# needs nobody to have misbehaved: the user told the agent, out of band in
-# chat, to answer their open pins, and the agent did exactly that through the
-# door the tool gives it. Nothing was forged and no route needs closing.
+# 2026-09-01, at P2.
+#
+# NOTHING BELOW RESTS ON AN INCIDENT, and that is deliberate rather than
+# modest. This class was first written against a narrative from an
+# assessment run — an agent that had answered pins on the user's out-of-band
+# instruction and then could not tell its own answers from theirs. That
+# narrative was WITHDRAWN by the user afterwards, twice over, and every
+# sentence resting on it has been struck from this file. What is left is
+# constructed evidence: two pins, one question, two doors, driven here. The
+# class stands on that alone and would stand if no run had ever happened,
+# which is the only footing a durable red can have.
 #
 # THE PIN IS NOT SHORT OF AN AUTHORSHIP FIELD — IT HAS TWO, ON THE OTHER
 # HALF. This is the claim a first reading gets backwards, so it is written
@@ -46717,21 +46739,27 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
 #     WHO ASKED, written explicitly by both minters (the op path files
 #     `agent`, the save ingest files `user`).
 #
-# So the design decided twice that authorship is worth storing, and rendered
-# it twice: `Rail.tsx` draws a `yours`/`agent` chip off `direction`, and
-# `pin_debt_entry` prints `pin-pay(user, open, ...)` off the same field on
-# every `status` and every apply. Both of those answer a question that is
+# So the design decided twice that authorship is worth storing, and renders
+# it in two places: `pin_debt_entry` prints `pin-pay(user, open, ...)` off
+# `direction` on every `status` and every apply, and `Rail.tsx:345` draws a
+# `yours`/`agent` chip off the same field. Both answer a question that is
 # almost always "agent" — the agent asks nearly all the pins. The half where
 # authorship actually VARIES, who composed the answer, has no field in either
 # store and no mark on either surface.
 #
-# THE COST LANDED ON THE AGENT FIRST, which is why this needs no villain. One
-# turn after writing eight answers it read thirteen back, could not separate
-# its own eight from the user's five, and asked the user to re-send answers
-# it had written itself. The machinery under that is one line: `pin_answer`
-# is a member of `USER_EVENT_TYPES`, so `canvas.py wait --for user` serves
-# every answer as user activity BY CLASSIFICATION. The filter cannot consult
-# a fact neither store carries.
+# THE CHIP IS WORSE PLACED THAN THAT PARAGRAPH SOUNDS, and the detail is
+# owed because "the rail draws a chip off the same field" implies a badge
+# sitting beside the answer. It does not. `Rail.tsx:336` renders the chip
+# inside `openPins.map`, so it is drawn on OPEN cards only; an answered pin
+# moves to `resolvedPins`, and its archive card (`:400-408`) draws the
+# question and `↳ {p.answer}` with NO CHIP AT ALL. The moment an answer
+# exists is the moment the rail stops marking authorship of any kind.
+#
+# WHY THE FEED IS PART OF THE SUBJECT. `pin_answer` is a member of
+# `USER_EVENT_TYPES`, so `canvas.py wait --for user` serves every answer as
+# user activity BY CLASSIFICATION — because of what KIND of event it is,
+# never because of who sent it. That filter is the agent's own read surface,
+# and it cannot consult a fact neither store carries.
 #
 # MEASURED BEFORE IT WAS WRITTEN, on this tree, through the two doors that
 # exist. Two pins minted in one batch with identical question text; one
@@ -46747,22 +46775,22 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
 # WHAT THIS DELIBERATELY DOES NOT PIN, so the omissions are arguable rather
 # than invisible:
 #
-#   * The eight strings themselves. They are one incident; the class is the
-#     unmodelled half and the unmarked rendering, and a pin on today's text
-#     would go green the moment the text changed.
+#   * Any particular answer text. Strings from a run are one incident; the
+#     class is the unmodelled half and the unmarked rendering, and a pin on
+#     a sentence would go green the moment the sentence changed.
 #   * `/api/pins/answer` as a door that ought to be shut, guarded or
-#     authenticated. It is a legitimate door and the agent was legitimately
-#     sent through it.
-#   * The answer's VOICE. The same run produced "Nothing retries. I checked
-#     with the team who run it." — the user's first person asserting a
-#     verification the user never performed. That is a judgement about free
-#     text, and this repo refuses those on purpose: `_glossary_ruling` says
-#     so in as many words ("interpreting free text to decide whether the
-#     ruling counts would be this check issuing a verdict on an answer,
-#     which is the one thing a tripwire is built not to do"). A mark saying
-#     whose COMPOSITION an answer is makes that sentence readable correctly
-#     without anything having to parse it, which is why that finding is
-#     served by this red rather than by one of its own.
+#     authenticated. It is a legitimate door; nothing here authenticates
+#     anything.
+#   * The answer's VOICE — whether a sentence overclaims, or speaks in a
+#     first person that did not do the thing it describes. That is a
+#     judgement about free text, and this repo refuses those on purpose:
+#     `_glossary_ruling` (canvas.py:24007-24021) says so in as many words,
+#     "interpreting free text to decide whether the ruling counts would be
+#     this check issuing a verdict on an answer, which is the one thing a
+#     tripwire is built not to do". A mark saying whose COMPOSITION an
+#     answer is makes such a sentence readable correctly without anything
+#     having to parse it — but that is an argument for the mark, not a
+#     claim about any sentence anyone wrote.
 #   * `export --with-footnotes`. Measured, not assumed: it renders tooltips
 #     and the glossary, and a pin's answer never reaches it. A surface that
 #     does not show the answer cannot mis-attribute it.
@@ -46775,11 +46803,19 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
 #     when the ANSWER's source moves.
 # ---------------------------------------------------------------------------
 
-#: The two pins the bench answers, named for their ORIGIN. Their contents are
-#: deliberately the same string through both doors: an answer that differed
-#: in wording would let a reading tell them apart for a reason that is not
-#: provenance, which is the one false green available here.
+#: The two doors, named for the ORIGIN of the answer that comes through
+#: them. Their contents are deliberately the same string through both: an
+#: answer that differed in wording would let a reading tell them apart for a
+#: reason that is not provenance, which is the one false green available here.
 _PROV_DOORS = ("typed", "composed")
+#: Door -> the pin id it answers, and the ids are DELIBERATELY NOT the door
+#: names. `_prov_reading` substitutes the id out of the rendered nag line so
+#: two pins compare, and "typed"/"composed" are exactly the two English words
+#: a repaired provenance rendering is likeliest to print — an id that is also
+#: a plausible rendering would mangle the repaired line inside the very
+#: failure message a reader uses to judge the repair. Non-word ids cost
+#: nothing and cannot collide.
+_PROV_PINS = {"typed": "q1", "composed": "q2"}
 #: One question, asked twice, in one batch — so `author`, `direction`,
 #: `asked_at_revn` and `round` are equal by construction and cannot stand in
 #: for an attribution nobody made.
@@ -46859,6 +46895,123 @@ def _prov_reading(app: canvas.ServerApp, pid: str,
     }
 
 
+def _prov_recorder(
+        transport: Callable[..., dict]) -> tuple[Callable[..., dict],
+                                                 list[dict[str, Any]]]:
+    """Wrap the driver's transport and record what actually crossed it.
+
+    A PRODUCT REFUSAL AND A BROKEN PIPE ARRIVE AS THE SAME `SystemExit`,
+    and the difference between them is not in the exception — it is in
+    the traffic. A verb that refuses by design either never posts at all
+    (`die` before `_x_post`) or posts and is answered; a verb stopped by
+    an HTTP 500, a refused connection or a timeout has a request that
+    RAISED. Only a record of the calls can tell those apart, so the
+    transport keeps one.
+
+    Args:
+        transport: The in-process transport double to wrap.
+
+    Returns:
+        The wrapper, and the list it appends to — one entry per call,
+        carrying the path, whether it was a POST, and the exception if
+        the call did not return.
+    """
+    calls: list[dict[str, Any]] = []
+
+    def recording(url: str, payload: dict | None = None,
+                  timeout: float = 10.0) -> dict:
+        """Pass one call through, recording how it ended.
+
+        Args:
+            url: The absolute URL the driver built.
+            payload: JSON body for a POST; None for a GET.
+            timeout: Passed straight through.
+
+        Returns:
+            Whatever the wrapped transport returned. Anything the
+            transport raises is recorded and re-raised UNCHANGED: the
+            driver's own error handling is the subject here, and
+            swallowing a failure would rewrite the behaviour under test.
+        """
+        entry: dict[str, Any] = {"path": url.split(_AS_USER_URL, 1)[-1],
+                                 "post": payload is not None, "raised": None}
+        calls.append(entry)
+        try:
+            return transport(url, payload, timeout)
+        except Exception as exc:
+            # BROAD ON PURPOSE: a real transport crosses a socket, so the
+            # set of things it can raise is open. Narrowing here would
+            # let the next unlisted failure read as a product refusal
+            # again, which is the exact defect this recorder exists to
+            # end. Nothing is swallowed — the raise below is unconditional.
+            entry["raised"] = "%s: %s" % (type(exc).__name__, exc)
+            raise
+
+    return recording, calls
+
+
+def _prov_control(url: str, expect_revn: int,
+                  calls: list[dict[str, Any]]) -> dict[str, Any]:
+    """Decide whether the agent's door said no, or the bench fell over.
+
+    THE FIRST VERSION OF THIS BENCH COULD NOT TELL, and reported
+    `refused` for both. Measured with every `api/pins/*` POST answering
+    HTTP 500: `_x_post` died, `composed_outcome` read `refused` with an
+    exit code, and BOTH reds went green over a tree where nothing had
+    been repaired. Found in review, and it is the same shape as the
+    `vanished` hole one door over — an exception that means four
+    different things read as the one that flatters the tree.
+
+    TWO QUESTIONS, AND THE FIRST IS THE ONE THAT BITES. A liveness probe
+    alone is not enough and was tried: `api/heartbeat` came back healthy
+    while the pins route was answering 500, because a server can be up
+    and one endpoint broken. So the first question is about the verb's
+    OWN traffic — did any call it made raise? — and only the second is
+    about the server still being there afterwards.
+
+    `api/heartbeat` is the liveness POST because it is the one live write
+    with no side effect and no event. `api/config` would append a
+    `config_changed` that the `--for user` feed then counts, and a
+    control that perturbs the measurement it protects is not a control.
+
+    Args:
+        url: The base URL the driver posts against.
+        expect_revn: The head revision the store is known to be at, so a
+            server answering `ok` out of a stale or empty state fails
+            rather than passing on the truthiness of a dict.
+        calls: `_prov_recorder`'s log of what the verb actually sent.
+
+    Returns:
+        `ok` (nothing raised, the server is alive, a write is accepted
+        and the revision matches) plus `raised`, `alive`, `beat` and a
+        `why` naming whichever half failed.
+    """
+    raised = [c for c in calls if c["raised"]]
+    try:
+        alive = bool(canvas.server_alive({"url": url}))
+        beat = canvas.http_json(url + "api/heartbeat", {"dirty": False})
+    except Exception as exc:
+        # Broad for `_prov_recorder`'s reason: a control that cannot be
+        # taken is a dead bench, whatever killed it.
+        return {"ok": False, "raised": raised, "alive": None, "beat": None,
+                "why": "the control itself could not be taken (%s: %s)"
+                       % (type(exc).__name__, exc)}
+    served = bool(alive and beat.get("ok")
+                  and beat.get("head_revn") == expect_revn)
+    why = ""
+    if raised:
+        why = ("%d of the %d call(s) the verb made RAISED, so it was "
+               "stopped rather than answered: %s"
+               % (len(raised), len(calls),
+                  [(c["path"], c["raised"]) for c in raised]))
+    elif not served:
+        why = ("the server did not answer a control write afterwards: "
+               "alive=%r ok=%r head_revn=%r (expected %r)"
+               % (alive, beat.get("ok"), beat.get("head_revn"), expect_revn))
+    return {"ok": bool(not raised and served), "raised": raised,
+            "alive": alive, "beat": beat, "why": why}
+
+
 def answer_provenance_bench() -> dict[str, Any]:
     """Answer one question twice — once by the user's hand, once by the agent.
 
@@ -46876,11 +47029,20 @@ def answer_provenance_bench() -> dict[str, Any]:
     `vanished`, a door that did nothing and said nothing, which is a
     broken bench wearing a passing test's clothes.
 
+    AND `refused` IS NOT SELF-EVIDENCING, which is what the first version
+    of this function got wrong. `_x_post` turns a product refusal, an
+    HTTP 500, a refused connection and a timeout into the same `ERROR=`
+    line and the same `SystemExit`, so the exception says only that
+    SOMETHING stopped the verb. `control` is therefore taken after the
+    verb runs, through the same transport, and it is what separates the
+    two — see `_prov_control`.
+
     Returns:
         `typed` and `composed` readings from `_prov_reading`, plus
         `composed_outcome` (`landed`/`refused`/`vanished`), `refusal`
-        (the exit code, when there was one) and `feed_size` (how many
-        events `wait --for user` printed in total).
+        (the exit code, when there was one), `control` (the liveness
+        probe, asserted by the guard) and `feed_size` (how many events
+        `wait --for user` printed in total).
     """
     tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-prov-"))
     project = canvas.Project(tmp)
@@ -46897,19 +47059,19 @@ def answer_provenance_bench() -> dict[str, Any]:
                 "y": 0, "width": 100, "height": 60, "role": "node"}}]})
         store.apply_batch({
             "base_revn": store.head_revn(), "artifact": "flow",
-            "ops": [{"op": "pin", "id": pid, "target": "n1",
-                     "question": _PROV_QUESTION} for pid in _PROV_DOORS]})
+            "ops": [{"op": "pin", "id": _PROV_PINS[door], "target": "n1",
+                     "question": _PROV_QUESTION} for door in _PROV_DOORS]})
         canvas.atomic_write(project.state_path,
                             json.dumps({"url": _AS_USER_URL, "pid": 0}))
         app = canvas.ServerApp(project)
-        transport = _as_user_transport(app)
+        transport, calls = _prov_recorder(_as_user_transport(app))
         # DOOR ONE — the rail. `apiPost("/api/pins/answer", { id, answer })`
         # is the whole of what the client sends, from two call sites in
         # App.tsx, and it is reproduced here rather than reached through a
         # browser because the model tier has none. The server sees this
         # body and no other fact about its caller.
         app.handle_post("/api/pins/answer",
-                        {"id": "typed", "answer": _PROV_ANSWER})
+                        {"id": _PROV_PINS["typed"], "answer": _PROV_ANSWER})
         # DOOR TWO — the agent, instructed. Driven through `cmd_x_as_user`
         # rather than by posting the same body again, because a repair that
         # marks the door has to have a door to mark: two identical POSTs
@@ -46921,10 +47083,17 @@ def answer_provenance_bench() -> dict[str, Any]:
             try:
                 canvas.cmd_x_as_user(argparse.Namespace(
                     project=str(tmp), verb="answer", artifact="flow",
-                    target="composed", text=_PROV_ANSWER, dx=0, dy=0,
-                    note=None))
+                    target=_PROV_PINS["composed"], text=_PROV_ANSWER,
+                    dx=0, dy=0, note=None))
             except SystemExit as exc:
                 outcome, refusal = "refused", exc.code
+            # TAKEN INSIDE THE SAME PATCH, and immediately: the question
+            # it answers is whether the transport the verb just used is
+            # still alive, so it has to be that transport and not a fresh
+            # one. A control outside this block would prove the store is
+            # readable and nothing about the door.
+            control = _prov_control(_AS_USER_URL, store.head_revn(),
+                                    list(calls))
         # AND THEN READ BACK THE WAY THE AGENT READS. `wait --for user` is
         # run for real, filter and all, so the classification that made the
         # agent unable to separate its own words is exercised rather than
@@ -46945,9 +47114,10 @@ def answer_provenance_bench() -> dict[str, Any]:
         feed = [json.loads(line) for line in printed.getvalue().splitlines()
                 if line.startswith("{")]
         out: dict[str, Any] = {"composed_outcome": outcome,
-                               "refusal": refusal, "feed_size": len(feed)}
-        for pid in _PROV_DOORS:
-            out[pid] = _prov_reading(app, pid, feed)
+                               "refusal": refusal, "control": control,
+                               "feed_size": len(feed)}
+        for door in _PROV_DOORS:
+            out[door] = _prov_reading(app, _PROV_PINS[door], feed)
         # `landed` MEANS THE SENTENCE IS SOMEWHERE IN THE READING, and the
         # first draft of this line asked whether the pin's record existed
         # instead. It always does — the pin is in the registry from the
@@ -47066,10 +47236,17 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
       (a) A SIBLING FIELD AT THE DOOR. `answer_pin` grows a `by`, the
           verb declares itself, the event and `pin_debt_entry` carry it.
           The nag prints `<pin>(answered, ..., answered by agent)`.
-      (b) `author` WIDENED TO A PER-FIELD RECORD. No new key: the slot
-          the element already has stops being a scalar about the question
-          and becomes `{"question": "agent", "answer": "user"}`. The nag
-          prints `..., answer by agent)`.
+      (b) `author` WIDENED TO A PER-FIELD RECORD. No new key anywhere:
+          the authorship slot stops being a scalar about the question and
+          becomes `{"question": "agent", "answer": "user"}`. THE
+          MEASURED VERSION TOUCHES THREE SURFACES, and this sentence used
+          to name one — corrected in review after the reviewer built it
+          literally and found it flips NEITHER red. `answer_pin` widens
+          `customData.author` on the glyph, mirrors the same map onto the
+          registry record as `author`, and `handle_post` carries it on
+          the `pin_answer` event; `pin_debt_entry` then reads it and
+          prints `..., answer by agent)`. The element-only version is a
+          real datum and is kept below rather than discarded.
       (c) A PROPOSAL THE USER PROMOTES. The verb posts to a `propose`
           route, `proposed_answer` lands, `answer` stays None and the pin
           stays `open`. The composed answer then does not reach the
@@ -47081,13 +47258,26 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
           is answered and the other is not.
 
     Four mechanisms, one law, and (b) is the one that proves this is not
-    a disguised "add a field": it adds none. What these do NOT flip under
-    is worth writing down too, since §8 says to name the rewrites you
-    break under — a repair that adds a NEW marked route for the agent and
-    leaves `x-as-user answer` writing unmarked testimony keeps both reds
-    red. That is a judgement and it is the one this pin makes: an
-    unmarked route the agent still has is the defect surviving beside its
-    own fix, not a spelling difference.
+    a disguised "add a field": it adds none.
+
+    TWO REPAIRS THAT DO **NOT** FLIP THEM, measured in the same review
+    and kept because a negative result is the part a reader cannot
+    reconstruct:
+
+      * (b) BUILT LITERALLY, widening `customData.author` on the glyph
+        and nothing else. Neither red moves — `record`, `events`, `nag`
+        and `feed` all still read the same for both answers. One store
+        is not the subject; the pair of them plus what they emit is.
+      * MARKING BOTH STORES AND NOT THE EVENT. Red 1 stays red on
+        `events`. See the ladder in
+        `test_the_rendered_mark_does_not_move_with_the_answers_source`.
+
+    AND ONE REWRITE THEY BREAK UNDER, named because §8 says to name them:
+    a repair that adds a NEW marked route for the agent and leaves
+    `x-as-user answer` writing unmarked testimony keeps both reds red.
+    That is a judgement and it is the one this pin makes — an unmarked
+    route the agent still has is the defect surviving beside its own fix,
+    not a spelling difference.
     """
 
     @unittest.expectedFailure
@@ -47116,7 +47306,19 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
         `_PROV_VOLATILE` removes those before the comparison, and both
         pins are minted in ONE batch carrying ONE question string so that
         `author`, `direction`, `round` and `asked_at_revn` are equal by
-        construction.
+        construction. Verified key-by-key on an UNSCRUBBED diff, in
+        review: the record differs only on `id`, the event only on
+        `pin`/`seq`, the glyph only on `id`/`seed`. `_PROV_VOLATILE` is a
+        strict superset of what varies, which is the safe direction —
+        every entry beyond that set makes this red HARDER to flip, never
+        easier.
+
+        THIS SURFACE LIST IS THREE AND NOT TWO, and the third is the one
+        that does the work. Measured 2026-09-01: a repair marking BOTH
+        STORES and stopping there leaves this red RED, on `events` — the
+        `pin_answer` payload is built by hand in `handle_post` and does
+        not inherit from the record it was built from. It takes stores
+        AND event together to turn this green.
         """
         bench = answer_provenance_bench()
         typed, composed = bench["typed"], bench["composed"]
@@ -47144,13 +47346,24 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             self) -> None:
         """The rendering half: the badge answers the question nobody asked.
 
-        SEPARATE FROM ITS NEIGHBOUR ABOVE BECAUSE IT FAILS SEPARATELY. A
-        repair that lands a mark in both stores and stops there satisfies
-        the storage red completely and leaves this one exactly where it
-        is — the standing nag still reads `<pin>(answered, age 0r, target
-        edited 0×)` for both, and `wait --for user` still hands the agent
-        its own sentences back under the same heading as the user's. That
-        is the configuration the incident ran in, one rendering short.
+        SEPARATE FROM ITS NEIGHBOUR ABOVE BECAUSE IT FAILS SEPARATELY,
+        and the separator is MEASURED rather than asserted. This
+        paragraph used to say that marking both stores satisfies the
+        storage red; that was wrong, and the two-mark ladder is what the
+        review ran to find out. 2026-09-01, one repair per rung, both
+        reds read at each:
+
+            stores only  (record + element)          red 1 RED, red 2 RED
+            stores + event                           red 1 GREEN, red 2 RED
+
+        So the real separator is the SECOND rung: a repair that marks
+        both stores AND the `pin_answer` event turns the storage red
+        green and leaves this one red on `nag` — the standing `PIN_DEBT=`
+        line, printed on every `status` and every apply, still reads
+        `<pin>(answered, age 0r, target edited 0×)` for both answers. A
+        product can therefore be fully marked everywhere it is STORED and
+        still tell a human nothing, which is precisely the state this red
+        exists to keep pointing at.
 
         AND IT IS THE EXACT POLE OF THE ONE BELOW. `pin_debt_entry`
         renders `direction`, the same field the rail's `yours`/`agent`
@@ -47177,11 +47390,12 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "the two answers render identically on %d of 2 surfaces "
             "somebody reads (%s). PIN_DEBT= prints %r for both, and "
             "`wait --for user` served %d event(s) with the agent's own "
-            "composition among them under the user's heading. The same "
-            "line already marks WHOSE QUESTION it is, and the rail draws "
-            "a chip off the same field — so what ships is an authorship "
-            "badge on the half that is almost always the agent, and "
-            "nothing on the half that varies"
+            "composition among them under the user's heading. That same "
+            "line already marks WHOSE QUESTION it is, off `direction`, "
+            "and the rail draws a chip off that field on OPEN cards only "
+            "— an answered pin's archive card carries no mark at all. So "
+            "authorship is rendered on the half that is almost always "
+            "the agent, and vanishes on the half that varies"
             % (len(same), ", ".join(same), typed["nag"], bench["feed_size"]))
 
     def test_the_bench_drove_both_doors_and_every_reader_spoke(self) -> None:
@@ -47195,21 +47409,52 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
         facts that make `same == []` mean something.
 
         WATCHED FAILING, one clause at a time, 2026-09-01, by damaging
-        this bench in a throwaway copy outside the repo:
+        this bench in a throwaway copy outside the repo. The right-hand
+        column is what the two reds did under that same damage, and it is
+        the reason each clause exists rather than a note about it:
 
           * agent door pointed at a pin id that does not exist ->
             `composed_outcome` reads `vanished`, clause 3 fires, and both
-            reds go GREEN — which is precisely the false fix this clause
-            exists to refuse.
+            reds go GREEN — precisely the false fix that clause refuses.
+          * every `api/pins/*` POST answers HTTP 500 -> `_x_post` dies,
+            `composed_outcome` reads `refused` with exit code 5, and both
+            reds go GREEN. Clause 4 is the only thing that speaks, and it
+            speaks because the RECORDED CALL RAISED, not because the
+            server was unreachable — a liveness probe alone was tried
+            first and passed here, since `api/heartbeat` stays healthy
+            while one endpoint 500s. THIS ONE WAS FOUND IN REVIEW, not by
+            me, and it is the same shape as the `vanished` hole one door
+            over: an exception meaning four different things, read as the
+            one that flatters the tree.
+          * `api/health` answering `OSError` -> `_x_client` dies before
+            the verb ever posts; clause 4 fires on the raised health
+            call. Before the control existed this was caught only
+            incidentally, by clause 6 noticing an empty feed, which is
+            not the same as being detected.
           * user door posting `""` -> clause 1 fires on the answer text.
-          * `Store.pin_debt` returning `[]` -> clause 4 fires on the nag.
-          * `cmd_wait` driven `--for agent` -> clause 5 fires on the feed.
+          * `Store.pin_debt` returning `[]` -> clause 5 fires on the nag.
+          * `cmd_wait` driven `--for agent` -> clause 6 fires on the feed.
 
-        A REFUSAL IS NOT A DAMAGED BENCH, which is what clause 3 is
-        shaped around: candidate repair (d) shuts the agent's route and
-        the bench then reports `refused` with an exit code, having heard
-        the door say no. `vanished` is the state where it said nothing
-        and did nothing, and that is the only outcome refused here.
+        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 and 4
+        are shaped around TOGETHER. Neither is sufficient alone: `_x_post`
+        turns a product refusal, an HTTP 500, a refused connection and a
+        timeout into one `SystemExit`, so `refused` names the exception
+        and not its cause. Clause 4 asks the server a question it must
+        answer, through the same transport, immediately afterwards —
+        under repair (d) the door says no and the control comes back
+        live, under a broken bench nothing comes back at all.
+
+        TWO JUDGEMENTS ARE BAKED INTO CLAUSES 1, 2 AND 6, and they are
+        written here rather than left implicit, because a guard whose
+        subject is unstated judgements should not carry any. Clause 1/2
+        require the USER's door to land the sentence and leave the pin
+        `answered`; clause 6 requires at least one event on the
+        `--for user` feed. A repair that turned BOTH doors into proposals
+        — nobody's answer lands until someone promotes it — would fail
+        this guard rather than flip the reds. That is deliberate: it is a
+        different product, one where the user cannot answer their own
+        pin, and it should arrive as a failing guard somebody has to look
+        at rather than as a quietly satisfied emptiness claim.
         """
         bench = answer_provenance_bench()
         typed = bench["typed"]
@@ -47230,11 +47475,28 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
             "readings differ for a reason that has nothing to do with "
             "provenance, and both reds above then pass over a bench that "
             "measured one door" % bench["composed_outcome"])
-        for pid in _PROV_DOORS:
+        self.assertTrue(
+            bench["control"]["ok"],
+            "the server did not answer a control request through the same "
+            "transport after the agent's door ran (%s), so `%s` describes "
+            "the plumbing and not a product decision. `_x_post` exits the "
+            "same way for a refusal, an HTTP 500 and a dead socket — "
+            "without this clause a broken bench reports `refused` and "
+            "BOTH reds above go green over a tree where nothing was "
+            "repaired"
+            % (bench["control"]["why"] or bench["control"],
+               bench["composed_outcome"]))
+        if bench["composed_outcome"] == "refused":
+            self.assertIsNotNone(
+                bench["refusal"],
+                "the agent's door refused without an exit code, so the "
+                "refusal is not something a caller could act on")
+        for door in _PROV_DOORS:
             self.assertTrue(
-                bench[pid]["nag"],
-                "PIN_DEBT= rendered nothing for %r, so the rendering red "
-                "is comparing two absences rather than two lines" % pid)
+                bench[door]["nag"],
+                "PIN_DEBT= rendered nothing for the %s door (%s), so the "
+                "rendering red is comparing two absences rather than two "
+                "lines" % (door, _PROV_PINS[door]))
         self.assertGreaterEqual(
             bench["feed_size"], 1,
             "`canvas.py wait --for user` printed no events at all, so "
