@@ -15773,7 +15773,7 @@ class TestTheBidirectionalFindingReadsTheClientsDefaults(unittest.TestCase):
 
     THE LINE POLE IS THE STRONGER BUNDLE FACT, and it is not the
     destructuring default. `restoreElement`'s `case "line": case "draw":`
-    (offset 630428 of `scripts/web/assets/index-KJTydiiR.js`) does
+    (offset 630428 of `scripts/web/assets/index-DFry315l.js`) does
     default both ends to `null`, but the shape generator puts BOTH head
     calls inside `if (e.type === "arrow")` (offset 503007, the
     destructuring itself at 503029) — so a line never gets a head drawn
@@ -21223,13 +21223,44 @@ class TestXAsUserFidelity(unittest.TestCase):
         self.assertEqual(
             canvas.http_json(self.url() + "api/state")["checkout_revn"], 1)
 
+    def mint_pin(self, pin_id, question="which source wins?"):
+        """Put one open pin on the shared scene through the real op path.
+
+        Args:
+            pin_id: The id to mint it under.
+            question: The question text.
+
+        Returns:
+            The pin's registry record, read back off `/api/state`.
+        """
+        canvas.http_json(
+            self.url() + "api/apply",
+            payload={"base_revn": canvas.http_json(
+                self.url() + "api/state")["head_revn"],
+                "artifact": "w",
+                "ops": [{"op": "pin", "target": "panel", "id": pin_id,
+                         "question": question}]})
+        return self.pin(pin_id)
+
+    def pin(self, pin_id):
+        """One pin's registry record as the rail is served it.
+
+        Args:
+            pin_id: The pin to read.
+
+        Returns:
+            The record from `/api/state`, or None.
+        """
+        return next((p for p in canvas.http_json(
+            self.url() + "api/state")["pins"] if p["id"] == pin_id), None)
+
     def test_a_rejected_answer_is_an_error_line_not_a_traceback(self):
         """The early-returning verbs' envelope, both directions.
 
         `answer` stands for its two siblings: all three now post through
         `_x_post`, and this is the one whose refusal is reachable
-        without breaking the server or the project — `/api/pins/answer`
-        returns 404 for an unknown pin id, which is the shape an
+        without breaking the server or the project — the route it posts
+        to returns 404 for an unknown pin id, which is the shape an
         assessor hits by pasting a stale id out of an earlier round.
 
         Before the fix that printed `urllib.error.HTTPError: HTTP Error
@@ -21238,31 +21269,225 @@ class TestXAsUserFidelity(unittest.TestCase):
         traceback to mean the tool itself is broken — so the assessor is
         told to stop rather than to fix the id.
 
-        THE HAPPY POLE IS ASSERTED TOO, on a real pin answered through
-        the same verb, because an envelope that swallowed the success
-        path would keep the promise by breaking the command.
+        THE HAPPY POLE IS ASSERTED TOO, on a real pin the verb reaches
+        through the same envelope, because an envelope that swallowed
+        the success path would keep the promise by breaking the command.
+        What the happy pole LEAVES BEHIND is the sibling below's
+        subject: since the provenance repair this verb proposes rather
+        than answers, so `PROPOSED=` is what a working call prints.
+
+        AND THE SERVER'S OWN SENTENCE IS ASSERTED, which `ERROR=` alone
+        does not buy. `str(HTTPError)` is the status line — a caller told
+        "HTTP Error 409: Conflict" knows a write was refused and nothing
+        it could act on. That mattered little while the only reachable
+        refusal was a 404 for an id that does not exist; the proposal
+        routes refuse with 409 whenever the pin's state moved on under
+        the draft, which happens in ordinary use.
         """
         out = self.x_fails("answer", "--target", "pin-does-not-exist",
                            "--text", "yes")
         said = out.stdout + out.stderr
         self.assertIn("ERROR=", said, said)
-        self.assertIn("answer", said, said)
+        self.assertIn("proposal", said, said)
+        self.assertIn("unknown pin", said,
+                      "the refusal names a status and not a reason, so an "
+                      "agent reading it cannot act: %s" % said)
         self.assertNotIn("Traceback", said, said)
 
-        # the live pole: a pin that exists is answered and says so
-        canvas.http_json(
-            self.url() + "api/apply",
-            payload={"base_revn": canvas.http_json(
-                self.url() + "api/state")["head_revn"],
-                "artifact": "w",
-                "ops": [{"op": "pin", "target": "panel",
-                         "id": "pin-envelope",
-                         "question": "which source wins?"}]})
-        pins = canvas.http_json(self.url() + "api/state")["pins"]
-        self.assertTrue(pins, "the pin op left no pin to answer")
-        got = self.x("answer", "--target", pins[-1]["id"], "--text", "edgar")
-        self.assertIn("ANSWERED=", got.stdout, got.stdout)
+        self.mint_pin("pin-envelope")
+        got = self.x("answer", "--target", "pin-envelope", "--text", "edgar")
+        self.assertIn("PROPOSED=", got.stdout, got.stdout)
         self.assertNotIn("ERROR=", got.stdout + got.stderr)
+
+    def test_the_agents_verb_proposes_and_cannot_answer(self):
+        """r8-6: `x-as-user answer` may not put words in the user's mouth.
+
+        THE DEFECT WAS THAT BOTH DOORS WROTE THE SAME RECORD. This verb
+        posted the rail's own body to `/api/pins/answer`, so a sentence
+        the AGENT composed left an answered pin, a `pin_answer` event
+        and a `PIN_DEBT=` line indistinguishable from one the user had
+        typed — and then came back to the agent on its own
+        `wait --for user` feed as their testimony. The repair is
+        structural rather than a label: the agent's only door is
+        `/api/pins/propose`, which cannot answer anything.
+
+        FIVE READINGS AND NOT ONE, because the fix has to hold on every
+        surface a pin is stored in or rendered on. A repair that marked
+        the record and left the nag reading `answered` would have
+        bought provenance nobody can see.
+
+        THE USER'S DOOR IS ASSERTED IN THE SAME TEST, deliberately: a
+        verb that refused everything would satisfy every clause above
+        while deleting the feature. `/api/pins/answer` still answers.
+        """
+        self.mint_pin("pin-composed", "does anything retry?")
+        self.x("answer", "--target", "pin-composed",
+               "--text", "Nothing retries.")
+        rec = self.pin("pin-composed")
+        self.assertEqual(rec["status"], "open",
+                         "the agent's verb closed the question: %s" % rec)
+        self.assertIsNone(rec["answer"],
+                          "the agent's words landed as an answer: %s" % rec)
+        self.assertEqual(rec["proposed_answer"], "Nothing retries.",
+                         "the agent's words were dropped rather than "
+                         "parked: %s" % rec)
+        debt = next(d for d in canvas.http_json(
+            self.url() + "api/state")["pin_debt"] if d["id"] == "pin-composed")
+        self.assertIn("proposal", canvas.pin_debt_entry(debt),
+                      "PIN_DEBT= renders a pin with a draft waiting on it "
+                      "exactly like one nobody has offered anything on: %r"
+                      % canvas.pin_debt_entry(debt))
+        # The ❓ glyph is the second store and has its own readers.
+        glyph = next(e for e in self.scene() if e["id"] == "pin-composed")
+        self.assertEqual((glyph.get("customData") or {}).get(
+            "proposed_answer"), "Nothing retries.",
+            "the record and the glyph disagree about the draft: %s" % glyph)
+
+        # and the user's own door is untouched
+        self.mint_pin("pin-typed", "does anything retry?")
+        canvas.http_json(self.url() + "api/pins/answer",
+                         payload={"id": "pin-typed",
+                                  "answer": "Nothing retries."})
+        typed = self.pin("pin-typed")
+        self.assertEqual(typed["status"], "answered")
+        self.assertEqual(typed["answer"], "Nothing retries.")
+        self.assertEqual(typed["answer_source"], "user")
+
+    def test_the_proposal_is_the_agents_event_and_not_the_users(self):
+        """A draft must not arrive on the feed the agent reads as theirs.
+
+        THE SHARPEST HALF OF THE REPAIR. `wait --for user` is how an
+        agent learns the user moved, and `pin_answer` is a member of
+        `USER_EVENT_TYPES` — so while the agent could answer, its own
+        composition came back under the user's heading and there was no
+        field on the event that could have said otherwise. Now the draft
+        emits `pin_proposal`, which is the agent's own; only the user's
+        promotion emits `pin_answer`, carrying `answer_source` so a
+        reader can tell whose words were promoted.
+        """
+        self.mint_pin("pin-feed", "who owns the queue?")
+        self.x("answer", "--target", "pin-feed", "--text", "Billing owns it.")
+        types = {e["type"] for e in canvas.http_json(
+            self.url() + "api/events?since=0&timeout=0")["events"]
+            if e.get("pin") == "pin-feed"}
+        self.assertEqual(types, {"pin_proposal"})
+        self.assertNotIn("pin_proposal", canvas.USER_EVENT_TYPES,
+                         "a sentence the agent composed is classified as "
+                         "the user's activity, which is the defect")
+        self.assertIn("pin_proposal", canvas.AGENT_EVENT_TYPES)
+
+        canvas.http_json(self.url() + "api/pins/promote",
+                         payload={"id": "pin-feed"})
+        answered = [e for e in canvas.http_json(
+            self.url() + "api/events?since=0&timeout=0")["events"]
+            if e.get("pin") == "pin-feed" and e["type"] == "pin_answer"]
+        self.assertEqual(len(answered), 1, answered)
+        self.assertEqual(answered[0]["answer_source"], "agent-proposal",
+                         "the event does not say the promoted words were "
+                         "the agent's: %s" % answered[0])
+        self.assertEqual(answered[0]["answer"], "Billing owns it.")
+
+    def test_promotion_keeps_the_users_edit_and_the_agents_draft(self):
+        """The user rewriting a draft before accepting it, and the nag.
+
+        BOTH FACTS SURVIVE, because the archive card renders both: the
+        answer is what the user accepted, and `proposed_answer` is what
+        the agent had offered, so a card can say the ruling was theirs
+        and the first phrasing was not. Dropping the draft on promotion
+        would leave the two cases — accepted as written, accepted after
+        a rewrite — reading identically.
+        """
+        self.mint_pin("pin-edited", "does anything retry?")
+        self.x("answer", "--target", "pin-edited", "--text", "Nothing does.")
+        canvas.http_json(self.url() + "api/pins/promote",
+                         payload={"id": "pin-edited",
+                                  "answer": "Only the queue does."})
+        rec = self.pin("pin-edited")
+        self.assertEqual(rec["answer"], "Only the queue does.")
+        self.assertEqual(rec["proposed_answer"], "Nothing does.")
+        self.assertEqual(rec["answer_source"], "agent-proposal")
+        debt = next(d for d in canvas.http_json(
+            self.url() + "api/state")["pin_debt"] if d["id"] == "pin-edited")
+        line = canvas.pin_debt_entry(debt)
+        self.assertIn("agent proposal", line,
+                      "the standing nag reads a promoted answer exactly "
+                      "like one the user wrote: %r" % line)
+        self.assertFalse(debt["proposal_waiting"],
+                         "a promoted draft is still nagging as though "
+                         "somebody owed a decision on it")
+
+    def test_a_discarded_draft_leaves_the_question_open(self):
+        """Refusing an agent's wording is not answering the question.
+
+        The third thing the user can do with a draft, and the one a
+        repair is likeliest to skip: "I do not want your sentence" says
+        nothing about the question, so the pin goes back to being an
+        ordinary open pin rather than being closed by rejection. The
+        event carries the refused wording because the record no longer
+        does, and an agent told only that its draft is gone would offer
+        the same sentence again.
+        """
+        self.mint_pin("pin-refused", "who owns the queue?")
+        self.x("answer", "--target", "pin-refused", "--text", "Billing does.")
+        canvas.http_json(self.url() + "api/pins/proposal/discard",
+                         payload={"id": "pin-refused"})
+        rec = self.pin("pin-refused")
+        self.assertEqual(rec["status"], "open")
+        self.assertIsNone(rec["answer"])
+        self.assertIsNone(rec.get("proposed_answer"),
+                          "the discarded draft is still on the record: %s"
+                          % rec)
+        debt = next(d for d in canvas.http_json(
+            self.url() + "api/state")["pin_debt"] if d["id"] == "pin-refused")
+        self.assertFalse(debt["proposal_waiting"])
+        ev = [e for e in canvas.http_json(
+            self.url() + "api/events?since=0&timeout=0")["events"]
+            if e.get("pin") == "pin-refused"
+            and e["type"] == "pin_proposal_discarded"]
+        self.assertEqual(len(ev), 1, ev)
+        self.assertEqual(ev[0]["proposed_answer"], "Billing does.",
+                         "the refused wording is nowhere, so the agent "
+                         "cannot tell which draft was turned down")
+        self.assertIn("pin_proposal_discarded", canvas.USER_EVENT_TYPES,
+                      "the user refusing a draft is a move the agent has "
+                      "to take the round on")
+
+    def test_the_proposal_routes_refuse_with_the_code_that_fits(self):
+        """404 for a pin that is not there, 409 for one whose state is.
+
+        ONE CODE FOR BOTH SENDS A FIXER THE WRONG WAY. An assessor
+        holding a live id told 404 hunts a typo; what actually happened
+        is that somebody promoted or answered the pin while the draft
+        sat in the rail. And an empty body is neither — it is 400, the
+        caller being wrong about what they sent.
+        """
+        self.mint_pin("pin-codes", "does anything retry?")
+        cases = [
+            ("api/pins/propose", {"id": "nope", "answer": "x"}, 404),
+            ("api/pins/propose", {"id": "pin-codes", "answer": "  "}, 400),
+            ("api/pins/promote", {"id": "nope"}, 404),
+            ("api/pins/promote", {"id": "pin-codes"}, 409),
+            ("api/pins/proposal/discard", {"id": "pin-codes"}, 409),
+        ]
+        for route, body, want in cases:
+            with self.subTest(route=route, body=body):
+                with self.assertRaises(urllib.error.HTTPError) as caught:
+                    canvas.http_json(self.url() + route, payload=body)
+                self.assertEqual(caught.exception.code, want)
+        # and the pin the refusals named is untouched by any of them
+        rec = self.pin("pin-codes")
+        self.assertEqual(rec["status"], "open")
+        self.assertIsNone(rec.get("proposed_answer"))
+        # The 409 an agent actually meets: the user answered while the
+        # draft was still in the rail. It must arrive as a sentence.
+        canvas.http_json(self.url() + "api/pins/answer",
+                         payload={"id": "pin-codes", "answer": "they did"})
+        out = self.x_fails("answer", "--target", "pin-codes", "--text", "no")
+        said = out.stdout + out.stderr
+        self.assertIn("not open", said,
+                      "a 409 reached the agent as a bare status line: %s"
+                      % said)
+        self.assertNotIn("Traceback", said, said)
 
     def test_rename_reserves_the_height_the_client_will_paint(self):
         """The fifth line-height site, and the only one behind the CLI.

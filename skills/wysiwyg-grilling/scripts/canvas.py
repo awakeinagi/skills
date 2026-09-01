@@ -2089,7 +2089,7 @@ def _client_chop(token, inner, fs):
     """One token too wide for any line, split the way `z$` splits it.
 
     The shipped client breaks a word this file cannot. `z$`
-    (index-KJTydiiR.js @274996, reached from `$$` @274753) walks the
+    (index-DFry315l.js @274996, reached from `$$` @274753) walks the
     token CHARACTER BY CHARACTER accumulating per-glyph advances, and
     closes a chunk the moment the next glyph would overrun the cap — so
     it never hyphenates and never gives up, and a single glyph wider
@@ -2101,7 +2101,7 @@ def _client_chop(token, inner, fs):
     stopped existing at `3f57a17` when the tree rebuilt to
     `index-KJTydiiR.js`. THE DANGEROUS HALF IS NOT THE DANGLING NAME.
     Four of the five symbols this file cited resolve, IN THE BUNDLE
-    THAT SHIPS, to real functions doing something else — `Yn` is
+    THAT SHIPPED THEN, to real functions doing something else — `Yn` is
     assigned nowhere, `_s` is an image-crop helper, `qg` draws an arc,
     `yd` aliases `useLayoutEffect`, `ai` handles text editing. A reader
     following one of those lands on working code and believes it. The
@@ -2109,8 +2109,32 @@ def _client_chop(token, inner, fs):
     and was correct at every site, so what rotted was the address and
     never the rule.
 
+    AND IT HAPPENED AGAIN ON 2026-09-01, one rebuild later, which is
+    the argument for the paragraph above rather than an exception to
+    it. `index-KJTydiiR.js` became `index-DFry315l.js` and five of the
+    six symbols were reassigned: the padding `Kn` -> `Zn`, the
+    container redraw `ri` -> `li`, the wrap width `js` -> `As`, the max
+    height `Kg` -> `nU`, the growth `bd` -> `yd`. EVERY ONE OF THE OLD
+    NAMES IS LIVE IN THE NEW FILE AND MEANS SOMETHING ELSE — `Kn` is a
+    memoizer, `ri` is a component alias, `js` crops an image, `Kg`
+    reads `boundElements`, `bd` looks up a line height — so a reader
+    following the old spelling lands on working code for the second
+    rebuild running. `yd` is the sharpest of them: it was cited below
+    as the WRONG name for the growth function, and this build assigned
+    it TO the growth function.
+
+    THE OFFSETS ALL HELD, and that is worth as much as the renames.
+    Every byte address this file cites is the same integer it was in
+    `index-KJTydiiR.js` — the vendored region these sites live in sits
+    ahead of the app code, so editing `App.tsx` moves the names and not
+    the addresses. An INTERMEDIATE build on the same day moved every
+    one of them by exactly one byte, so the stability is a property of
+    a build and never a rule. Re-derive both halves every time. Every
+    arithmetic was re-derived by matching the function BODY rather than
+    the name, and every one was unchanged at every site.
+
     SO CITE THE SHAPE, AND TREAT THE NAME AS PERISHABLE. `z$`, `$$` and
-    `Wp.calculate` above happen to have survived this rebuild; that is
+    `Wp.calculate` above happen to have survived both rebuilds; that is
     luck. The pattern worth copying is
     `client_bound_text_rules` in `tests/test_mutants.py`, which reads
     the client's caption rules out of the bundle by STRUCTURE and fails
@@ -2629,7 +2653,7 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # after one freedraw joined them).
         #
         # THE FIELD SET IS THE CLIENT'S, READ OFF THE BUNDLE rather than
-        # guessed — `scripts/web/assets/index-KJTydiiR.js`, and the two
+        # guessed — `scripts/web/assets/index-DFry315l.js`, and the two
         # sites disagree about what is optional, which is why the whole
         # trio is written here. (Cited against `index-QQVNNFtd.js` until
         # 2026-08-31; that file stopped existing at a rebuild and both
@@ -12260,7 +12284,7 @@ def _label_position_rederived(old, new, old_container, new_container):
     "AT ANGLE 0" IS A QUALIFICATION THIS FUNCTION DOES NOT ENFORCE, and
     saying so is the point of this paragraph — the sentence above was
     honest and the code beneath it reads no `angle` at all. `mY`
-    (`adjustXYWithRotation`, index-KJTydiiR.js @560560) takes the final
+    (`adjustXYWithRotation`, index-DFry315l.js @560560) takes the final
     vertical arm when `s` is set and `n` is not:
 
         y += (y2_delta) * (1 - cos(angle))
@@ -14537,8 +14561,8 @@ def shape_band_width(el, y0, y1):
 # from, and `TestShapeAwareLabelRoom` still pins those four numbers.
 
 
-# THE CLIENT'S BOUND-TEXT PADDING. `Kn = 5` in the shipped bundle
-# (index-KJTydiiR.js @248728), applied on BOTH sides of every rule below —
+# THE CLIENT'S BOUND-TEXT PADDING. `Zn = 5` in the shipped bundle
+# (index-DFry315l.js @248728), applied on BOTH sides of every rule below —
 # and, since `recenter_label` was moved onto it, to the vertical anchor of
 # every bound caption this file writes.
 #
@@ -14590,25 +14614,26 @@ def client_wrap_width(container):
     defect this function exists to remove. `fit_label_in`'s docstring
     said "the client wraps bound text to the width we allot" and set
     `autoResize: False` to make that stick. The shipped bundle says
-    otherwise — `ri`, the redraw that runs whenever a container or its
-    text changes (index-KJTydiiR.js @553084):
+    otherwise — `li`, the redraw that runs whenever a container or its
+    text changes (index-DFry315l.js @553084):
 
         (t || !e.autoResize) && (
-            i = t ? js(t, e) : e.width,
-            a.text = Cd(e.originalText, Wt(e), i))
+            i = t ? As(t, e) : e.width,
+            a.text = _d(e.originalText, Xt(e), i))
 
     `t` is the CONTAINER. When there is one, the wrap width is
-    `js(container)` and the label's own stored `width` is not read at
+    `As(container)` and the label's own stored `width` is not read at
     all; `e.width` is reached only by an UNBOUND text. So a bound label
     is re-wrapped to this number on load, and the picture the user sees
     has the line count this returns — not the one we stored.
 
-    CITED AS `ai` UNTIL 2026-08-31, in the previous bundle, and `ai` in
-    the bundle that ships is the text-editing handler, not this. The
-    arithmetic below was re-derived against `js` and is unchanged; see
-    the citation note above `_client_chop`.
+    CITED AS `ai` UNTIL 2026-08-31 AND AS `js` UNTIL 2026-09-01, each
+    in the bundle before this one; in the file that ships now `ai`
+    builds a text element and `js` crops an image, and neither is this.
+    The arithmetic below was re-derived against `As` by matching its
+    body and is unchanged; see the citation note above `_client_chop`.
 
-    `js` itself (@555678), with `Kn = 5`:
+    `As` itself (@555678), with `Zn = 5`:
 
         ellipse -> round(w / 2 * sqrt(2)) - 10
         diamond -> round(w / 2)           - 10
@@ -14679,17 +14704,18 @@ def client_wrap_width(container):
 def client_text_headroom(container):
     """Height a bound label may reach before the CLIENT grows the box.
 
-    `Kg` in the shipped bundle (index-KJTydiiR.js @555889), the height
+    `nU` in the shipped bundle (index-DFry315l.js @555889), the height
     twin of `client_wrap_width` and shaped identically — a rhombus
     gives its bound text half its box in BOTH directions, not just
     across.
 
-    CITED AS `qg` UNTIL 2026-08-31, in the previous bundle, and `qg` in
-    the bundle that ships is an arc-drawing helper. The arithmetic was
-    re-derived against `Kg` and is unchanged; see the citation note
-    above `_client_chop`.
+    CITED AS `qg` UNTIL 2026-08-31 AND AS `Kg` UNTIL 2026-09-01, each
+    in the bundle before this one; in the file that ships now `qg`
+    walks frame children and `Kg` reads `boundElements`, and neither is
+    this. The arithmetic was re-derived against `nU` by matching its
+    body and is unchanged; see the citation note above `_client_chop`.
 
-    `Kg` IS ALSO `computeBoundTextPosition`'s HEIGHT BUDGET, which is
+    `nU` IS ALSO `computeBoundTextPosition`'s HEIGHT BUDGET, which is
     where the same number decides a caption's vertical PLACEMENT and
     not only its growth. `recenter_label` models the rectangle arm of
     that placement and neither shape arm — see its own docstring.
@@ -14713,15 +14739,20 @@ def client_text_headroom(container):
 def client_grown_extent(extent, kind):
     """Extent the CLIENT grows a container to when its label outruns it.
 
-    `bd` (index-KJTydiiR.js @555542). It is the inverse of
+    `yd` (index-DFry315l.js @555542). It is the inverse of
     `client_text_headroom` and it is NOT the `+16` this file used to
     grow by: on a diamond the client doubles, so a 40px two-line label
     takes a 200x80 rhombus to **100px** tall where we made it 56 and
     then drew a picture the browser did not.
 
-    CITED AS `yd` UNTIL 2026-08-31, in the previous bundle, and `yd` in
-    the bundle that ships is a `useLayoutEffect` alias. The arithmetic
-    was re-derived against `bd` and is unchanged; see the citation note
+    CITED AS `yd` UNTIL 2026-08-31 AND AS `bd` UNTIL 2026-09-01, and
+    this is the site the citation note above uses to make its case: the
+    2026-09-01 rebuild assigned `yd` — the name that was WRONG here,
+    and was recorded as wrong — to this very function. A reader who
+    trusted the old correction lands on the right code for the wrong
+    reason, and one who trusts the old citation lands on `bd`, which
+    now looks up a line height. The arithmetic was re-derived against
+    `yd` by matching its body and is unchanged; see the citation note
     above `_client_chop`.
 
     Args:
@@ -15704,7 +15735,7 @@ def arrowhead_of(e: dict[str, Any], at_end: bool) -> str | None:
     independent things in the bundle say no, and either alone would
     settle it. `restoreElement` has a THIRD destructuring site,
     `case "line": case "draw":` (offset 630428 of
-    `scripts/web/assets/index-KJTydiiR.js`), where BOTH ends default to
+    `scripts/web/assets/index-DFry315l.js`), where BOTH ends default to
     `null`; and the shape generator draws heads inside
     `if (e.type === "arrow")` (offset 503007, the destructuring it
     guards at 503029), so a line's stored
@@ -25351,30 +25382,259 @@ class Store:
             self._save_registry()
             return t
 
-    def answer_pin(self, pin_id, answer):
+    def pin_record(self, pin_id: str) -> dict | None:
+        """The registry's copy of one pin, or None.
+
+        A public reader because the routes need to tell "no such pin"
+        from "that pin exists and this write does not fit its state" —
+        one status code for both told a caller holding a live id that
+        the id was wrong.
+
+        Args:
+            pin_id: The pin to look for.
+
+        Returns:
+            The live registry record, or None when nothing carries that
+            id. The record itself, not a copy: every caller here is
+            inside the store.
+        """
+        return next((p for p in self.registry["pins"]
+                     if p["id"] == pin_id), None)
+
+    def _require_pin(self, pin_id: str) -> dict:
+        """The registry's copy of one pin, or a refusal naming it.
+
+        Args:
+            pin_id: The pin to look for.
+
+        Returns:
+            The live registry record.
+
+        Raises:
+            BatchError: If no pin carries that id.
+        """
+        pin = self.pin_record(pin_id)
+        if pin is None:
+            raise BatchError(["unknown pin %r" % pin_id])
+        return pin
+
+    def _mirror_pin_customdata(self, pin: dict, patch: dict) -> None:
+        """Write pin fields through to its ❓ glyph's own `customData`.
+
+        THE TWO COPIES MUST NOT PART, which is the rule this factors out
+        rather than a tidy-up. The registry record and the glyph are two
+        stores of one pin and each has its own readers — the rail and
+        `pin_debt` read the record, the client and `lint_layout` read the
+        glyph — so a slot written to one and not the other is a pin whose
+        two halves disagree, the class `pin_glyph_notes` already exists
+        to catch for `status`. `answer_pin` has mirrored since v0.1; the
+        proposal slot arrived with three writers and needed the same
+        thing three times.
+
+        THIS WRITES THE ARTIFACT FILE WITHOUT COMMITTING A REVISION,
+        which is what `answer_pin` has always done and is inherited here
+        rather than invented. Nothing in the running server reads it back
+        as a user edit — a proposal and a promotion were both driven
+        through a live tab and neither minted a `reconciliation`.
+
+        IT IS NOT FREE ACROSS A RESTART, and the comment this replaced
+        said it was. `customData` is in `DEFAULT_SIGNIFICANT_ATTRS`, so
+        `catch_up` compares the glyph on disk against a head state
+        replayed from the records — which never saw this write — and
+        files the difference as out-of-session drift. Measured
+        2026-09-01 by stopping and restarting a server over two pins:
+        `out-of-session drift reconciled: 2 change(s) differ from
+        history`, IDENTICAL on the tree before this repair with both
+        pins answered through the rail's own door. So it is pre-existing
+        behaviour of the uncommitted glyph write and not something the
+        proposal slot introduced; it is written down here because the
+        sentence that used to sit in this spot asserted the opposite and
+        nobody had driven it.
+
+        Args:
+            pin: The registry record that has just been written.
+            patch: The `customData` keys to set on the glyph. A value of
+                None is WRITTEN rather than skipped — `answer: None` is
+                already this store's spelling for "nothing here yet", so
+                clearing a slot has to be able to say so.
+        """
+        aid = pin.get("artifact")
+        els = self.scenes.get(aid)
+        if not els:
+            return
+        for el in els:
+            if el["id"] == pin["id"]:
+                cd = dict(el.get("customData") or {})
+                cd.update(patch)
+                el["customData"] = cd
+        self._write_artifact(aid, els, self.artifact_meta.get(aid) or {})
+
+    def _answer_pin_locked(self, pin: dict, answer: str,
+                           source: str) -> dict:
+        """Write an answer onto a pin and its glyph. Caller holds the lock.
+
+        Args:
+            pin: The registry record to answer.
+            answer: The sentence to store.
+            source: Where the words came from — `"user"` when the user
+                typed them into the rail, `"agent-proposal"` when they
+                promoted wording the agent had drafted. Stored on the
+                record because the archive card, the nag and the
+                `pin_answer` event all have to be able to say it, and an
+                answer that cannot name its own door is the whole defect.
+
+        Returns:
+            The pin record.
+        """
+        pin["status"] = "answered"
+        pin["answer"] = answer
+        pin["answer_source"] = source
+        pin["answered_at"] = now_iso()
+        self._mirror_pin_customdata(pin, {"status": "answered",
+                                          "answer": answer,
+                                          "answer_source": source})
+        self._save_registry()
+        return pin
+
+    def answer_pin(self, pin_id: str, answer: str,
+                   source: str = "user") -> dict:
+        """Answer a pin outright — the user's own door.
+
+        THE AGENT DOES NOT COME THROUGH HERE ANY MORE. It composes a
+        proposal (`propose_pin_answer`) that the user promotes, so
+        everything this method writes is testimony somebody typed or
+        accepted. `source` exists because promotion still arrives here:
+        the words started as the agent's draft and the record has to
+        keep saying so after they become an answer.
+
+        Args:
+            pin_id: The pin being answered.
+            answer: The sentence to store.
+            source: `"user"` for words the user wrote, `"agent-proposal"`
+                for a draft they promoted. Only `promote_pin_answer`
+                passes the second.
+
+        Returns:
+            The pin record. An id no pin carries is refused by
+            `_require_pin`, which raises rather than answering None — the
+            refusal is documented there because that is where it is
+            written, and naming it again here would claim this function
+            decides something it delegates.
+        """
         with self.lock:
-            pin = next((p for p in self.registry["pins"]
-                        if p["id"] == pin_id), None)
-            if pin is None:
-                raise BatchError(["unknown pin %r" % pin_id])
-            pin["status"] = "answered"
-            pin["answer"] = answer
-            pin["answered_at"] = now_iso()
-            aid = pin.get("artifact")
-            # mechanical customData update on the pin element — machinery,
-            # not a Save (the differ ignores pin-role customData churn)
-            els = self.scenes.get(aid)
-            if els:
-                for el in els:
-                    if el["id"] == pin_id:
-                        cd = dict(el.get("customData") or {})
-                        cd["status"] = "answered"
-                        cd["answer"] = answer
-                        el["customData"] = cd
-                self._write_artifact(aid, els,
-                                     self.artifact_meta.get(aid) or {})
+            return self._answer_pin_locked(self._require_pin(pin_id),
+                                           answer, source)
+
+    def propose_pin_answer(self, pin_id: str, proposal: str) -> dict:
+        """Park an agent-composed answer on a pin WITHOUT answering it.
+
+        THE AGENT'S ONLY DOOR ONTO A PIN'S ANSWER, and the reason it is
+        not `answer_pin` with a label attached: a labelled answer is
+        still an answer, so the agent could compose a sentence and then
+        read it back off `wait --for user` as the user's testimony. Here
+        the words are kept where the user can see them, the pin stays
+        `open`, `answer` stays empty, and nothing becomes an answer until
+        the user promotes it from the rail.
+
+        `status` deliberately does not move. A proposal is not a fifth
+        pin state — the pin is still asking, and the lifecycle
+        `open -> answered -> resolved` is what every reader of `status`
+        is written against. What moves is a slot beside it, and
+        `Store.pin_debt` carries a flag off that slot so the standing
+        nag can still tell the two kinds of open pin apart.
+
+        Args:
+            pin_id: The pin to leave the draft on.
+            proposal: The agent's wording.
+
+        Returns:
+            The pin record.
+
+        Raises:
+            BatchError: If no pin carries that id, the wording is empty,
+                or the pin is no longer open.
+        """
+        with self.lock:
+            pin = self._require_pin(pin_id)
+            if not (proposal or "").strip():
+                raise BatchError(["a proposal needs words: %r is empty"
+                                  % (proposal,)])
+            if pin.get("status") != "open":
+                raise BatchError([
+                    "pin %r is %s, not open — a proposal is something the "
+                    "user still has to accept, so there is nothing left "
+                    "here for them to accept"
+                    % (pin_id, pin.get("status"))])
+            pin["proposed_answer"] = proposal
+            pin["proposed_at"] = now_iso()
+            self._mirror_pin_customdata(pin, {"proposed_answer": proposal})
             self._save_registry()
             return pin
+
+    def promote_pin_answer(self, pin_id: str,
+                           answer: str | None = None) -> dict:
+        """Make a waiting proposal the pin's answer — the user's act.
+
+        The second half of the proposal door. `answer` is what the user
+        actually accepted: their edit of the draft, or the draft itself
+        when they took it as written. The draft is KEPT on the record
+        afterwards rather than consumed, so the archive card can say the
+        wording came from the agent and, when the two differ, that the
+        user rewrote it before accepting.
+
+        Args:
+            pin_id: The pin whose proposal is being promoted.
+            answer: The accepted wording. Blank or absent means the user
+                accepted the draft unchanged.
+
+        Returns:
+            The pin record.
+
+        Raises:
+            BatchError: If no pin carries that id, or nothing is waiting
+                on it to promote.
+        """
+        with self.lock:
+            pin = self._require_pin(pin_id)
+            draft = pin.get("proposed_answer")
+            if not draft:
+                raise BatchError(["pin %r has no proposal waiting on it, so "
+                                  "there is nothing to accept" % pin_id])
+            text = answer if (answer or "").strip() else draft
+            return self._answer_pin_locked(pin, text, "agent-proposal")
+
+    def discard_pin_proposal(self, pin_id: str) -> tuple[dict, str]:
+        """Throw away a waiting proposal and leave the pin asking.
+
+        The user's third option on a draft, beside accepting it and
+        editing it. The pin goes back to being an ordinary open question
+        rather than being answered by rejection, because "I do not want
+        your wording" says nothing about the question.
+
+        Args:
+            pin_id: The pin to clear.
+
+        Returns:
+            `(pin record, the wording that was dropped)`. The dropped
+            text is returned rather than left behind because the event
+            below is the only place it survives, and an agent whose
+            draft was refused should be able to read what was refused.
+
+        Raises:
+            BatchError: If no pin carries that id, or nothing is waiting
+                on it.
+        """
+        with self.lock:
+            pin = self._require_pin(pin_id)
+            draft = pin.get("proposed_answer")
+            if not draft:
+                raise BatchError(["pin %r has no proposal waiting on it, so "
+                                  "there is nothing to discard" % pin_id])
+            pin.pop("proposed_answer", None)
+            pin.pop("proposed_at", None)
+            self._mirror_pin_customdata(pin, {"proposed_answer": None})
+            self._save_registry()
+            return pin, draft
 
     # -- branches ---------------------------------------------------------
     def _stash_scope(self, name):
@@ -25813,15 +26073,42 @@ class Store:
                         "round": self.registry.get("round", 0)}
             return None
 
-    def pin_debt(self, queued=False):
+    def pin_debt(self, queued: bool = False) -> list[dict]:
         """Open/answered pins with age in rounds and how often their
         target changed since asking (v0.2 PIN_DEBT — clone of the
-        VIEW_DEBT standing-nag mechanism)."""
+        VIEW_DEBT standing-nag mechanism).
+
+        THE PROPOSAL RIDES HERE BECAUSE THE STATUS DOES NOT MOVE FOR ONE.
+        A pin carrying an agent draft is still `open` — deliberately, so
+        that every reader written against the `open -> answered ->
+        resolved` lifecycle keeps working — which means without these two
+        extra keys the standing nag renders a pin the user owes a
+        decision on exactly like one nobody has offered anything on. The
+        filter below is untouched for the same reason: widening `status`
+        is what drops a pin off `PIN_DEBT=` altogether, and provenance
+        bought by making the pin invisible has moved the defect rather
+        than fixed it.
+
+        Args:
+            queued: Read the round as the queued turn sees it.
+
+        Returns:
+            One entry per open or answered pin, carrying `id`,
+            `artifact`, `status`, `direction`, `proposal_waiting`,
+            `answer_source`, `age_rounds` and `target_edits`.
+        """
         with self.lock:
             rnd = self.effective_round(queued)
             return [{"id": p["id"], "artifact": p.get("artifact"),
                      "status": p.get("status"),
                      "direction": p.get("direction", "agent"),
+                     # `and not answer` so a draft KEPT past its own
+                     # promotion — which is how the archive card names
+                     # the hand that wrote the wording — cannot go on
+                     # nagging as though somebody still owed a decision.
+                     "proposal_waiting": bool(p.get("proposed_answer")
+                                              and not p.get("answer")),
+                     "answer_source": p.get("answer_source"),
                      "age_rounds": max(0, rnd - (p.get("round") or 0)),
                      "target_edits": p.get("target_edits", 0)}
                     for p in self.registry["pins"]
@@ -27415,6 +27702,56 @@ class ServerApp:
                 "layout_warnings": lint["warnings"],
                 "layout_notes": lint["notes"]}
 
+    def pin_answered(self, pin: dict) -> dict:
+        """Emit `pin_answer` and answer the caller — both answer doors.
+
+        ONE BUILDER FOR THE PAYLOAD, because it is built by hand here and
+        does not inherit from the record: the curator measured that
+        marking both stores and leaving this event alone leaves the
+        storage half of the provenance red still red. Two routes now
+        answer a pin — the rail's own and a promoted proposal — and two
+        hand-built copies of this payload would be one drift away from
+        disagreeing about which one a reader was looking at.
+
+        Args:
+            pin: The record `answer_pin` or `promote_pin_answer` wrote.
+
+        Returns:
+            The route's response body.
+        """
+        self.events.append("pin_answer", pin=pin["id"],
+                           question=pin["question"],
+                           answer=pin["answer"],
+                           # WHOSE WORDS THEY ARE, on the event as well
+                           # as in the two stores. The event is the only
+                           # place an answer's TEXT reaches an agent
+                           # watching the log, so an unmarked payload
+                           # here is provenance stored twice and read
+                           # nowhere.
+                           answer_source=pin.get("answer_source"),
+                           proposed_answer=pin.get("proposed_answer"),
+                           artifact=pin.get("artifact"))
+        return {"ok": True, "pin": pin}
+
+    def pin_refusal(self, pin_id: str, exc: BatchError) -> dict:
+        """Refuse a pin write with the code that names the real fault.
+
+        404 WHEN THE PIN IS NOT THERE, 409 WHEN IT IS. Answering 404 for
+        both told a caller holding a live id that the id was wrong, and
+        sent them hunting a typo over a pin whose state had simply moved
+        on — somebody else promoted the draft, or the pin was answered
+        while it sat in the rail.
+
+        Args:
+            pin_id: The id the body named.
+            exc: The `BatchError` the store raised.
+
+        Returns:
+            An `err()` response.
+        """
+        return err(404 if self.store.pin_record(pin_id) is None else 409,
+                   "\n".join(exc.errors))
+
     def handle_post(self, path, body):
         if path == "/api/heartbeat":
             self.dirty = bool(body.get("dirty"))
@@ -27598,14 +27935,71 @@ class ServerApp:
                 return {"ok": True, "discarded": True}
             return err(400, "action must be apply_now, after_save or discard")
         if path == "/api/pins/answer":
+            # THE USER'S DOOR, and after the provenance repair it is only
+            # ever theirs: the rail posts here and the agent's CLI verb
+            # does not. See `/api/pins/propose` below.
             try:
                 pin = self.store.answer_pin(body.get("id"),
                                             body.get("answer") or "")
             except BatchError as e:
                 return err(404, "\n".join(e.errors))
-            self.events.append("pin_answer", pin=pin["id"],
+            return self.pin_answered(pin)
+        if path == "/api/pins/propose":
+            # THE AGENT'S DOOR ONTO A PIN'S ANSWER, and the only one it
+            # has. Composing a sentence and posting it to the route above
+            # left a record no surface could tell from the user's own
+            # words — so the agent could read its own composition back off
+            # `wait --for user` as their testimony. Here the words are
+            # parked, the pin stays open, and the user promotes them.
+            # 400 AND NOT 409 FOR AN EMPTY BODY, checked here rather than
+            # read off the store's refusal: `pin_refusal` below decides
+            # between "no such pin" and "that pin's state does not fit",
+            # and an empty `answer` is neither — it is the caller being
+            # wrong about what they sent. The store keeps its own guard
+            # for callers that do not come through a route.
+            if not (body.get("answer") or "").strip():
+                return err(400, "a proposal needs words — `answer` was "
+                                "empty")
+            try:
+                pin = self.store.propose_pin_answer(body.get("id"),
+                                                    body["answer"])
+            except BatchError as e:
+                return self.pin_refusal(body.get("id"), e)
+            # AN AGENT EVENT, and `AGENT_EVENT_TYPES` is where it is
+            # classified. Putting a proposal on the `--for user` feed
+            # would rebuild the exact channel this route exists to close:
+            # the agent hearing its own voice back under the user's
+            # heading. What the user does with it — promote or discard —
+            # is theirs and is on their feed.
+            self.events.append("pin_proposal", pin=pin["id"],
                                question=pin["question"],
-                               answer=pin["answer"],
+                               proposed_answer=pin["proposed_answer"],
+                               artifact=pin.get("artifact"))
+            return {"ok": True, "pin": pin}
+        if path == "/api/pins/promote":
+            # The user accepting a draft, as written or after editing it.
+            # This is a `pin_answer` like any other: the user answered,
+            # and `answer_source` on the payload says the wording started
+            # as the agent's.
+            try:
+                pin = self.store.promote_pin_answer(body.get("id"),
+                                                    body.get("answer"))
+            except BatchError as e:
+                return self.pin_refusal(body.get("id"), e)
+            return self.pin_answered(pin)
+        if path == "/api/pins/proposal/discard":
+            try:
+                pin, dropped = self.store.discard_pin_proposal(
+                    body.get("id"))
+            except BatchError as e:
+                return self.pin_refusal(body.get("id"), e)
+            # THE DROPPED WORDING RIDES THE EVENT because this is the only
+            # place it survives — the record no longer holds it. An agent
+            # told only that its draft is gone cannot tell which draft, and
+            # would re-offer the sentence that was just refused.
+            self.events.append("pin_proposal_discarded", pin=pin["id"],
+                               question=pin["question"],
+                               proposed_answer=dropped,
                                artifact=pin.get("artifact"))
             return {"ok": True, "pin": pin}
         if path == "/api/tripwires/answer":
@@ -28276,16 +28670,40 @@ def pin_debt_entry(p: dict) -> str:
     `Store.pin_debt`'s `.get(..., "agent")` as a back-compat shim for
     pre-v0.2 registries on disk and nothing else.
 
+    AND WHOSE ANSWER IT IS RIDES HERE TOO, which is the same ruling one
+    field along. An agent may not answer a pin; it drafts a proposal the
+    user promotes. Both ends of that need saying on the one line printed
+    on every apply — that a draft is waiting on an open pin, so the user
+    owes a decision nothing else would mention, and that an answered pin
+    was promoted from one, so a sentence the agent composed is never read
+    back as words the user found for themselves.
+
+    Written out in plain English rather than as a code, because the
+    reader here is an agent about to narrate the line to a human and a
+    marker like `+p` would arrive needing a legend. Only the two marked
+    cases print anything: an ordinary open pin and an answer the user
+    typed read exactly as they always have, on the same
+    default-is-silent rule the `user,` marker follows.
+
     Args:
         p: One `Store.pin_debt` entry — `id`, `status`, `age_rounds`,
-            `target_edits`, and `direction` (`user` or `agent`).
+            `target_edits`, `direction` (`user` or `agent`),
+            `proposal_waiting` and `answer_source`.
 
     Returns:
-        e.g. ``pin-pay(user, open, age 2r, target edited 1×)``.
+        e.g. ``pin-pay(user, open, age 2r, target edited 1×)``, or
+        ``pin-pay(open, agent proposal waiting for you, age 2r, target
+        edited 1×)`` while a draft is unpromoted.
     """
-    return "%s(%s%s, age %dr, target edited %d×)" % (
+    if p.get("proposal_waiting"):
+        mark = ", agent proposal waiting for you"
+    elif p.get("answer_source") == "agent-proposal":
+        mark = " from an agent proposal"
+    else:
+        mark = ""
+    return "%s(%s%s%s, age %dr, target edited %d×)" % (
         p["id"], "user, " if p.get("direction") == "user" else "",
-        p["status"], p["age_rounds"], p["target_edits"])
+        p["status"], mark, p["age_rounds"], p["target_edits"])
 
 
 def cadence_of(cfg):
@@ -29307,12 +29725,19 @@ def cmd_pending(args):
 # Event types by originator (WP5/r4-6). The live log was 87.5% the
 # agent's own `agent_revision` echoes — undocumented — and an agent that
 # does not filter narrates its own drawing back as the user's move.
+# `pin_proposal` IS THE AGENT'S OWN AND MUST STAY OUT OF THE USER SET.
+# It carries a sentence the agent composed; classifying it as user
+# activity would rebuild the channel the proposal route exists to close,
+# with the agent reading its own words back under the user's heading.
+# `pin_proposal_discarded` is the user's, for the mirror reason — they
+# refused the draft, which is a move the agent has to take the round on.
 USER_EVENT_TYPES = frozenset({
     "save", "pin_answer", "tripwire_answer", "checkout", "checkout_live",
-    "branch_switch", "branch_archive", "suggest_view", "config_changed"})
+    "branch_switch", "branch_archive", "suggest_view", "config_changed",
+    "pin_proposal_discarded"})
 AGENT_EVENT_TYPES = frozenset({
     "agent_revision", "agent_pending", "agent_revision_discarded",
-    "agent_revision_failed", "agent_revision_noop"})
+    "agent_revision_failed", "agent_revision_noop", "pin_proposal"})
 
 
 def cmd_wait(args):
@@ -31411,10 +31836,48 @@ def _x_post(url: str, payload: dict[str, Any], what: str) -> dict[str, Any]:
     try:
         return http_json(url, payload=payload)
     except urllib.error.HTTPError as e:
-        die("ERROR=%s refused by the server (%s)" % (what, e), 5)
+        die("ERROR=%s refused by the server (%s)%s"
+            % (what, e, _x_reason(e)), 5)
     except (urllib.error.URLError, OSError) as e:
         die("ERROR=%s could not reach the server at %s (%s)"
             % (what, url, e), 5)
+
+
+def _x_reason(exc: urllib.error.HTTPError) -> str:
+    """The server's own sentence out of a refusal, when it left one.
+
+    `str(HTTPError)` is the status line and nothing else — "HTTP Error
+    409: Conflict" — which tells a caller that a write was refused and
+    not why. Every refusal in this codebase goes through `err()` and
+    carries an `error` naming the reason in words somebody can act on,
+    and that sentence was being dropped at the one place an agent reads.
+
+    IT MATTERED LITTLE UNTIL THE PROPOSAL ROUTES, and that is why it is
+    repaired now rather than earlier. The only refusal these verbs could
+    reach was a 404 for an id that does not exist, which explains itself.
+    A proposal is refused with 409 whenever the pin's state has moved on
+    while the draft sat in the rail — somebody answered it, somebody
+    promoted it — which is a thing that happens in ordinary use and that
+    an agent has to tell the user about.
+
+    Args:
+        exc: The raised `HTTPError`. Its body may be unreadable or
+            already consumed; either is treated as "no reason given".
+
+    Returns:
+        `" — <reason>"`, or an empty string when there was none.
+    """
+    try:
+        said = json.loads(exc.read().decode("utf-8", "replace"))
+    except Exception:       # noqa: BLE001 - a missing reason is not a fault
+        # BROAD ON PURPOSE. This runs inside the handler for a failure
+        # that is already being reported, and every way of reading the
+        # body can fail — a closed socket, a truncated read, a body that
+        # is not JSON. Losing the reason is a smaller harm than replacing
+        # the caller's real error with this function's.
+        return ""
+    reason = said.get("error") if isinstance(said, dict) else None
+    return " — %s" % reason if reason else ""
 
 
 def _x_user_carry_feet(els, moved, dx, dy):
@@ -31534,9 +31997,26 @@ def cmd_x_as_user(args):
     url = state["url"]
     verb = args.verb
     if verb == "answer":
-        _x_post(url + "api/pins/answer", {"id": args.target,
-                                          "answer": args.text}, "answer")
-        print_kv(answered=args.target)
+        # THIS VERB PROPOSES; IT DOES NOT ANSWER. It used to post the rail's
+        # own body to `api/pins/answer`, so a sentence the agent composed
+        # landed as the user's testimony on every surface — the record, the
+        # glyph, the `pin_answer` event, the nag, and the `--for user` feed
+        # the agent then reads. The words are kept, because the user asking
+        # "answer them for me" should not lose them; they wait on the pin
+        # until the user accepts, edits or discards them in the rail.
+        #
+        # AND THERE IS DELIBERATELY NO `promote` VERB HERE. `x-as-user` is
+        # the CLI standing in for the user's hand and the agent is what
+        # runs it, so a promote verb would hand the agent both doors and
+        # undo this in one line. An assessment that needs to drive the
+        # user's acceptance posts `api/pins/promote` itself.
+        _x_post(url + "api/pins/propose", {"id": args.target,
+                                           "answer": args.text}, "proposal")
+        print_kv(proposed=args.target)
+        print("NOTE=proposed, not answered — %s stays open until the user "
+              "accepts, edits or discards your wording in the rail. These "
+              "are your words: never read them back as theirs."
+              % args.target)
         return 0
     if verb == "config":
         key, _, val = (args.text or "").partition("=")

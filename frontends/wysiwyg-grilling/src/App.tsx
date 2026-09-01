@@ -1541,6 +1541,35 @@ export default function App() {
     toast("Pin dismissed — Save to record it (reads as “not worth explaining”).");
   }, [showArtifact, toast]);
 
+  /**
+   * Accept an agent's draft as this pin's answer.
+   *
+   * THE USER'S HALF OF THE PROPOSAL DOOR, and the only half in the app:
+   * the agent posts `/api/pins/propose` and can go no further, so an
+   * answer only ever exists because somebody here pressed this. `answer`
+   * is their edit of the draft, or blank to take it as written.
+   */
+  const promotePin = useCallback((id: string, answer: string) => {
+    apiPost("/api/pins/promote", { id, answer })
+      .then(() => {
+        toast(answer
+          ? "Accepted with your wording — recorded as your answer."
+          : "Accepted the agent's draft — recorded as your answer.");
+        refresh();
+      })
+      .catch((e) => toast(e.message));
+  }, [refresh, toast]);
+
+  /** Throw away a waiting draft and leave the question open. */
+  const discardProposal = useCallback((p: { id: string }) => {
+    apiPost("/api/pins/proposal/discard", { id: p.id })
+      .then(() => {
+        toast("Draft discarded — the question is still open, and the agent is told you refused it.");
+        refresh();
+      })
+      .catch((e) => toast(e.message));
+  }, [refresh, toast]);
+
   /* ---------------- v0.3: tooltips, inspector, revert ---------------- */
 
   /** Client coords → scene coords via the live camera. */
@@ -2737,6 +2766,11 @@ export default function App() {
                           })
                           .catch((e) => toast(e.message));
                       }}
+                  onPromote={viewingRevn != null || anchored.kind !== "pin" ||
+                    !anchored.data?.proposed_answer ||
+                    anchored.data?.status !== "open"
+                    ? null
+                    : () => promotePin(anchored.data.id, "")}
                   onFullStory={() => {
                     setDetailItem({ kind: anchored.kind, data: anchored.data });
                     setAnchored(null);
@@ -2817,6 +2851,8 @@ export default function App() {
           onAnswerTripwire={answerTripwire}
           onGoto={gotoElement}
           onDismissPin={dismissPin}
+          onPromotePin={promotePin}
+          onDiscardProposal={discardProposal}
           onOpenDetail={(kind, data) => setDetailItem({ kind, data })}
           onLabelSave={labelSave}
           onSwitchBranch={(name) => {
@@ -3054,6 +3090,22 @@ export default function App() {
                     refresh();
                   })
                   .catch((e) => toast(e.message));
+              }}
+          onPromote={viewingRevn != null || detailItem.kind !== "pin" ||
+            !detailItem.data?.proposed_answer ||
+            detailItem.data?.status !== "open"
+            ? null
+            : (a: string) => {
+                promotePin(detailItem.data.id, a);
+                setDetailItem(null);
+              }}
+          onDiscardProposal={viewingRevn != null || detailItem.kind !== "pin" ||
+            !detailItem.data?.proposed_answer ||
+            detailItem.data?.status !== "open"
+            ? null
+            : () => {
+                discardProposal(detailItem.data);
+                setDetailItem(null);
               }}
         />
       )}

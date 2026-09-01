@@ -11860,15 +11860,15 @@ class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
 # instead of through the field name.
 #
 # THE ANCHOR IS THE VENDORED BUNDLE, not this repo's belief about the client.
-# `skills/wysiwyg-grilling/scripts/web/assets/index-KJTydiiR.js` carries the
+# `skills/wysiwyg-grilling/scripts/web/assets/index-DFry315l.js` carries the
 # destructuring twice, and both spellings are `= "arrow"`:
 #
 #   restoreElement, case "arrow" (offset 630865):
 #     let{startArrowhead:o=null,endArrowhead:h="arrow"}=e
 #   the shape generator, where the mark is actually emitted (503029,
 #   guarded by `e.type==="arrow"` at 503007):
-#     let{startArrowhead:d=null,endArrowhead:u="arrow"}=e;
-#     if(d!==null){...} if(u!==null){...}
+#     let{startArrowhead:u=null,endArrowhead:f="arrow"}=e;
+#     if(u!==null){...} if(f!==null){...}
 #
 # CITED AGAINST `index-DIydcWDi.js` UNTIL 2026-08-31, which had stopped
 # existing at a rebuild. Both shapes were re-derived against the bundle that
@@ -15923,7 +15923,7 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
     to design; the fix read the client instead, and the field set below
     is now asserted BECAUSE the bundle decided it rather than because a
     test guessed. What the bundle says, at
-    `scripts/web/assets/index-KJTydiiR.js`: `restoreElement`'s
+    `scripts/web/assets/index-DFry315l.js`: `restoreElement`'s
     `case "freedraw"` (offset 630191) forwards all three fields with no
     defaults, and the path builder (offset 496932) dereferences `points`
     on both of its arms and `pressures` only when `simulatePressure` is
@@ -17202,9 +17202,9 @@ def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
                         font_size: int = 16) -> list[dict]:
     """A rhombus whose cap lands on a HALF PIXEL, carrying `text`.
 
-    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `js`
-    (index-KJTydiiR.js @555678, read verbatim) is `Math.round(n/2) -
-    Kn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
+    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `As`
+    (index-DFry315l.js @555678, read verbatim) is `Math.round(n/2) -
+    Zn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
     as `round(w / 2) - pad`. This said `_s` and `Yn` in a bundle that
     stopped existing at `3f57a17`; both symbols resolve in the shipped
     file to something else entirely (`_s` crops images, `Yn` is assigned
@@ -28605,17 +28605,25 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # a whole-placement-rule repair, seeded above this file's anchor class,
 # and no red here should prescribe it.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
-    "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
-    "TestAnAnswerSaysWhoseWordsItIs": 2}
-# FILLED 2026-09-01 by the mutant-curator: a pin answer records nothing
-# about whose composition it is, on either of the two stores that already
-# model authorship for the QUESTION. Two reds because the halves fail
-# apart — one over what an answer is stored in and emitted as, one over
-# the two surfaces that render it — and a repair landing only the first
-# leaves the second pointing at provenance nobody renders. Which repairs
-# move which red is MEASURED and written into the class, not summarised
-# here; the one-line version of it went stale within a day of being
-# written and this sentence is deliberately the shape that cannot.
+    "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+# `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
+# THE SAME DAY, both halves at once, and it left as a LINE rather than as
+# a number — the twelfth time that has been the shape here. Filed because
+# a pin answer recorded nothing about whose composition it was, on either
+# of the two stores that already model authorship for the QUESTION; two
+# reds because the halves fail apart, one over what an answer is stored in
+# and emitted as, one over the two surfaces that render it.
+#
+# BOTH MOVED IN ONE CHANGE BECAUSE THE REPAIR WAS ONE THING. The class
+# measured four shapes that flip them and prescribed none; the owner chose
+# (c), a proposal the user promotes. `canvas.py x-as-user answer` posts to
+# `/api/pins/propose` now — the words park on the pin, `answer` stays
+# empty, the pin stays `open`, and only the user's own promote turns them
+# into testimony. So the storage half flips because the two doors write
+# different records, and the rendering half flips with it because the
+# agent's composition never reaches the `--for user` feed at all and the
+# nag says a proposal is waiting. A repair that had stopped at the stores
+# would have left the second red exactly where it was pointing.
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -40099,7 +40107,7 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
 #     `c.y + 22.57` — 17.57px, and the figure moved when the anchor did,
 #     which is why it is derived below rather than restated here. The
 #     client's own inset is `nY`'s shape term: `h/2*(1 - sqrt(2)/2)` for an
-#     ellipse, `h/4` for a diamond, added to `Kn` on BOTH axes.
+#     ellipse, `h/4` for a diamond, added to `Zn` on BOTH axes.
 #
 #     THE FOLLOW-UP IS THE WHOLE PLACEMENT RULE, NOT THE INSET. This entry
 #     said "the shape's inset, not the padding" and that prescription is
@@ -40138,8 +40146,8 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
 #     ellipse over 60..260 and exactly `{0, 0.25}` for a diamond.
 #
 #     IT DOES REDUCE, and the cancellation is exact. The client's middle is
-#     `c.y + Kn + inset + (Kg/2 - lh/2)` with `Kg = round(h/2*sqrt2) - 2Kn`,
-#     so the `+Kn` and the `-2Kn/2` cancel outright, and the inset
+#     `c.y + Zn + inset + (nU/2 - lh/2)` with `nU = round(h/2*sqrt2) - 2Zn`,
+#     so the `+Zn` and the `-2Zn/2` cancel outright, and the inset
 #     `h/2 - h*sqrt2/4` is EXACTLY half the unrounded max-height reduction
 #     `(h - h*sqrt2/2)/2`. What survives is `Math.round`'s residual, halved:
 #     `(round(h*sqrt2/2) - h*sqrt2/2)/2`, bounded by 0.25. At `h = 120` that
@@ -40656,8 +40664,8 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
         `recenter_label` wrote a top-anchored caption at
         `container.y + 6` and a bottom-anchored one at
         `container.y + height - h - 6`. The client's
-        `computeBoundTextPosition` writes `container.y + Kn` and
-        `container.y + height - h - Kn`, and `Kn` is 5. So the stored
+        `computeBoundTextPosition` writes `container.y + Zn` and
+        `container.y + height - h - Zn`, and `Zn` is 5. So the stored
         caption sat one pixel from where the tab draws it; the first
         layout the tab performed moved it there, and the record reported
         `Term nudged` about a caption nobody touched. On a resize the
@@ -40768,15 +40776,28 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
 # that guard SURVIVE.
 #
 # THE DANGLING NAME IS THE MILD HALF. Four of the five symbols `canvas.py`
-# named resolve, IN THE BUNDLE THAT SHIPS, to real functions doing
-# something else: `Yn` is assigned nowhere (the padding is `Kn`), `_s`
-# crops images (the wrap width is `js`), `qg` draws an arc (the max height
-# is `Kg`), `yd` aliases `useLayoutEffect` (the growth is `bd`), and `ai`
-# handles text editing (the redraw is `ri`). Every transcribed ARITHMETIC
-# was re-derived against the shipped file and every one was correct — so
-# what rotted was the address and never the rule. A reader following one of
-# those lands on working code and has no way to know they are in the wrong
-# function.
+# named resolve, IN THE BUNDLE THAT SHIPPED ON 2026-08-31, to real
+# functions doing something else: `Yn` is assigned nowhere (the padding was
+# `Kn`), `_s` crops images (the wrap width was `js`), `qg` draws an arc
+# (the max height was `Kg`), `yd` aliases `useLayoutEffect` (the growth was
+# `bd`), and `ai` handles text editing (the redraw was `ri`). Every
+# transcribed ARITHMETIC was re-derived against the shipped file and every
+# one was correct — so what rotted was the address and never the rule. A
+# reader following one of those lands on working code and has no way to
+# know they are in the wrong function.
+#
+# THE PAST TENSE ABOVE IS THE 2026-09-01 REBUILD, which renamed the five
+# corrections as well as the five errors: the padding is `Zn`, the wrap
+# width `As`, the max height `nU`, the growth `yd`, the redraw `li`. Every
+# one of the 2026-08-31 spellings is still LIVE in the file that ships and
+# means something else again — `Kn` memoizes, `js` crops an image, `Kg`
+# reads `boundElements`, `bd` looks up a line height, `ri` aliases a
+# component — and `yd`, recorded above as the wrong name for the growth,
+# is now the growth. Two rebuilds, ten misleading names, and no arithmetic
+# wrong at any site: the case for pinning the filename and reading the
+# shape. The byte OFFSETS came back unchanged from 2026-08-31, which is a
+# property of this build and not a rule — an intermediate build the same
+# day moved every one of them by one — so re-derive both halves.
 #
 # WHY THIS CHECK PINS FILENAMES AND NOT SYMBOLS. Minified names change on
 # every rebuild, so a check that pinned them would fail on every rebuild
@@ -40816,6 +40837,12 @@ RETIRED_BUNDLES: dict[str, str] = {
     "index-DIydcWDi.js":
         "named in one retirement clause, on the arrowhead-default anchor "
         "comment in this file.",
+    "index-KJTydiiR.js":
+        "shipped from 2026-08-31 to 2026-09-01 and named now only where "
+        "the rot is recorded — the citation note above `_client_chop`, "
+        "the five 'CITED AS ... UNTIL' clauses beside it, and the "
+        "paragraph above this table. Every live citation was re-derived "
+        "against the bundle that ships, offsets and symbols both.",
 }
 
 
@@ -48232,7 +48259,6 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
     Widen the filter in the same change and both reds flip.
     """
 
-    @unittest.expectedFailure
     def test_two_hands_leave_one_indistinguishable_record(self) -> None:
         """The storage half: neither store can say what happened.
 
@@ -48293,7 +48319,6 @@ class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
                json.dumps(typed["element"], sort_keys=True),
                json.dumps(composed["element"], sort_keys=True)))
 
-    @unittest.expectedFailure
     def test_the_rendered_mark_does_not_move_with_the_answers_source(
             self) -> None:
         """The rendering half: the badge answers the question nobody asked.

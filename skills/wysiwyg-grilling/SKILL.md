@@ -97,7 +97,12 @@ your next move. In order:
    their notes read as requirements. **Which pins are theirs is on the
    `PIN_DEBT=` line** — theirs read `pin-pay(user, open, age 2r, target
    edited 1×)` and yours carry no marker, so "theirs first" is
-   answerable from the nag itself and costs no state read. Every
+   answerable from the nag itself and costs no state read. The same line
+   marks the two states a **proposal** puts a pin in: `pin-pay(open,
+   agent proposal waiting for you, ...)` is a draft of yours the user has
+   not ruled on — chase it like any open question — and `pin-pay(answered
+   from an agent proposal, ...)` is one they accepted, which is their
+   ruling in your words and must never be quoted back as their phrasing. Every
    apply/status also restates the standing nags —
    `PIN_DEBT` (open questions with age + target-edit counts) and
    `LINT_DEBT` (cross-artifact lint drift, including artifacts your batch
@@ -251,7 +256,9 @@ the sentence failing to complete IS the test that the reading isn't ready.
 - **Unreadable edits**: pin one honest question on the element + one honest
   narration line ("there's a shape near Payment I can't read yet") — never
   guess, never drop, never block. Pin lifecycle: open → answered → resolved
-  (full state machine: `references/ops-reference.md`) — and **resolution
+  (full state machine: `references/ops-reference.md`) — a **proposal**
+  moves nothing on that line: a pin you have drafted an answer for is
+  still `open`, because only the user can answer it — and **resolution
   removes the ❓ from the canvas**: settled things leave both channels, per
   the channel contract. The elements get edited → next diff reads them; pin
   deleted by the user → "not worth explaining", never re-raise; elements
@@ -293,7 +300,7 @@ own drawing back as the user's move:
 
 ```
 tail -n 0 -F "$EVENTS_LOG" | grep -E --line-buffered \
-  '"type": ?"(save|pin_answer|tripwire_answer|checkout|checkout_live|branch_switch|branch_archive|suggest_view|config_changed|reconciliation)"'
+  '"type": ?"(save|pin_answer|tripwire_answer|pin_proposal_discarded|checkout|checkout_live|branch_switch|branch_archive|suggest_view|config_changed|reconciliation)"'
 ```
 
 That list is **every** type that belongs to the user, and it is exactly
@@ -308,6 +315,15 @@ is in the `pin_answer` event and in `/api/state`, nowhere else. The same
 is true of a `config_changed` patch. If you only ever poll `status`,
 canvas-first questions become a place where the user's answers go quiet.
 
+The `pin_answer` event also says **whose words the answer is**, in
+`answer_source`: `user` when they wrote it, `agent-proposal` when they
+promoted wording you had drafted — and `proposed_answer` beside it is the
+draft they started from, so you can see whether they edited it. Narrate a
+promoted answer as their *decision* and never as their phrasing: the
+sentence was yours. A `pin_proposal_discarded` is a real move too — they
+read your draft and refused it, the pin is open again, and the event
+carries the wording they turned down so you do not offer it twice.
+
 **Four things the log is the only witness to:**
 
 | You see | It means | Do this |
@@ -317,12 +333,12 @@ canvas-first questions become a place where the user's answers go quiet.
 | `checkout` / `checkout_live` | the user is looking at, or working from, an **older revision** | do not apply onto their head until they save; a save on top of a checkout forks a branch |
 | `save` with `forked: true` | they just forked | say so, and say what is stranded on the old branch |
 
-**Event taxonomy** — all sixteen types, and who a type belongs to
+**Event taxonomy** — all eighteen types, and who a type belongs to
 decides your reaction:
 
 | Theirs (a move — narrate it, take the round) | Yours (ignore) | System |
 |---|---|---|
-| `save`, `pin_answer`, `tripwire_answer`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop` | `server_started`, `reconciliation` |
+| `save`, `pin_answer`, `tripwire_answer`, `pin_proposal_discarded`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop`, `pin_proposal` | `server_started`, `reconciliation` |
 
 `agent_revision_failed` is yours, but it is not an echo to ignore: it
 fires when a revision the **user** pulled could not be applied, and its
@@ -377,8 +393,15 @@ narration and for questions with no anchor ("what's missing from this
 account?"); `AskUserQuestion` is for before the canvas exists. The
 consequence you accept: **open pins are now the question backlog**, so
 their ageing must be real — which is exactly why the round must advance
-(above). Never let politeness answer your own pins; an unanswered pin
-ageing in the rail is information.
+(above). **You cannot answer your own pins, and that is structural
+rather than a rule you are asked to keep.** `canvas.py x-as-user answer`
+posts a **proposal**: your wording lands beside the pin, the pin stays
+open, and the user accepts it, edits it, or discards it in the rail —
+only that acceptance is an answer, and only then does anything reach your
+`wait --for user` feed. So compose one when the user says "answer it for
+me" and the words are worth keeping, and otherwise leave it: an
+unanswered pin ageing in the rail is information, and a drafted one they
+have not ruled on is information about you.
 
 **Waiting is working time**: queue doc updates (glossary/spec/ADR rides your
 NEXT revision, narrated and veto-able — mechanics like save records are

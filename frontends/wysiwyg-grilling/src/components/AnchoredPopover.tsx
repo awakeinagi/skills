@@ -70,11 +70,16 @@ export function AnchoredPopover({ style, onClose, children }: {
  * centered QuestionModal.
  * @param root0 Props: `kind` ("pin" | "tripwire"), `data` (the registry
  * record), `onAnswer(text)` (null = read-only), `onFullStory`, `onClose`.
+ * @param root0.onPromote Accept a waiting agent draft as written; null
+ * where there is nothing to accept, or the view is read-only.
  * @returns The question card body (render inside AnchoredPopover).
  */
-export function AnchoredQuestion({ kind, data, onAnswer, onFullStory, onClose }: {
+export function AnchoredQuestion({
+  kind, data, onAnswer, onPromote, onFullStory, onClose,
+}: {
   kind: "pin" | "tripwire"; data: any;
   onAnswer: ((text: string) => void) | null;
+  onPromote?: (() => void) | null;
   onFullStory: () => void; onClose: () => void;
 }) {
   const [text, setText] = useState("");
@@ -93,6 +98,25 @@ export function AnchoredQuestion({ kind, data, onAnswer, onFullStory, onClose }:
         <button className="modal-close" onClick={onClose}>✕</button>
       </div>
       <div className="aq-question">{data?.question}</div>
+      {/* A waiting agent draft, on the card anchored to the ❓ itself.
+          Accepting as written is the one action offered here because the
+          popover is small; editing and discarding live in the rail, and
+          the line below says so rather than leaving them undiscoverable. */}
+      {onAnswer && data?.proposed_answer && (
+        <div className="aq-proposal">
+          <span className="aq-who agent">agent draft</span>
+          <div className="aq-proposal-text">“{data.proposed_answer}”</div>
+          <div className="aq-proposal-foot">
+            {onPromote && (
+              <button onClick={() => { onPromote(); onClose(); }}>
+                Accept as written
+              </button>
+            )}
+            <span>not your answer until you accept it — edit or discard it
+              in the rail</span>
+          </div>
+        </div>
+      )}
       {onAnswer && (data?.choices || []).length > 0 && (
         <div className="aq-choices">
           {(data.choices as string[]).map((c) => (
@@ -112,7 +136,10 @@ export function AnchoredQuestion({ kind, data, onAnswer, onFullStory, onClose }:
           <button disabled={!text.trim()} onClick={() => send(text)}>Answer</button>
         </div>
       ) : (
-        <div className="aq-settled">{data?.answer ? `answered: ${data.answer}` : "read-only"}</div>
+        <div className="aq-settled">{data?.answer
+          ? `answered${data.answer_source === "agent-proposal"
+            ? " (you accepted the agent's draft)" : ""}: ${data.answer}`
+          : "read-only"}</div>
       )}
       <button className="aq-more" onClick={onFullStory}>ⓘ full story →</button>
     </div>
