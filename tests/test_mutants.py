@@ -17473,6 +17473,119 @@ def _attach_chain(shared: bool, headless: bool = False) -> list[dict]:
     return [a, n, z, e1, e2]
 
 
+def _drawn_ink(scene: list[dict]) -> set[tuple]:
+    """Every mark the client paints for a scene's connectors, unordered.
+
+    The reader's position, written as a set. A connector contributes one
+    entry per drawn segment — that segment's two absolute endpoints as a
+    frozenset, so a segment and its reverse are the SAME mark — and one
+    per head the client actually paints, keyed by the absolute point it
+    sits at. Nothing here records which end the model calls `start`,
+    because a reader cannot see that, and the mutants below exist to say
+    so.
+
+    ON `points`, NEVER on stored width/height. An arrow's geometry is its
+    point string; the stored extents are a non-negative bbox that
+    survives a reversal unchanged, so reading them would make a reversed
+    stroke and its original compare equal for the wrong reason — which is
+    the one comparison this helper must not get right by accident.
+
+    `canvas.arrowhead_of` decides the heads rather than the raw keys,
+    because it is this repo's one spelling of the client's defaults: a
+    `line` is painted headless whatever it stores, and an arrow that
+    merely omits `endArrowhead` is headed.
+
+    Args:
+        scene: The element list to read.
+
+    Returns:
+        The set of marks: `("seg", frozenset({(x, y), (x, y)}))` per drawn
+        segment, and `("head", (x, y), kind)` per head the client paints.
+    """
+    marks: set[tuple] = set()
+    for e in scene:
+        if e.get("type") not in ("arrow", "line"):
+            continue
+        pts = [(e.get("x", 0) + p[0], e.get("y", 0) + p[1])
+               for p in (e.get("points") or [])
+               if isinstance(p, (list, tuple)) and len(p) >= 2]
+        for seg in zip(pts, pts[1:]):
+            marks.add(("seg", frozenset(seg)))
+        for at_end in (False, True):
+            kind = canvas.arrowhead_of(e, at_end)
+            if kind is not None and pts:
+                marks.add(("head", pts[-1] if at_end else pts[0], kind))
+    return marks
+
+
+def _cued_feet_at_node(join: bool) -> list[dict]:
+    """`_attach_chain`'s geometry with both of N's feet pointing one way.
+
+    The control for the two r8-5 mutants below and the pole they are
+    judged against: the same three nodes on the same rank line, the same
+    two feet on N's opposite borders 0px apart off-axis, the same 80px of
+    bare box between them — and a head painted AT N on each stroke. The
+    ONLY thing that differs from the mutants' scene is the terminator,
+    which is the whole argument the shipped no-ink arm rests on (see
+    canvas.py: the 70 findings the broad criterion produced over 24
+    frozen artifacts are safe because an arrowhead ends the reading at
+    the node before the eye completes a stroke across the box).
+
+    A widening that earns those reds by dropping the cue fires here and
+    fails, measured rather than argued: patched into a throwaway copy of
+    canvas.py, "widen the pair gate AND drop the cue" reports 80px on
+    both poles of this builder, and turns the r8 artifact's silence into
+    four findings, three of them ordinary chained nodes.
+
+    WHICH KEY CARRIES THE HEAD FOLLOWS THE CLIENT AND NOT THE MODEL.
+    Excalidraw paints `startArrowhead` at `points[0]` and `endArrowhead`
+    at `points[-1]`, so a foot that LEAVES N is cued by `startArrowhead`
+    and one that ARRIVES is cued by `endArrowhead`; writing the other key
+    would store a mark the user never sees, which is the failure mode
+    `arrowhead_of` was written about.
+
+    Args:
+        join: True for two strokes converging on N, cued at N through
+            `endArrowhead`; False for two leaving it, cued through
+            `startArrowhead`.
+
+    Returns:
+        The five-element scene: nodes A, N, Z and connectors e1, e2.
+    """
+    a = el(id="A", type="rectangle", x=0, y=100, width=80, height=40,
+           customData={"role": "node"})
+    n = el(id="N", type="rectangle", x=200, y=100, width=80, height=40,
+           customData={"role": "node"})
+    z = el(id="Z", type="rectangle", x=528, y=100, width=80, height=40,
+           customData={"role": "node"})
+    # Feet at (200, 120) and (280, 120) either way — N's left- and
+    # right-edge midpoints — with `join` deciding only which end of each
+    # point string sits there. `width`/`height` are the client's
+    # non-negative extents and are written for consistency; every reader
+    # that matters here goes through `points`.
+    ends = ((("A", "N"), ("Z", "N")) if join else
+            (("N", "A"), ("N", "Z")))
+    e1 = el(id="e1", type="arrow", width=120, height=0,
+            x=80 if join else 200,
+            points=[[0, 0], [120, 0]] if join else [[0, 0], [-120, 0]],
+            startArrowhead=None if join else "arrow",
+            endArrowhead="arrow" if join else None,
+            y=120, startBinding={"elementId": ends[0][0], "focus": 0,
+                                 "gap": 1},
+            endBinding={"elementId": ends[0][1], "focus": 0, "gap": 1},
+            customData={"role": "edge"})
+    e2 = el(id="e2", type="arrow", width=248, height=0,
+            x=528 if join else 280,
+            points=[[0, 0], [-248, 0]] if join else [[0, 0], [248, 0]],
+            startArrowhead=None if join else "arrow",
+            endArrowhead="arrow" if join else None,
+            y=120, startBinding={"elementId": ends[1][0], "focus": 0,
+                                 "gap": 1},
+            endBinding={"elementId": ends[1][1], "focus": 0, "gap": 1},
+            customData={"role": "edge"})
+    return [a, n, z, e1, e2]
+
+
 def _ellipse_stage(through_body: bool) -> list[dict]:
     """One circular node and one unbound arrow, at the corner or through it.
 
@@ -20340,6 +20453,95 @@ _register(Mutant(
     expect=FindingSpec("phantom_passthrough", element="N",
                        magnitude=(80, 0.10)),
     neighbour=Neighbour(lambda: _attach_chain(shared=False),
+                        Silence("phantom_passthrough"))))
+
+# ---------------------------------------------------------------------------
+# r8-5 — the same picture, read twice, answered once (curator, 2026-09-01).
+#
+# ONE LINE: two connectors whose drawn segments are collinear through a node
+# they both touch read as ONE stroke, and `phantom_passthrough` says so only
+# where the model happens to call one of them arriving and the other leaving.
+#
+# FOUND BY A COLD OBSERVER on the r8 artifact `onboarding-data`, then
+# measured. `st-application` spans x 760..960, y 320..400; `d7` and `d10`
+# BOTH LEAVE it at x=860 — d7 through the top border running up, d10 through
+# the bottom border running down. Drawn, that is one unbroken vertical
+# through the box's centre, and the observer read it as "the Screening
+# bureau path connects straight through to the Rejection log", which deletes
+# the step the box is. `collect_findings` over that artifact returns exactly
+# one finding, `crossings_count=0`. The check that owns this shape is the
+# block these two entries name, and it never spoke.
+#
+# WHY IT IS SILENT, measured and not guessed. The pair loop's FIRST gate is
+# `if fid == gid or not f_arr or g_arr: continue` — "exactly one arriving,
+# one leaving" — and nothing downstream of it is involved. Every other
+# condition the block applies holds on the fork: one axis, opposite signs,
+# feet 0px apart off-axis, `shape_clip` returning the full span, no ink over
+# the node, and NO HEAD AT THE NODE either, because the client paints a
+# leaving foot's head from `startArrowhead` and both of the artifact's
+# arrows store `None` there while carrying their heads at the far end. The
+# no-ink arm would fire on its own terms; it is never reached.
+#
+# THE MUTATION IS A NULL EDIT ON THE PAGE, which is the whole assertion.
+# `flip_direction` on a HEADLESS stroke swaps two bindings and reverses a
+# point list: the segment set is identical and no head moves, because there
+# is none. `_drawn_ink` asserts that equality inside both neighbour tests.
+# So these two entries and `headless_chain_reads_through_node` above are the
+# SAME PICTURE — the identical 80px of bare N between two collinear opposed
+# feet — and the catalogue reports 80px for one of the three and nothing at
+# all for the other two.
+#
+# TWO ENTRIES AND NOT ONE, because the gate is a conjunction whose halves
+# fail on different feet: `not f_arr` rejects the fork (both leaving) and
+# `g_arr` rejects the join (both arriving). A widening keyed on either role
+# alone flips one of these and leaves the other exactly where it is.
+#
+# REPAIRS MEASURED, each patched into a THROWAWAY COPY of canvas.py under
+# /tmp and run through `collect_findings`. This catalogue names no repair;
+# it records which ones the reds admit, so that a fix is judged against a
+# property and not against one author's edit.
+#   FLIP BOTH, leave both neighbours and both sibling mutants untouched, and
+#   turn the r8 artifact's silence into one 80px finding on
+#   `st-application`: (1) widen the pair gate to every unordered pair
+#   (`if fid >= gid`); (2) take the pair-loop role from the geometry
+#   (`step > 0`) rather than from the binding, so an opposed pair always has
+#   one of each; (3) widen only where neither foot is terminated; (4) add a
+#   same-role arm beside the asymmetric one.
+#   DO NOT FLIP, and each says something. Widening `SAME_LINE` 12 -> 120
+#   (the feet are already 0px apart off-axis), widening the axis tolerance
+#   to 0.9 (both strokes are already axis-parallel), and reading the far
+#   end's head for a leaving foot (the gate rejects the pair before any head
+#   is consulted) all leave both reds red. Reporting at bind time and
+#   nudging the attach point at mint do not flip them either, and cannot:
+#   both change what gets STORED, and these reds assert what the lint SAYS
+#   about a scene it is handed.
+#   OVER-FIRES: widening the gate AND dropping the terminator cue reports
+#   80px on both neighbours below and turns the artifact's 0 findings into
+#   4, three of them ordinary chained nodes — the 70-finding failure the
+#   no-ink arm was narrowed to avoid. That is what the neighbours buy.
+#
+# THE MAGNITUDE IS THE SIBLINGS', at the same +-10% band: 80px is the span
+# of N the reader completes across, and the readings that band excludes are
+# the same three the entries above list — 0 (the covered span, which is 0
+# here BY CONSTRUCTION), and the merged stroke's full length. The artifact's
+# own reading is 80 too, and independently: there it is `st-application`'s
+# HEIGHT, 320..400, not this scene's node width.
+_register(Mutant(
+    "forked_feet_read_through_node",
+    build=lambda: _attach_chain(shared=False, headless=True),
+    op="flip_direction", args={"arrow_id": "e1"},
+    expect=FindingSpec("phantom_passthrough", element="N",
+                       magnitude=(80, 0.10)),
+    neighbour=Neighbour(lambda: _cued_feet_at_node(join=False),
+                        Silence("phantom_passthrough"))))
+
+_register(Mutant(
+    "joined_feet_read_through_node",
+    build=lambda: _attach_chain(shared=False, headless=True),
+    op="flip_direction", args={"arrow_id": "e2"},
+    expect=FindingSpec("phantom_passthrough", element="N",
+                       magnitude=(80, 0.10)),
+    neighbour=Neighbour(lambda: _cued_feet_at_node(join=True),
                         Silence("phantom_passthrough"))))
 
 # ---------------------------------------------------------------------------
@@ -26713,6 +26915,120 @@ class TestMutantCatalogue(unittest.TestCase):
             "the silence asserted just above is about the instrument and "
             "not about the picture" % spoke)
 
+    @unittest.expectedFailure
+    def test_mutant_forked_feet_read_through_node(self) -> None:
+        """r8-5: two feet LEAVING N draw one stroke and nothing says so.
+
+        RED BY ABSENCE. The scene is `headless_chain_reads_through_node`'s
+        own, with `e1` reversed — a model edit that repaints nothing, and
+        the neighbour below asserts that. The lint reports 80px before the
+        flip and is silent after it, because its pair gate demands one
+        arriving foot and one leaving one and this node now has two
+        leaving.
+
+        Reachable and reached: `onboarding-data`'s `d7` and `d10` both
+        leave `st-application` at x=860 on opposite borders, a cold
+        observer read the pair as one relation through the box, and the
+        artifact lint said nothing at all.
+        """
+        self._run("forked_feet_read_through_node")
+
+    def test_neighbour_forked_feet_read_through_node(self) -> None:
+        """The same fork with a head at N must stay quiet.
+
+        The discriminator, and the reason the reds cannot be bought by
+        deleting the terminator test: this scene differs from the mutant's
+        only in the cue, so a widening that reports every collinear
+        opposed pair fires here. Measured — the "widen and drop the cue"
+        patch reports 80px on this builder and four findings on the r8
+        artifact, three of them ordinary chained nodes.
+        """
+        self._run_neighbour("forked_feet_read_through_node")
+        # THE RED'S PREMISE, ASSERTED RATHER THAN CLAIMED, and the one
+        # thing that could make it dishonest. The mutant demands that the
+        # finding survive an edit A READER CANNOT SEE; if `flip_direction`
+        # moved so much as one mark, the silence it reports would be about
+        # a different picture and the entry would be indicting the check
+        # for answering a changed question. `_operator` deep-copies, so
+        # the base below is untouched by the call.
+        #
+        # WATCHED FAILING with the inputs damaged, not the function: hand
+        # this the HEADED chain (`headless=False`) and the flip carries
+        # e1's arrowhead from N to A, symmetric difference two marks, and
+        # the guard fails. Damaging `_drawn_ink` itself would have proved
+        # nothing about the scenes.
+        base = _attach_chain(shared=False, headless=True)
+        flipped = OPERATORS["flip_direction"](base, arrow_id="e1")
+        self.assertEqual(
+            _drawn_ink(base), _drawn_ink(flipped),
+            "reversing a headless stroke must repaint nothing, or the "
+            "mutant above is not about the check at all; marks in one "
+            "scene and not the other: %s"
+            % sorted(map(str, _drawn_ink(base) ^ _drawn_ink(flipped))))
+        # THE LIVE HALF, and the row this mutant holds in `RULE8_EXEMPT`
+        # is what owes it. Rule 8 refuses to count a RED mutant's own
+        # `FindingSpec`, so nothing in the catalogue makes
+        # `phantom_passthrough` fire beside the Silence just asserted —
+        # and a detector that has stopped answering passes both poles.
+        # Same builder family, same check, same `collect_findings` entry
+        # point, so a dead detector fails HERE instead of reading green.
+        spoke = [f for f in collect_findings(_attach_chain(shared=True))
+                 if f["check"] == "phantom_passthrough"]
+        self.assertEqual(
+            [(f["element"], f["magnitude"]) for f in spoke], [("N", 80.0)],
+            "the shared-attach chain draws 80px of arrow across N and "
+            "`phantom_passthrough` should say so; got %s. Until it does, "
+            "the silence asserted above is about the instrument and not "
+            "about the picture" % spoke)
+
+    @unittest.expectedFailure
+    def test_mutant_joined_feet_read_through_node(self) -> None:
+        """r8-5's other pole: two feet ARRIVING at N, same silence.
+
+        RED BY ABSENCE, and it exists because the gate that rejects the
+        fork is a conjunction. `not f_arr or g_arr` fails on a different
+        foot here, so a repair keyed on "both leaving" flips the sibling
+        above and leaves this one exactly where it is. Same base scene,
+        same null edit, same 80px of bare N.
+        """
+        self._run("joined_feet_read_through_node")
+
+    def test_neighbour_joined_feet_read_through_node(self) -> None:
+        """The same join with a head at N must stay quiet.
+
+        The join's cue is `endArrowhead`, where the fork's is
+        `startArrowhead`: the client paints a head at the point string's
+        end it belongs to, so the two poles are cued through different
+        keys and neither neighbour can stand in for the other.
+        """
+        self._run_neighbour("joined_feet_read_through_node")
+        # The same premise for this mutant's own operator argument. One
+        # mutant, one control, one guard — see `_run_neighbour` on why the
+        # repeat is the convention rather than an oversight.
+        base = _attach_chain(shared=False, headless=True)
+        flipped = OPERATORS["flip_direction"](base, arrow_id="e2")
+        self.assertEqual(
+            _drawn_ink(base), _drawn_ink(flipped),
+            "reversing a headless stroke must repaint nothing, or the "
+            "mutant above is not about the check at all; marks in one "
+            "scene and not the other: %s"
+            % sorted(map(str, _drawn_ink(base) ^ _drawn_ink(flipped))))
+        # THE LIVE HALF, and the row this mutant holds in `RULE8_EXEMPT`
+        # is what owes it. Rule 8 refuses to count a RED mutant's own
+        # `FindingSpec`, so nothing in the catalogue makes
+        # `phantom_passthrough` fire beside the Silence just asserted —
+        # and a detector that has stopped answering passes both poles.
+        # Same builder family, same check, same `collect_findings` entry
+        # point, so a dead detector fails HERE instead of reading green.
+        spoke = [f for f in collect_findings(_attach_chain(shared=True))
+                 if f["check"] == "phantom_passthrough"]
+        self.assertEqual(
+            [(f["element"], f["magnitude"]) for f in spoke], [("N", 80.0)],
+            "the shared-attach chain draws 80px of arrow across N and "
+            "`phantom_passthrough` should say so; got %s. Until it does, "
+            "the silence asserted above is about the instrument and not "
+            "about the picture" % spoke)
+
     def test_mutant_ellipse_corner_overfire(self) -> None:
         """An arrow 27px clear of the circle draws no complaint."""
         # Bbox-shaped through-node test, ellipse instance. FLIPPED by WP4
@@ -29267,7 +29583,13 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = set()
+CATALOGUE_RED_IDS: set[str] = {"forked_feet_read_through_node",
+                               "joined_feet_read_through_node"}
+# REFILLED 2026-09-01 by curator finding r8-5, hours after the drain
+# below, and with a PAIR rather than a single id — see the entries'
+# own comment for why the gate they indict is a conjunction whose
+# halves fail on different feet, and why a repair keyed on one role
+# flips one of them and leaves the other exactly where it is.
 # DRAINED on 2026-09-01, hours after it refilled, by repair (A) of the four
 # its own entry had measured: `_rect_gap_signed` continues the box gap
 # through zero and returns the negated MINIMUM TRANSLATION DISTANCE, and
@@ -30431,7 +30753,29 @@ def red_bearing_classes() -> dict[str, int]:
 # row stood four days past its flip because nobody did this; the sixth did
 # not last an afternoon, and the difference is that its reason string named
 # the moment to delete it.
-RULE8_EXEMPT: dict[str, str] = {}
+RULE8_EXEMPT: dict[str, str] = {
+    # REFILLED 2026-09-01 (curator, r8-5) with the fifth row's exact
+    # shape arriving a third time: a RED mutant's `FindingSpec`
+    # cannot pair its neighbour's `Silence`, so while these two are
+    # red nothing in the catalogue makes `phantom_passthrough` fire
+    # beside them. Both neighbour TESTS carry the live half by hand
+    # — the same `_attach_chain(shared=True)` firing assertion
+    # `test_neighbour_headless_chain_reads_through_node` added for
+    # this reason in 2026-08-16 — so the pole is asserted in every
+    # green run; what is missing is only the CATALOGUE-shaped
+    # pairing this gate can compute. DELETE BOTH ROWS in the change
+    # that drops the `@unittest.expectedFailure` decorators: the
+    # `expect` becomes evidence the moment it does, `rule_eight_rot`
+    # starts naming these rows obsolete, and the guard beside this
+    # table fails until they are gone.
+    "forked_feet_read_through_node:neighbour":
+        "red mutant: its FindingSpec is not evidence until r8-5 is "
+        "fixed; the live firing is asserted by hand in the neighbour "
+        "test. Delete this row with that mutant's decorator.",
+    "joined_feet_read_through_node:neighbour":
+        "red mutant: its FindingSpec is not evidence until r8-5 is "
+        "fixed; the live firing is asserted by hand in the neighbour "
+        "test. Delete this row with that mutant's decorator."}
 
 
 def rule_eight_paired(mutant: Mutant, slot: str, red: bool) -> bool:
