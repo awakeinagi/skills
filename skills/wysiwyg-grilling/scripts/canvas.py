@@ -429,6 +429,11 @@ class Project:
         self.saves_dir = self.pk / "saves"
         self.backups_dir = self.pk / ".backups"
         self.pending_dir = self.pk / ".pending"
+        # bug-report bundles. Gitignored for the same reason .pending/ is —
+        # it is session machinery, not the drawing — but with the OPPOSITE
+        # lifecycle: a queued revision is consumed and deleted, a bundle is
+        # EVIDENCE and is never deleted, only set aside (`quarantine_bundle`).
+        self.bugreports_dir = self.pk / ".bugreports"
         self.registry_path = self.pk / "model.json"
         self.config_path = self.pk / "config.json"
         h = hashlib.sha1(str(self.root).encode("utf-8")).hexdigest()[:12]
@@ -480,7 +485,12 @@ class Project:
         # exactly once. Only the LOOKUP is stripped, so an indented
         # `.pending/` still counts as already there.
         have = {ln.strip() for ln in kept}
-        missing = [ln for ln in (".backups/", ".pending/") if ln not in have]
+        # `.bugreports/` is appended by the SAME one-time migration, and it
+        # is listed here rather than written only when the first report is
+        # filed: the line has to be in place BEFORE a bundle lands, or the
+        # user's next commit carries a screenshot of their own project.
+        missing = [ln for ln in (".backups/", ".pending/", ".bugreports/")
+                   if ln not in have]
         if missing:
             atomic_write(gi, "".join("%s\n" % ln for ln in kept + missing))
 
@@ -2086,56 +2096,56 @@ def wrap_label_text(text, inner, fs):
 
 
 def _client_chop(token, inner, fs):
-    """One token too wide for any line, split the way `z$` splits it.
+    """One token too wide for any line, split the way `F$` splits it.
 
-    The shipped client breaks a word this file cannot. `z$`
-    (index-DFry315l.js @274996, reached from `$$` @274753) walks the
+    The shipped client breaks a word this file cannot. `F$`
+    (index-DTzHdgzu.js @274995, reached from `Ed` @274822 and reaching
+    `z$` @274752 — the arrow ran the other way here until the task 37
+    review, M-1, and each name occurs exactly twice in the bundle, so
+    both directions are checkable rather than believable) walks the
     token CHARACTER BY CHARACTER accumulating per-glyph advances, and
     closes a chunk the moment the next glyph would overrun the cap — so
     it never hyphenates and never gives up, and a single glyph wider
     than the cap takes a line of its own.
 
     EVERY BUNDLE CITATION IN THIS FILE IS A MINIFIED NAME IN A FILE
-    THAT IS REBUILT, and this one is the note the others point at.
+    THAT IS REBUILT, and this one is the note the others point at. It
+    has now been rewritten TWICE for the same reason, which is the
+    argument for reading it rather than the citations under it.
+
     They named `index-DpKP4sIE.js` until 2026-08-31, and that file had
     stopped existing at `3f57a17` when the tree rebuilt to
-    `index-KJTydiiR.js`. THE DANGEROUS HALF IS NOT THE DANGLING NAME.
-    Four of the five symbols this file cited resolve, IN THE BUNDLE
-    THAT SHIPPED THEN, to real functions doing something else — `Yn` is
-    assigned nowhere, `_s` is an image-crop helper, `qg` draws an arc,
-    `yd` aliases `useLayoutEffect`, `ai` handles text editing. A reader
-    following one of those lands on working code and believes it. The
-    transcribed ARITHMETIC was re-derived against the shipped bundle
-    and was correct at every site, so what rotted was the address and
-    never the rule.
+    `index-KJTydiiR.js`; on 2026-08-31 `index-KJTydiiR.js` stopped
+    existing in turn, when the v0.9.1 build that added the 🐞 bug-hunter
+    to the client produced `index-DTzHdgzu.js`.
 
-    AND IT HAPPENED AGAIN ON 2026-09-01, one rebuild later, which is
-    the argument for the paragraph above rather than an exception to
-    it. `index-KJTydiiR.js` became `index-DFry315l.js` and five of the
-    six symbols were reassigned: the padding `Kn` -> `Zn`, the
-    container redraw `ri` -> `li`, the wrap width `js` -> `As`, the max
-    height `Kg` -> `nU`, the growth `bd` -> `yd`. EVERY ONE OF THE OLD
-    NAMES IS LIVE IN THE NEW FILE AND MEANS SOMETHING ELSE — `Kn` is a
-    memoizer, `ri` is a component alias, `js` crops an image, `Kg`
-    reads `boundElements`, `bd` looks up a line height — so a reader
-    following the old spelling lands on working code for the second
-    rebuild running. `yd` is the sharpest of them: it was cited below
-    as the WRONG name for the growth function, and this build assigned
-    it TO the growth function.
+    THE DANGEROUS HALF IS NOT THE DANGLING NAME, and the second rebuild
+    proved it a second time in the sharpest possible way. **`z$` is
+    still a symbol in the bundle that ships, and it is no longer this
+    function.** It was the chop walker in `index-KJTydiiR.js`; in
+    `index-DTzHdgzu.js` it is the grapheme splitter that walker CALLS,
+    and the walker is `F$`. A reader who took the obvious repair — swap
+    the filename, keep the symbol — would have been sent one function
+    sideways into working code that does something else, which is the
+    exact failure the first rewrite recorded: four of the five symbols
+    cited before it resolved, in the bundle that then shipped, to real
+    functions doing something else (`Yn` assigned nowhere, `_s` an
+    image-crop helper, `qg` drawing an arc, `yd` aliasing
+    `useLayoutEffect`, `ai` handling text editing).
 
-    THE OFFSETS ALL HELD, and that is worth as much as the renames.
-    Every byte address this file cites is the same integer it was in
-    `index-KJTydiiR.js` — the vendored region these sites live in sits
-    ahead of the app code, so editing `App.tsx` moves the names and not
-    the addresses. An INTERMEDIATE build on the same day moved every
-    one of them by exactly one byte, so the stability is a property of
-    a build and never a rule. Re-derive both halves every time. Every
-    arithmetic was re-derived by matching the function BODY rather than
-    the name, and every one was unchanged at every site.
+    Both times the transcribed ARITHMETIC was re-derived against the
+    new bundle and was correct at every site, so what rots is the
+    address and never the rule. The re-derivation that is actually
+    trustworthy does not read the symbol at all: anchor on a
+    rename-invariant slice of the CODE (`.normalize("NFC").split(`,
+    `crop:e.crop??null});`), find it in the new file, and read the name
+    back out of what you land on.
 
-    SO CITE THE SHAPE, AND TREAT THE NAME AS PERISHABLE. `z$`, `$$` and
-    `Wp.calculate` above happen to have survived both rebuilds; that is
-    luck. The pattern worth copying is
+    SO CITE THE SHAPE, AND TREAT THE NAME AS PERISHABLE. Of the names
+    this file leans on, only `Kn` has survived both rebuilds; the
+    per-glyph measurer went `Wp.calculate` → `Bp.calculate` in this one,
+    and `z$` is what luck looks like when it runs out. The
+    pattern worth copying is
     `client_bound_text_rules` in `tests/test_mutants.py`, which reads
     the client's caption rules out of the bundle by STRUCTURE and fails
     loudly when a rebuild stops matching, rather than trusting a name.
@@ -2145,9 +2155,19 @@ def _client_chop(token, inner, fs):
     be relaxed into uselessness by the third one.
 
     Per-character advances and not a re-measure of the accumulated
-    string, because that is what `z$` does: its sibling `$$` re-measures
-    a whole line, this arm sums `Wp.calculate` per glyph. The two are not
-    the same number and using the wrong one moves the break.
+    string, because that is what `F$` does: its CALLER `Ed` re-measures
+    a whole line (`dd(line, font)`) and only reaches for this arm when
+    that line does not fit; this arm then sums `Bp.calculate` per glyph.
+    The two are not the same number and using the wrong one moves the
+    break.
+
+    (That sentence named `$$` as the whole-line re-measurer until the
+    2026-08-31 re-derivation. `$$` was the grapheme SPLITTER, which
+    measures nothing — the claim was true of `Cd`, now `Ed`. Recorded
+    rather than quietly corrected: the mis-attribution survived a
+    rebuild and a review inside a paragraph whose entire subject is
+    that minified names are not to be trusted, which is the argument
+    for anchoring on code rather than on names, made against itself.)
 
     Args:
         token: The word to break. Must contain no whitespace.
@@ -2653,22 +2673,23 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # after one freedraw joined them).
         #
         # THE FIELD SET IS THE CLIENT'S, READ OFF THE BUNDLE rather than
-        # guessed — `scripts/web/assets/index-DFry315l.js`, and the two
+        # guessed — `scripts/web/assets/index-DTzHdgzu.js`, and the two
         # sites disagree about what is optional, which is why the whole
-        # trio is written here. (Cited against `index-QQVNNFtd.js` until
-        # 2026-08-31; that file stopped existing at a rebuild and both
-        # shapes were re-derived against the one that ships, unchanged.
-        # See the citation note above `_client_chop`.)
+        # trio is written here. (Cited against `index-QQVNNFtd.js`, then
+        # `index-KJTydiiR.js`; both stopped existing at a rebuild and
+        # every shape was re-derived against the one that ships,
+        # unchanged each time. See the citation note above
+        # `_client_chop`.)
         #
-        #   * `restoreElement`, `case "freedraw"` (offset 630191), is
-        #     `xo(e, {points: e.points, lastCommittedPoint: null,
+        #   * `restoreElement`, `case "freedraw"` (offset 630190), is
+        #     `wo(e, {points: e.points, lastCommittedPoint: null,
         #     simulatePressure: e.simulatePressure, pressures:
         #     e.pressures})` — it FORWARDS all three with no defaults of
         #     its own, so whatever is missing here is still missing after
         #     restore. (Contrast `case "line"`/`case "draw"` two clauses
-        #     down at 630428, which substitutes a two-point path for a
+        #     down at 630427, which substitutes a two-point path for a
         #     bad one.)
-        #   * the path builder (offset 496932) is
+        #   * the path builder (offset 496919) is
         #     `e.simulatePressure ? e.points : e.points.length ?
         #     e.points.map(([x, y], i) => [x, y, e.pressures[i]]) :
         #     [[0, 0, .5]]`. `points` is dereferenced on BOTH arms, so an
@@ -2678,8 +2699,20 @@ def make_element(spec, existing_ids, errors, index_hint=0):
         # So `simulatePressure` True with an EMPTY `pressures` is the one
         # combination that needs no per-point pressure channel — and it
         # is what the client itself writes when a stroke starts from a
-        # device that reports no pressure (offset 1185296: `pressures:
-        # y ? [] : [o.pressure], simulatePressure: y`). It is also the
+        # device that reports no pressure — `simulatePressure: y` at
+        # offset 1184922 and `pressures: y ? [] : [o.pressure]` at
+        # 1184987, in that order. (This cited "offset 1185296:
+        # `pressures: y ? [] : [o.pressure], simulatePressure: y`" until
+        # the 2026-08-31 re-derivation. BOTH halves were wrong and had
+        # been through a rebuild and a review: the offset was 310 bytes
+        # past the site and landed inside `insertIframeElement`, and the
+        # two fields were transcribed in the opposite order to the one
+        # the bundle writes them in. The ARITHMETIC the paragraph rests
+        # on — that these two are written together, and that
+        # `simulatePressure` true means an empty `pressures` — is
+        # unchanged and correct. Recorded rather than silently fixed,
+        # because a citation nobody could follow is how it stayed wrong
+        # that long.) It is also the
         # honest description of a server-authored stroke: nobody pressed
         # anything.
         el["points"] = spec.get("points", [[0, 0], [el["width"] or 100, 0]])
@@ -12283,8 +12316,9 @@ def _label_position_rederived(old, new, old_container, new_container):
 
     "AT ANGLE 0" IS A QUALIFICATION THIS FUNCTION DOES NOT ENFORCE, and
     saying so is the point of this paragraph — the sentence above was
-    honest and the code beneath it reads no `angle` at all. `mY`
-    (`adjustXYWithRotation`, index-DFry315l.js @560560) takes the final
+    honest and the code beneath it reads no `angle` at all. `gY`
+    (`adjustXYWithRotation`, index-DTzHdgzu.js @560559 — it was `mY` in
+    `index-KJTydiiR.js`) takes the final
     vertical arm when `s` is set and `n` is not:
 
         y += (y2_delta) * (1 - cos(angle))
@@ -14561,8 +14595,8 @@ def shape_band_width(el, y0, y1):
 # from, and `TestShapeAwareLabelRoom` still pins those four numbers.
 
 
-# THE CLIENT'S BOUND-TEXT PADDING. `Zn = 5` in the shipped bundle
-# (index-DFry315l.js @248728), applied on BOTH sides of every rule below —
+# THE CLIENT'S BOUND-TEXT PADDING. `Kn = 5` in the shipped bundle
+# (index-DTzHdgzu.js @248727), applied on BOTH sides of every rule below —
 # and, since `recenter_label` was moved onto it, to the vertical anchor of
 # every bound caption this file writes.
 #
@@ -14572,6 +14606,12 @@ def shape_band_width(el, y0, y1):
 # above `_client_chop` for why this class of rot is worse than a dangling
 # reference: four of the five symbols this file used to name resolve, in
 # the bundle that ships, to real functions that do something else.
+#
+# `Kn` IS THE ONE NAME THAT HAS SURVIVED BOTH REBUILDS, which is worth
+# knowing only because it is not a property anything guarantees — the
+# 2026-08-31 v0.9.1 build renamed the chop walker, the redraw, the wrap
+# and headroom helpers and the per-glyph measurer, and left this one
+# alone. Re-derive it like the rest rather than assuming it held.
 BOUND_TEXT_PADDING = 5
 
 
@@ -14614,26 +14654,28 @@ def client_wrap_width(container):
     defect this function exists to remove. `fit_label_in`'s docstring
     said "the client wraps bound text to the width we allot" and set
     `autoResize: False` to make that stick. The shipped bundle says
-    otherwise — `li`, the redraw that runs whenever a container or its
-    text changes (index-DFry315l.js @553084):
+    otherwise — `ii`, the redraw that runs whenever a container or its
+    text changes (index-DTzHdgzu.js @553083 — `ri` in the previous
+    bundle):
 
         (t || !e.autoResize) && (
-            i = t ? As(t, e) : e.width,
-            a.text = _d(e.originalText, Xt(e), i))
+            i = t ? Ts(t, e) : e.width,
+            a.text = Ed(e.originalText, Wt(e), i))
 
     `t` is the CONTAINER. When there is one, the wrap width is
-    `As(container)` and the label's own stored `width` is not read at
+    `Ts(container)` and the label's own stored `width` is not read at
     all; `e.width` is reached only by an UNBOUND text. So a bound label
     is re-wrapped to this number on load, and the picture the user sees
     has the line count this returns — not the one we stored.
 
-    CITED AS `ai` UNTIL 2026-08-31 AND AS `js` UNTIL 2026-09-01, each
-    in the bundle before this one; in the file that ships now `ai`
-    builds a text element and `js` crops an image, and neither is this.
-    The arithmetic below was re-derived against `As` by matching its
-    body and is unchanged; see the citation note above `_client_chop`.
+    CITED AS `ai`, THEN `ri`, IN TWO BUNDLES THAT NO LONGER EXIST —
+    `ai` in the bundle that shipped before them is the text-editing
+    handler, not this. The arithmetic below has been re-derived against
+    the wrap helper twice and is unchanged both times; see the citation
+    note above `_client_chop`.
 
-    `As` itself (@555678), with `Zn = 5`:
+    The wrap helper itself, `Ts` (@555677, `js` in the previous
+    bundle), with `Kn = 5`:
 
         ellipse -> round(w / 2 * sqrt(2)) - 10
         diamond -> round(w / 2)           - 10
@@ -14704,21 +14746,24 @@ def client_wrap_width(container):
 def client_text_headroom(container):
     """Height a bound label may reach before the CLIENT grows the box.
 
-    `nU` in the shipped bundle (index-DFry315l.js @555889), the height
+    `Qg` in the shipped bundle (index-DTzHdgzu.js @555888; `Kg` in the
+    previous one), the height
     twin of `client_wrap_width` and shaped identically — a rhombus
     gives its bound text half its box in BOTH directions, not just
     across.
 
-    CITED AS `qg` UNTIL 2026-08-31 AND AS `Kg` UNTIL 2026-09-01, each
-    in the bundle before this one; in the file that ships now `qg`
-    walks frame children and `Kg` reads `boundElements`, and neither is
-    this. The arithmetic was re-derived against `nU` by matching its
-    body and is unchanged; see the citation note above `_client_chop`.
+    CITED AS `qg`, THEN `Kg`, IN TWO BUNDLES THAT NO LONGER EXIST —
+    `qg` in the bundle that shipped before them drew an arc, and `qg`
+    in the bundle that ships now is `computeBoundTextPosition`, which
+    is neither. The arithmetic has been re-derived at every rebuild and
+    is unchanged each time; see the citation note above `_client_chop`.
 
-    `nU` IS ALSO `computeBoundTextPosition`'s HEIGHT BUDGET, which is
+    `Qg` IS ALSO `computeBoundTextPosition`'s HEIGHT BUDGET, which is
     where the same number decides a caption's vertical PLACEMENT and
-    not only its growth. `recenter_label` models the rectangle arm of
-    that placement and neither shape arm — see its own docstring.
+    not only its growth — and in the bundle that ships that caller is
+    `qg` itself, so the dead name and the live one now sit one call
+    apart. `recenter_label` models the rectangle arm of that placement
+    and neither shape arm — see its own docstring.
 
     Args:
         container: The container element.
@@ -14739,21 +14784,19 @@ def client_text_headroom(container):
 def client_grown_extent(extent, kind):
     """Extent the CLIENT grows a container to when its label outruns it.
 
-    `yd` (index-DFry315l.js @555542). It is the inverse of
+    `md` (index-DTzHdgzu.js @555541; `bd` in the previous bundle). It
+    is the inverse of
     `client_text_headroom` and it is NOT the `+16` this file used to
     grow by: on a diamond the client doubles, so a 40px two-line label
     takes a 200x80 rhombus to **100px** tall where we made it 56 and
     then drew a picture the browser did not.
 
-    CITED AS `yd` UNTIL 2026-08-31 AND AS `bd` UNTIL 2026-09-01, and
-    this is the site the citation note above uses to make its case: the
-    2026-09-01 rebuild assigned `yd` — the name that was WRONG here,
-    and was recorded as wrong — to this very function. A reader who
-    trusted the old correction lands on the right code for the wrong
-    reason, and one who trusts the old citation lands on `bd`, which
-    now looks up a line height. The arithmetic was re-derived against
-    `yd` by matching its body and is unchanged; see the citation note
-    above `_client_chop`.
+    CITED AS `yd`, THEN `bd`, IN TWO BUNDLES THAT NO LONGER EXIST —
+    `yd` in the bundle that shipped before them aliased
+    `useLayoutEffect`, and `yd` in the bundle that ships now is a
+    Tooltip component, which is neither; `bd` is assigned nowhere in
+    it. The arithmetic has been re-derived at every rebuild and is
+    unchanged each time; see the citation note above `_client_chop`.
 
     Args:
         extent: The label extent that has to fit, in px.
@@ -15734,15 +15777,16 @@ def arrowhead_of(e: dict[str, Any], at_end: bool) -> str | None:
     `arrowhead_of({"type": "line"}, True)` answered `"arrow"`. Two
     independent things in the bundle say no, and either alone would
     settle it. `restoreElement` has a THIRD destructuring site,
-    `case "line": case "draw":` (offset 630428 of
-    `scripts/web/assets/index-DFry315l.js`), where BOTH ends default to
+    `case "line": case "draw":` (offset 630427 of
+    `scripts/web/assets/index-DTzHdgzu.js`), where BOTH ends default to
     `null`; and the shape generator draws heads inside
-    `if (e.type === "arrow")` (offset 503007, the destructuring it
-    guards at 503029), so a line's stored
+    `if (e.type === "arrow")` (offset 503006, the destructuring it
+    guards at 503028), so a line's stored
     `endArrowhead` is never read for painting at all — an EXPLICIT
     `"arrow"` on a line draws nothing. (Cited against
-    `index-QQVNNFtd.js` until 2026-08-31; re-derived unchanged against
-    the bundle that ships — see the note above `_client_chop`.)
+    `index-QQVNNFtd.js`, then `index-KJTydiiR.js`; re-derived unchanged
+    against the bundle that ships each time — see the note above
+    `_client_chop`.)
     The second is the stronger fact
     and it is why this gates on the type rather than merely changing the
     default. `freedraw` (the bundle's legacy `draw`) is covered by the
@@ -20299,8 +20343,11 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                           default=0)
             over_w, over_h = longest > room_w, th > room_h
         # THE HEIGHT ARM OF A BOUND LABEL IS NOT A CLIP (v0.9 WP4
-        # review, I-1). The bundle's `ai` (@553053) is explicit —
-        # `if(!ht(t)&&l.height>s){let m=yd(l.height,t.type);pe(t,{height:m})}`
+        # review, I-1). The bundle's `ii` (@553053 — `ai`, then `ri`, in
+        # two bundles that no longer exist, and `ai` is live in the one
+        # that ships and is not this) is explicit — `if(!ht(t)&&
+        # l.height>s){let m=md(l.height,t.type);pe(t,{height:m},r),
+        # Jm(t.id,m)}`
         # — so when a bound label's painted block outruns the headroom
         # the client GROWS the container. `fit_label_in` transcribes
         # exactly that, two thousand lines above, and this arm was
@@ -20433,7 +20480,7 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
         # 35px of headroom, so the band [22, 66] runs off a body only
         # 64px tall and `shape_band_span` pinches to nothing — and the
         # check reports the pinched sentence about a drawing the browser
-        # never paints. `ai` (@553053) grows that ellipse to 160x76, and
+        # never paints. `ii` (@553053) grows that ellipse to 160x76, and
         # in the grown body the same band is [16, 60] over a 130.5px
         # chord. The rhombus case is the same: 200x100 pinches, the
         # 200x150 the client draws gives 113.3px.
@@ -27134,6 +27181,431 @@ class Store:
 
 
 # ---------------------------------------------------------------------------
+# bug-report bundles — the 🐞 bug-hunter's on-disk half.
+#
+# THE PIXELS ARE MADE HERE, NOT IN THE BROWSER, and that is the one thing
+# about this feature that is evidence-backed rather than designed. The
+# 2026-08-13 spike measured it in its sixth round of play: a privacy
+# browser (LibreWolf) poisons `toDataURL` AND `exportToBlob` identically
+# — every client pixel path returns noise BY DESIGN, and it returns it
+# silently, so the bug reporter's own evidence was garbage while the
+# report claimed to carry a screenshot. `render_svg` reads the scene the
+# server already holds and owes the browser nothing, so it cannot be
+# poisoned by one. The client's job is the half only it knows: what is
+# selected, where the camera is, which panels are open, and where the
+# user's ring went.
+#
+# A bundle is EVIDENCE. Nothing here deletes one — a bundle that cannot
+# be read is renamed `.bad` and stays (`quarantine_bundle`), the same
+# discipline `load_pending` applies to a queue file, for the stronger
+# reason: a queued revision can be redrawn and a bug report cannot be
+# re-observed.
+# ---------------------------------------------------------------------------
+
+BUGREPORT_SLUG_CHARS = 48
+BUGREPORT_EVENTS_TAIL = 50
+RING_STROKE = "#cf222e"
+_VIEWBOX_RE = re.compile(
+    r"viewBox='(-?[0-9.]+) (-?[0-9.]+) (-?[0-9.]+) (-?[0-9.]+)'")
+_SVG_DIMS_RE = re.compile(r"width='(\d+)' height='(\d+)'")
+
+
+def bugreport_slug(description: str) -> str:
+    """Name a bundle's directory after the first words of its description.
+
+    The full text always lives in `report.json`; this is the part a
+    human reads in an `ls`, so it is deliberately lossy. The cut is at
+    `BUGREPORT_SLUG_CHARS` characters of the RAW description and not at
+    a word boundary, which means a report can be filed under a slug
+    ending mid-word — that is accepted, because the alternative (back up
+    to the last space) makes the directory name depend on where the
+    words happen to fall and two near-identical reports then sort apart.
+    Nothing reads the slug back: the leading id is the identity, so a
+    truncation can never merge two bundles the way it could merge two
+    element ids.
+
+    Args:
+        description: The user's text, in full.
+
+    Returns:
+        A `[a-z0-9-]` slug, or `bug-report` when the text has no ASCII
+        to slug (`slugify` keeps that stable and distinct per text).
+    """
+    return slugify(description[:BUGREPORT_SLUG_CHARS], fallback="bug-report")
+
+
+def web_bundle_id(web_root: Path) -> str:
+    """Identify the built web bundle a server is serving.
+
+    A spike round was spent chasing a defect that had already been fixed,
+    against a server still serving the previous build — so a bundle that
+    cannot say which build produced it costs the next reader that round
+    again.
+
+    THIS REPO ALREADY HAS A BUILD IDENTITY and this reads it rather than
+    inventing a second one. `scripts/postbuild.mjs` writes
+    `web/build-stamp.json` with a sha1 over the frontend source tree, and
+    `frontend_stamp_warning` compares that same field against the source
+    on disk. A separate hash here — over asset filenames, say — would
+    have been a second answer to one question, free to disagree with the
+    stale-bundle warning `start` already prints.
+
+    Args:
+        web_root: The directory the server serves static files from.
+
+    Returns:
+        The build stamp's `source_hash`, shortened, or `unknown` when the
+        bundle carries no readable stamp. Never raises: a missing bundle
+        already has its own error path and this is only a label.
+    """
+    try:
+        stamp = read_json(Path(web_root) / "build-stamp.json")
+    except (OSError, ValueError):
+        return "unknown"
+    got = stamp.get("source_hash") if isinstance(stamp, dict) else None
+    return got[:12] if isinstance(got, str) and got else "unknown"
+
+
+def ring_bbox(points: Sequence[Sequence[float]]) -> dict[str, float] | None:
+    """Bound a focus ring by its own points.
+
+    Derived here rather than taken from the client's payload on purpose:
+    the bbox is what a reader uses to find the problem area, and a
+    number nobody re-derived is a number nobody checked. The client's
+    own arithmetic is kept beside it under `client`, so a disagreement
+    is visible instead of resolved.
+
+    Args:
+        points: `(x, y)` pairs in scene coordinates.
+
+    Returns:
+        `{"x", "y", "w", "h"}`, or None when fewer than two usable
+        points came through — a ring is a stroke, and one point is not
+        one.
+    """
+    pts = [(float(p[0]), float(p[1])) for p in points
+           if isinstance(p, (list, tuple)) and len(p) >= 2 and
+           all(isinstance(c, (int, float)) and not isinstance(c, bool)
+               for c in p[:2])]
+    if len(pts) < 2:
+        return None
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return {"x": min(xs), "y": min(ys),
+            "w": max(xs) - min(xs), "h": max(ys) - min(ys)}
+
+
+def burn_ring(svg: str, points: Sequence[Sequence[float]],
+              pad: float = 16.0) -> tuple[str, bool]:
+    """Draw the user's focus ring into a server-rendered SVG.
+
+    THE FRAME IS WIDENED TO HOLD THE RING. `render_svg` frames the
+    drawing's ink, and the ring is the one mark in this bundle that is
+    deliberately allowed to sit where there is no ink — the whole reason
+    the ring survived the selection-first ruling is that it can point at
+    a gap, an overlap, or clipped text, none of which are elements. A
+    ring burned outside the viewBox is an invisible annotation on
+    evidence that claims to carry one, so the box grows instead.
+
+    Args:
+        svg: `render_svg` output.
+        points: Ring `(x, y)` pairs in scene coordinates.
+        pad: Margin left around the ring when the frame grows.
+
+    Returns:
+        `(svg_text, burned)`. `burned` is False when there was no usable
+        ring, or when the SVG carries no `viewBox` to place it in — the
+        empty-artifact placeholder is exactly that case, and a caller
+        that assumed success there would report a ring nobody can see.
+    """
+    box = ring_bbox(points)
+    if box is None:
+        return svg, False
+    m = _VIEWBOX_RE.search(svg)
+    d = _SVG_DIMS_RE.search(svg)
+    if not m or not d:
+        return svg, False
+    vx, vy, vw, vh = (float(g) for g in m.groups())
+    x0 = min(vx, box["x"] - pad)
+    y0 = min(vy, box["y"] - pad)
+    x1 = max(vx + vw, box["x"] + box["w"] + pad)
+    y1 = max(vy + vh, box["y"] + box["h"] + pad)
+    nw, nh = max(x1 - x0, 1.0), max(y1 - y0, 1.0)
+    # the same clamp `render_svg` applies, recomputed rather than scaled
+    # off the old one: a ring far outside the drawing can push the frame
+    # past RASTER_MAX_*, and carrying the old scale forward would emit a
+    # width that no longer matches the viewBox it labels
+    scale = min(1.0, float(RASTER_MAX_W) / nw, float(RASTER_MAX_H) / nh)
+    head_end = svg.index(">") + 1
+    head = svg[:head_end]
+    head = _SVG_DIMS_RE.sub("width='%d' height='%d'"
+                            % (int(nw * scale), int(nh * scale)), head, 1)
+    head = _VIEWBOX_RE.sub("viewBox='%f %f %f %f'" % (x0, y0, nw, nh),
+                           head, 1)
+    pts = [(float(p[0]), float(p[1])) for p in points
+           if isinstance(p, (list, tuple)) and len(p) >= 2 and
+           all(isinstance(c, (int, float)) and not isinstance(c, bool)
+               for c in p[:2])]
+    poly = " ".join("%f,%f" % (px, py) for px, py in pts)
+    # stroke widths are scene units and the render scales them, so they
+    # are divided by `scale` to land at a constant device thickness — a
+    # ring on a 6000px drawing was otherwise a hairline
+    wide = 9.0 / scale
+    thin = 3.0 / scale
+    body = svg[head_end:]
+    # the ground goes in FIRST, under everything: growing the viewBox
+    # leaves the new margin transparent, and `render_svg`'s own ground
+    # rect only covers the box it framed
+    ground = ("<rect x='%f' y='%f' width='%f' height='%f' fill='%s'/>"
+              % (x0, y0, nw, nh, SVG_GROUND))
+    ring = ("<polyline points='%s' fill='none' stroke='%s' "
+            "stroke-opacity='0.25' stroke-width='%f' stroke-linecap='round' "
+            "stroke-linejoin='round'/>"
+            "<polyline points='%s' fill='none' stroke='%s' "
+            "stroke-width='%f' stroke-linecap='round' "
+            "stroke-linejoin='round'/>"
+            % (poly, RING_STROKE, wide, poly, RING_STROKE, thin))
+    close = body.rindex("</svg>")
+    return head + ground + body[:close] + ring + "</svg>", True
+
+
+def assess_capture(scene_els: Sequence[dict[str, Any]], svg: str | None,
+                   ring_burned: bool, ring_asked: bool,
+                   selection_ids: Sequence[str],
+                   artifact: str | None,
+                   artifact_known: bool) -> tuple[bool, list[dict[str, Any]]]:
+    """Ask a finished bundle whether its own evidence is any good.
+
+    A BUG REPORTER WHOSE EVIDENCE IS SILENTLY GARBAGE IS THE FAILURE IT
+    EXISTS TO CATCH, one level up. The spike shipped bundles whose
+    snapshot was browser noise and whose `report.json` said nothing about
+    it, so every check below records its verdict BY NAME — a bare
+    `snapshot_suspect: false` is indistinguishable from a capture nobody
+    checked, and this feature's whole subject is the difference.
+
+    Args:
+        scene_els: The artifact's live elements as captured.
+        svg: The rendered SVG, or None when no artifact was in view.
+        ring_burned: Whether `burn_ring` actually drew the ring.
+        ring_asked: Whether the user drew one at all.
+        selection_ids: Element ids the client reported as selected.
+        artifact: The artifact id the client named, or None.
+        artifact_known: Whether the server holds that artifact.
+
+    Returns:
+        `(suspect, checks)` — `suspect` is true when any check marked
+        `hard` failed. A soft failure is recorded and does not condemn
+        the bundle: a selection naming a since-deleted element is worth
+        knowing and is not a broken capture.
+    """
+    checks: list[dict[str, Any]] = []
+
+    def note(name: str, ok: bool, hard: bool, detail: str) -> None:
+        """Record one named check, its verdict, and its reason.
+
+        Args:
+            name: The check's stable name, as a reader will cite it.
+            ok: Whether it passed.
+            hard: Whether failing it makes the whole capture suspect.
+            detail: Why it came out that way, in a sentence — the half
+                that makes the record readable by someone who was not
+                here, and the reason `note` takes it rather than
+                deriving it.
+
+        The check is appended to `checks` in the enclosing scope, which
+        is what the caller returns; there is no return value.
+        """
+        checks.append({"check": name, "ok": ok, "hard": hard,
+                       "detail": detail})
+
+    if artifact is None:
+        note("artifact_resolved", True, False,
+             "no artifact in view — this is a whole-session report")
+    else:
+        note("artifact_resolved", artifact_known, True,
+             "server holds %r" % artifact if artifact_known else
+             "client named %r and the server has no such artifact — the "
+             "tab and the project have diverged" % artifact)
+    live = [e for e in scene_els if not e.get("isDeleted")]
+    if svg is None:
+        # UNREACHABLE FROM THE ENDPOINT, said here rather than left for
+        # the next reader to re-derive (task 37 review, M-7):
+        # `file_bugreport` leaves `svg` None only when `known` is False,
+        # and that same flag forces `els` empty, so `live` is always []
+        # and this arm always takes the soft "nothing to render" verdict.
+        # The hard failure below is reachable only by calling
+        # `assess_capture` directly, which the tests do — deliberately,
+        # because a check that cannot be made to fail is a check nobody
+        # has watched speak. Keep the arm: it is the one that would bite
+        # if a future caller ever renders separately from resolving.
+        note("scene_rendered", not live, bool(live),
+             "nothing to render" if not live else
+             "%d live elements and no rendering was written" % len(live))
+    else:
+        # `render_svg` answers an inkless scene with a placeholder that
+        # carries no shape at all; a drawing with elements that renders
+        # to it means the capture lost the picture
+        empty = "(empty artifact)" in svg
+        note("scene_rendered", not (live and empty), True,
+             "%d live elements rendered to %d bytes of SVG"
+             % (len(live), len(svg)) if not (live and empty) else
+             "%d live elements rendered as the empty-artifact placeholder"
+             % len(live))
+    if ring_asked:
+        note("ring_in_frame", ring_burned, True,
+             "focus ring drawn into the capture" if ring_burned else
+             "a ring was drawn and could not be placed in the capture — "
+             "read ring_bbox instead")
+    else:
+        note("ring_in_frame", True, False, "no ring drawn")
+    ids = {e.get("id") for e in live}
+    missing = [i for i in selection_ids if i not in ids]
+    note("selection_resolved", not missing, False,
+         "%d of %d selected elements are in the captured scene"
+         % (len(selection_ids) - len(missing), len(selection_ids))
+         if selection_ids else "nothing was selected",
+         )
+    return any(not c["ok"] and c["hard"] for c in checks), checks
+
+
+def quarantine_bundle(path: Path) -> str | None:
+    """Set an unreadable bundle aside without destroying it.
+
+    Renaming rather than deleting is the whole ruling: a bundle is the
+    only record of something a user saw once. The `.bad` suffix also
+    keeps it out of `next_bugreport_id`'s way while staying visible to
+    it, so the id it holds is never handed out twice.
+
+    Args:
+        path: The bundle directory that failed its guard.
+
+    Returns:
+        The name it was set aside under, or None when the rename failed.
+    """
+    target = path.with_name(path.name + ".bad")
+    n = 1
+    while target.exists():
+        n += 1
+        target = path.with_name("%s.bad%d" % (path.name, n))
+    try:
+        path.rename(target)
+        return target.name
+    except OSError:
+        return None
+
+
+def _bundle_name_id(name: str) -> int | None:
+    """Read the leading id off a bundle directory name.
+
+    Args:
+        name: A directory name such as `7-the-text-is-cut-off`.
+
+    Returns:
+        The integer prefix, or None when the name does not carry one.
+    """
+    m = re.match(r"^(\d+)-", name)
+    return int(m.group(1)) if m else None
+
+
+def next_bugreport_id(bugreports_dir: Path) -> int:
+    """Choose the next bundle id, clearing every id already on disk.
+
+    Reads directory NAMES and the ids inside `report.json` and takes the
+    maximum of both. Names alone would re-issue the id of a bundle a
+    human renamed; the JSON alone would re-issue the id of a quarantined
+    bundle whose report is the thing that no longer parses — and either
+    re-issue writes a second bundle under a colliding name, which is how
+    evidence is destroyed by a feature that promised never to delete any.
+
+    Args:
+        bugreports_dir: The `.bugreports/` directory; need not exist.
+
+    Returns:
+        One more than the highest id seen, or 1 for an empty directory.
+    """
+    seen = [0]
+    try:
+        entries = list(bugreports_dir.iterdir())
+    except OSError:
+        return 1
+    for d in entries:
+        nid = _bundle_name_id(d.name)
+        if nid is not None:
+            seen.append(nid)
+        try:
+            rep = read_json(d / "report.json")
+        except (OSError, ValueError):
+            continue
+        if isinstance(rep, dict) and isinstance(rep.get("id"), int) \
+                and not isinstance(rep.get("id"), bool):
+            seen.append(rep["id"])
+    return max(seen) + 1
+
+
+def load_bugreports(bugreports_dir: Path,
+                    quarantine: bool = True
+                    ) -> tuple[list[dict[str, Any]], list[str]]:
+    """Read every bundle on disk, setting aside the ones that will not.
+
+    Args:
+        bugreports_dir: The `.bugreports/` directory; need not exist.
+        quarantine: Rename unreadable bundles `.bad`. False is for
+            callers that only want to look — a read must never be the
+            thing that moves the user's evidence.
+
+    Returns:
+        `(bundles, notes)`. Bundles are the parsed reports, each with
+        its directory name under `dir`, sorted by id. Notes name every
+        quarantine and every entry skipped, one sentence each, so a
+        caller can print them rather than infer a shorter list.
+    """
+    out: list[dict[str, Any]] = []
+    notes: list[str] = []
+    try:
+        entries = sorted(bugreports_dir.iterdir(), key=lambda p: p.name)
+    except OSError:
+        return out, notes
+    for d in entries:
+        if re.search(r"\.bad\d*$", d.name):
+            continue        # already set aside; never re-quarantined
+        if not d.is_dir():
+            notes.append("%s is not a bundle directory — ignored" % d.name)
+            continue
+        why = None
+        try:
+            rep = read_json(d / "report.json")
+            if not isinstance(rep, dict):
+                why = "report.json is not a JSON object"
+            elif isinstance(rep.get("id"), bool) or \
+                    not isinstance(rep.get("id"), int):
+                why = "report.json carries no integer id"
+            elif not isinstance(rep.get("description"), str):
+                why = "report.json carries no description"
+        except FileNotFoundError:
+            why = "no report.json"
+        except (OSError, ValueError) as e:
+            why = "report.json unreadable (%s)" % e
+        if why:
+            if not quarantine:
+                notes.append("%s: %s — left in place" % (d.name, why))
+                continue
+            kept = quarantine_bundle(d)
+            notes.append(
+                "quarantined %s: %s. %s" % (
+                    d.name, why,
+                    "Kept as %s — it is evidence, so it was set aside "
+                    "rather than removed." % kept if kept else
+                    "The directory could not be renamed, so it will be "
+                    "found again next time."))
+            continue
+        rep = dict(rep)
+        rep["dir"] = d.name
+        out.append(rep)
+    out.sort(key=lambda r: r["id"])
+    return out, notes
+
+
+# ---------------------------------------------------------------------------
 # save-events log — one line per event, seq + pointer, never the payload.
 # Monitor-friendly (tier-1 wait target) and long-pollable (tier-3).
 # ---------------------------------------------------------------------------
@@ -27229,6 +27701,10 @@ class ServerApp:
         self.store = Store(project, log)
         self.events = EventLog(project.events_path)
         self.web_root = (Path(__file__).resolve().parent / "web")
+        # stamped once at start and served in `/api/state`, so a tab can
+        # report the build it BOOTED with and a bug bundle can say whether
+        # that is still the build on disk (see `web_bundle_id`)
+        self.web_bundle = web_bundle_id(self.web_root)
         self.pending = []
         self.pending_seq = 0
         self.dirty = False
@@ -27625,6 +28101,12 @@ class ServerApp:
             "dirty": self.dirty,
             "events_seq": self.events.seq,
             "events_log": str(self.project.events_path),
+            # the build being served RIGHT NOW. The tab keeps the first
+            # value it ever saw and posts it with a bug report, so a
+            # report filed from a tab older than the server it is talking
+            # to says so instead of costing a reader the round the spike
+            # already spent chasing a fixed defect on a stale build.
+            "web_bundle": self.web_bundle,
             "screenshot_requests": [
                 {"id": k, "artifact": v["artifact"]}
                 for k, v in self.shot_requests.items()
@@ -27751,6 +28233,260 @@ class ServerApp:
         """
         return err(404 if self.store.pin_record(pin_id) is None else 409,
                    "\n".join(exc.errors))
+
+    def file_bugreport(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Write a 🐞 bug-report bundle and tell the session it happened.
+
+        WHAT EACH SIDE CONTRIBUTES, and why the split is where it is. The
+        client sends only what a server cannot know — the description,
+        the selection, the camera, which panels are open, and the focus
+        ring in scene coordinates — and it sends NO PIXELS. The server
+        renders the drawing itself from the scene it already holds (see
+        the section comment above `bugreport_slug`: every browser pixel
+        path is poisonable and one measured browser poisons them all),
+        and enriches with the half a browser cannot see: the scene JSON
+        at capture, the registry AS IT STOOD (whole, not counted — see
+        the comment on that field), `head_revn`, the pending queue, the
+        standing findings and the last events.
+
+        The report is written even when it degrades. A capture with no
+        artifact in view, or a ring that could not be placed, still
+        produces a bundle carrying the description, the ring bbox and
+        the view — because the alternative is refusing to record what
+        the user just saw, and `snapshot_suspect` plus the named checks
+        say exactly how good the evidence is.
+
+        Args:
+            body: The POSTed capture. `description` is required and must
+                be non-empty; everything else degrades.
+
+        THE ERROR PATHS DO NOT RETURN, and this paragraph is where that
+        is said (task 37 review, M-5 — it was described inside
+        `Returns:`, as though a 400 were a value this hands back). `err`
+        is the file's convention for an HTTP status and it RAISES;
+        `return err(...)` below reads like a return and is not one. 400
+        for a missing or blank description, 500 for a bundle that cannot
+        be written. No `Raises:` section names it because ruff's
+        DOC502 wants that section to list what the body raises directly,
+        and nothing here does.
+
+        Returns:
+            The bundle's id, slug, directory, and the capture assessment
+            — the dialog shows the last of these, so a degraded capture
+            is confessed to the person who filed it rather than only to
+            the file.
+        """
+        desc = body.get("description")
+        if not isinstance(desc, str) or not desc.strip():
+            return err(400, "a bug report needs a description — what did "
+                            "you expect, and what do you see instead?")
+        desc = desc.strip()
+        with self.lock:
+            aid = body.get("artifact")
+            aid = aid if isinstance(aid, str) and aid else None
+            known = aid is not None and aid in self.store.scenes
+            els = [dict(e) for e in self.store.scenes.get(aid, [])] \
+                if known else []
+            ring = body.get("ring") if isinstance(body.get("ring"), dict) \
+                else {}
+            pts = ring.get("points_scene")
+            pts = pts if isinstance(pts, list) else []
+            box = ring_bbox(pts)
+            svg = None
+            burned = False
+            if known:
+                meta = self.store.artifact_meta.get(aid) or {}
+                svg, _w, _h = render_svg(els, title=meta.get("name") or aid)
+                if box is not None:
+                    svg, burned = burn_ring(svg, pts)
+            sel = body.get("selection")
+            sel = sel if isinstance(sel, list) else []
+            live = {e["id"]: e for e in els if not e.get("isDeleted")}
+            targets = []
+            for t in sel:
+                if not isinstance(t, dict) or not isinstance(t.get("id"), str):
+                    continue
+                el = live.get(t["id"])
+                # geometry is RE-DERIVED from the scene, never taken from
+                # the payload: the bbox is what a reader uses to find the
+                # thing, and the client's copy is kept beside it rather
+                # than trusted over the server's own elements
+                ext = ink_extent([el], pad=0) if el else None
+                targets.append({
+                    "id": t["id"],
+                    "type": el.get("type") if el else t.get("type"),
+                    "label": t.get("label") or "",
+                    "present": el is not None,
+                    "bbox": ({"x": ext[0], "y": ext[1],
+                              "w": ext[2], "h": ext[3]} if ext else None),
+                })
+            suspect, checks = assess_capture(
+                els, svg, burned, box is not None,
+                [t["id"] for t in targets], aid, known)
+            nid = next_bugreport_id(self.project.bugreports_dir)
+            slug = bugreport_slug(desc)
+            bundle = self.project.bugreports_dir / ("%d-%s" % (nid, slug))
+            client_bundle = body.get("client_bundle")
+            client_bundle = client_bundle \
+                if isinstance(client_bundle, str) else None
+            report = {
+                "id": nid,
+                "slug": slug,
+                "reported_at": now_iso(),
+                "description": desc,
+                "artifact": aid,
+                "concept": (self.store.concept_of(aid) or {}).get("id")
+                           if known else None,
+                # SERVER TRUTH WINS AND THE CLIENT'S COPY IS KEPT BESIDE
+                # IT (task 37 review, M-3), the same way `ring_bbox` and
+                # the selection already are: a disagreement is a thing to
+                # see, not a thing to resolve silently. It also stops the
+                # `known is False` arm from throwing away a concept the
+                # tab knew — `concept` above is None there, and this is
+                # then the only record that the tab had an answer.
+                "concept_client": body.get("concept")
+                                  if isinstance(body.get("concept"), str)
+                                  else None,
+                "selection": targets,
+                "ring_bbox": box,
+                "ring_points": len(pts),
+                "ring_scene": [[float(p[0]), float(p[1])] for p in pts
+                               if isinstance(p, (list, tuple))
+                               and len(p) >= 2],
+                "files": {
+                    "scene_svg": "scene.svg" if svg is not None else None,
+                    "scene_json": "scene.excalidraw" if known else None,
+                },
+                "snapshot_suspect": suspect,
+                "capture": {
+                    "tier": "server-svg" if svg is not None else "none",
+                    "how": "rendered server-side from the scene at capture; "
+                           "no browser pixels are involved by design",
+                    "checks": checks,
+                },
+                "version": {
+                    "protocol_version": PROTOCOL_VERSION,
+                    "server_source": own_source_hash(),
+                    "web_bundle": self.web_bundle,
+                    "client_bundle": client_bundle,
+                    # the maintainer-only half of the same question: is
+                    # the bundle being served stale against the frontend
+                    # source sitting beside it? None for an installed
+                    # skill, which has no source to compare with.
+                    "bundle_warning":
+                        frontend_stamp_warning(self.project),
+                    # None when the tab is too old to send one — which is
+                    # itself the answer to "was this filed from a stale
+                    # build?", so it is not defaulted to False
+                    "client_is_stale": (None if client_bundle is None else
+                                        client_bundle != self.web_bundle),
+                },
+                # EVERY FIELD HERE IS THE CLIENT'S TESTIMONY, and the
+                # three view-state ones were copied through untyped
+                # while their two neighbours were checked (task 37
+                # review, M-4). They are shaped now, so a string posted
+                # where a dict belongs is dropped rather than recorded
+                # as though the tab had said it. WHAT THAT DOES AND
+                # DOES NOT BUY, stated rather than left to be read off
+                # the poison test: a shape check is not a content
+                # check, and a data URL nested INSIDE one of these
+                # dicts still lands in `report.json` verbatim. The
+                # guarantee requirement 1 actually makes is narrower
+                # and stronger — nothing the client posts is ever
+                # RENDERED. `scene.svg` comes from `render_svg` over
+                # the server's own scene, so the picture cannot carry a
+                # payload whatever the client says.
+                "client": {
+                    "url": body.get("url") if isinstance(body.get("url"), str)
+                           else None,
+                    "user_agent": body.get("user_agent")
+                                  if isinstance(body.get("user_agent"), str)
+                                  else None,
+                    "viewport": body.get("viewport")
+                                if isinstance(body.get("viewport"), dict)
+                                else None,
+                    "scene_view": body.get("scene_view")
+                                  if isinstance(body.get("scene_view"), dict)
+                                  else None,
+                    "panels": body.get("panels")
+                              if isinstance(body.get("panels"), dict)
+                              else None,
+                    "captured_at": body.get("captured_at"),
+                    "ring_bbox_viewport": ring.get("bbox_viewport"),
+                    "ring_viewport": ring.get("points_viewport"),
+                },
+                "server": {
+                    "project": self.project.name(),
+                    "protocol_version": PROTOCOL_VERSION,
+                    "head_revn": self.store.head_revn(),
+                    "round": self.store.registry["round"],
+                    "whose_move": self.store.registry["whose_move"],
+                    "dirty": self.dirty,
+                    # THE REGISTRY ITSELF, NOT FOUR INTEGERS (task 37
+                    # review, I-2). Step 2 names "registry" beside
+                    # "scene JSON" and the scene arrives whole; four
+                    # cardinalities are not the registry, they are a
+                    # measurement of it, and they answer none of the
+                    # questions a bug report is opened to answer — which
+                    # concept this artifact belongs to, what the pins
+                    # asked and what the user answered, which mappings
+                    # were standing at the time. A BUNDLE IS A
+                    # POINT-IN-TIME RECORD and `model.json` is not the
+                    # fallback: it is the live file, and by the time
+                    # anyone reads the bundle the session has moved on.
+                    #
+                    # THE COPY IS BELT-AND-BRACES AND IS NOT
+                    # LOAD-BEARING, said so that nobody later pins it.
+                    # `write_json` serializes this dict a few lines down
+                    # under the same lock, so a bare reference is
+                    # already safe and MEASURABLY SO: swapping this for
+                    # `self.store.registry` and mutating the live
+                    # registry afterwards leaves the written bundle
+                    # identical, because the bundle is a file. It is
+                    # kept for the refactor that holds a report in
+                    # memory, in the file's own idiom
+                    # (`validate_registry` copies the same way).
+                    "registry": json.loads(json.dumps(self.store.registry)),
+                    "artifact_element_counts": {
+                        a: len([e for e in v if not e.get("isDeleted")])
+                        for a, v in self.store.scenes.items()},
+                    "pending": [{"id": p["id"], "artifact":
+                                 (p.get("batch") or {}).get("artifact"),
+                                 "deferred": bool(p.get("deferred")),
+                                 "pin_only": bool(p.get("pin_only"))}
+                                for p in self.pending],
+                    "issues": self.store.issues,
+                    "lint": (self.store.lint_lines().get(aid) if known
+                             else self.store.lint_lines()),
+                    "events_tail":
+                        self.events.events[-BUGREPORT_EVENTS_TAIL:],
+                },
+            }
+            try:
+                bundle.mkdir(parents=True, exist_ok=True)
+                if svg is not None:
+                    atomic_write(bundle / "scene.svg", svg)
+                if known:
+                    write_json(bundle / "scene.excalidraw", {
+                        "type": "excalidraw", "version": 2,
+                        "source": "wysiwyg-grilling bug report",
+                        "elements": els, "appState": {}})
+                write_json(bundle / "report.json", report)
+            except OSError as e:
+                self.log("bug report %d could not be written: %s" % (nid, e))
+                return err(500, "the report could not be written to %s (%s)"
+                                % (bundle, e))
+            headline = desc.splitlines()[0][:80]
+            self.log("bug report %d filed: %s" % (nid, headline))
+        # OUTSIDE the store lock: EventLog takes its own condition and
+        # wakes every long-poller holding it, and nesting the two put a
+        # `wait` client's wakeup behind whatever the store was doing
+        self.events.append("bug_report", id=nid, slug=slug, artifact=aid,
+                           dir=bundle.name, headline=headline,
+                           snapshot_suspect=suspect,
+                           selection=len(targets), ring=box is not None)
+        return {"ok": True, "id": nid, "slug": slug, "dir": str(bundle),
+                "snapshot_suspect": suspect, "capture": report["capture"]}
 
     def handle_post(self, path, body):
         if path == "/api/heartbeat":
@@ -28316,6 +29052,8 @@ class ServerApp:
                 return err(404, "no mermaid request %r" % body.get("id"))
             return {"ok": True, "status": req["status"],
                     "elements": req["elements"], "error": req["error"]}
+        if path == "/api/bugreport":
+            return self.file_bugreport(body)
         if path == "/api/shutdown":
             threading.Thread(target=self._shutdown, daemon=True).start()
             return {"ok": True, "bye": True}
@@ -29722,6 +30460,73 @@ def cmd_pending(args):
     return 0
 
 
+def cmd_bugreports(args):
+    """List the 🐞 bug-report bundles a user has filed on this project.
+
+    READS THE DISK, NOT THE SERVER, deliberately — bundles are durable
+    project state and the reports worth reading most are usually the ones
+    from the session that has already ended. The server is not consulted
+    and does not need to be running.
+
+    Quarantining happens HERE, on the read, because that is the only
+    moment an unreadable bundle is discovered; `--no-quarantine` exists
+    so an inspection can never be the thing that moves the user's
+    evidence. Nothing is ever deleted either way.
+
+    Args:
+        args: Parsed CLI args — `project`, `id`, `no_quarantine`.
+
+    Returns:
+        Process exit code: 0, or 2 when `--id` names no bundle.
+    """
+    project = Project(args.project)
+    reports, notes = load_bugreports(project.bugreports_dir,
+                                     quarantine=not args.no_quarantine)
+    for n in notes:
+        print("NOTE=%s" % n)
+    if args.id is not None:
+        match = [r for r in reports if r.get("id") == args.id]
+        if not match:
+            die("ERROR=no bug report %d (have: %s)"
+                % (args.id, ", ".join(str(r.get("id")) for r in reports)
+                   or "none"), 2)
+        r = match[0]
+        print_kv(bugreport_id=r.get("id"),
+                 dir=str(project.bugreports_dir / r["dir"]),
+                 reported_at=r.get("reported_at"),
+                 artifact=r.get("artifact"), concept=r.get("concept"),
+                 selection=",".join(t.get("id", "") for t in
+                                    (r.get("selection") or [])) or None,
+                 ring=str(bool(r.get("ring_bbox"))).lower(),
+                 snapshot_suspect=str(bool(r.get("snapshot_suspect"))).lower(),
+                 head_revn=(r.get("server") or {}).get("head_revn"),
+                 client_is_stale=(r.get("version") or {}).get(
+                     "client_is_stale"))
+        for c in (r.get("capture") or {}).get("checks") or []:
+            print("CHECK=%s %s — %s" % (c.get("check"),
+                                        "ok" if c.get("ok") else "FAILED",
+                                        c.get("detail")))
+        print("DESCRIPTION=%s" % r.get("description", ""))
+        return 0
+    for r in reports:
+        # the FIRST LINE of the description, not a character slice: the
+        # slug is already the lossy form and a listing that truncates the
+        # sentence too leaves the reader with two half-titles and no
+        # whole one
+        first = (r.get("description") or "").splitlines()
+        print_kv(bugreport_id=r.get("id"), dir=r["dir"],
+                 reported_at=r.get("reported_at"),
+                 artifact=r.get("artifact"),
+                 suspect=str(bool(r.get("snapshot_suspect"))).lower(),
+                 description=first[0] if first else "")
+    print_kv(bugreports=len(reports),
+             suspect=len([r for r in reports if r.get("snapshot_suspect")]),
+             quarantined=len([n for n in notes
+                              if n.startswith("quarantined ")]),
+             dir=str(project.bugreports_dir))
+    return 0
+
+
 # Event types by originator (WP5/r4-6). The live log was 87.5% the
 # agent's own `agent_revision` echoes — undocumented — and an agent that
 # does not filter narrates its own drawing back as the user's move.
@@ -29734,7 +30539,12 @@ def cmd_pending(args):
 USER_EVENT_TYPES = frozenset({
     "save", "pin_answer", "tripwire_answer", "checkout", "checkout_live",
     "branch_switch", "branch_archive", "suggest_view", "config_changed",
-    "pin_proposal_discarded"})
+    "pin_proposal_discarded",
+    # a filed bug report is the most urgent thing a user does — the whole
+    # point of the event is that a watching agent reacts IN SESSION, and
+    # `wait` defaults to `--for user`, so leaving it out of this set would
+    # have made the event unreachable through the default watch
+    "bug_report"})
 AGENT_EVENT_TYPES = frozenset({
     "agent_revision", "agent_pending", "agent_revision_discarded",
     "agent_revision_failed", "agent_revision_noop", "pin_proposal"})
@@ -32276,6 +33086,14 @@ def main(argv=None):
                                        "user's banner")
     p.add_argument("--discard", type=int, default=None,
                    help="drop a queued revision by id")
+    p = sub.add_parser("bugreports", help="list the 🐞 bug reports the user "
+                                          "has filed (reads the project "
+                                          "directly — no server needed)")
+    p.add_argument("--id", type=int, default=None,
+                   help="print one report in full, with its capture checks")
+    p.add_argument("--no-quarantine", action="store_true",
+                   help="do not set unreadable bundles aside; report them "
+                        "and leave them where they are")
     # assessor namespace. Omitting `help=` is what hides a subcommand:
     # argparse only lists parsers that were given one, and passing
     # argparse.SUPPRESS prints the literal "==SUPPRESS==" rather than
@@ -32360,7 +33178,8 @@ def main(argv=None):
         "start": cmd_start, "status": cmd_status, "stop": cmd_stop,
         "wait": cmd_wait, "apply": cmd_apply, "lint": cmd_lint,
         "export": cmd_export, "reroute": cmd_reroute, "revert": cmd_revert,
-        "pending": cmd_pending, "screenshot": cmd_snapshot,
+        "pending": cmd_pending, "bugreports": cmd_bugreports,
+        "screenshot": cmd_snapshot,
         "snapshot": cmd_snapshot, "mermaid": cmd_mermaid,
         "serve": cmd_serve,
         # assessor namespace, undocumented on purpose

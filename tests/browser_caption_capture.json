@@ -1,8 +1,8 @@
 {
  "recorded": "2026-09-01",
  "spec": "pin-untouched-captions.spec.ts",
- "app_build": "21b2852009238e05a8a481de8b0c198e12ae3752",
- "canvas_sha256": "d6f73df47e079c4ca79f1fc54d24d1e6b9af0f59b7af29711ae46a548658fe11",
+ "app_build": "6f00eb65d2dc482314912a9990c09b753ca7618b",
+ "canvas_sha256": "10d6a68349242885ed2977968bee62b49c4dc7b32b1e1ddc1b407411f0dea40b",
  "artifact": "text-clip",
  "gesture": {
   "dragged": "b0",

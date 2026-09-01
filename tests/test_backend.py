@@ -15773,10 +15773,10 @@ class TestTheBidirectionalFindingReadsTheClientsDefaults(unittest.TestCase):
 
     THE LINE POLE IS THE STRONGER BUNDLE FACT, and it is not the
     destructuring default. `restoreElement`'s `case "line": case "draw":`
-    (offset 630428 of `scripts/web/assets/index-DFry315l.js`) does
+    (offset 630427 of `scripts/web/assets/index-DTzHdgzu.js`) does
     default both ends to `null`, but the shape generator puts BOTH head
-    calls inside `if (e.type === "arrow")` (offset 503007, the
-    destructuring itself at 503029) — so a line never gets a head drawn
+    calls inside `if (e.type === "arrow")` (offset 503006, the
+    destructuring itself at 503028) — so a line never gets a head drawn
     whatever it stores, and an EXPLICIT `"arrow"` on both ends of a line
     is still not a bidirectional anything. `lint_layout` binds
     `arrows = [... type in ("arrow", "line") ...]`, so this check really
@@ -24380,13 +24380,21 @@ class TestShapeAwareLabelRoom(Base):
     (v0.9 TASK-TEXT-TRUTH § A6.3; fixed here by WP4-AND-GUARDS). The
     belief was re-derived here rather than taken on report:
 
-      * the shipped bundle, `ai` @553053 —
-        `(t||!e.autoResize)&&(i=t?_s(t,e):e.width, ...)`. `t` is the
-        CONTAINER; when there is one the wrap width is `_s(t, e)` and
+      * the shipped bundle, `ii` @553053 —
+        `(t||!e.autoResize)&&(i=t?Ts(t,e):e.width, ...)`. `t` is the
+        CONTAINER; when there is one the wrap width is `Ts(t, e)` and
         the label's stored `width` is unreachable. `autoResize` is
         `||`-ed on the left, so it does not gate the wrap at all;
-      * `_s` @555675 with `Yn = 5`: ellipse `round(w/2*sqrt(2)) - 10`,
+      * `Ts` @555677 with `Kn = 5`: ellipse `round(w/2*sqrt(2)) - 10`,
         diamond `round(w/2) - 10`, else `w - 10`;
+        (this bullet pair said `ai`, `_s` and `Yn` until the fix round
+        for the 2026-08-31 citation sweep, which is to say it carried
+        the names of the FIRST bundle whose symbols rotted through
+        every rebuild since. Both offsets still land on their sites and
+        no arithmetic here changed; `ai` and `_s` are both live in the
+        file that ships and neither is this, and `Yn` is assigned
+        nowhere. See the citation note above `_client_chop` in
+        `canvas.py`.)
       * this repo's own `App.tsx`, whose `restoreForRender` passes
         `refreshDimensions: true` — the option its own comment calls
         "what re-wraps container-bound text" — nine lines under a
@@ -30208,6 +30216,936 @@ class TestTheVocabularyReachesTheClient(Base):
                 "falls through to the flow list, which is the defect this "
                 "branch closed. Arms served: %s"
                 % (arm, kind, sorted(served) or "none"))
+
+
+class TestBugHunterBundles(Base):
+    """The 🐞 bug-hunter's server half — `/api/bugreport` and its bundles.
+
+    THE ONE REQUIREMENT THESE TESTS EXIST FOR is that the capture is made
+    server-side. The 2026-08-13 spike measured a privacy browser poisoning
+    `toDataURL` and `exportToBlob` identically, silently, so a bug report
+    whose evidence comes out of the browser is a bug report that can be
+    garbage without saying so. Two tests below hold that line from
+    opposite sides: one proves the SVG on disk is `render_svg`'s output
+    byte for byte, and one hands the endpoint a poisoned data URL and
+    proves nothing in the bundle came from it.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        self.app = canvas.ServerApp(self.project)
+
+    def tearDown(self):
+        self.app.log_file.close()
+        super().tearDown()
+
+    def file(self, **body):
+        """POST a capture through the real dispatch path.
+
+        Goes through `handle_post` rather than calling `file_bugreport`
+        directly, so the route itself is under test: an endpoint nobody
+        wired up passes every test written against the method.
+
+        Args:
+            **body: The capture payload. `description` defaults to a
+                usable one so a test naming other fields stays short.
+
+        Returns:
+            The endpoint's response dict.
+        """
+        body.setdefault("description", "The text is cut off on the sides.")
+        return self.app.handle_post("/api/bugreport", body)
+
+    def bundle(self, resp):
+        """The written bundle's directory.
+
+        Args:
+            resp: A `file()` response.
+
+        Returns:
+            The bundle `Path`.
+        """
+        return Path(resp["dir"])
+
+    def report(self, resp):
+        """The written `report.json`, read back off disk.
+
+        Reading it back rather than asserting on the response is
+        deliberate: the bundle is the artifact, and a response that
+        agrees with a file nobody wrote would pass.
+
+        Args:
+            resp: A `file()` response.
+
+        Returns:
+            The parsed report.
+        """
+        return canvas.read_json(self.bundle(resp) / "report.json")
+
+    # -- the bundle ------------------------------------------------------
+
+    def test_a_filed_report_lands_on_disk_with_every_named_field(self):
+        resp = self.file(
+            artifact="checkout-flow",
+            selection=[{"id": "cart", "type": "rectangle", "label": "Cart"}],
+            url="http://127.0.0.1:8801/", user_agent="Mozilla/5.0 (test)",
+            viewport={"innerWidth": 1720, "innerHeight": 921,
+                      "devicePixelRatio": 1},
+            scene_view={"scrollX": 137.8, "scrollY": 10, "zoom": 1.3},
+            panels={"rail": True, "inspector": False})
+        self.assertTrue(resp["ok"])
+        d = self.bundle(resp)
+        self.assertTrue(d.is_dir(), "no bundle directory at %s" % d)
+        self.assertEqual(d.parent, self.project.bugreports_dir)
+        self.assertEqual(d.name, "1-the-text-is-cut-off-on-the-sides")
+        r = self.report(resp)
+        # the client half
+        self.assertEqual(r["description"],
+                         "The text is cut off on the sides.")
+        self.assertEqual(r["artifact"], "checkout-flow")
+        self.assertEqual(r["concept"], "checkout")
+        self.assertEqual([t["id"] for t in r["selection"]], ["cart"])
+        self.assertEqual(r["client"]["url"], "http://127.0.0.1:8801/")
+        self.assertEqual(r["client"]["viewport"]["innerWidth"], 1720)
+        self.assertEqual(r["client"]["scene_view"]["zoom"], 1.3)
+        self.assertEqual(r["client"]["panels"], {"rail": True,
+                                                 "inspector": False})
+        # the server half — the enrichment the plan's step 2 names, each
+        # asserted by MEANING and not merely by presence
+        s = r["server"]
+        self.assertEqual(s["head_revn"], self.store.head_revn())
+        self.assertEqual(s["project"], self.project.name())
+        # THE REGISTRY AND NOT A COUNT OF IT (task 37 review, I-2). This
+        # asserted `len(concepts) == 1`, which the comment two lines up
+        # calls asserting by MEANING and is not: a bundle carrying four
+        # integers answers none of the questions it is opened to answer,
+        # and `model.json` is not the fallback because it is live and the
+        # bundle is a point in time.
+        self.assertEqual([c["id"] for c in s["registry"]["concepts"]],
+                         [c["id"] for c in self.store.registry["concepts"]])
+        self.assertEqual(s["artifact_element_counts"]["checkout-flow"],
+                         len(self.store.scenes["checkout-flow"]))
+        self.assertEqual(s["pending"], [])
+        self.assertIn("lint", s)
+        self.assertIn("issues", s)
+        self.assertIsInstance(s["events_tail"], list)
+        # the images
+        self.assertEqual(r["files"]["scene_svg"], "scene.svg")
+        self.assertTrue((d / "scene.svg").is_file())
+        self.assertTrue((d / "scene.excalidraw").is_file())
+        scene = canvas.read_json(d / "scene.excalidraw")
+        self.assertEqual(len(scene["elements"]),
+                         len(self.store.scenes["checkout-flow"]))
+
+    def test_the_last_fifty_events_ride_along(self):
+        """Step 2 names "the last ~50 events" — the tail, not the log."""
+        for i in range(60):
+            self.app.events.append("noise", n=i)
+        tail = self.report(self.file(artifact="checkout-flow"))[
+            "server"]["events_tail"]
+        self.assertEqual(len(tail), canvas.BUGREPORT_EVENTS_TAIL)
+        self.assertEqual(tail[-1]["n"], 59)
+
+    def test_the_registry_rides_along_whole_and_not_as_four_integers(self):
+        """Step 2 names "registry", and this bundle shipped a count of one.
+
+        THE CONTENT ARRIVES, not a measurement of it (task 37 review,
+        I-2). Four cardinalities cannot say which concept an artifact
+        belongs to, what a pin asked or what the user answered — which
+        is most of what anyone opens a bug report to find out — and
+        "read `model.json`" is not the fallback, because `model.json`
+        is the LIVE file and by the time anyone reads the bundle the
+        session has moved on.
+
+        WHAT THIS DELIBERATELY DOES NOT ASSERT, because the assertion
+        was written and then measured to be vacuous: that the bundle is
+        FROZEN against a later edit to the live registry. It is — but
+        it is frozen because it is a FILE, not because of anything this
+        code does, and the pin passes identically when the deep copy in
+        `file_bugreport` is replaced by a bare reference. A green that
+        survives its own mutant is a green about nothing, so the claim
+        is made in the comment beside that copy instead.
+        """
+        # the ENDPOINT's store, not the test's: `setUp` seeds through
+        # `self.store` and then builds a `ServerApp`, which reads its own
+        # copy off disk, so an in-memory edit to the first is invisible
+        # to the second and this test would assert nothing
+        live = self.app.store.registry
+        pin = {"id": "p-frozen", "artifact": "checkout-flow",
+               "question": "does the cart total include tax?",
+               "answer": "no, tax is added at the payment step"}
+        live["pins"].append(pin)
+        r = self.report(self.file(artifact="checkout-flow"))
+        reg = r["server"]["registry"]
+        self.assertEqual([c["id"] for c in reg["concepts"]],
+                         [c["id"] for c in live["concepts"]],
+                         "the concepts arrived as something other than "
+                         "themselves")
+        self.assertIn(pin, reg["pins"],
+                      "the pin's question and answer did not ride along, so "
+                      "the bundle records that a pin existed and not what it "
+                      "said")
+        self.assertEqual(reg["mappings"], live["mappings"],
+                         "the mappings standing at capture did not ride "
+                         "along")
+        # and the shape that was there before: a count would satisfy
+        # every "is it present" assertion ever written about this field
+        for key in ("concepts", "mappings", "pins", "tripwires"):
+            self.assertIsInstance(
+                reg[key], list,
+                "%r came back as %r — a bundle that records how MANY "
+                "records the registry to have and not what it says"
+                % (key, reg[key]))
+
+    def test_the_clients_concept_is_kept_beside_the_servers(self):
+        """A disagreement is a thing to see, not to resolve silently.
+
+        Server truth wins — `concept` is `concept_of(artifact)` and the
+        client cannot vote on it — but the tab's own answer is recorded
+        next to it, the same way `ring_bbox` and the selection already
+        keep both readings (task 37 review, M-3). The second case is the
+        one that motivated it: when the server does not hold the
+        artifact, `concept` is None and this is the only surviving trace
+        that the tab believed otherwise.
+        """
+        r = self.report(self.file(artifact="checkout-flow",
+                                  concept="not-checkout"))
+        self.assertEqual(r["concept"], "checkout")
+        self.assertEqual(r["concept_client"], "not-checkout")
+        gone = self.report(self.file(artifact="no-such-artifact",
+                                     concept="checkout"))
+        self.assertIsNone(gone["concept"])
+        self.assertEqual(gone["concept_client"], "checkout")
+
+    def test_the_view_state_the_client_posts_is_shaped_before_it_lands(self):
+        """`viewport`/`scene_view`/`panels` are checked like their siblings.
+
+        `url` and `user_agent` were `isinstance`-checked and these three
+        were copied through untyped (task 37 review, M-4), so a string
+        posted where a dict belongs was recorded as though the tab had
+        said it. STATED PLAINLY BECAUSE THE POISON TEST DOES NOT PROVE
+        IT: a shape check is not a content check, and a data URL nested
+        inside one of these dicts still lands verbatim. What requirement
+        1 guarantees is narrower and stronger — nothing the client posts
+        is ever RENDERED — and that is the neighbour test above.
+        """
+        r = self.report(self.file(
+            artifact="checkout-flow",
+            viewport="data:image/png;base64,AAAA",
+            scene_view=["not", "a", "dict"], panels=7))
+        self.assertIsNone(r["client"]["viewport"])
+        self.assertIsNone(r["client"]["scene_view"])
+        self.assertIsNone(r["client"]["panels"])
+        ok = self.report(self.file(artifact="checkout-flow",
+                                   panels={"rail": True}))
+        self.assertEqual(ok["client"]["panels"], {"rail": True},
+                         "the shape check ate a well-formed payload")
+
+    # -- requirement 1: the pixels are made here -------------------------
+
+    def test_the_capture_is_render_svg_over_the_stored_scene(self):
+        """The evidence is the SERVER's drawing of the server's scene.
+
+        Byte-for-byte against `render_svg`, because "contains a rect" is
+        satisfied by a capture of some other artifact, of an empty
+        scene, or of a scene the client sent — and the client sending
+        the picture is exactly the design this feature rejects.
+        """
+        resp = self.file(artifact="checkout-flow")
+        want, _w, _h = canvas.render_svg(
+            self.store.scenes["checkout-flow"], title="Checkout Flow")
+        self.assertEqual((self.bundle(resp) / "scene.svg").read_text("utf-8"),
+                         want)
+        self.assertEqual(self.report(resp)["capture"]["tier"], "server-svg")
+
+    def test_a_poisoned_client_pixel_payload_reaches_nothing(self):
+        """The measured failure, posted at the endpoint on purpose.
+
+        LibreWolf returns noise from every canvas readback by design, so
+        the spike's own bundles carried garbage and said nothing. A
+        client that posts pixels anyway — an old build, a patched one,
+        a curious user — must not be able to put them in the bundle.
+        """
+        poison = "data:image/png;base64," + base64.b64encode(
+            b"\xde\xad\xbe\xef" * 64).decode("ascii")
+        resp = self.file(artifact="checkout-flow", snapshot=poison,
+                         snapshot_data_url=poison, scene=poison)
+        d = self.bundle(resp)
+        self.assertEqual(sorted(p.name for p in d.iterdir()),
+                         ["report.json", "scene.excalidraw", "scene.svg"])
+        blob = (d / "report.json").read_text("utf-8")
+        self.assertNotIn("data:image", blob)
+        self.assertNotIn("deadbeef", blob.lower())
+        self.assertNotIn("data:image",
+                         (d / "scene.svg").read_text("utf-8"))
+
+    # raster magic numbers, first bytes of the file. `RIFF` is checked
+    # with `WEBP` at offset 8 because RIFF is also WAV and AVI.
+    RASTERS = ((b"\x89PNG\r\n\x1a\n", "PNG"), (b"\xff\xd8\xff", "JPEG"),
+               (b"GIF87a", "GIF"), (b"GIF89a", "GIF"), (b"BM", "BMP"),
+               (b"II*\x00", "TIFF"), (b"MM\x00*", "TIFF"))
+
+    def rasters_in(self, d):
+        """Every file in a bundle that is a raster image, by magic bytes.
+
+        Sniffing the bytes rather than trusting the extension, because
+        the thing this guards against is a picture arriving, not a
+        picture arriving politely named.
+
+        Args:
+            d: The bundle directory.
+
+        Returns:
+            A sorted list of `"name (FORMAT)"` strings, empty when the
+            bundle holds no raster.
+        """
+        found = []
+        for p in sorted(d.rglob("*")):
+            if not p.is_file():
+                continue
+            head = p.read_bytes()[:12]
+            for magic, kind in self.RASTERS:
+                if head.startswith(magic):
+                    found.append("%s (%s)" % (p.name, kind))
+                    break
+            else:
+                if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+                    found.append("%s (WEBP)" % p.name)
+        return sorted(found)
+
+    def test_no_bundle_file_is_a_raster_and_the_owed_detector_says_so(self):
+        """Requirement 4's owed-back condition, as a check and not prose.
+
+        ONE OF THE ELEVEN SPIKE REQUIREMENTS IS DELIBERATELY NOT BUILT.
+        Requirement 4 wanted `snapshot_suspect` to detect a poisoned
+        snapshot by PERIODICITY, not flatness, sampling full rows — and
+        that detector has no subject here, because requirement 1 keeps
+        browser pixels out of the bundle by construction and the server
+        renders SVG. It was not written because it would have been dead
+        code. That reasoning is sound and it is CONDITIONAL, and the
+        condition lived only in a sentence in `DECISION-ladybug.md`
+        (task 37 review, M-6) — in a repo whose whole thesis is that
+        silence reads as health.
+
+        So the condition is a check now. The day a raster enters a
+        bundle this goes red and NAMES WHAT IS OWED, rather than the
+        bundle quietly gaining a picture nobody validates and the
+        detector staying unwritten because nobody remembered it was
+        promised. Sniffed by magic bytes, so a `.svg` that is really a
+        PNG is caught too.
+        """
+        d = self.bundle(self.file(artifact="checkout-flow",
+                                  ring={"points_scene": self.ring()}))
+        self.assertEqual(
+            self.rasters_in(d), [],
+            "this bundle carries a raster image (%s), so PIXELS HAVE "
+            "BEEN RE-ADMITTED and requirement 4 of the spike's eleven "
+            "is now owed: `assess_capture` needs the periodicity "
+            "detector from spike round 6 — periodicity, NOT flatness, "
+            "sampling full rows — and a `snapshot_suspect` that cannot "
+            "see a poisoned readback is the exact failure this feature "
+            "exists to catch, one level up. See DECISION-ladybug.md, "
+            "the paragraph on why the bundle carries no PNG."
+            % ", ".join(self.rasters_in(d)))
+
+    def test_the_raster_guard_can_actually_see_a_raster(self):
+        """The neighbour: a guard nobody has watched speak is not a guard.
+
+        The check above passes on an empty directory, on a bundle that
+        failed to write, and on any tree of text — which is every way it
+        could be green while blind. So one real PNG is dropped into a
+        real bundle and it has to be named.
+        """
+        d = self.bundle(self.file(artifact="checkout-flow"))
+        self.assertEqual(self.rasters_in(d), [])
+        (d / "snapshot.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32)
+        self.assertEqual(self.rasters_in(d), ["snapshot.png (PNG)"])
+        # and the extension is not what it reads
+        (d / "scene.svg").write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 32)
+        self.assertEqual(self.rasters_in(d),
+                         ["scene.svg (JPEG)", "snapshot.png (PNG)"])
+
+    # -- the ring --------------------------------------------------------
+
+    def ring(self):
+        """A closed freehand ring in scene coordinates, around `payment`.
+
+        Returns:
+            A list of `(x, y)` pairs.
+        """
+        return [[460, 100], [640, 100], [640, 200], [460, 200], [460, 100]]
+
+    def test_the_ring_is_burned_into_the_capture(self):
+        resp = self.file(artifact="checkout-flow",
+                         ring={"points_scene": self.ring()})
+        r = self.report(resp)
+        self.assertEqual(r["ring_points"], 5)
+        self.assertEqual(r["ring_bbox"], {"x": 460, "y": 100,
+                                          "w": 180, "h": 100})
+        svg = (self.bundle(resp) / "scene.svg").read_text("utf-8")
+        self.assertIn("<polyline", svg)
+        self.assertIn(canvas.RING_STROKE, svg)
+        self.assertIn("460.000000,100.000000", svg)
+
+    def test_the_ring_never_becomes_an_element_in_the_artifact(self):
+        """The overlay rule, checked against the scene it must not touch.
+
+        A ring drawn into the scene would land in the dirty buffer and be
+        saved as if the user had drawn it — the same failure the onion
+        skin's DOM-sibling comment records. Hashed rather than counted:
+        an added element and a mutated one are the same defect here.
+        """
+        before = canvas.scene_hash(self.store.scenes["checkout-flow"])
+        self.file(artifact="checkout-flow",
+                  ring={"points_scene": self.ring()})
+        self.assertEqual(canvas.scene_hash(
+            self.store.scenes["checkout-flow"]), before)
+        self.assertEqual(self.store.head_revn(), 1)
+
+    def test_a_ring_off_the_drawing_widens_the_frame_to_hold_it(self):
+        """The reason the ring survived the selection-first ruling.
+
+        A ring can point at something that is not an element, which means
+        it can be drawn where there is no ink — and `render_svg` frames
+        the ink. The control is the un-widened frame: this asserts the
+        ring is OUTSIDE the original viewBox, so the widening is doing
+        work rather than being a no-op the assertion cannot tell apart.
+        """
+        els = self.store.scenes["checkout-flow"]
+        svg, _w, _h = canvas.render_svg(els)
+        vx, vy, vw, vh = (float(g) for g in
+                          canvas._VIEWBOX_RE.search(svg).groups())
+        far = [[vx + vw + 500, vy + vh + 400], [vx + vw + 700, vy + vh + 600],
+               [vx + vw + 500, vy + vh + 400]]
+        self.assertGreater(far[0][0], vx + vw)      # the control
+        out, burned = canvas.burn_ring(svg, far)
+        self.assertTrue(burned)
+        nx, ny, nw, nh = (float(g) for g in
+                          canvas._VIEWBOX_RE.search(out).groups())
+        self.assertLessEqual(nx, min(p[0] for p in far))
+        self.assertGreaterEqual(nx + nw, max(p[0] for p in far))
+        self.assertGreaterEqual(ny + nh, max(p[1] for p in far))
+        # and the drawing is still in frame — a widening that pans off
+        # the artifact trades one invisible mark for another
+        self.assertLessEqual(nx, vx)
+        self.assertGreaterEqual(nx + nw, vx + vw)
+        # the declared pixel size still describes the declared viewBox
+        w_px, h_px = (int(g) for g in
+                      canvas._SVG_DIMS_RE.search(out).groups())
+        self.assertAlmostEqual(w_px / h_px, nw / nh, places=1)
+
+    def test_a_ring_that_cannot_be_placed_is_confessed(self):
+        """Graceful degradation, and it must not read as success.
+
+        The empty-artifact placeholder carries no `viewBox`, so there is
+        nowhere to put a ring. The bundle keeps `ring_bbox` — the
+        coordinates are still the answer to "where" — and the capture
+        check says the ring is not in the picture.
+        """
+        empty, _w, _h = canvas.render_svg([])
+        out, burned = canvas.burn_ring(empty, self.ring())
+        self.assertFalse(burned)
+        self.assertEqual(out, empty)
+        suspect, checks = canvas.assess_capture(
+            [], empty, False, True, [], "checkout-flow", True)
+        ring_check = next(c for c in checks
+                          if c["check"] == "ring_in_frame")
+        self.assertFalse(ring_check["ok"])
+        self.assertTrue(suspect)
+
+    def test_one_point_is_not_a_ring(self):
+        self.assertIsNone(canvas.ring_bbox([[10, 10]]))
+        self.assertIsNone(canvas.ring_bbox([]))
+        self.assertIsNone(canvas.ring_bbox([["x", "y"], [1, 2]]))
+        self.assertIsNone(canvas.ring_bbox([[True, False], [1, 2]]))
+
+    # -- self-validation -------------------------------------------------
+
+    def test_every_bundle_says_what_it_checked_not_just_whether(self):
+        """`snapshot_suspect: false` must be distinguishable from unchecked.
+
+        This is the silence-reads-as-health failure in miniature and it
+        is the reason `capture.checks` exists. A bare boolean cannot tell
+        a reader whether the capture passed or whether nothing ran.
+        """
+        r = self.report(self.file(artifact="checkout-flow"))
+        names = [c["check"] for c in r["capture"]["checks"]]
+        self.assertEqual(sorted(names),
+                         ["artifact_resolved", "ring_in_frame",
+                          "scene_rendered", "selection_resolved"])
+        for c in r["capture"]["checks"]:
+            self.assertTrue(c["detail"],
+                            "%s recorded a verdict with no reason" % c["check"])
+        self.assertFalse(r["snapshot_suspect"])
+
+    def test_a_capture_of_an_artifact_the_server_lacks_is_suspect(self):
+        """The tab and the project have diverged — file it and say so.
+
+        Still written, deliberately: a report the server cannot
+        corroborate is the one most worth keeping, and refusing it would
+        drop exactly the class of bug where the two halves disagree.
+        """
+        resp = self.file(artifact="ghost-artifact")
+        self.assertTrue(self.bundle(resp).is_dir())
+        r = self.report(resp)
+        self.assertTrue(r["snapshot_suspect"])
+        failed = [c["check"] for c in r["capture"]["checks"] if not c["ok"]]
+        self.assertEqual(failed, ["artifact_resolved"])
+
+    def test_a_scene_that_renders_to_the_empty_placeholder_is_suspect(self):
+        """The garbage-evidence detector, fired.
+
+        `assess_capture` is exercised directly with the one input that
+        means "the capture lost the picture": live elements in, the
+        empty-artifact placeholder out.
+        """
+        empty, _w, _h = canvas.render_svg([])
+        suspect, checks = canvas.assess_capture(
+            [{"id": "cart", "type": "rectangle"}], empty,
+            False, False, [], "checkout-flow", True)
+        self.assertTrue(suspect)
+        self.assertIn("scene_rendered",
+                      [c["check"] for c in checks if not c["ok"]])
+        # the control: the same placeholder over a scene that IS empty
+        # is an honest capture and must not be condemned
+        ok_suspect, _ = canvas.assess_capture(
+            [], empty, False, False, [], "checkout-flow", True)
+        self.assertFalse(ok_suspect)
+
+    def test_a_selection_naming_a_gone_element_is_noted_not_condemned(self):
+        """A soft check: worth knowing, not a broken capture."""
+        r = self.report(self.file(
+            artifact="checkout-flow",
+            selection=[{"id": "cart", "type": "rectangle", "label": "Cart"},
+                       {"id": "vanished", "type": "rectangle"}]))
+        self.assertFalse(r["snapshot_suspect"])
+        sel = {c["check"]: c for c in r["capture"]["checks"]}[
+            "selection_resolved"]
+        self.assertFalse(sel["ok"])
+        self.assertFalse(sel["hard"])
+        present = {t["id"]: t["present"] for t in r["selection"]}
+        self.assertEqual(present, {"cart": True, "vanished": False})
+
+    # -- what the selection is worth (spike finding h) -------------------
+
+    def test_the_selections_geometry_comes_off_the_scene_not_the_payload(self):
+        """The bundle NAMES the thing, so the naming must be the truth.
+
+        The client is allowed to be wrong about geometry — it is a
+        different scene the moment anything lands — so the type and bbox
+        are re-derived here and the client's own copy is not consulted.
+        """
+        r = self.report(self.file(
+            artifact="checkout-flow",
+            selection=[{"id": "cart", "type": "ellipse", "label": "Cart",
+                        "bbox": {"x": -999, "y": -999, "w": 1, "h": 1}}]))
+        t = r["selection"][0]
+        self.assertEqual(t["type"], "rectangle")     # not the client's lie
+        self.assertEqual(t["label"], "Cart")         # the client's to give
+        self.assertEqual(t["bbox"]["x"], 40)
+        self.assertEqual(t["bbox"]["w"], 140)
+
+    def test_a_report_with_nothing_selected_and_no_artifact_still_files(self):
+        """The whole-view report — the spike proved it works; keep it.
+
+        Degradation is honest rather than silent: no rendering is
+        claimed, and a capture with nothing to render is NOT suspect.
+        """
+        r = self.report(self.file(description="The rail is empty on load."))
+        self.assertIsNone(r["artifact"])
+        self.assertEqual(r["selection"], [])
+        self.assertIsNone(r["files"]["scene_svg"])
+        self.assertEqual(r["capture"]["tier"], "none")
+        self.assertFalse(r["snapshot_suspect"])
+        self.assertEqual(r["description"], "The rail is empty on load.")
+
+    # -- the both-direction control --------------------------------------
+
+    def test_a_blank_description_writes_nothing_at_all(self):
+        """Cancelling must not leave a bundle, and neither must a blank.
+
+        The e2e suite covers the dialog's Cancel; this is the same
+        control at the endpoint, which is the only place a bundle can be
+        created. Asserted on THREE surfaces, because a refusal that
+        still appended an event or still burned an id would look clean
+        from the directory alone.
+        """
+        before = self.app.events.seq
+        for blank in ("", "   ", "\n\t\n", None, 42, ["nope"]):
+            with self.assertRaises(canvas._Err) as cm:
+                self.file(description=blank, artifact="checkout-flow")
+            self.assertEqual(cm.exception.status, 400)
+        self.assertFalse(self.project.bugreports_dir.exists() and
+                         list(self.project.bugreports_dir.iterdir()),
+                         "a refused report left a bundle behind")
+        self.assertEqual(self.app.events.seq, before)
+        self.assertEqual(canvas.next_bugreport_id(
+            self.project.bugreports_dir), 1)
+        # the positive pole, on the same endpoint in the same test: the
+        # refusal above is only meaningful if the path can succeed
+        self.file(artifact="checkout-flow")
+        self.assertEqual(len(list(self.project.bugreports_dir.iterdir())), 1)
+
+    # -- the event -------------------------------------------------------
+
+    def test_the_event_reaches_a_default_watch(self):
+        """`bug_report` on the log AND inside the default filter.
+
+        `canvas.py wait` defaults to `--for user`, so an event outside
+        `USER_EVENT_TYPES` is appended to a log no watching agent is
+        looking at — which is the whole reason the event exists. The
+        filter is asserted the way `cmd_wait` computes it, not by
+        naming the constant twice.
+        """
+        resp = self.file(artifact="checkout-flow",
+                         selection=[{"id": "cart", "type": "rectangle",
+                                     "label": "Cart"}],
+                         ring={"points_scene": self.ring()})
+        ev = self.app.events.events[-1]
+        self.assertEqual(ev["type"], "bug_report")
+        self.assertEqual(ev["id"], resp["id"])
+        self.assertEqual(ev["dir"], "1-the-text-is-cut-off-on-the-sides")
+        self.assertEqual(ev["headline"], "The text is cut off on the sides.")
+        self.assertEqual(ev["selection"], 1)
+        self.assertTrue(ev["ring"])
+        self.assertFalse(ev["snapshot_suspect"])
+        self.assertIn(ev["type"], canvas.USER_EVENT_TYPES)
+        self.assertNotIn(ev["type"], canvas.AGENT_EVENT_TYPES)
+
+    def test_the_headline_is_one_line_however_long_the_report_is(self):
+        """The event carries a headline; the bundle carries the report.
+
+        An agent reading the event log gets one readable line, and the
+        400 characters after the first newline are not lost — they are
+        in the file the event points at.
+        """
+        long = "It clips.\n" + ("x" * 400)
+        resp = self.file(description=long)
+        self.assertEqual(self.app.events.events[-1]["headline"], "It clips.")
+        self.assertEqual(self.report(resp)["description"], long)
+
+    # -- ids, slugs, quarantine ------------------------------------------
+
+    def test_the_slug_is_the_surviving_bundles_slug(self):
+        """Pinned against the one real bundle the deleted spike left.
+
+        `1-the-text-is-cutoff-on-the-sides-how-can-we-fix` is a filed
+        report from 2026-08-21 and it is the only surviving evidence of
+        the original behaviour, so its own description is the case.
+        """
+        self.assertEqual(
+            canvas.bugreport_slug(
+                "The text is cutoff on the sides. How can we fix it?"),
+            "the-text-is-cutoff-on-the-sides-how-can-we-fix")
+
+    def test_the_slug_is_lossy_and_the_report_is_not(self):
+        long = ("The second sign-off panel overlaps the risk banding "
+                "legend whenever the window is narrow.")
+        r = self.report(self.file(description=long))
+        self.assertEqual(r["slug"], canvas.bugreport_slug(long))
+        self.assertLessEqual(len(r["slug"]), canvas.BUGREPORT_SLUG_CHARS)
+        self.assertEqual(r["description"], long)
+
+    def test_a_description_with_no_ascii_still_names_a_directory(self):
+        r = self.report(self.file(description="報告：文字が切れている"))
+        self.assertTrue(r["slug"].startswith("bug-report-"))
+        self.assertTrue(self.project.bugreports_dir.joinpath(
+            "1-" + r["slug"]).is_dir())
+
+    def test_ids_ascend_and_two_reports_never_share_a_directory(self):
+        same = "It clips."
+        a = self.file(description=same)
+        b = self.file(description=same)
+        self.assertEqual((a["id"], b["id"]), (1, 2))
+        self.assertNotEqual(a["dir"], b["dir"])
+        self.assertEqual(len(list(self.project.bugreports_dir.iterdir())), 2)
+
+    def test_a_malformed_bundle_is_set_aside_loudly_and_never_deleted(self):
+        good = self.file(description="A real one.")
+        bad = self.project.bugreports_dir / "2-half-written"
+        bad.mkdir()
+        (bad / "report.json").write_text("{ this is not json",
+                                         encoding="utf-8")
+        (bad / "scene.svg").write_text("<svg/>", encoding="utf-8")
+        reports, notes = canvas.load_bugreports(self.project.bugreports_dir)
+        self.assertEqual([r["id"] for r in reports], [good["id"]])
+        self.assertEqual(len(notes), 1)
+        self.assertIn("2-half-written", notes[0])
+        self.assertIn("quarantined", notes[0])
+        self.assertFalse(bad.exists())
+        kept = self.project.bugreports_dir / "2-half-written.bad"
+        self.assertTrue(kept.is_dir(), "the evidence was not kept")
+        self.assertEqual((kept / "report.json").read_text("utf-8"),
+                         "{ this is not json")
+        self.assertEqual((kept / "scene.svg").read_text("utf-8"), "<svg/>")
+        # and a second pass does not re-quarantine what it already set
+        # aside — `.bad.bad` would bury the name a reader is looking for
+        again, notes2 = canvas.load_bugreports(self.project.bugreports_dir)
+        self.assertEqual(notes2, [])
+        self.assertEqual([r["id"] for r in again], [good["id"]])
+
+    def test_every_shape_of_unreadable_bundle_is_named(self):
+        cases = {
+            "1-no-report": (None, "no report.json"),
+            "2-array": ("[]", "not a JSON object"),
+            "3-no-id": ('{"description": "x"}', "no integer id"),
+            "4-no-text": ('{"id": 4}', "no description"),
+        }
+        for name, (content, _why) in cases.items():
+            d = self.project.bugreports_dir / name
+            d.mkdir(parents=True)
+            if content is not None:
+                (d / "report.json").write_text(content, encoding="utf-8")
+        reports, notes = canvas.load_bugreports(self.project.bugreports_dir)
+        self.assertEqual(reports, [])
+        blob = "\n".join(notes)
+        for name, (_c, why) in cases.items():
+            self.assertIn(name, blob)
+            self.assertIn(why, blob)
+            self.assertTrue(self.project.bugreports_dir.joinpath(
+                name + ".bad").is_dir(), "%s was not kept" % name)
+
+    def test_a_look_can_be_asked_not_to_move_anything(self):
+        d = self.project.bugreports_dir / "1-broken"
+        d.mkdir(parents=True)
+        (d / "report.json").write_text("nope", encoding="utf-8")
+        reports, notes = canvas.load_bugreports(self.project.bugreports_dir,
+                                                quarantine=False)
+        self.assertEqual(reports, [])
+        self.assertIn("left in place", notes[0])
+        self.assertTrue(d.is_dir())
+
+    def test_a_quarantined_bundle_never_has_its_id_reissued(self):
+        """The `pending_seq` argument, at higher stakes.
+
+        A quarantined bundle is the one whose `report.json` no longer
+        parses, so an allocator that read only the JSON would hand its id
+        straight back — and the second bundle would land in a directory
+        name that already exists. That destroys evidence, which is the
+        one thing this feature promised never to do.
+        """
+        first = self.file(description="A real one.")
+        d = Path(first["dir"])
+        (d / "report.json").write_text("{ corrupted", encoding="utf-8")
+        canvas.load_bugreports(self.project.bugreports_dir)
+        second = self.file(description="Another.")
+        self.assertEqual(second["id"], 2)
+        self.assertTrue((self.project.bugreports_dir /
+                         (d.name + ".bad")).is_dir())
+        self.assertNotEqual(Path(second["dir"]).name, d.name)
+
+    def test_a_bundle_renamed_by_a_human_keeps_its_id_reserved(self):
+        first = self.file(description="A real one.")
+        Path(first["dir"]).rename(
+            self.project.bugreports_dir / "the-clipping-one")
+        self.assertEqual(canvas.next_bugreport_id(
+            self.project.bugreports_dir), 2)
+
+    # -- the version stamp -----------------------------------------------
+
+    def test_the_bundle_names_the_build_that_produced_it(self):
+        r = self.report(self.file(artifact="checkout-flow"))
+        v = r["version"]
+        self.assertEqual(v["protocol_version"], canvas.PROTOCOL_VERSION)
+        self.assertEqual(v["server_source"], canvas.own_source_hash())
+        self.assertEqual(v["web_bundle"], self.app.web_bundle)
+
+    def test_a_tab_older_than_the_server_says_so(self):
+        """The round the spike spent on a stale build, made visible.
+
+        Three states, and the third is why this is not a boolean: a tab
+        that agrees, a tab that does not, and a tab too old to answer —
+        which must read as UNKNOWN, because defaulting it to False is a
+        claim nobody made.
+        """
+        agrees = self.report(self.file(client_bundle=self.app.web_bundle))
+        self.assertIs(agrees["version"]["client_is_stale"], False)
+        stale = self.report(self.file(client_bundle="000000000000"))
+        self.assertIs(stale["version"]["client_is_stale"], True)
+        self.assertEqual(stale["version"]["client_bundle"], "000000000000")
+        silent = self.report(self.file())
+        self.assertIsNone(silent["version"]["client_is_stale"])
+        self.assertIsNone(silent["version"]["client_bundle"])
+
+    def test_the_served_bundle_id_moves_when_the_bundle_does(self):
+        """`web_bundle_id` has to actually distinguish two builds.
+
+        Without this the stale-tab check is a comparison of a constant
+        with itself, which passes on every input.
+
+        It reads the build stamp `scripts/postbuild.mjs` writes rather
+        than hashing anything of its own — a second identity for one
+        build would be free to disagree with `frontend_stamp_warning`,
+        which reads the same field. So the cases here are the stamp's:
+        two builds, and the three ways it can be missing.
+        """
+        root = self.tmp / "web"
+        root.mkdir(parents=True)
+        stamp = root / "build-stamp.json"
+        stamp.write_text('{"source_hash": "aaaaaaaaaaaabbbb"}',
+                         encoding="utf-8")
+        one = canvas.web_bundle_id(root)
+        self.assertEqual(one, "aaaaaaaaaaaa")
+        stamp.write_text('{"source_hash": "ccccccccccccdddd"}',
+                         encoding="utf-8")
+        self.assertNotEqual(canvas.web_bundle_id(root), one,
+                            "a rebuilt bundle reads as the same build")
+        for broken in ("{ not json", "[]", '{"source_hash": null}',
+                       '{"source_hash": ""}'):
+            stamp.write_text(broken, encoding="utf-8")
+            self.assertEqual(canvas.web_bundle_id(root), "unknown")
+        stamp.unlink()
+        self.assertEqual(canvas.web_bundle_id(root), "unknown")
+        self.assertEqual(canvas.web_bundle_id(self.tmp / "nothing-here"),
+                         "unknown")
+
+    def test_the_id_is_the_stamp_the_repos_own_build_writes(self):
+        """The shipped bundle's stamp, not a second opinion about it.
+
+        Reads `skills/wysiwyg-grilling/scripts/web/build-stamp.json` off
+        the tree and asserts the running server agrees with it. If the
+        two ever diverge, the bug bundle's `web_bundle` and `start`'s
+        stale-bundle warning are answering the same question differently
+        — which is the failure mode a second hash would have created.
+        """
+        shipped = Path(canvas.__file__).resolve().parent / "web"
+        if not (shipped / "build-stamp.json").is_file():
+            self.skipTest("no built web bundle in this tree")
+        want = canvas.read_json(shipped / "build-stamp.json")["source_hash"]
+        self.assertEqual(canvas.web_bundle_id(shipped), want[:12])
+        self.assertEqual(self.app.web_bundle, want[:12])
+
+    # -- gitignore -------------------------------------------------------
+
+    def test_bugreports_is_gitignored_before_the_first_report_lands(self):
+        """The line has to exist BEFORE a bundle does.
+
+        Evidence is not the user's content and must never reach their
+        commits; a bundle carries a picture of their project and the
+        text of their complaint.
+        """
+        lines = (self.project.pk / ".gitignore").read_text(
+            "utf-8").splitlines()
+        self.assertIn(".bugreports/", lines)
+        self.assertFalse(self.project.bugreports_dir.exists(),
+                         "the directory was created before any report")
+
+    def test_an_older_project_gains_the_line_without_losing_its_own(self):
+        """The one-time migration, on a project that predates this feature.
+
+        The user's lines go back verbatim — the reason `ensure_tree`
+        keeps them unstripped is that git reads leading whitespace as
+        part of a pattern.
+        """
+        old = canvas.Project(self.tmp / "older")
+        old.pk.mkdir(parents=True)
+        (old.pk / ".gitignore").write_text(
+            ".backups/\n.pending/\n    build/\n", encoding="utf-8")
+        old.ensure_tree()
+        self.assertEqual(
+            (old.pk / ".gitignore").read_text("utf-8"),
+            ".backups/\n.pending/\n    build/\n.bugreports/\n")
+        old.ensure_tree()       # idempotent — no second append
+        self.assertEqual((old.pk / ".gitignore").read_text(
+            "utf-8").count(".bugreports/"), 1)
+
+    # -- the CLI ---------------------------------------------------------
+
+    def cli(self, **kw):
+        """Run `canvas.py bugreports` and return its stdout.
+
+        Args:
+            **kw: Overrides for the parsed-args namespace.
+
+        Returns:
+            The captured stdout as one string.
+        """
+        ns = argparse.Namespace(project=str(self.tmp), id=None,
+                                no_quarantine=False)
+        for k, v in kw.items():
+            setattr(ns, k, v)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            canvas.cmd_bugreports(ns)
+        return buf.getvalue()
+
+    def test_the_cli_lists_what_was_filed(self):
+        self.file(description="The text is cut off.", artifact="checkout-flow")
+        self.file(description="The rail is empty.")
+        out = self.cli()
+        self.assertIn("BUGREPORT_ID=1", out)
+        self.assertIn("BUGREPORT_ID=2", out)
+        self.assertIn("DESCRIPTION=The text is cut off.", out)
+        self.assertIn("ARTIFACT=checkout-flow", out)
+        self.assertIn("BUGREPORTS=2", out)
+
+    def test_the_cli_prints_one_report_with_its_capture_checks(self):
+        self.file(description="The text is cut off.", artifact="checkout-flow",
+                  selection=[{"id": "cart", "type": "rectangle",
+                              "label": "Cart"}])
+        out = self.cli(id=1)
+        self.assertIn("BUGREPORT_ID=1", out)
+        self.assertIn("SELECTION=cart", out)
+        self.assertIn("SNAPSHOT_SUSPECT=false", out)
+        self.assertIn("CHECK=scene_rendered ok", out)
+        self.assertIn("DESCRIPTION=The text is cut off.", out)
+
+    def test_the_cli_names_a_quarantine_rather_than_shortening_a_list(self):
+        """A listing that silently drops a bundle is the wrong failure.
+
+        The count and the note are both asserted: a reader who sees
+        `BUGREPORTS=1` where they filed two must be told which one left
+        and where it went.
+        """
+        self.file(description="A real one.")
+        bad = self.project.bugreports_dir / "2-half-written"
+        bad.mkdir()
+        (bad / "report.json").write_text("{", encoding="utf-8")
+        out = self.cli()
+        self.assertIn("NOTE=quarantined 2-half-written", out)
+        self.assertIn("2-half-written.bad", out)
+        self.assertIn("BUGREPORTS=1", out)
+        self.assertIn("QUARANTINED=1", out)
+
+    def test_the_cli_is_quiet_and_calm_on_a_project_with_none(self):
+        out = self.cli()
+        self.assertIn("BUGREPORTS=0", out)
+        self.assertNotIn("NOTE=", out)
+
+    def test_the_cli_needs_no_server(self):
+        """Reads the disk, not the session.
+
+        The reports worth reading are usually from a session that has
+        ended, so a command that needs the server up cannot read them.
+        `server_alive` is forced False and nothing may consult the
+        network.
+        """
+        self.file(description="The text is cut off.")
+        with mock.patch.object(canvas, "server_alive", lambda s: False), \
+                mock.patch.object(canvas, "http_json", _refuse_network):
+            out = self.cli()
+        self.assertIn("BUGREPORT_ID=1", out)
+
+    def test_the_command_is_wired_into_the_parser(self):
+        """A verb nobody routed is a verb nobody can run."""
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            code = canvas.main(["--project", str(self.tmp), "bugreports"])
+        self.assertEqual(code, 0)
+        self.assertIn("BUGREPORTS=0", buf.getvalue())
+
+
+def _refuse_network(*_a, **_k):
+    """Fail loudly if a test's subject reaches for the network.
+
+    Args:
+        *_a: Ignored.
+        **_k: Ignored.
+
+    Raises:
+        AssertionError: Always — reaching this is the finding.
+    """
+    raise AssertionError("this path must not talk to a server")
 
 
 if __name__ == "__main__":

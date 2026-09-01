@@ -333,12 +333,20 @@ carries the wording they turned down so you do not offer it twice.
 | `checkout` / `checkout_live` | the user is looking at, or working from, an **older revision** | do not apply onto their head until they save; a save on top of a checkout forks a branch |
 | `save` with `forked: true` | they just forked | say so, and say what is stranded on the old branch |
 
-**Event taxonomy** — all eighteen types, and who a type belongs to
+**Event taxonomy** — all nineteen types, and who a type belongs to
 decides your reaction:
 
 | Theirs (a move — narrate it, take the round) | Yours (ignore) | System |
 |---|---|---|
-| `save`, `pin_answer`, `tripwire_answer`, `pin_proposal_discarded`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop`, `pin_proposal` | `server_started`, `reconciliation` |
+| `save`, `pin_answer`, `tripwire_answer`, `pin_proposal_discarded`, `bug_report`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop`, `pin_proposal` | `server_started`, `reconciliation` |
+
+`bug_report` is the loudest thing in that first cell. The user pressed 🐞
+and told you something is **wrong**, and a bundle is already on disk with
+the drawing, what they had selected, the camera and the last events —
+read it with `canvas.py bugreports --id <n>` before you reply, and do not
+ask them to describe the geometry again or to send a screenshot. If the
+report says `SNAPSHOT_SUSPECT=true`, the capture's own evidence is
+doubtful: work from their words and say that you are.
 
 `agent_revision_failed` is yours, but it is not an echo to ignore: it
 fires when a revision the **user** pulled could not be applied, and its

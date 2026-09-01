@@ -513,6 +513,34 @@ it "agent asked a question" with no Apply action.
   `SCOPES + QUARANTINED = the files on disk`.
 - `canvas.py pending [--discard <id>]` → what is queued behind the user's
   banner, with each entry's artifact, note and op count.
+- `canvas.py bugreports [--id <n>] [--no-quarantine]` → the 🐞 reports the
+  user filed from the canvas. **Reads the project directly — no server
+  needed**, because the reports worth reading are usually from a session
+  that has ended. Each line carries the id, the directory, the artifact
+  and the first line of the description; `--id` prints one in full with
+  its capture checks. The bundle is
+  `project_knowledge/.bugreports/<n>-<slug>/` holding `report.json`,
+  `scene.svg` (the drawing at capture, with the user's focus ring burned
+  in) and `scene.excalidraw`. **You get told about a filing in-session:**
+  a `bug_report` event lands on the log, and it is a USER event, so the
+  default `wait` sees it. Read the bundle before you ask the user
+  anything — it already carries what they had selected, where the camera
+  was, the standing findings and the last events.
+  - **`SNAPSHOT_SUSPECT=true` means the report's own evidence is
+    doubtful, not that the report is wrong.** The bundle names every
+    check it ran (`CHECK=` lines under `--id`), so a `false` is a check
+    that passed rather than a check nobody made. When it is `true`, lean
+    on the description and say so to the user rather than reasoning from
+    a picture the capture may have lost.
+  - **A bundle is evidence and is never deleted.** One that cannot be
+    read is renamed `.bad` and kept, and the listing says which one and
+    why rather than quietly getting shorter. Do not clean these up.
+  - The **capture is the drawing plus session state, not a screenshot of
+    the browser** — it is rendered server-side from the scene, because
+    every browser pixel path can be poisoned silently and one measured
+    browser poisons them all. So a report about a panel, a menu or the
+    chrome around the canvas carries its detail in the user's words
+    only; the images will not show it.
 - `canvas.py reroute [--artifact <id>] [--apply]` → arrows an OLDER router
   drew, and what today's would draw instead. Nothing re-routes on load, so
   a project laid out by an earlier version keeps that geometry forever:
