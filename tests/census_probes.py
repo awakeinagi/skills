@@ -33,6 +33,7 @@ raised before it ever reached its own answer, so it voted on nothing.
 """
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -40,6 +41,49 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+
+# The registration literal every catalogue entry is written as. Read
+# TEXTUALLY rather than by importing the module, because importing 50k lines
+# of test source to learn one string is a cost this instrument would pay on
+# every run for no answer it could not read off the page.
+_CATALOGUE_ENTRY = re.compile(r'_register\(Mutant\(\n    "([a-z0-9_]+)",')
+
+
+def _a_real_catalogue_id() -> str:
+    """One id the catalogue genuinely holds, for the bare-name probe.
+
+    A DERIVED subject, and the reason it is derived is the failure mode
+    it would otherwise have. `catalogue-ids-bare-name` perturbs a guard
+    clause that looks ids up in `CATALOGUE`, so an id the catalogue does
+    NOT hold perturbs nothing: the probe would run, break the file in a
+    way the guard is not built to notice, and report a healthy clause
+    SILENT. A hardcoded id would buy that outcome the day its mutant is
+    renamed or removed, which is this file's own disease and the reason
+    five anchors above it have been rewritten.
+
+    Returns:
+        The alphabetically first registered catalogue id, chosen because
+        it is stable under insertion anywhere else in the roster.
+
+    Raises:
+        AssertionError: If the catalogue registers nothing this can read.
+            An empty answer would make the probe silent about a clause
+            that may be perfectly healthy, and this file already refuses
+            to build a scratch tree that would make every guard look
+            silent — the same refusal, one input earlier.
+    """
+    text = (REPO / "tests" / "test_mutants.py").read_text(encoding="utf-8")
+    ids = sorted(set(_CATALOGUE_ENTRY.findall(text)))
+    if not ids:
+        raise AssertionError(
+            "no `_register(Mutant(` literal in tests/test_mutants.py, so "
+            "the bare-name probe has no real catalogue id to inject. "
+            "Either the registration was rewritten past what "
+            "`_CATALOGUE_ENTRY` reads — re-anchor it — or the catalogue "
+            "is empty, in which case the clause this probe watches has no "
+            "subject and the probe must not report on it")
+    return ids[0]
+
 
 # Each probe: the guard's test name, and one edit that must make it fail.
 # The edits are (old, new) pairs applied to one file, and every one of them
@@ -163,18 +207,93 @@ PROBES: dict[str, dict[str, str]] = {
     # by the flip contract (unittest fails on a red that started
     # passing); a census that OVER-reports is caught by nothing else at
     # all, so that is the pole worth a probe.
-    "model-row-stale": {
+    "catalogue-ids-phantom": {
+        "test": "test_the_handover_transcribes_the_reds_it_declares",
+        "file": "tests/RED-ROSTER.md",
+        "why": "the id roster claims a red the catalogue does not "
+               "declare — the OVER-reporting pole the flip contract "
+               "cannot see",
+        # THE SUBJECT MOVED ON 2026-09-01 and this probe moved with it.
+        # It was `model-row-stale`, anchored on "| model (default suite) |"
+        # in SESSION-HANDOVER.md, after Task 30 and batch 27 re-anchored
+        # it independently within one hour — at the row label plus the
+        # first id, and at the cell alone. The CELL ALONE won that round
+        # for the usual reason: an id is the container's contents, and it
+        # dies the day that mutant flips. The row is no longer harvested
+        # for ids at all, so the whole argument moved to the roster's
+        # label, and the injection is a BODY LINE beneath it rather than
+        # text beside it — see the roster preamble below for why that
+        # distinction is the difference between a catch and an accusation.
+        "old": "Catalog red ids:\n",
+        "new": "Catalog red ids:\n"
+               "\n- `a_red_nobody_flipped`\n",
+    },
+    "catalogue-ids-deleted": {
+        "test": "test_the_handover_transcribes_the_reds_it_declares",
+        "file": "tests/RED-ROSTER.md",
+        "why": "THE SUBJECT IS ABSENT: the label the id roster hangs "
+               "under is reworded away. At zero catalogue reds a missing "
+               "roster and a correct one both enumerate nothing, so a "
+               "reader that did not DEMAND the label would be green over "
+               "a section that had been deleted",
+        "old": "Catalog red ids:\n",
+        "new": "Catalogue reds, by id:\n",
+    },
+    "catalogue-ids-garbled": {
+        "test": "test_the_handover_transcribes_the_reds_it_declares",
+        "file": "tests/RED-ROSTER.md",
+        "why": "NON-DISCRIMINATION: the section survives but holds a line "
+               "the grammar cannot read. A reader that parsed this to an "
+               "empty roster would agree with it and with the truth alike",
+        "old": "Catalog red ids:\n",
+        "new": "Catalog red ids:\n"
+               "\n(see `mutants list --red` instead)\n",
+    },
+    # THE UNBACKTICKED-ID REFUSAL, which is a clause the id half needed
+    # and the class half did not, so it gets a probe of its own. A class
+    # name announces itself — `Test` and a capital — and a regex over
+    # English finds one. A catalogue id is lowercase snake_case and reads
+    # exactly like prose, so nothing pattern-shaped can catch one, and the
+    # guard looks every id in `CATALOGUE` up in the file instead. That is
+    # a DERIVED check, which means it can go silent the way a derived
+    # check does: point it at an empty catalogue and it refuses nothing at
+    # all. So the injected id is a REAL one — `_a_real_catalogue_id`
+    # resolves it at import time from the catalogue itself, and this probe
+    # dies loudly if the catalogue is ever empty rather than passing while
+    # measuring nothing.
+    "catalogue-ids-bare-name": {
+        "test": "test_the_handover_transcribes_the_reds_it_declares",
+        "file": "tests/RED-ROSTER.md",
+        "why": "an id is written into the roster file with its BACKTICKS "
+               "DROPPED, where every check that reads inside ticks is "
+               "blind to it — the class half's recorded hole, reached "
+               "through the one subject no regex can recognise",
+        "old": "Catalog red ids:\n",
+        "new": "Catalog red ids: see %s below\n" % _a_real_catalogue_id(),
+    },
+    # THE ID HALF OF THE ONE-HOME REFUSAL. Its sibling
+    # `roster-back-at-the-old-address` watches the same clause for the
+    # CLASS label; this watches it for the id label, and they are two
+    # probes rather than one because the reader loops over two labels and
+    # a loop that had lost an element would still catch the label it kept.
+    # Both anchor on the same marker for the same reason
+    # `durable-counts-drift` gives — it is the most stable declaration
+    # SESSION-HANDOVER.md has, since `livedoc check` fails if it stops
+    # naming a real derivation — and both inject a whole line BEFORE it,
+    # so the durable-count sentence stays byte-identical and each probe
+    # perturbs exactly one subject. `*none*` is the injected spelling
+    # because the refusal fires before the roster is opened, so the
+    # content cannot change the verdict and a real id would only need
+    # re-typing the day the catalogue moves.
+    "catalogue-ids-back-at-the-old-address": {
         "test": "test_the_handover_transcribes_the_reds_it_declares",
         "file": "SESSION-HANDOVER.md",
-        "why": "the catalogue-reds row claims a red the catalogue does "
-               "not declare",
-        # Task 30 and batch 27 re-anchored this independently within the
-        # hour, at "| model (default suite) | `corner_feet" and at the
-        # cell alone. The CELL ALONE WINS: the id is the first entry in
-        # the row, which is the container's contents again one element
-        # in, and it dies the day that mutant flips or the row is sorted.
-        "old": "| model (default suite) |",
-        "new": "| model (default suite) | `a_red_nobody_flipped`,",
+        "why": "the id roster comes BACK to the file it left, so the fact "
+               "has two homes and the reader agrees with the one it reads "
+               "while the human reads the other",
+        "old": "<!-- live:durable_red_counts -->",
+        "new": "Catalog red ids: *none*\n"
+               "\n<!-- live:durable_red_counts -->",
     },
     "hand-authored-count-drift": {
         "test": "test_the_hand_authored_red_classes_are_the_ones_that_exist",
