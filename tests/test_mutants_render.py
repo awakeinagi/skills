@@ -9190,27 +9190,80 @@ class TestClientSessionLifecycle(unittest.TestCase):
         120s, so a slow session can outlive its own browser and then spend
         a further minute proving what `proc.poll()` already knew.
 
-        The deadline is patched down to 20s so that a regression is slow
-        rather than interminable, and the elapsed bound is set well below
-        it: a session paced by the DEADLINE cannot come in under 10s, and
-        one paced by the browser's exit takes about a second plus the
-        server start. The message assertion is the primary claim though —
+        WHAT IS TIMED IS THE POLL LOOP, NOT THE TEST, and that split is
+        the point. This bounded the whole session's wall clock at a flat
+        10s until the cold gate's `pytest -n auto` carried the suite past
+        2,200 tests and the reading reached 12.5s with the primary claim
+        below still passing: the machine was loaded, the code was fine.
+        Timed apart on a box at load average 26, the loop costs 0.42-0.46s
+        while the setup it sits behind — `apply_batch`, the server start,
+        the browser spawn — costs 8.4-14.5s and carries every bit of the
+        variance. So `_await_shots` is read alone and the setup is not.
+
+        THE BOUND IS A FRACTION OF THE DEADLINE THIS TEST INJECTS, never a
+        count of seconds, because that fraction is the relation the two
+        pacings actually differ by. A browser-paced loop does a fixed two
+        passes — two 0.2s sleeps and two localhost requests — and does not
+        scale with the deadline at all; a deadline-paced one costs the
+        whole of it. Measured against a 20s deadline: 0.44s browser-paced,
+        20.1s with `proc.poll()` ignored, and 20.0s with its answer
+        recorded and then waited out anyway. A quarter of the deadline
+        sits an order of magnitude above the loaded reading and four times
+        below either regression, and load reaches it only by stretching
+        two short sleeps and two loopback requests tenfold — which is not
+        a machine that is still running this suite.
+
+        The deadline stays 20s rather than being raised for headroom.
+        With the setup excluded there is no headroom left to buy, and a
+        regression that must wait it out stays slow rather than
+        interminable.
+
+        The message is still the PRIMARY claim, and it is checked first:
         `rc=0` can only come from reading the exited browser's real return
-        code, so it cannot be satisfied by a timeout that happened to be
-        fast.
+        code, so it cannot be satisfied by a timeout that was merely fast.
+        It does not subsume the bound, though — a loop that notices the
+        exit and waits the deadline out regardless names `rc=0` exactly
+        like a healthy one, and only the reading below can tell them
+        apart.
         """
-        started = time.time()
-        with mock.patch(__name__ + ".CLIENT_DEADLINE", 20.0), \
+        deadline = 20.0
+        waited: list[float] = []
+        real_await = _await_shots
+
+        def timed_await(*a: Any, **kw: Any) -> dict[str, bytes]:
+            """Run the real poll loop, keeping what it alone cost.
+
+            Args:
+                *a: Positional arguments for `_await_shots`.
+                **kw: Keyword arguments for `_await_shots`.
+
+            Returns:
+                Whatever the real poll loop returned.
+            """
+            started = time.time()
+            try:
+                return real_await(*a, **kw)
+            finally:
+                waited.append(time.time() - started)
+
+        with mock.patch(__name__ + ".CLIENT_DEADLINE", deadline), \
+                mock.patch(__name__ + "._await_shots", timed_await), \
                 self.assertRaises(RuntimeError) as caught:
             _client_session({"full": self.scene})
-        elapsed = time.time() - started
         self.assertIn("the browser exited (rc=0)", str(caught.exception),
                       "the failure does not name the dead browser, so it "
                       "was paced by the clock rather than by the culprit")
-        self.assertLess(elapsed, 10.0,
-                        "a dead browser took %.1fs to report against a 20s "
-                        "deadline — the poll loop is waiting the deadline "
-                        "out again" % elapsed)
+        self.assertEqual(len(waited), 1,
+                         "the session never reached its poll loop, so "
+                         "nothing here timed the thing under test")
+        self.assertLess(waited[0], deadline / 4,
+                        "the poll loop spent %.1fs of its own %.0fs "
+                        "deadline on a browser it had already watched "
+                        "exit — paced by the clock, not by the culprit. A "
+                        "browser-paced loop costs about half a second "
+                        "whatever the deadline is, so this is not the "
+                        "machine being slow: it is the deadline being "
+                        "waited out again" % (waited[0], deadline))
 
 
 @unittest.skipUnless(RENDER, "render tier: set MUTANTS_RENDER=1 "
