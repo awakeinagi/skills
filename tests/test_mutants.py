@@ -5505,7 +5505,6 @@ class TestAShadedBoxKeepsTheLineWrittenOnIt(unittest.TestCase):
     legitimate repair rather than a second-best one.
     """
 
-    @unittest.expectedFailure
     def test_red_a_solid_fill_paints_out_the_line_drawn_on_the_box(self
                                                                    ) -> None:
         """Curator, pipeline r8-close leaf 1.3.1, 2026-09-01. RED.
@@ -29352,7 +29351,6 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestAStoredCaptionAnchorTheClientDisagreesWithIsReported": 1,
     "TestOnePairGetsOneVerdictOnWhetherItMayStand": 2,
     "TestAClosedPinSaysWhyItClosed": 2,
-    "TestAShadedBoxKeepsTheLineWrittenOnIt": 1,
     "TestAnAnsweredPinIsNotNarratedAsARemoval": 2,
     "TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing": 2,
     "TestAConfigChangeSaysWhoseHandTurnedIt": 2,

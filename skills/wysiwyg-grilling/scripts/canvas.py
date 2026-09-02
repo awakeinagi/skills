@@ -11674,6 +11674,97 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
     return sorted(out)
 
 
+# The three types whose `backgroundColor` this renderer actually paints,
+# measured against `render_svg` on 2026-09-02 with one solid-filled
+# element of each of the nine kinds it draws: `rectangle`, `ellipse` and
+# `diamond` emit `fill='<backgroundColor>'`; `text`, `line`, `arrow`,
+# `freedraw`, `image` and `frame` emit stroke and glyphs only. So this is
+# the whole of what can hide something beneath it, and it is a MEASURED
+# list rather than an intuited one — `image` reads as opaque and is not.
+#
+# The bound worth saying out loud: the shipped client also fills a CLOSED
+# path, which this renderer never does. Nothing in this file mints one,
+# so the two agree on every scene the product composes; a closed polygon
+# hand-drawn in the app is outside what the predicate below can see.
+_FILL_PAINTING_TYPES = ("rectangle", "ellipse", "diamond")
+
+
+def _paints_a_fill(el: dict) -> bool:
+    """Whether this element covers what is beneath it with opaque paint.
+
+    Args:
+        el: Any element dict.
+
+    Returns:
+        True when it is one of `_FILL_PAINTING_TYPES` carrying a `solid`
+        fill in a colour that is neither absent nor `transparent`.
+    """
+    return (el.get("type") in _FILL_PAINTING_TYPES
+            and el.get("fillStyle") == "solid"
+            and el.get("backgroundColor") not in (None, "", "transparent"))
+
+
+def _backdrop_text_under_a_fill(ordered: list[dict]) -> set[str]:
+    """Untagged decoration TEXT that the backdrop band paints out.
+
+    A TEXT IS INK, NOT FURNITURE, and that is the whole of the rule.
+    Band 1 exists for the standalone backdrop `layout.md` instructs the
+    agent to author — a shape drawn BEHIND a drawing, whose job is to be
+    covered. A sentence is the opposite kind of thing. The R8 agent
+    wrote pre-computed blast radii onto three boxes, shaded the boxes to
+    group them, and the shade swallowed the sentences it had just argued
+    were the payload of the diagram; it found out by looking. Both
+    renderers were faithful — the order they were handed was wrong.
+
+    ASKED PER PAIR AND NOT BY TYPE, which is what keeps a backdrop a
+    backdrop and is the whole reason this is a function rather than one
+    more row in the band table. Lifting every decoration text
+    unconditionally also moves the ones nothing covers, and those are
+    the annotations an agent placed low on purpose — band 1 is where an
+    explicit `reorder` beneath the drawing survives, and re-banding by
+    type discards it. So this reports the texts whose beneath-position
+    ACTUALLY buries them, and the caller lifts only those.
+
+    OVERLAP AND NOT CONTAINMENT, and that is a correction rather than a
+    preference. The red this closes reads CONTAINMENT because a wholly
+    covered sentence is the only claim it makes; a repair keyed the same
+    way was measured going SILENT on the same line one step down the
+    product's own path. Re-added through `apply_batch` the line arrives
+    carrying its own stored width, wraps to a second line, and its box
+    grows 4px past the bottom of the host that shades it — not contained,
+    no lift, and the shipped client painted the yellow box and nothing
+    else. Half a sentence under paint is half a sentence gone, so the
+    question here is whether the fill touches the ink at all.
+
+    Args:
+        ordered: A scene in paint order — the caller's own first-pass
+            output, so "emitted after" is read off the real array
+            instead of re-derived from bands a pinned element may not
+            obey.
+
+    Returns:
+        The ids of live untagged `role: "decoration"` text elements
+        whose drawn box meets that of some fill-painting element emitted
+        after them.
+    """
+    out: set[str] = set()
+    for i, e in enumerate(ordered):
+        cd = e.get("customData") or {}
+        oid = e.get("id")
+        if (oid is None or e.get("isDeleted") or e.get("type") != "text"
+                or cd.get("role") != "decoration" or _composed_part(cd)):
+            continue
+        x0, y0, x1, y1 = _drawn_box(e)
+        for over in ordered[i + 1:]:
+            if over.get("isDeleted") or not _paints_a_fill(over):
+                continue
+            ox0, oy0, ox1, oy1 = _drawn_box(over)
+            if ox0 <= x1 and x0 <= ox1 and oy0 <= y1 and y0 <= oy1:
+                out.add(oid)
+                break
+    return out
+
+
 def normalize_z_order(els):
     """Paint order (layout.md): frames → backdrops → arrows/lines →
     nodes → composed parts → bound labels & pins. Excalidraw renders
@@ -11683,11 +11774,26 @@ def normalize_z_order(els):
     value, an entity's attribute rows, a checkbox's box and check
     stroke, a slider's track and thumb) bands ABOVE the owner it is
     drawn on, so an opaque owner cannot paint out its own content or its
-    own state glyph. Only the UNTAGGED `role: decoration` — the
-    standalone backdrop — still bands beneath. The sort is stable:
-    explicit `reorder` ops survive within their band, which is also what
-    keeps a check stroke over the box it was declared after; cross-band
+    own state glyph. The UNTAGGED `role: decoration` — the standalone
+    backdrop — still bands beneath, EXCEPT where it is TEXT that band 1
+    would bury: a sentence an agent wrote for a reader is ink, not
+    furniture, so it joins the part band rather than going under the
+    fill. That exception is asked PER PAIR by
+    `_backdrop_text_under_a_fill` and never by type, so a backdrop shape
+    stays a backdrop and an annotation nothing covers keeps the low slot
+    an explicit `reorder` gave it. The sort is stable: explicit
+    `reorder` ops survive within their band, which is also what keeps a
+    check stroke over the box it was declared after; cross-band
     placement rides `role: decoration`.
+
+    TWO PASSES, and the second only when the first buried something.
+    "Emitted after" is a fact about the ARRAY, so it is read off the
+    first pass's own output rather than predicted from bands — a pinned
+    element holds a slot no band anticipates, and a predicate that
+    guessed would be wrong on exactly the scenes this function is most
+    careful about. The lift only ever moves ink UP out of band 1, so it
+    cannot create a burial the first pass did not have and a third pass
+    would find nothing.
 
     A PINNED ELEMENT HOLDS ITS SLOT. Excalidraw renders array order, so
     the array index IS a position — the one in z — and re-banding a
@@ -11704,13 +11810,17 @@ def normalize_z_order(els):
         A new list in paint order, pinned elements at their original
         indices.
     """
+    lifted: set[str] = set()
+
     def band(e):
         cd = e.get("customData") or {}
         role = cd.get("role")
         if e.get("type") == "frame":
             return 0
         if role == "decoration":
-            return 4 if _composed_part(cd) else 1
+            if _composed_part(cd) or e.get("id") in lifted:
+                return 4
+            return 1
         if e.get("type") in ("arrow", "line"):
             return 2
         if role == "pin":
@@ -11718,13 +11828,25 @@ def normalize_z_order(els):
         if e.get("type") == "text" and e.get("containerId"):
             return 5
         return 3
-    slots = [i for i, e in enumerate(els) if not pinned_to_canvas(e)]
-    if len(slots) == len(els):
-        return sorted(els, key=band)
-    out = list(els)
-    for slot, e in zip(slots, sorted((els[i] for i in slots), key=band)):
-        out[slot] = e
-    return out
+
+    def place():
+        """Sort the unpinned elements over the slots they already hold.
+
+        Returns:
+            A new list, every pinned element still at the index it
+            arrived at and the rest in band order around them.
+        """
+        slots = [i for i, e in enumerate(els) if not pinned_to_canvas(e)]
+        if len(slots) == len(els):
+            return sorted(els, key=band)
+        out = list(els)
+        for slot, e in zip(slots, sorted((els[i] for i in slots), key=band)):
+            out[slot] = e
+        return out
+
+    ordered = place()
+    lifted = _backdrop_text_under_a_fill(ordered)
+    return place() if lifted else ordered
 
 
 # ---------------------------------------------------------------------------

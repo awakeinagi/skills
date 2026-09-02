@@ -5824,6 +5824,92 @@ class TestZOrderNormalization(Base):
         # `FixtureReplayBase`.
         self.assertIsNone(store.catch_up())
 
+    def _shaded(self, fill):
+        """Apply one shaded box carrying a `role: decoration` line on it.
+
+        Args:
+            fill: The box's `backgroundColor`. An opaque colour is the
+                scene the R8 agent drew; `"transparent"` is the control
+                one variable away from it.
+
+        Returns:
+            The stored scene, in the order the op path left it.
+        """
+        self.store.apply_batch(
+            {"base_revn": 0, "artifact": "shade",
+             "create": {"id": "shade", "name": "Shade", "type": "flow"},
+             "ops": [
+                {"op": "add", "element": {
+                    "id": "host", "type": "rectangle", "x": 100, "y": 100,
+                    "width": 240, "height": 100, "label": "Work queue",
+                    "backgroundColor": fill}},
+                {"op": "add", "element": {
+                    "id": "radius", "type": "text", "x": 120, "y": 160,
+                    "text": "the 2-day sweep stops",
+                    "role": "decoration"}}]})
+        return self.store.scenes["shade"]
+
+    def test_a_shaded_box_emits_the_line_written_on_it_last(self):
+        """The fill-over-text repair, through the op path that reaches it.
+
+        R8 turn 10: the agent wrote pre-computed blast radii onto three
+        boxes and then shaded the boxes to group them, and band 1 put
+        each sentence UNDER the fill that swallowed it. Asserted in the
+        stored array and in the markup both, because the array IS the
+        paint order — `render_svg` honours it and so does the shipped
+        client, so a claim about only one of the two would not be a
+        claim about the picture.
+        """
+        els = self._shaded("#ffec99")
+        order = [e["id"] for e in els]
+        self.assertLess(order.index("host"), order.index("radius"),
+                        "the shaded box is still emitted over the line "
+                        "written on it: %s" % order)
+        svg = canvas.render_svg(els)[0]
+        self.assertLess(svg.find("fill='#ffec99'"),
+                        svg.find("the 2-day sweep stops"),
+                        "the fill is painted after the line's glyphs")
+
+    def test_an_uncovered_decoration_line_keeps_its_backdrop_slot(self):
+        """The pole that refuses a repair banding decoration by TYPE.
+
+        Band 1 is where an annotation an agent deliberately placed
+        beneath a drawing survives, and lifting every decoration text
+        would move those too. One variable from the test above — the
+        host's fill — and nothing covers the line, so it must not move.
+        """
+        order = [e["id"] for e in self._shaded("transparent")]
+        self.assertLess(order.index("radius"), order.index("host"),
+                        "an uncovered decoration line lost its low slot, "
+                        "so the lift is firing on type rather than on "
+                        "burial: %s" % order)
+
+    def test_a_covered_backdrop_shape_still_bands_beneath_what_backs_it(self):
+        """A backdrop stays a backdrop: the lift reaches TEXT only.
+
+        `layout.md` instructs the agent to author a solid decoration
+        panel, and its whole job is to be covered — it carries no
+        sentence, so nothing leaves the drawing when it goes under. This
+        one is WHOLLY INSIDE a shaded node, which is the same input the
+        rule above keys on with the ink taken away, so a repair that
+        lifted by coverage alone rather than by ink drags the panel up
+        over the very drawing it backs. Measured: dropping the `text`
+        clause from `_backdrop_text_under_a_fill` reorders this to
+        `a1, n1, d1`.
+        """
+        scene = canvas.normalize_z_order([
+            mk_el(id="n1", type="rectangle", x=0, y=0, width=400,
+                  height=200, backgroundColor="#ffec99", fillStyle="solid",
+                  customData={"role": "node"}),
+            mk_el(id="d1", type="rectangle", x=20, y=20, width=200,
+                  height=100, backgroundColor="#e9e5da", fillStyle="solid",
+                  customData={"role": "decoration"}),
+            mk_el(id="a1", type="arrow", x=0, y=0, width=100, height=0,
+                  points=[[0, 0], [100, 0]],
+                  customData={"role": "edge"})])
+        self.assertEqual([e["id"] for e in scene], ["d1", "a1", "n1"],
+                         "the backdrop panel came up out of band 1")
+
 
 class TestModPathFixes(Base):
     """The mod-dispatch asymmetry family (capability assessment +
