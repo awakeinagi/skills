@@ -29494,14 +29494,16 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # ways of being honest about the same line, and today's tree is none of
 # them.
 #
-# AND IT LEFT 2026-09-02 with the entry above it, in one change, because
-# the two share a site: `Store._record_pin_closure` is where a close
-# writes down why it happened, and `answer_reach` is one more fact it
-# writes there. RB2's shape — coverage stamped at resolve time — so both
-# halves move at once: the pin record carries `named`/`drawn`/`undrawn`
-# and `/api/state` serves it, which is the transient half too. Nothing is
-# stamped with a TIME, deliberately: a `resolved_at` would separate the
-# two controls the neighbour requires to stay identical.
+# THE SECOND ENTRY ARRIVED 2026-09-01, filed by the mutant-curator from
+# finding r8-10 of the R8 optimizer round: an answer that named twelve
+# things the drawing holds none of closes its pin with byte-identical
+# bytes to one that named three it holds all of. HAND-AUTHORED and not a
+# catalogue mutant for the reason the sibling above it gives — the
+# subject is a registry answer and a save record, not a scene, and
+# `collect_findings` runs `lint_layout` over elements and can never see
+# a pin's answer at all. Two reds because the halves fail apart: eight
+# measured repair shapes flip the transient one and only three of them
+# flip the durable one. The catalogue's own comment carries the table.
 # `TestAConfigChangeSaysWhoseHandTurnedIt` ARRIVED ON 2026-09-01, both
 # halves in one change, and it arrived as a LINE rather than as a number.
 # Filed as r8-9 during the R8 optimizer assessment: `config_changed`
@@ -29633,42 +29635,12 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # named; a reader who takes "both closed" above to mean "WP-A is done"
 # has read one sentence too few.
 #
-# AND IT LEFT ON 2026-09-02, both halves in one change, as a LINE rather
-# than as a number. The fixer took NEITHER of the two shapes the class
-# measured for its first half outright: (a) writes the closing words onto
-# the record as the pin's `answer`, which is `propose_pin_answer`'s own
-# door standing open one verb along, so the words land as `closing_note`
-# under `agent-at-close` and `answer` is never touched by a close. The
-# second half took a variant of (f) and (g) together — the draft is
-# cleared into `dropped_proposal`, a `pin_resolved` event carries it and
-# the apply's notes name it — over the refusals (d)/(e)/(h), because a
-# close that cannot shut a pin whose draft the user never ruled on has no
-# exit at all: `discard` is the user's act and there is no op for it.
-# `status` stays `resolved`, so (l)'s trap does not arise and
-# `Store.pin_debt` needed no widening.
-# `TestAShadedBoxKeepsTheLineWrittenOnIt` ARRIVED 2026-09-01 with the R8
-# close's fill-over-text finding (pipeline r8-close, leaf 1.3.1) — a
-# RECURRENCE at n=2 inside one run, and the first entry here whose subject
-# is a hole a previous fix left on purpose rather than one nobody had seen.
-# Task 45 lifted every TAGGED composed part above its owner and wrote down
-# that an untagged `role: decoration` stays beneath because it is a
-# backdrop; R8 shaded three boxes and the fill ate the blast-radius TEXT
-# lines drawn on them, which is that sentence meeting an element a backdrop
-# can never be. One red because the class has one subject and the arms of
-# its disjunction fail together: refused, visible and reported are three
-# ways of being honest about the same line, and today's tree is none of
-# them.
-#
-# THE SECOND ENTRY ARRIVED 2026-09-01, filed by the mutant-curator from
-# finding r8-10 of the R8 optimizer round: an answer that named twelve
-# things the drawing holds none of closes its pin with byte-identical
-# bytes to one that named three it holds all of. HAND-AUTHORED and not a
-# catalogue mutant for the reason the sibling above it gives — the
-# subject is a registry answer and a save record, not a scene, and
-# `collect_findings` runs `lint_layout` over elements and can never see
-# a pin's answer at all. Two reds because the halves fail apart: eight
-# measured repair shapes flip the transient one and only three of them
-# flip the durable one. The catalogue's own comment carries the table.
+# THE R8 WAVE LEFT ON 2026-09-02. Every class that ARRIVED on 2026-09-01
+# above — nine of them, eighteen reds — was flipped by the r8-fixes pipeline,
+# each by hands that did not curate it, each with its body untouched except
+# the decorator, and each fold commit carries the fix branch as a parent. The
+# ARRIVED notes stay as the record of why each red was filed; the dict and
+# the roster are the record of what is red NOW, and they agree by test.
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
