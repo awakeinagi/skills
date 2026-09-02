@@ -29350,7 +29350,6 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
     "TestACorrectionWaveHeadlinesWhatSomebodyAuthored": 2,
     "TestAStoredCaptionAnchorTheClientDisagreesWithIsReported": 1,
-    "TestOnePairGetsOneVerdictOnWhetherItMayStand": 2,
     "TestAClosedPinSaysWhyItClosed": 2,
     "TestAShadedBoxKeepsTheLineWrittenOnIt": 1,
     "TestAnAnsweredPinIsNotNarratedAsARemoval": 2,
@@ -29375,7 +29374,14 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # halves fail apart: the ROUND TRIP (every door taken, the pair still warned)
 # and the AFFORDANCE (the surviving warning has no door of its own). Nine
 # repair shapes were driven and flip them; a tenth that only rewords the
-# remedy flips neither, which is what the class is for.
+# remedy flips neither, which is what the class is for. IT LEFT THIS DICT
+# ON 2026-09-02 under the first of those nine: the shared-attach warning
+# now mints `attach:<artifact>:<node>:<a>:<b>` and skips itself when that
+# key is recorded, so both sentences about one pair are answerable and
+# neither the detector's radius nor its remedies moved. The class stays
+# in the file with its guard and its live control still running, which is
+# the point of a red that outlives its flip — the prose above is why a
+# doorless warning is a defect, and nothing else in the tree says it.
 # `TestAClosedPinSaysWhyItClosed` ARRIVED ON 2026-09-01, found during the
 # R8 close (finding r8-8), hours after the entry below left. It is the
 # other end of the same door: the provenance repair made the agent's
@@ -52383,7 +52389,6 @@ class TestOnePairGetsOneVerdictOnWhetherItMayStand(unittest.TestCase):
             "would be accusing the wrong half"
             % (sorted(keys), survivors))
 
-    @unittest.expectedFailure
     def test_waiving_every_door_the_pair_was_offered_settles_the_pair(
             self) -> None:
         """The round trip: the user's decision does not reach the pair.
@@ -52411,7 +52416,6 @@ class TestOnePairGetsOneVerdictOnWhetherItMayStand(unittest.TestCase):
             "have ruled fixed — %r"
             % (sorted(keys), len(survivors), survivors))
 
-    @unittest.expectedFailure
     def test_every_warning_about_the_pair_offers_a_door_of_its_own(
             self) -> None:
         """The affordance: one of the two sentences has no door at all.

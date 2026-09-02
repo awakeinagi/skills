@@ -8467,6 +8467,15 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         trip — key parsed back out of the emitted finding, fed to
         `lint_layout` as a waive, finding silent — is in
         `TestTextDrawnOnText`.
+
+        THE NINETEENTH ARRIVED on 2026-09-02 and was also born right:
+        `shared_attach_point` grew the `attach:` door it had never had
+        (r8-4), and its round trip is in
+        `TestASharedAttachPointCanBeRecordedAsDeliberate`. That one
+        matters more than the count it moves — it is the first finding
+        added here BECAUSE it had no door rather than in spite of it, so
+        the number below is now also a census of the findings that ask
+        the user for something and let them answer.
         """
         src = Path(canvas.__file__).read_text(encoding="utf-8")
         spellings = [ln for ln in src.splitlines() if "action: waive" in ln]
@@ -8477,9 +8486,316 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         self.assertTrue(spellings[-1].strip().startswith('return "waive {'),
                         spellings)
         self.assertEqual(
-            src.count("waive_hint("), 19,
-            "the waive call sites moved — 18 findings plus the "
+            src.count("waive_hint("), 20,
+            "the waive call sites moved — 19 findings plus the "
             "definition. Re-derive this count; do not relax it")
+
+
+class TestASharedAttachPointCanBeRecordedAsDeliberate(Base):
+    """r8-4: the shared-attach finding has a door, and it is its own.
+
+    THE DEFECT, from the R8 capability assessment. Two warnings fired on
+    one arrow pair and disagreed about whether the pair could stand: the
+    lane warning printed `waive {op: registry, ...}` and cleared, while
+    `shared_attach_point` printed no key at all and offered three
+    remedies that are all GEOMETRY — including "move the nodes apart",
+    which is precisely what the user had just ruled out. A user could
+    answer one sentence about the pair and never the other.
+
+    THE DETECTOR WAS RIGHT AND STAYS UNTOUCHED. The feet really are 10px
+    apart, inside `FAN_LANE_PITCH`, and the strokes really do merge —
+    what was missing was the DOOR, so nothing here asserts a radius or a
+    remedy's prose. `test_the_radius_did_not_move` is the pin for that:
+    a repair that bought the waive by making the check quieter would
+    satisfy every other method in this class.
+
+    WHY A ROUND TRIP AND NOT A SUBSTRING. `waives=` passed straight to
+    `lint_layout` proves the lookup and nothing about the op an agent is
+    told to copy — the v0.9 I-1 defect was an envelope the validator
+    rejected while every key was correct end to end. Each case here
+    parses the key out of the finding the lint ACTUALLY EMITTED, sends
+    it through `Store.apply_batch`, and re-lints through `project_lint`,
+    which is the reader the loop calls and the surface the assessment
+    persona met.
+    """
+
+    WAIVE = re.compile(r"waive \{op: registry, action: waive, "
+                       r"key: '([^']+)', reason: \.\.\.\}")
+
+    def _node(self, nid, x, y):
+        """One 120x60 flow node.
+
+        Args:
+            nid: Element id, which is also the name the warnings print.
+            x: Left edge.
+            y: Top edge.
+
+        Returns:
+            A `role: node` rectangle.
+        """
+        return mk_el(id=nid, type="rectangle", x=float(x), y=float(y),
+                     width=120.0, height=60.0,
+                     customData={"role": "node", "label": nid})
+
+    def _arrow(self, eid, pts, src, dst):
+        """One authored elbow arrow, BOUND BY ITS `points`.
+
+        The stored extent is derived from the point list rather than
+        given, because the check under test reads `canvas.bbox_pts`,
+        which walks `points` — an extent set by hand could put the feet
+        somewhere the lint never looks and this class would measure a
+        scene that is not the one drawn.
+
+        Args:
+            eid: Element id.
+            pts: Absolute (x, y) waypoints, first to last.
+            src: `startBinding` target id.
+            dst: `endBinding` target id.
+
+        Returns:
+            A `role: edge` arrow whose extent agrees with its points.
+        """
+        x0, y0 = pts[0]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        return mk_el(id=eid, type="arrow", x=float(x0), y=float(y0),
+                     width=max(xs) - min(xs), height=max(ys) - min(ys),
+                     points=[[float(px - x0), float(py - y0)]
+                             for px, py in pts],
+                     startBinding={"elementId": src, "focus": 0, "gap": 1},
+                     endBinding={"elementId": dst, "focus": 0, "gap": 1},
+                     customData={"role": "edge", "routed": "authored"})
+
+    def converging(self, sep=10.0):
+        """Two authored edges arriving at `n-t` with their feet `sep` apart.
+
+        `routed: "authored"` is the sharpest form of the subject rather
+        than a convenience: `server_owns_geometry` answers False on it,
+        so the product knows this path is the user's own and warns about
+        it anyway. The elbows exist so each arrow leaves its source at a
+        real border and the endpoint lint stays out of the reading.
+
+        Args:
+            sep: Vertical separation between the two feet, in px.
+
+        Returns:
+            The element list, in wire order.
+        """
+        return [
+            self._node("n-a", 280, 60), self._node("n-b", 280, 300),
+            self._node("n-t", 500, 200),
+            self._arrow("e-a-t", [(340, 120), (340, 220), (500, 220)],
+                        "n-a", "n-t"),
+            self._arrow("e-b-t", [(340, 300), (340, 220 + sep),
+                                  (500, 220 + sep)], "n-b", "n-t")]
+
+    def seed(self, aid, els):
+        """Put a scene on disk and reload the store around it.
+
+        Args:
+            aid: Artifact id.
+            els: The elements.
+        """
+        canvas.write_json(
+            self.project.artifacts_dir / (aid + ".excalidraw"),
+            {"type": "excalidraw", "version": 2, "source": canvas.SOURCE_NAME,
+             "elements": els,
+             "appState": {"viewBackgroundColor": canvas.PAPER_GROUND},
+             "wysiwyg": {"artifact": aid, "name": aid, "migrations":
+                         ["0001-baseline"], "artifact_type": "flow"}})
+        self.store = canvas.Store(self.project)
+
+    def about_the_pair(self, aid):
+        """The warnings naming BOTH arrows of the converging pair.
+
+        Selected by ELEMENT ID and not by any phrase either emitter
+        prints, so a reworded remedy does not move this class and a
+        repair that folded the two sentences into one would.
+
+        Args:
+            aid: Artifact id.
+
+        Returns:
+            The matching warnings, registry waives applied.
+        """
+        out = canvas.project_lint(self.project, self.store.scenes[aid],
+                                  registry=self.store.registry,
+                                  artifact_type="flow", aid=aid)
+        return [w for w in out["warnings"]
+                if "e-a-t" in w and "e-b-t" in w]
+
+    def keys_offered(self, aid):
+        """Every waive key the pair's warnings print, by warning.
+
+        Args:
+            aid: Artifact id.
+
+        Returns:
+            A dict of warning text to the key it offered, omitting any
+            warning that offered none.
+        """
+        got = {}
+        for w in self.about_the_pair(aid):
+            m = self.WAIVE.search(w)
+            if m:
+                got[w] = m.group(1)
+        return got
+
+    def record(self, aid, key):
+        """Waive one key through the real apply path.
+
+        `apply_batch` and not `registry["waives"]` directly, because
+        `apply_batch` is what rejected the envelope-less spelling and is
+        the only place the op an agent copies is actually validated.
+
+        Args:
+            aid: Artifact id the batch is posted against.
+            key: The waive key, as the finding printed it.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": aid,
+            "ops": [{"op": "registry", "action": "waive", "key": key,
+                     "reason": "the user ruled this shape fixed"}]})
+
+    def test_both_sentences_about_the_pair_offer_a_door(self):
+        """The affordance, at the surface an agent actually reads.
+
+        The COUNT is asserted beside the doorlessness so that a repair
+        which folded the two warnings into one is caught here rather
+        than passing on a comprehension over a shorter list.
+        """
+        self.seed("conv", self.converging())
+        mine = self.about_the_pair("conv")
+        self.assertEqual(len(mine), 2, mine)
+        doorless = [w for w in mine if not self.WAIVE.search(w)]
+        self.assertEqual(
+            doorless, [],
+            "a warning about this pair offers no way to record a "
+            "decision, so the pair gets two verdicts on whether it may "
+            "stand: %r" % (doorless,))
+        self.assertEqual(
+            sorted(self.keys_offered("conv").values()),
+            ["attach:conv:n-t:e-a-t:e-b-t", "lane:conv:e-a-t:e-b-t"], mine)
+
+    def test_the_attach_key_goes_through_apply_batch_and_silences_it(self):
+        """The round trip: the op the message prints is one the validator
+        takes and the lint then reads.
+
+        The key is parsed back out of the emitted finding rather than
+        written here, because a literal in this file would pass over the
+        next spelling drift — which is the exact shape of the v0.9 I-1
+        defect, where every key was right and every envelope was wrong.
+        """
+        self.seed("conv", self.converging())
+        attach = [w for w in self.about_the_pair("conv")
+                  if "share an attach point" in w]
+        self.assertEqual(len(attach), 1, attach)
+        key = self.WAIVE.search(attach[0]).group(1)
+        self.record("conv", key)
+        after = self.about_the_pair("conv")
+        self.assertEqual(
+            [w for w in after if "share an attach point" in w], [],
+            "%s was waived and the drawing still argues about the shared "
+            "foot: %r" % (key, after))
+
+    def test_taking_every_door_the_pair_offers_settles_it(self):
+        """Both doors taken, nothing left — the incident, end to end.
+
+        The user's sentence was "it is not going to change and I don't
+        need to be told again — but don't redraw it", and this is that
+        sentence spelled as ops: two waives, no `mod`, and the pair goes
+        quiet with its geometry exactly as authored. The second
+        assertion is what makes the first mean anything — a pair
+        silenced by being redrawn would satisfy it otherwise.
+        """
+        els = self.converging()
+        self.seed("conv", els)
+        for key in sorted(self.keys_offered("conv").values()):
+            self.record("conv", key)
+        self.assertEqual(self.about_the_pair("conv"), [])
+        self.assertEqual(
+            [e["points"] for e in self.store.scenes["conv"]
+             if e["id"] in ("e-a-t", "e-b-t")],
+            [e["points"] for e in els if e["id"] in ("e-a-t", "e-b-t")],
+            "the pair went quiet by being REDRAWN, which is the one "
+            "remedy the user forbade")
+
+    def test_neither_door_answers_the_other_sentence(self):
+        """The two findings are independent, asserted in both directions.
+
+        A repair that made the lane key silence the shared-attach
+        warning would pass the round trip above while taking a decision
+        the user never made: "these two run as one stroke and I accept
+        it" is not "these two feet land on one point and I accept that
+        too". Both directions, because an inheritance in either one is
+        the same conflation seen from the other end.
+        """
+        self.seed("conv", self.converging())
+        offered = set(self.keys_offered("conv").values())
+        lane = next(k for k in offered if k.startswith("lane:"))
+        attach = next(k for k in offered if k.startswith("attach:"))
+        self.record("conv", lane)
+        self.assertTrue(
+            [w for w in self.about_the_pair("conv")
+             if "share an attach point" in w],
+            "waiving %s silently answered the shared-attach sentence, "
+            "which the user never read" % lane)
+        self.seed("conv2", self.converging())
+        self.record("conv2", attach.replace(":conv:", ":conv2:"))
+        self.assertTrue(
+            [w for w in self.about_the_pair("conv2")
+             if "run together for" in w],
+            "waiving the shared foot silently answered the lane sentence")
+
+    def test_the_key_is_scoped_to_its_artifact_and_its_node(self):
+        """One decision does not silence a place the user never read.
+
+        TWO SCOPES IN ONE METHOD because they are one claim about the
+        key's shape: `attach:<artifact>:<node>:<a>:<b>` names WHERE the
+        finding is, so a waive recorded on one drawing leaves the other
+        alone and — the half that is this leaf's own choice rather than
+        the house convention — a pair bound at both ends is two
+        sentences about two places and needs two answers.
+        """
+        self.seed("conv", self.converging())
+        attach = next(k for k in self.keys_offered("conv").values()
+                      if k.startswith("attach:"))
+        self.seed("other", self.converging())
+        self.record("other", attach)
+        self.assertTrue(
+            [w for w in self.about_the_pair("other")
+             if "share an attach point" in w],
+            "a waive keyed to `conv` silenced `other`: %r" % attach)
+        both = canvas.lint_layout(
+            [self._node("A", 100, 100), self._node("B", 600, 100),
+             self._arrow("e1", [(220, 130), (600, 130)], "A", "B"),
+             self._arrow("e2", [(220, 136), (600, 136)], "A", "B")],
+            aid="ends", waives={"attach:ends:a:e1:e2": {}})["warnings"]
+        said = [w for w in both if "share an attach point" in w]
+        self.assertEqual(
+            len(said), 1,
+            "these two arrows share a foot on A AND on B — two sentences "
+            "about two places — and one waive answered %d of them: %r"
+            % (2 - len(said), both))
+        self.assertIn("attach:ends:b:e1:e2", said[0])
+
+    def test_the_radius_did_not_move(self):
+        """The door was what was missing, so the check must not have
+        moved to pay for it.
+
+        `FAN_LANE_PITCH` is the radius and `<` is strict, measured
+        across the 120-row cramped-side sweep: every row the lane lint
+        is silent on leaves its feet exactly 18.00px apart. BOTH POLES
+        are driven — 10px still warns with no waive recorded, 18px says
+        nothing — because a repair that widened the door by narrowing
+        the check would pass every other method above and leave the user
+        with a lint that had quietly stopped noticing.
+        """
+        self.seed("tight", self.converging(10.0))
+        self.assertTrue([w for w in self.about_the_pair("tight")
+                         if "share an attach point" in w])
+        self.seed("loose", self.converging(canvas.FAN_LANE_PITCH))
+        self.assertEqual([w for w in self.about_the_pair("loose")
+                          if "share an attach point" in w], [])
 
 
 class TestNoPostBodyReachesAHandlerUnshaped(Base):
@@ -10569,6 +10885,20 @@ class TestPairKindAndTheSentencesItProduces(unittest.TestCase):
         happened to share an attach point earlier in the same drawing.
         Asserted for all three lints from one scene, because one shared
         cause would break them all and one fix repairs them all.
+
+        FOUR LINTS SINCE 2026-09-02, and the fourth is the sharpest of
+        them: `shared_attach_point` is the block that CAUSED this bug,
+        and until r8-4 it minted no key at all, so it was the one lint
+        the regression could not be asserted on. Now that it has an
+        `attach:` door of its own, the loop that used to overwrite `aid`
+        reads `aid` itself, one line below the comment recording why.
+
+        TWO ATTACH KEYS AND ONE OF EVERYTHING ELSE, which is the key
+        granularity stated rather than incidental: these arrows share a
+        foot at BOTH ends, and that is two sentences about two different
+        places on the page. A pair-only key would let a user who
+        answered the one about `A` silence the one about `B` unread, so
+        the node is in the key.
         """
         els = self._swapped_scene()
         els.append({"id": "A-label", "type": "text", "x": 110, "y": 110,
@@ -10581,7 +10911,9 @@ class TestPairKindAndTheSentencesItProduces(unittest.TestCase):
         keys = re.findall(r"key: '([^']+)'", " ".join(li["warnings"]))
         self.assertEqual(
             sorted(keys),
-            ["bidi:myflow:e1:e2", "ghost:myflow:a-label", "lane:myflow:e1:e2"],
+            ["attach:myflow:a:e1:e2", "attach:myflow:b:e1:e2",
+             "bidi:myflow:e1:e2", "ghost:myflow:a-label",
+             "lane:myflow:e1:e2"],
             li["warnings"])
         # the shared-attach block DID run — otherwise this proves nothing
         self.assertTrue([w for w in li["warnings"]

@@ -21091,16 +21091,53 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                             why.append("%s has %d waypoints (the fan only "
                                        "moves 2- and 3-point paths)"
                                        % (who, npts))
+                    # A DOOR OF ITS OWN (r8-4). Every remedy above is a
+                    # GEOMETRY change, and this warning used to offer
+                    # nothing else — so a user who has ruled the shape
+                    # fixed ("it is not going to change and I don't need
+                    # to be told again — but don't redraw it") could
+                    # answer the lane warning about this same pair and
+                    # not this one. Two sentences about one pair
+                    # disagreeing about whether it may stand is the
+                    # defect; the detector is right and it was the DOOR
+                    # that was missing, so nothing about the geometry
+                    # test above moved.
+                    #
+                    # PER PAIR AND PER NODE, not per pair alone: the
+                    # sentence's own subject is "these two share a foot
+                    # ON THIS NODE", and a pair bound at both ends emits
+                    # two of them about two different places. One key
+                    # for both would silence a place the user never
+                    # read. `slugify` and the leading `aid` follow
+                    # `lane:`'s spelling exactly — one convention for
+                    # keys naming an unordered arrow pair, and
+                    # `test_the_waive_keys_name_the_artifact_and_not_an_arrow`
+                    # holds both to carrying the artifact rather than an
+                    # arrow id.
+                    #
+                    # `attach_key` AND NOT `key`: the binding-side loop
+                    # above already binds `key` at function scope, and
+                    # overwriting a name this pass reads later is the
+                    # exact shape of the `aid` bug the comment above
+                    # records. Cheap to avoid, expensive to find.
+                    attach_key = "attach:%s:%s:%s:%s" % (
+                        aid or "<artifact>", slugify(tgt), slugify(id1),
+                        slugify(id2))
+                    if waives and attach_key in waives:
+                        continue
                     warnings.append(
                         "%ss %s and %s share an attach point on %s — "
                         "%s. Author waypoints via `mod points`, simplify "
-                        "the path, or move the nodes apart"
+                        "the path, or move the nodes apart. If the two "
+                        "feet are meant to land together, say so once "
+                        "and this stops asking: %s"
                         % (connector_noun(ix.get(id1) or {},
                                           ix.get(id2) or {}),
                            id1, id2, name(tgt),
                            "the auto-fan could not move them: "
                            + "; ".join(why) if why else
-                           "the auto-fan ran and left them together"))
+                           "the auto-fan ran and left them together",
+                           waive_hint(attach_key)))
     # ---- WARNING: phantom pass-through (WP4b e1) ---------------------
     # One arrow arrives at N and another leaves it on the same line, and
     # their feet are closer together than N is wide — so between them
