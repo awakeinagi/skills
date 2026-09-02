@@ -85,14 +85,22 @@ export function TripwireCard({
 }
 
 export function QuestionModal({
-  kind, data, onClose, onGoto, onAnswer, debt,
+  kind, data, onClose, onGoto, onAnswer, onPromote, onDiscardProposal, debt,
 }: {
   kind: "pin" | "tripwire"; data: any;
   onClose: () => void; onGoto: (() => void) | null;
   onAnswer?: ((answer: string) => void) | null;
+  /**
+   * Accept a waiting agent draft — the argument is the wording being
+   * accepted, blank for "as written". The agent cannot reach this.
+   */
+  onPromote?: ((answer: string) => void) | null;
+  /** Throw the waiting draft away and leave the question open. */
+  onDiscardProposal?: (() => void) | null;
   debt?: any;
 }) {
   const [text, setText] = useState("");
+  const [draft, setDraft] = useState<string | null>(null);
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
@@ -148,10 +156,53 @@ export function QuestionModal({
             </ul>
           </div>
         )}
+        {/* A draft the agent left, and the three things the user can do
+            with it. It sits ABOVE the answer box for the reason the rail
+            orders it the same way: accepting a draft and writing an
+            answer are two different acts and must not read as one. */}
+        {onAnswer && data.proposed_answer && (
+          <div className="modal-section proposal">
+            <h4>The agent drafted an answer for you</h4>
+            {draft === null ? (
+              <p className="proposal-text">“{data.proposed_answer}”</p>
+            ) : (
+              <textarea className="proposal-edit" autoFocus value={draft}
+                onChange={(e) => setDraft(e.target.value)} />
+            )}
+            <p className="dim">This is the agent's wording, not your
+              answer. Nothing is recorded as yours until you accept it.</p>
+            {onPromote && (
+              <div className="proposal-row">
+                <button disabled={draft !== null && !draft.trim()}
+                  onClick={() => onPromote(draft === null ? "" : draft.trim())}>
+                  {draft === null ? "Accept as written" : "Accept my wording"}
+                </button>
+                {draft === null
+                  ? <button className="linkish"
+                      onClick={() => setDraft(data.proposed_answer)}>
+                      ✎ edit first
+                    </button>
+                  : <button className="linkish"
+                      onClick={() => setDraft(null)}>cancel edit</button>}
+                {onDiscardProposal && (
+                  <button className="linkish dismiss"
+                    title="throw the draft away — the question stays open"
+                    onClick={onDiscardProposal}>✕ discard draft</button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {data.answer && (
           <div className="modal-section">
-            <h4>Your answer</h4>
+            <h4>{data.answer_source === "agent-proposal"
+              ? "Your answer, from the agent's draft" : "Your answer"}</h4>
             <p>↳ {data.answer}</p>
+            {data.answer_source === "agent-proposal" && (
+              <p className="dim">{data.answer === data.proposed_answer
+                ? "You accepted the agent's wording as written — the ruling is yours, the sentence was its."
+                : `You rewrote the agent's draft before accepting it. It had offered “${data.proposed_answer}”.`}</p>
+            )}
           </div>
         )}
         {onAnswer && (

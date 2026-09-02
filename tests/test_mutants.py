@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import argparse
 import ast
+import bisect
 import builtins
 import contextlib
 import copy
 import datetime
+import functools
 import hashlib
 import importlib.util
 import inspect
@@ -28,6 +30,8 @@ import sys
 import tempfile
 import textwrap
 import unittest
+import urllib.error
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                        "skills" / "wysiwyg-grilling" / "scripts"))
 import canvas
 import focus_probe
+import guard_mutants
 import instruments
 from tests_helpers import el, ink_box, measured
 
@@ -670,6 +675,180 @@ def _collect_float_diamond(els: list[dict]) -> list[dict]:
             for h in hits]
 
 
+# The line `pin_drift` emits, matched only far enough to name the pin —
+# deliberately the same anchor `_PIN_DRIFT_RE` settled on, and for the
+# reason written above it. The reading below is taken from the SAME line,
+# so this is what pairs the two.
+_PIN_RIVAL_LINE = re.compile(r"pin (?P<element>[\w-]+) asks about ")
+# WHAT THE PIN-DRIFT SENTENCE SAYS ABOUT THE RIVAL'S SEPARATION, read back
+# out of `canvas.lint_layout`'s own words. This is an ADAPTER and not a
+# second instrument, and the distinction is the only thing that makes it
+# worth anything: every number it reports is lifted from the sentence, so
+# it cannot pass a scene the check answered wrongly. A collector that
+# re-measured the geometry here would be computing its own expectation and
+# would agree with itself on every input.
+#
+# IT SPEAKS ONLY FOR THE `crowded` ARM, which is the arm that names a
+# rival. The `stranded` arm (`stranded = own > reach`) reports a ❓ further from its
+# target than the target is wide, and its sentence has no rival clause at
+# all — none of the readings below match it, so this check is silent
+# there, correctly: there is no rival distance to be right or wrong about.
+#
+# THE LIST IS ORDERED AND ITS PLURALITY IS THE POINT. `_rect_gap`
+# is quoted WHOLE here — as it stood on main — because a fragment of it is what
+# sent one review down a wrong branch — read as `max(bx1 - ax2, ax1 - bx2,
+# 0)` alone it looks like a single-axis clamp, and the repair space for
+# that is a different space:
+#
+#     return math.hypot(max(bx1 - ax2, ax1 - bx2, 0),
+#                       max(by1 - ay2, ay1 - by2, 0))
+#
+# A 2D box distance with EACH AXIS CLAMPED INDEPENDENTLY. When the boxes
+# overlap both terms clamp and the whole thing is `hypot(0, 0)` — one
+# sentence for two pictures: a ❓ whose
+# slot ABUTS the rival and a ❓ whose slot is buried 10px inside it both
+# read "only 0px from <rival>". (The pair below is not that pair: it holds
+# 16px of real air against 10px of penetration, so the neighbour reads
+# 16/clear. The two readings the CHECK cannot tell apart are abutting and
+# buried, and both come back 0/clear.) More than one honest repair fixes
+# it, and a reading that accepted only one would have prescribed it:
+#
+#   (A) extend `_rect_gap` THROUGH ZERO — return the negated minimum
+#       translation distance when the boxes overlap, so the sentence
+#       reads "only -10px". Note the shape: this is NOT "put a sign on
+#       the hypotenuse". For DISJOINT boxes `hypot` already IS the
+#       minimum translation distance, and its continuation through zero
+#       is `-min(x_depth, y_depth)` — one axis binds, they do not
+#       combine. `hypot(10, 36) = 37.4` is a different quantity and the
+#       band below excludes it deliberately.
+#   (B) keep the clamp and add a clause naming the penetration:
+#       "overlaps <rival> by 10px".
+#   (C) drop "only Npx from" for an on-top phrasing when the boxes
+#       intersect: "drawn on top of <rival> by 10px", "10px into <rival>".
+#
+# THE RECOMMENDATION IS (A), and the first draft of this comment got the
+# reason for (B) backwards. It said the clamp "has callers that DO want 0
+# when they touch". IT HAS NO SUCH CALLERS: on main `grep -rn _rect_gap`
+# finds the definition at canvas.py:14976 and exactly two production
+# reads, `own` at :20680 and `d` at :20688, BOTH inside the pin loop under
+# repair (the rest are test scene constructors). There is no third party
+# to protect, so (B)'s stated justification does not exist. Measured cost
+# of (A) over the frozen corpus: 5 pin_drift sentences on 24 artifacts,
+# firing count changed on ZERO, text changed on exactly TWO — and both of
+# those are the defect (`argus-r4-arm4/admin-console-wireframe`
+# pin-rerun-unit at -10px, `argus-r4-arm4/dashboard-wireframe`
+# pin-report-page at -20px; both pins open, neither waived).
+#
+# AND (A) REMOVES A NONDETERMINISM THE CLAUSE REPAIRS LEAVE STANDING. The
+# rival is selected by `d < rival_gap` — the FIRST
+# minimum wins — so under the clamp every overlapping rival ties at 0 and
+# the sentence names whichever node comes first in the element list.
+# Measured on main, a ❓ overlapping two nodes at 6px and 16px: the
+# sentence names the SHALLOW one in one element order and the DEEP one in
+# the other. Extended through zero it names the deep one in both.
+#
+# EXTEND THE RIVAL READ ONLY — NOT THE `own` READ ABOVE IT, and
+# this is the one part of (A) that is not free. Both go through the same
+# helper, so changing the helper changes both, and `own` feeds `crowded`
+# (`own - rival_gap >= PIN_HUG_PX`) and `stranded`
+# (`own > reach`). Under the clamp `crowded` can NEVER hold for a ❓
+# overlapping its own target: `own` clamps to 0 and `rival_gap` is
+# non-negative, so the difference is at most 0. Extended, it can. Measured
+# on main: a ❓ 4px onto its target and 12px into a neighbour is SILENT
+# today and fires under a helper-level (A) saying "drawn -4px from it" — a
+# nonsense phrase about a pin sitting on the very thing it asks about. The
+# population is not empty either: 5 of the corpus's 40 targeted pins sit
+# ON their own target, none currently firing, so today's inertness belongs
+# to those five scenes and not to the repair. Extend the rival read and
+# leave `own` clamped, or pin the gate on a ❓-over-its-own-target scene.
+#
+# BOTH LANDED ON 2026-09-01, and the "or" was wrong — the second is not an
+# alternative to the first, it is what caught the first being incomplete.
+# `pin_over_its_own_target_stays_quiet_about_rivals` is that pin, and it
+# measures this paragraph's instruction RED: extending the rival read and
+# leaving `own` clamped is not sufficient, because `crowded` subtracts one
+# gap from the other, so `own` floors to 0 and a rival 22px deep still
+# gives `0 - -22 = 22 >= 8`. What the shipped repair also does — and what
+# this paragraph did not ask for — is floor the rival's gap back for the
+# GATE while the sentence reports the depth. See that entry's five-tree
+# matrix; the row this paragraph describes is its third.
+#
+# Overlap spellings are tried FIRST and the clamped slot is the fallback,
+# so a repair that both extends the slot and adds a clause still reports
+# one finding with the penetration in it. A fix that spells this a fourth
+# way should ADD a row here in the open rather than leave the red red —
+# the contract is "the sentence names the penetration as a number", and
+# these are the spellings that count as naming it.
+#
+# TWO RESIDUALS, both bounded rather than waved at, because a reading that
+# scans the whole line can be fooled by the line:
+#
+#   1. Rows 2-4 would also match a px measurement written into the PIN'S
+#      OWN QUESTION, which `pin_drift` quotes. Both scenes below therefore
+#      ask a question with no digits in it, deliberately.
+#   2. `[^.]{0,40}?` in rows 2-3 is a real ceiling, not a formality. On a
+#      labelled rival the tail is the parenthetical `pin_drift` prints,
+#      and the corpus's five are 25/21/20/17/14 chars. The worst is
+#      `btn-rerun-scoring (…'Re-run scoring & cut')` at 25, leaving 15 of
+#      the 40 spare — measured, because an earlier draft of this line
+#      attributed that 25 to `chart-heatmap`, which is 20 with 20 spare.
+#      The number was right and the rival was not, which is the same
+#      misattribution the entry below corrects one paragraph later. A
+#      rival label past ~55 chars, or any label CONTAINING A PERIOD
+#      (`[^.]` stops there), drops the line to the `clear` row. The
+#      consequence runs the bad way: an honest fix would read as
+#      unfinished. Unreachable from this red, whose `gate` carries no
+#      label at all, so it is written down rather than guarded — widen
+#      the bound when a fix lands and a corpus rival outgrows it.
+_PIN_RIVAL_READINGS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("overlap", re.compile(r"only -(?P<mag>\d+(?:\.\d+)?)px from [\w-]+")),
+    ("overlap", re.compile(r"overlaps [\w-]+[^.]{0,40}? by "
+                           r"(?P<mag>\d+(?:\.\d+)?)px")),
+    ("overlap", re.compile(r"on top of [\w-]+[^.]{0,40}? by "
+                           r"(?P<mag>\d+(?:\.\d+)?)px")),
+    ("overlap", re.compile(r"(?P<mag>\d+(?:\.\d+)?)px "
+                           r"(?:into|inside|deep into) [\w-]+")),
+    ("clear", re.compile(r"only (?P<mag>\d+(?:\.\d+)?)px from [\w-]+")),
+)
+
+
+def _collect_pin_rival_gap(els: list[dict]) -> list[dict]:
+    """One finding per crowded pin: how far its ❓ is from the RIVAL.
+
+    `pin_drift` asserts the distance to the pin's own TARGET — that is
+    the magnitude in both its arms — and `_PIN_DRIFT_RE` deliberately
+    stops at `Npx from it` so it enforces no phrasing past that point.
+    The rival's distance is therefore the one number in that sentence
+    nothing has ever read: whether the ❓ is CLEAR of the node it now
+    reads as belonging to, or drawn ON it, and by how much.
+
+    Args:
+        els: The scene's element list.
+
+    Returns:
+        A findings list for the `pin_rival_gap` check, one per pin line
+        that names a rival, with `magnitude` the separation in px (always
+        positive) and `direction` either `"clear"` or `"overlap"`. The
+        `stranded` arm names no rival and yields nothing.
+    """
+    lint = canvas.lint_layout(els, artifact_type="flow")
+    findings: list[dict] = []
+    for line in lint["errors"] + lint["warnings"] + lint["notes"]:
+        head = _PIN_RIVAL_LINE.search(line)
+        if head is None:
+            continue
+        for direction, pattern in _PIN_RIVAL_READINGS:
+            hit = pattern.search(line)
+            if hit is None:
+                continue
+            findings.append({"check": "pin_rival_gap",
+                             "element": head.group("element"),
+                             "magnitude": float(hit.group("mag")),
+                             "direction": direction, "raw": line})
+            break
+    return findings
+
+
 DETECTORS: dict[str, dict] = {
     "endpoint_gap": {"lint_re": _ENDPOINT_RE,
                      "dirmap": {"away": "outside",
@@ -874,6 +1053,20 @@ DETECTORS: dict[str, dict] = {
     "shared_corridor": {"collect": _collect_corridors},
     "false_bidi": {"collect": _collect_false_bidi},
     "float_diamond": {"collect": _collect_float_diamond},
+    # Curator, r8-7, 2026-09-01. The SECOND number in `pin_drift`'s
+    # crowded sentence, and the one no spec reaches: that check's regex
+    # stops at `Npx from it` on purpose (its magnitude is the target's,
+    # in both arms), so nothing has ever asserted the rival's. A
+    # `collect` and not a `lint_re` because the repair space is plural —
+    # see `_PIN_RIVAL_READINGS` — and a single regex would have picked
+    # the winner, which is the failure the widening of `_PIN_DRIFT_RE`
+    # was itself a correction for. It reads the same lint line
+    # `pin_drift` does, so the two rows rise and fall together and
+    # neither can be proven by a scene the other never saw. No dirmap,
+    # like the four `collect` siblings above: a dirmap translates a
+    # phrase a REGEX captured, and this adapter sets `direction` itself
+    # from which reading matched.
+    "pin_rival_gap": {"collect": _collect_pin_rival_gap},
     # The render tier's two detectors are registered HERE, not by
     # test_mutants_render.py updating this dict at import: `--coverage`
     # runs through this file's standalone `__main__` (file tail), which
@@ -1800,16 +1993,44 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
         Args:
             url: The absolute URL the driver built.
             payload: JSON body for a POST; None for a GET.
-            timeout: Accepted and ignored — nothing here blocks.
+            timeout: The long-poll budget for `api/events`; ignored by
+                every other arm, none of which blocks.
 
         Returns:
             The decoded response the real server would have sent.
+
+        Raises:
+            urllib.error.HTTPError: When the route refused with `err()`,
+                translated to the status and body the real server's
+                `do_POST` would have put on the wire.
         """
         path = url.split(_AS_USER_URL, 1)[-1]
         if path == "api/health":
             return {"ok": True}
         if path == "api/state":
             return app.api_state()
+        if path.startswith("api/events"):
+            # ADDITIVE, and `drag_as_user` never walks it. The pin-answer
+            # provenance bench below drives the same verb machinery and
+            # then reads the feed `canvas.py wait` prints, which is the
+            # surface the agent itself reads an answer off.
+            #
+            # THE `timeout` IS HONOURED AND CLAMPED, both halves of what
+            # `do_GET` does. Answering `since` alone and returning at
+            # once is correct only when there is something to return: on
+            # an empty window `cmd_wait` re-asks immediately and spins
+            # the rest of its budget at full tilt. The `min(…, 50.0)` is
+            # the server's own ceiling, copied because a double that
+            # matches "minus one clause" is a double whose divergence
+            # nobody has written down.
+            query = dict(
+                pair.partition("=")[::2]
+                for pair in path.partition("?")[2].split("&") if pair)
+            since = int(query.get("since", 0))
+            wait = min(float(query.get("timeout", 0)), 50.0)
+            return {"ok": True, "seq": app.events.seq,
+                    "events": (app.events.wait_since(since, wait) if wait > 0
+                               else app.events.since(since))}
         if path.startswith("api/artifact/"):
             # DEEP-COPIED, and this line was a reference until a
             # fix-agnosticism probe caught it. A real read crosses a
@@ -1825,7 +2046,29 @@ def _as_user_transport(app: canvas.ServerApp) -> Callable[..., dict]:
             # way an instrument can be wrong.
             return {"ok": True, "elements": copy.deepcopy(
                 app.store.scenes[path.rsplit("/", 1)[1]])}
-        return app.handle_post("/" + path, payload or {})
+        try:
+            return app.handle_post("/" + path, payload or {})
+        except canvas._Err as exc:
+            # THE REFUSAL IDIOM, TRANSLATED. `err(status, msg)` raises
+            # `_Err`, and the real server turns it into an HTTP status
+            # plus a JSON body in `do_POST`'s `except _Err` arm. This
+            # double returned `handle_post` untranslated, so a route that
+            # refused by the repo's OWN idiom sent `_Err` straight past
+            # `_x_post` — which catches `HTTPError`/`URLError`/`OSError`
+            # and none of those — and out through `cmd_x_as_user`. The
+            # provenance bench then died on the one path a candidate
+            # repair is most likely to take, and because an
+            # `@expectedFailure` reports an ERROR exactly as it reports a
+            # FAILURE, both reds went on reading as healthy reds.
+            #
+            # ONLY `_Err`, deliberately. `do_POST` also has a blanket arm
+            # turning any other exception into a 500, and copying that
+            # here would dress a bug in this bench up as a server fault
+            # and swallow its traceback. A divergence that reports
+            # LOUDLY is the right one to keep.
+            raise urllib.error.HTTPError(
+                url, exc.status, exc.payload.get("error", ""), None,
+                None) from exc
     return transport
 
 
@@ -5028,6 +5271,371 @@ class TestPaintOrder(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# THE FILL-OVER-TEXT CLASS. Found in the R8 close (pipeline r8-close, leaf
+# 1.3.1) on 2026-09-01, and filed as a RECURRENCE rather than a first
+# sighting: n=2 inside one assessment run — the retention rows on
+# `onboarding-data`, then three boxes shaded yellow on `onboarding-infra`
+# whose pre-computed blast-radius lines the fill painted out. The assessor
+# caught both in the RENDER and nothing in the product said a word either
+# time. Their sentence for it: "a solid fill and a `role: decoration` text
+# on the same box always loses."
+#
+# It is the hole task 45 knowingly left. `normalize_z_order` bands every
+# TAGGED composed part above the owner it is drawn on, so a kpi's value and
+# a checkbox's tick survive an opaque owner (`TestComposedContentVisibility`
+# in the render tier holds both poles of that). The UNTAGGED `role:
+# decoration` still bands at 1, beneath nodes at 3, because layout.md reads
+# it as a standalone BACKDROP. A backdrop is a shape. This class is about
+# the case where it is a TEXT, and a text is never furniture: it is ink an
+# agent wrote for a reader, and an opaque host declared after it erases it.
+#
+# BASE: one 240x100 node with a bound label and one `role: decoration` text
+# line drawn inside it, both through `canvas.make_element` and ordered by
+# `canvas.normalize_z_order` — the shipped funnel every agent op goes
+# through, so the arrangement under test is the product's own and not this
+# file's. MUTATION: one documented `backgroundColor` on the host, which is
+# a first-class property of both `add` and `mod`. MAGNITUDE: the emitted
+# order — the host's fill lands at SVG offset 431 and the line's glyphs at
+# 327, so 100% of a 168x22 box of ink goes under paint, against 0% with the
+# fill left off. DIRECTION: the picture UNDER-reports, which is the unsafe
+# direction — the reader sees a tidy shaded box and has no way to be
+# suspicious of a sentence that leaves no mark. NEIGHBOUR, green and in
+# this class: the identical scene with a transparent host keeps the line.
+#
+# MEASURED IN A REAL BROWSER BEFORE IT WAS WRITTEN, because the whole claim
+# is about a picture. The shipped Excalidraw bundle, driven headless
+# through `canvas.py`'s screenshot protocol on this exact scene, paints
+# "Work queue" on a yellow box and nothing else; the transparent pole
+# paints "Work queue" and "the 2-day sweep stops". `render_svg` agrees, and
+# the render tier reads the line at 0px of ablation ink under the fill
+# against 663px without it. So the two renderers are not at fault: both
+# honour array order faithfully, and the defect is in the order the model
+# hands them. The pin lives HERE, in the model tier, for that reason and
+# for one more — the render tier's red census is transcribed in
+# SESSION-HANDOVER.md, which a curator may not edit.
+#
+# THE ASSERTION IS A DISJUNCTION, not "the text is on top". Three arms, and
+# every honest repair satisfies one of them: the composition is REFUSED, or
+# the line reaches the PICTURE, or a reader REPORTS the burial. Measured to
+# flip under nine separate repairs monkeypatched from a throwaway tree —
+# banding the untagged decoration text above nodes; banding every text
+# above nodes; banding by ink-bearing content; per-pair containment
+# banding; correcting the role at mint; refusing the op; softening the
+# fill to hachure; a lint that names the covered element; and paint-order
+# repair inside `render_svg` alone. Two of those the pair REJECTS on the
+# neighbour's evidence rather than the red's, which is the neighbour doing
+# the job doctrine 3 gives it: refusing the op kills the transparent pole
+# too, and softening the fill is caught by the shade-survives control.
+# ---------------------------------------------------------------------------
+
+# The yellow the R8 agent shaded three boxes with, kept as the literal it
+# was and not neutralized: it is the string the measurement FINDS in the
+# emitted markup, so it has to be a colour nothing else in the scene wears.
+_SHADE = "#ffec99"
+# One of the blast-radius lines from `onboarding-infra`, verbatim. Its job
+# is the same — a string unique in the emitted SVG — and keeping the real
+# sentence rather than "lorem" is what lets a reader of a failure message
+# recognize the artifact it came from.
+_RADIUS_LINE = "the 2-day sweep stops"
+
+
+def _shaded_host_scene(fill: str) -> list[dict]:
+    """A node with a `role: decoration` line drawn on it, at `fill`.
+
+    Composed through `canvas.make_element` and ordered by
+    `canvas.normalize_z_order` rather than assembled by hand, for the
+    reason `_kpi_tile` gives in the render tier: the defect is not a
+    scene anyone drew, it is what the mint and the banding produce
+    between them, and a hand-built stack would be this file asserting
+    its own arrangement instead of the product's.
+
+    Round coordinates and one line of text, which is as small as the
+    class gets: the line sits at y=160 rather than centred so it clears
+    the bound label at y=139 and no `text_over_text` warning rides
+    along — an incidental finding here would make the silence arm read
+    as satisfied by the wrong check.
+
+    Args:
+        fill: The host's `backgroundColor`. `_SHADE` is the R8 scene;
+            `"transparent"` is the neighbour and the whole corpus.
+
+    Returns:
+        The three-element scene in paint order as the funnel leaves it:
+        `radius`, `host`, `host-label`.
+
+    Raises:
+        RuntimeError: If `make_element` refused either spec or returned
+            a different number of parts. Said out loud because a refused
+            spec returns an empty list, and a scene with no decoration
+            in it would make every measurement below agree vacuously —
+            including the red's, which would then be a broken pin
+            reading as a healthy one.
+    """
+    ids: set[str] = set()
+    errors: list[str] = []
+    parts = list(canvas.make_element(
+        {"id": "host", "type": "rectangle", "x": 100, "y": 100,
+         "width": 240, "height": 100, "label": "Work queue",
+         "backgroundColor": fill}, ids, errors))
+    parts += canvas.make_element(
+        {"id": "radius", "type": "text", "x": 120, "y": 160,
+         "text": _RADIUS_LINE, "role": "decoration"}, ids, errors)
+    if errors or len(parts) != 3:
+        raise RuntimeError(
+            "make_element refused the shaded-host scene: errors=%s, "
+            "parts=%s" % (errors, [p.get("id") for p in parts]))
+    return canvas.normalize_z_order(parts)
+
+
+def _box_covers(host: dict, deco: dict) -> bool:
+    """Whether `host`'s stored box contains `deco`'s entirely.
+
+    Containment and not mere overlap, because a partly-covered line is a
+    legibility argument and a wholly-covered one is not an argument at
+    all. The red only ever claims the second.
+
+    Args:
+        host: The candidate covering element.
+        deco: The element being covered.
+
+    Returns:
+        True if every corner of `deco`'s box lies inside `host`'s.
+    """
+    return (host["x"] <= deco["x"]
+            and host["y"] <= deco["y"]
+            and host["x"] + host["width"] >= deco["x"] + deco["width"]
+            and host["y"] + host["height"] >= deco["y"] + deco["height"])
+
+
+def fill_over_text_verdict(els: list[dict], deco_id: str = "radius") -> str:
+    """What becomes of `deco_id`: refused, visible, reported, or buried.
+
+    The relation the red pins, as one word. Only `"buried"` is a
+    finding: the other three are the three ways the product can be
+    honest about a line an agent wrote — it declined to make the scene,
+    it put the line in the picture, or it told somebody the fill covers
+    it. Written as a disjunction on purpose, so the red asserts a
+    property rather than prescribing which layer repairs it.
+
+    Emission order in `render_svg`'s markup is the picture here, the
+    same substrate `_paint_offsets` and `TestPaintOrder` use and for the
+    same reasons — cheap, exact, on every commit. It is licensed for
+    THIS scene by measurement rather than by assumption: the shipped
+    client, driven headless on these elements, paints the same two
+    pictures the markup describes. The general caveat still stands and
+    is written in the render tier's paint-order section: markup order
+    and occlusion come apart wherever anything is transparent or
+    clipped, and nothing here is.
+
+    Args:
+        els: The scene, as the funnel leaves it.
+        deco_id: The decoration whose fate is being read.
+
+    Returns:
+        `"visible"` when no opaque fill covering `deco_id` is emitted
+        after its glyphs; `"reported"` when one is and some line of
+        `lint_layout` or some finding names the element; `"buried"`
+        otherwise.
+
+    Raises:
+        ValueError: If `deco_id` emitted no glyphs at all, or if a
+            covering element emitted no fill. Both are EXPORT
+            COMPLETENESS rather than paint order — `_paint_offsets`
+            refuses the same way and for the same reason — and a scene
+            with nothing to bury must never come back `"visible"`.
+    """
+    svg = canvas.render_svg(els)[0]
+    deco = next(e for e in els if e["id"] == deco_id)
+    at = svg.find(deco.get("text") or "")
+    if not (deco.get("text") or "").strip() or at < 0:
+        raise ValueError(
+            "%s emitted no glyphs at all — that is export completeness, "
+            "not paint order, and this scene cannot answer the question "
+            "it was built to ask" % deco_id)
+    buried = []
+    for e in els:
+        bg = e.get("backgroundColor")
+        if (e["id"] == deco_id or e.get("fillStyle") != "solid"
+                or bg in (None, "transparent")
+                or not _box_covers(e, deco)):
+            continue
+        where = svg.find("fill='%s'" % bg)
+        if where < 0:
+            raise ValueError(
+                "%s carries a solid %s fill that the export never emitted "
+                "— export completeness again, not paint order"
+                % (e["id"], bg))
+        if where > at:
+            buried.append(e["id"])
+    if not buried:
+        return "visible"
+    lint = canvas.lint_layout(els, artifact_type="flow")
+    spoke = [ln for ln in lint["errors"] + lint["warnings"] + lint["notes"]
+             if deco_id in ln]
+    spoke += [f["raw"] for f in collect_findings(els)
+              if f.get("element") == deco_id]
+    return "reported" if spoke else "buried"
+
+
+class TestAShadedBoxKeepsTheLineWrittenOnIt(unittest.TestCase):
+    """The fill-over-text class: a solid fill must not erase a decoration.
+
+    ONE LINE: shading a box with a documented `backgroundColor` paints
+    that box OVER a `role: decoration` text already drawn inside it, and
+    no lint, no finding and no narration says so — the agent learns it
+    only by looking at the render, twice in R8 alone.
+
+    REPAIRS MEASURED TO FLIP IT, all nine monkeypatched from
+    `/tmp/curator-fill-over-text/` and never by editing `canvas.py`:
+    banding an untagged `role: decoration` TEXT above the node band;
+    banding every `type: text` above it; banding by ink-bearing content
+    rather than by type; per-pair containment banding; correcting the
+    role to `annotation` at mint; refusing the spec at mint; softening
+    the burying fill to `hachure`; a `lint_layout` rule that names the
+    covered element; and reordering inside `render_svg` alone. The last
+    three the class as a whole still rejects — the lint one legitimately
+    (that is the `"reported"` arm doing its job), the refusal because
+    the neighbour dies with it, and the hachure because the shade
+    control below holds the fill the user asked for.
+
+    NOT A DETECTOR MISS IN THE RENDER TIER — a product defect the render
+    tier can already see, which is the same shape task 44's red had.
+    `ablation_existence` reads the line at 0px under the fill and 663px
+    without it (2026-09-01). What is missing is any reader on the model
+    side, and the disjunction is written so that supplying one is a
+    legitimate repair rather than a second-best one.
+    """
+
+    def test_red_a_solid_fill_paints_out_the_line_drawn_on_the_box(self
+                                                                   ) -> None:
+        """Curator, pipeline r8-close leaf 1.3.1, 2026-09-01. RED.
+
+        The R8 turn-10 scene, minimized to one box and one line. The
+        agent shaded three boxes to group them and the shade swallowed
+        the pre-computed blast radii it had written on them — the
+        sentences it had just argued were the payload of the diagram,
+        "because at three in the morning nobody traces a graph". It
+        found out by looking. The product's whole loop is that the
+        drawing is narrated back, and this is content that leaves the
+        drawing without leaving the model, so there is nothing to
+        narrate the loss of.
+
+        Asserted as a disjunction and not as an ordering, because a
+        curated red that demanded "the text is emitted last" would be
+        prescribing the banding repair over the four others that are
+        equally honest here. What the drawing gets wrong is that a
+        sentence an agent wrote for a reader is gone and nobody is told;
+        any of refusing, showing, or reporting fixes that.
+        """
+        self.assertNotEqual(
+            fill_over_text_verdict(_shaded_host_scene(_SHADE)), "buried",
+            "shading `host` %s paints its solid fill over the "
+            "`role: decoration` line 'radius' already drawn inside it — "
+            "and lint_layout and collect_findings both say nothing about "
+            "`radius` at all. The line is not in the picture and not in "
+            "any report: a reader sees a tidy shaded box" % _SHADE)
+
+    def test_neighbour_a_transparent_host_leaves_the_same_line_visible(
+            self) -> None:
+        """The other pole, and where this pair keeps its literals.
+
+        One variable moves — the host's `backgroundColor` — so a
+        difference in verdict is the fill and nothing else. The red
+        holds the RELATION and this holds the numbers, which is the
+        split that lets an honest repair change the arrangement without
+        leaving the pin red over a correct drawing.
+
+        It also carries the live half the red's `"reported"` arm needs.
+        That arm is a silence — no line of lint names `radius` — and a
+        silence is what a dead lint produces too, so this asserts that
+        `lint_layout` SPEAKS on this very scene: it emits exactly one
+        note, about the host being unconnected. The lint is alive, it
+        looks at these elements, and it has nothing to say about a
+        sentence going under paint.
+        """
+        scene = _shaded_host_scene("transparent")
+        self.assertEqual([e["id"] for e in scene],
+                         ["radius", "host", "host-label"],
+                         "the funnel bands the untagged decoration first; "
+                         "if that changed, the red above is measuring "
+                         "something else")
+        deco = next(e for e in scene if e["id"] == "radius")
+        host = next(e for e in scene if e["id"] == "host")
+        self.assertEqual((deco["width"], deco["height"]), (168, 22))
+        self.assertTrue(
+            _box_covers(host, deco),
+            "the line must sit wholly inside the host in BOTH poles, or "
+            "the red's silence is about geometry rather than about fill")
+        self.assertEqual(fill_over_text_verdict(scene), "visible")
+        lint = canvas.lint_layout(scene, artifact_type="flow")
+        self.assertEqual(
+            (lint["errors"], lint["warnings"], lint["notes"]),
+            ([], [], ["unconnected node(s): host ('Work queue')"]),
+            "the lint has to be awake on this scene for the red's "
+            "silence to be about the drawing and not about the check")
+
+    def test_the_shade_the_agent_asked_for_survives_the_funnel(self) -> None:
+        """The control that refuses a repair which softens the fill.
+
+        Green today and it has to stay green under whatever lands: one
+        of the nine measured repairs reaches `"visible"` by demoting the
+        burying `solid` to `hachure`, which delivers a hatched box to
+        somebody who asked for a shaded one. The red alone accepts that
+        — it only ever asks whether the line survived — so the refusal
+        lives here, as a separate positive fact about the picture rather
+        than as an extra clause bolted onto the red.
+
+        Stated about the STORED scene, not the markup, because that is
+        where such a repair would have to write: `add`/`mod` document
+        `backgroundColor` and `fillStyle` as first-class, and a funnel
+        that silently rewrites either has answered a different request
+        than the one it was given.
+        """
+        host = next(e for e in _shaded_host_scene(_SHADE)
+                    if e["id"] == "host")
+        self.assertEqual((host["backgroundColor"], host["fillStyle"]),
+                         (_SHADE, "solid"),
+                         "the funnel must hand back the fill it was given: "
+                         "keeping a line legible by quietly restyling the "
+                         "box is a different drawing, not a repair")
+
+    def test_a_line_with_no_glyphs_is_refused_and_never_read_as_visible(
+            self) -> None:
+        """The vacuity guard, damaged at the INPUT and watched failing.
+
+        The hazard is not the red going green — it is the red staying
+        red about a scene whose subject has vanished. Blank the line's
+        text and `str.find("")` answers 0, so a covering fill emitted
+        anywhere at all is emitted "after" it and the verdict comes back
+        `"buried"`: the pin reports that a sentence was painted out of a
+        drawing that never had one. That is the -1 hazard
+        `_paint_offsets` refuses in its own docstring, met through the
+        other end of the same function, and an `expectedFailure` cannot
+        tell it from the real reading.
+
+        Damaging the INPUT rather than the function is the point — a
+        probe that replaced `render_svg` wholesale would be blind to
+        exactly this — and the guard was WATCHED FAILING: lift the
+        emptiness refusal in a throwaway copy and this method reports
+        `ValueError not raised` while the blanked scene reads
+        `"buried"`, measured 2026-09-01.
+
+        The second damage is the population's other end. Move the line
+        clear of the host and the verdict must be `"visible"` on its
+        own, which is what says the red is keyed on the COVERAGE and not
+        on the word `decoration`.
+        """
+        blanked = _shaded_host_scene(_SHADE)
+        next(e for e in blanked
+             if e["id"] == "radius").update(text="", originalText="")
+        with self.assertRaises(ValueError):
+            fill_over_text_verdict(blanked)
+        moved = _shaded_host_scene(_SHADE)
+        next(e for e in moved if e["id"] == "radius")["x"] = 600.0
+        self.assertEqual(fill_over_text_verdict(moved), "visible")
+
+
+# ---------------------------------------------------------------------------
 # The bounds loop and the paint loop must read the SAME text (curator batch
 # 23 item 3, from task 46 §9 C1 and that task's review, 2026-08-15).
 #
@@ -6398,10 +7006,18 @@ class TestStoreIntegrity(unittest.TestCase):
         red turns on — no leading whitespace on the user's line. Three
         claims, because a fix to `ensure_tree` could break any of them
         while satisfying the red: the user's own lines survive in order,
-        both machinery lines are appended on the start that finds them
+        every machinery line is appended on the start that finds them
         missing, and a second start appends nothing further. Without the
         last one, a fix that stopped comparing against the file's
         contents would grow the file on every start forever.
+
+        The machinery list is SPELLED OUT rather than read off
+        `ensure_tree`, and that is the point: a test that imported the
+        tuple would agree with any future edit to it, including one that
+        quietly stopped ignoring a directory. `.bugreports/` joined it in
+        v0.9.1 with the 🐞 bug-hunter — a bundle carries a picture of the
+        user's project and the text of their complaint, so the line has
+        to be in place before the first one lands.
         """
         root = _scratch_project(self, {}, {})
         gi = root / "project_knowledge" / ".gitignore"
@@ -6410,7 +7026,7 @@ class TestStoreIntegrity(unittest.TestCase):
         first = gi.read_text(encoding="utf-8")
         self.assertEqual(first.splitlines(),
                          ["build/", "# mine", "notes.local.md",
-                          ".backups/", ".pending/"])
+                          ".backups/", ".pending/", ".bugreports/"])
         canvas.Project(root).ensure_tree()
         self.assertEqual(gi.read_text(encoding="utf-8"), first,
                          "a second start appended the machinery again")
@@ -11621,20 +12237,21 @@ class TestRenderSvgDrawsBothArrowheads(unittest.TestCase):
 # instead of through the field name.
 #
 # THE ANCHOR IS THE VENDORED BUNDLE, not this repo's belief about the client.
-# `skills/wysiwyg-grilling/scripts/web/assets/index-KJTydiiR.js` carries the
+# `skills/wysiwyg-grilling/scripts/web/assets/index-DMIFGF1r.js` carries the
 # destructuring twice, and both spellings are `= "arrow"`:
 #
-#   restoreElement, case "arrow" (offset 630865):
+#   restoreElement — `aZ` (@629664) — case "arrow" (offset 630866):
 #     let{startArrowhead:o=null,endArrowhead:h="arrow"}=e
-#   the shape generator, where the mark is actually emitted (503029,
-#   guarded by `e.type==="arrow"` at 503007):
-#     let{startArrowhead:d=null,endArrowhead:u="arrow"}=e;
-#     if(d!==null){...} if(u!==null){...}
+#   the shape generator, where the mark is actually emitted (503026,
+#   guarded by `e.type==="arrow"` at 503008):
+#     let{startArrowhead:u=null,endArrowhead:f="arrow"}=e;
+#     if(u!==null){...} if(f!==null){...}
 #
-# CITED AGAINST `index-DIydcWDi.js` UNTIL 2026-08-31, which had stopped
-# existing at a rebuild. Both shapes were re-derived against the bundle that
-# ships and neither moved; see the citation note above `_client_chop` in
-# `canvas.py` for why a dangling bundle name is the mild half of that rot.
+# CITED AGAINST `index-DIydcWDi.js` UNTIL 2026-08-31, and against two
+# parallel rebuilds after it that neither of them ships. Both shapes were
+# re-derived against the bundle that ships and neither moved; see the
+# citation note above `_client_chop` in `canvas.py` for why a dangling
+# bundle name is the mild half of that rot.
 #
 # A destructuring default fires on `undefined` and NEVER on an explicit
 # `null`, and the draw guard is a null test rather than a truthy one — which
@@ -15684,12 +16301,13 @@ class TestAFreedrawKeepsTheGeometryItWasGiven(unittest.TestCase):
     to design; the fix read the client instead, and the field set below
     is now asserted BECAUSE the bundle decided it rather than because a
     test guessed. What the bundle says, at
-    `scripts/web/assets/index-KJTydiiR.js`: `restoreElement`'s
-    `case "freedraw"` (offset 630191) forwards all three fields with no
-    defaults, and the path builder (offset 496932) dereferences `points`
+    `scripts/web/assets/index-DMIFGF1r.js`: `restoreElement`'s
+    `case "freedraw"` (offset 630192) forwards all three fields with no
+    defaults, and the path builder (offset 496910) dereferences `points`
     on both of its arms and `pressures` only when `simulatePressure` is
-    falsy. Cited against `index-QQVNNFtd.js` until 2026-08-31, a bundle
-    that had stopped existing; both shapes re-derived unchanged. Origin:
+    falsy. Cited against `index-QQVNNFtd.js`, then `index-KJTydiiR.js`;
+    both stopped existing at a rebuild and both shapes re-derived
+    unchanged each time. Origin:
     spike-derivedframe §8, curated during curator batch 33, 2026-08-18;
     flipped 2026-08-18.
 
@@ -16923,9 +17541,10 @@ def _over_wide_token(height: int) -> list[dict]:
     only one of them can break a word. `wrap_label_text` (canvas.py) is
     `split()` plus a greedy join, so a token that fits nowhere is
     emitted whole on a line of its own and counted as one; the shipped
-    client chops it — `$$` hands a token that overflows an empty line
-    to `z$`, which walks it character by character and closes a chunk
-    the moment the next glyph would overrun the cap. Confirmed in
+    client chops it — `kd` (@274824 of `index-DMIFGF1r.js`) hands a
+    token that overflows an empty line to `F$` (@274997), which walks
+    it character by character and closes a chunk the moment the next
+    glyph would overrun the cap. Confirmed in
     chromium through the client tier, not transcribed: `'Acknowledged'`
     in this box paints as `'Acknowledge'` over `'d'`, two lines.
 
@@ -16963,14 +17582,16 @@ def _half_pixel_rhombus(text: str, width: int = 181, height: int = 200,
                         font_size: int = 16) -> list[dict]:
     """A rhombus whose cap lands on a HALF PIXEL, carrying `text`.
 
-    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's `js`
-    (index-KJTydiiR.js @555678, read verbatim) is `Math.round(n/2) -
-    Kn*2` on a diamond, and `client_wrap_width` (canvas.py) writes that
-    as `round(w / 2) - pad`. This said `_s` and `Yn` in a bundle that
-    stopped existing at `3f57a17`; both symbols resolve in the shipped
-    file to something else entirely (`_s` crops images, `Yn` is assigned
-    nowhere), and the arithmetic was re-derived unchanged — see the
-    citation note above `_client_chop` in `canvas.py`. `Math.round` is
+    THE DEFECT IS ONE PIXEL AND IT IS A TRANSCRIPTION. The client's
+    wrap helper `js` (@555679 of `index-DMIFGF1r.js`, read verbatim) is
+    `Math.round(n/2)-Kn*2` on a diamond, and `client_wrap_width`
+    (canvas.py) writes that as `round(w / 2) - pad`. The same helper
+    has been cited here as `_s`, as `Yn` and as `Ts`, and all three are
+    live and none of them is it: `_s` (@486243) rescales an image crop,
+    `Yn` (@798193) multiplies a triple by a scalar, and `Ts` (@659125)
+    aliases the `Scene` class. The arithmetic has been re-derived
+    unchanged at every rebuild — see the citation note above
+    `_client_chop` in `canvas.py`. `Math.round` is
     half-UP — confirmed in a JS
     engine, not assumed, and `floor(x + 0.5)` reproduces it on every
     `w / 2` from 2 to 4000 — while Python's `round` is half-to-EVEN. So
@@ -17214,6 +17835,119 @@ def _attach_chain(shared: bool, headless: bool = False) -> list[dict]:
             height=0, points=[[0, 0], [528 - foot, 0]], endArrowhead=head,
             startBinding={"elementId": "N", "focus": 0, "gap": 1},
             endBinding={"elementId": "Z", "focus": 0, "gap": 1},
+            customData={"role": "edge"})
+    return [a, n, z, e1, e2]
+
+
+def _drawn_ink(scene: list[dict]) -> set[tuple]:
+    """Every mark the client paints for a scene's connectors, unordered.
+
+    The reader's position, written as a set. A connector contributes one
+    entry per drawn segment — that segment's two absolute endpoints as a
+    frozenset, so a segment and its reverse are the SAME mark — and one
+    per head the client actually paints, keyed by the absolute point it
+    sits at. Nothing here records which end the model calls `start`,
+    because a reader cannot see that, and the mutants below exist to say
+    so.
+
+    ON `points`, NEVER on stored width/height. An arrow's geometry is its
+    point string; the stored extents are a non-negative bbox that
+    survives a reversal unchanged, so reading them would make a reversed
+    stroke and its original compare equal for the wrong reason — which is
+    the one comparison this helper must not get right by accident.
+
+    `canvas.arrowhead_of` decides the heads rather than the raw keys,
+    because it is this repo's one spelling of the client's defaults: a
+    `line` is painted headless whatever it stores, and an arrow that
+    merely omits `endArrowhead` is headed.
+
+    Args:
+        scene: The element list to read.
+
+    Returns:
+        The set of marks: `("seg", frozenset({(x, y), (x, y)}))` per drawn
+        segment, and `("head", (x, y), kind)` per head the client paints.
+    """
+    marks: set[tuple] = set()
+    for e in scene:
+        if e.get("type") not in ("arrow", "line"):
+            continue
+        pts = [(e.get("x", 0) + p[0], e.get("y", 0) + p[1])
+               for p in (e.get("points") or [])
+               if isinstance(p, (list, tuple)) and len(p) >= 2]
+        for seg in zip(pts, pts[1:]):
+            marks.add(("seg", frozenset(seg)))
+        for at_end in (False, True):
+            kind = canvas.arrowhead_of(e, at_end)
+            if kind is not None and pts:
+                marks.add(("head", pts[-1] if at_end else pts[0], kind))
+    return marks
+
+
+def _cued_feet_at_node(join: bool) -> list[dict]:
+    """`_attach_chain`'s geometry with both of N's feet pointing one way.
+
+    The control for the two r8-5 mutants below and the pole they are
+    judged against: the same three nodes on the same rank line, the same
+    two feet on N's opposite borders 0px apart off-axis, the same 80px of
+    bare box between them — and a head painted AT N on each stroke. The
+    ONLY thing that differs from the mutants' scene is the terminator,
+    which is the whole argument the shipped no-ink arm rests on (see
+    canvas.py: the 70 findings the broad criterion produced over 24
+    frozen artifacts are safe because an arrowhead ends the reading at
+    the node before the eye completes a stroke across the box).
+
+    A widening that earns those reds by dropping the cue fires here and
+    fails, measured rather than argued: patched into a throwaway copy of
+    canvas.py, "widen the pair gate AND drop the cue" reports 80px on
+    both poles of this builder, and turns the r8 artifact's silence into
+    four findings, three of them ordinary chained nodes.
+
+    WHICH KEY CARRIES THE HEAD FOLLOWS THE CLIENT AND NOT THE MODEL.
+    Excalidraw paints `startArrowhead` at `points[0]` and `endArrowhead`
+    at `points[-1]`, so a foot that LEAVES N is cued by `startArrowhead`
+    and one that ARRIVES is cued by `endArrowhead`; writing the other key
+    would store a mark the user never sees, which is the failure mode
+    `arrowhead_of` was written about.
+
+    Args:
+        join: True for two strokes converging on N, cued at N through
+            `endArrowhead`; False for two leaving it, cued through
+            `startArrowhead`.
+
+    Returns:
+        The five-element scene: nodes A, N, Z and connectors e1, e2.
+    """
+    a = el(id="A", type="rectangle", x=0, y=100, width=80, height=40,
+           customData={"role": "node"})
+    n = el(id="N", type="rectangle", x=200, y=100, width=80, height=40,
+           customData={"role": "node"})
+    z = el(id="Z", type="rectangle", x=528, y=100, width=80, height=40,
+           customData={"role": "node"})
+    # Feet at (200, 120) and (280, 120) either way — N's left- and
+    # right-edge midpoints — with `join` deciding only which end of each
+    # point string sits there. `width`/`height` are the client's
+    # non-negative extents and are written for consistency; every reader
+    # that matters here goes through `points`.
+    ends = ((("A", "N"), ("Z", "N")) if join else
+            (("N", "A"), ("N", "Z")))
+    e1 = el(id="e1", type="arrow", width=120, height=0,
+            x=80 if join else 200,
+            points=[[0, 0], [120, 0]] if join else [[0, 0], [-120, 0]],
+            startArrowhead=None if join else "arrow",
+            endArrowhead="arrow" if join else None,
+            y=120, startBinding={"elementId": ends[0][0], "focus": 0,
+                                 "gap": 1},
+            endBinding={"elementId": ends[0][1], "focus": 0, "gap": 1},
+            customData={"role": "edge"})
+    e2 = el(id="e2", type="arrow", width=248, height=0,
+            x=528 if join else 280,
+            points=[[0, 0], [-248, 0]] if join else [[0, 0], [248, 0]],
+            startArrowhead=None if join else "arrow",
+            endArrowhead="arrow" if join else None,
+            y=120, startBinding={"elementId": ends[1][0], "focus": 0,
+                                 "gap": 1},
+            endBinding={"elementId": ends[1][1], "focus": 0, "gap": 1},
             customData={"role": "edge"})
     return [a, n, z, e1, e2]
 
@@ -17983,6 +18717,163 @@ def _pin_on_a_screen_stage() -> list[dict]:
             el(id="q1", type="text", x=148, y=60, width=26, height=26,
                text="❓", fontSize=20,
                customData={"role": "pin", "target": "btn",
+                           "status": "open", "question": "which one?"})]
+
+
+def _pin_drifted_but_clear_of_the_rival() -> list[dict]:
+    """A drifted ❓ standing 16px CLEAR of the node it now reads as.
+
+    THE BASE AND THE NEIGHBOUR ARE ONE SCENE, which is what makes the
+    operator's single change legible: `shift_label` slides the ❓ 26px
+    right and nothing else about the drawing moves, so the only
+    difference between the two poles is that 16px of air becomes 10px of
+    ink-on-ink. Both poles are drifted — `pin_drift` fires on both, by
+    construction — because a pin that is NOT drifted produces no
+    sentence, and the reading this pair asserts lives inside that
+    sentence.
+
+    THE `reach` CEILING IS NOT A CONSTRAINT ON THIS PAIR. A paragraph
+    here used to say it was; it is kept below and refuted rather than
+    deleted, because how a plausible mechanism got past two readers is
+    worth more than a clean statement. It is labelled at BOTH ENDS on
+    purpose — the failure mode of a preserved error is a reader who
+    stops halfway and carries off the wrong half, so the marking has to
+    arrive before the claim does and not after it.
+
+    ▽ FALSE — EVERY CLAUSE BETWEEN HERE AND THE NEXT MARKER IS WRONG,
+    and it is reproduced only because it shows what made it look right.
+    `pin_drift` grew a second arm on main; `stranded` fires at
+    `own > reach`; `step`'s corner-to-corner reach is 116.6px against
+    own-gaps of 58 (neighbour) and 84 (mutant). So (the old paragraph
+    said) were either pole to cross that ceiling, `pin_drift` would take
+    the else branch, emit a sentence with no rival clause, and this
+    check would go silent — a red for the wrong reason; and since the
+    margin is 32.6px at the mutant pole and the operator's own shift is
+    26px, a second application of that operator would break the pair.
+    △ END OF THE FALSE CLAIM.
+
+    IT IS WRONG TWICE, measured at four multiplicities. The arithmetic
+    refutes the first half on its own terms: 84 + 26 = 110, still under
+    116.6, so a 26px shift cannot cross a 32.6px margin — the sentence
+    contained both numbers and nobody divided them. And crossing the
+    ceiling silences nothing anyway: at a THIRD application the ❓ is
+    `stranded` (own 136 > 116.6) and the sentence still carries the
+    rival clause, because the branch there tests `crowded` first and the
+    crowded reading wins wherever both hold. The finding is
+    `(0.0, "clear")` at every multiplicity from one upward.
+
+    THE PREMISE TREATED A NECESSARY CONDITION AS A SUFFICIENT ONE.
+    Reaching the else branch needs `stranded AND NOT crowded`, and this
+    operator makes `crowded` strictly harder to escape: it slides the ❓
+    right along `gate`'s band, so `rival_gap` clamps to 0 and stays
+    there while `own` only grows, and `own - rival_gap >= PIN_HUG_PX`
+    becomes more satisfied with every application. The pair is more
+    robust than its own docstring claimed — this operator cannot silence
+    it at any multiplicity — and what is worth carrying forward is the
+    branch order in that `if`, not the ceiling.
+
+    THE GEOMETRY, all of it on one axis. `step` spans x 0-100 and `gate`
+    spans x 200-300; the ❓'s 26px slot sits at x 158-184, so its own
+    target is 58px away and `gate` is 16. The check fires because
+    58 - 16 = 42 clears `PIN_HUG_PX`. The ❓ sits at y 10-36, wholly
+    inside `gate`'s 0-60 band, so the vertical separation is zero in
+    BOTH poles and `_rect_gap` is reading one axis: an operator that
+    changed the reading by moving the pin off `gate`'s band would be
+    changing two things at once.
+
+    WHAT THE +/-10% BAND AROUND 16 EXCLUDES, each a reading someone
+    could plausibly take here: 58 (the distance to its own TARGET, which
+    is `pin_drift`'s magnitude in both arms and the one number this check
+    must never duplicate), 26 (the slot's own width, and also the shift),
+    10 (the penetration the mutant pole asserts), 42 (the margin over the
+    threshold), and 53.5 (centre to centre).
+
+    Returns:
+        The three-element scene: the target `step`, the rival `gate`,
+        then the drifted pin `q1`.
+    """
+    return [el(id="step", type="rectangle", x=0, y=0, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="gate", type="rectangle", x=200, y=0, width=100,
+               height=60, customData={"role": "node"}),
+            el(id="q1", type="text", x=158, y=10, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
+                           "status": "open", "question": "which one?"})]
+
+
+def _pin_hugging_a_target_that_abuts_a_rival() -> list[dict]:
+    """A correctly minted ❓, on a page where its target ABUTS a rival.
+
+    THE RIVAL TOUCHES THE TARGET AND THAT IS THE WHOLE STAGE. A version
+    of this scene with the rival far away is VACUOUS as a control for
+    the hazard it exists to hold: with 200px of air past `step`, no
+    single move can put the ❓ inside both boxes at once, so the pair
+    below would stay quiet for a reason that has nothing to do with the
+    repair under test and would go on passing against the wrong fix.
+    Abutting is the shape the hazard actually takes — a ❓ dragged over
+    the seam is simultaneously ON the thing it asks about and IN
+    something else.
+
+    SILENT AS BUILT, and by the placement rule rather than by luck: the
+    ❓'s 26px slot sits at x 266-292, exactly `PIN_HUG_PX` off `step`'s
+    left edge, which is where `pin_spot` mints one. `gate` is 208px
+    away, so `crowded` reads 8 - 208 and `stranded` reads 8 against a
+    215.4px diagonal.
+
+    Returns:
+        The three-element scene: the target `step`, the abutting rival
+        `gate`, then the ❓ `q1` at its mint spot.
+    """
+    return [el(id="step", type="rectangle", x=300, y=0, width=200,
+               height=80, customData={"role": "node"}),
+            el(id="gate", type="rectangle", x=500, y=0, width=200,
+               height=80, customData={"role": "node"}),
+            el(id="q1", type="text", x=266, y=10, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
+                           "status": "open", "question": "which one?"})]
+
+
+def _pin_into_a_rival_and_clear_of_its_target() -> list[dict]:
+    """The firing pole: a ❓ CLEAR of its own target and 36px into a rival.
+
+    The other end of the reading its mutant asserts silence on, and it
+    has to be a separate scene rather than the same one moved, because a
+    neighbour is built AS-IS and never sees the operator. What it proves
+    is the half a `Silence` can never prove on its own: that `pin_drift`
+    still reaches its rival clause, still reports a signed depth, and has
+    not simply stopped speaking — a dead check satisfies a silence.
+
+    THE GEOMETRY, on the same two nodes as the stage next door. The ❓'s
+    slot sits at x 520-546, y 44-70. `step` spans x 300-500, so its own
+    gap is 20px of real air; `gate` spans x 500-700 and y 0-80, so the
+    slot is 46px inside it across and 36px down, and the minimum
+    translation distance is the SMALLER of those. It is the y axis that
+    binds, deliberately: an overlap whose two depths were equal could
+    not tell `min` from `max` from either leg, and this pair exists to
+    assert which quantity the sentence carries.
+
+    WHAT THE +/-10% BAND AROUND 36 THEREFORE EXCLUDES, each of them a
+    reading somebody could take: 20 (the distance to its own TARGET,
+    which is `pin_drift`'s magnitude in both arms and the number this
+    check must never duplicate), 46 (the OTHER axis's depth, which is
+    what `max` would report), 58.4 (`hypot(46, 36)` — the signed
+    hypotenuse, the plausible wrong quantity the clamped shape invites,
+    refused by row G of the r8-7 repair matrix), 1656 (the overlap AREA,
+    row F), 26 (the slot's own width) and 8 (`PIN_HUG_PX`).
+
+    Returns:
+        The three-element scene: the target `step`, the rival `gate`,
+        then the ❓ `q1` buried in the rival.
+    """
+    return [el(id="step", type="rectangle", x=300, y=0, width=200,
+               height=80, customData={"role": "node"}),
+            el(id="gate", type="rectangle", x=500, y=0, width=200,
+               height=80, customData={"role": "node"}),
+            el(id="q1", type="text", x=520, y=44, width=26, height=26,
+               text="❓", fontSize=20,
+               customData={"role": "pin", "target": "step",
                            "status": "open", "question": "which one?"})]
 
 
@@ -19371,7 +20262,9 @@ def _as_user_authored_stage() -> list[dict]:
 # calls `_run`, and a routing paragraph in a one-line docstring would put
 # the owner where the mutant is not. For those four the owner lives in
 # `RULE8_EXEMPT`'s reason string ("Delete this row when the check lands")
-# and in SESSION-HANDOVER.md's catalog-reds table. That is TWO places
+# and in SESSION-HANDOVER.md's catalog-reds table (the narrative row; the
+# ids themselves moved to `tests/RED-ROSTER.md` on 2026-09-01, and a
+# roster line carries no owner). That is TWO places
 # neither of which is the test, and it is stated here rather than in each
 # method because saying it four times would be four copies of a fact that
 # is really one. If a catalogue red ever acquires an owner more specific
@@ -19928,6 +20821,95 @@ _register(Mutant(
     expect=FindingSpec("phantom_passthrough", element="N",
                        magnitude=(80, 0.10)),
     neighbour=Neighbour(lambda: _attach_chain(shared=False),
+                        Silence("phantom_passthrough"))))
+
+# ---------------------------------------------------------------------------
+# r8-5 — the same picture, read twice, answered once (curator, 2026-09-01).
+#
+# ONE LINE: two connectors whose drawn segments are collinear through a node
+# they both touch read as ONE stroke, and `phantom_passthrough` says so only
+# where the model happens to call one of them arriving and the other leaving.
+#
+# FOUND BY A COLD OBSERVER on the r8 artifact `onboarding-data`, then
+# measured. `st-application` spans x 760..960, y 320..400; `d7` and `d10`
+# BOTH LEAVE it at x=860 — d7 through the top border running up, d10 through
+# the bottom border running down. Drawn, that is one unbroken vertical
+# through the box's centre, and the observer read it as "the Screening
+# bureau path connects straight through to the Rejection log", which deletes
+# the step the box is. `collect_findings` over that artifact returns exactly
+# one finding, `crossings_count=0`. The check that owns this shape is the
+# block these two entries name, and it never spoke.
+#
+# WHY IT IS SILENT, measured and not guessed. The pair loop's FIRST gate is
+# `if fid == gid or not f_arr or g_arr: continue` — "exactly one arriving,
+# one leaving" — and nothing downstream of it is involved. Every other
+# condition the block applies holds on the fork: one axis, opposite signs,
+# feet 0px apart off-axis, `shape_clip` returning the full span, no ink over
+# the node, and NO HEAD AT THE NODE either, because the client paints a
+# leaving foot's head from `startArrowhead` and both of the artifact's
+# arrows store `None` there while carrying their heads at the far end. The
+# no-ink arm would fire on its own terms; it is never reached.
+#
+# THE MUTATION IS A NULL EDIT ON THE PAGE, which is the whole assertion.
+# `flip_direction` on a HEADLESS stroke swaps two bindings and reverses a
+# point list: the segment set is identical and no head moves, because there
+# is none. `_drawn_ink` asserts that equality inside both neighbour tests.
+# So these two entries and `headless_chain_reads_through_node` above are the
+# SAME PICTURE — the identical 80px of bare N between two collinear opposed
+# feet — and the catalogue reports 80px for one of the three and nothing at
+# all for the other two.
+#
+# TWO ENTRIES AND NOT ONE, because the gate is a conjunction whose halves
+# fail on different feet: `not f_arr` rejects the fork (both leaving) and
+# `g_arr` rejects the join (both arriving). A widening keyed on either role
+# alone flips one of these and leaves the other exactly where it is.
+#
+# REPAIRS MEASURED, each patched into a THROWAWAY COPY of canvas.py under
+# /tmp and run through `collect_findings`. This catalogue names no repair;
+# it records which ones the reds admit, so that a fix is judged against a
+# property and not against one author's edit.
+#   FLIP BOTH, leave both neighbours and both sibling mutants untouched, and
+#   turn the r8 artifact's silence into one 80px finding on
+#   `st-application`: (1) widen the pair gate to every unordered pair
+#   (`if fid >= gid`); (2) take the pair-loop role from the geometry
+#   (`step > 0`) rather than from the binding, so an opposed pair always has
+#   one of each; (3) widen only where neither foot is terminated; (4) add a
+#   same-role arm beside the asymmetric one.
+#   DO NOT FLIP, and each says something. Widening `SAME_LINE` 12 -> 120
+#   (the feet are already 0px apart off-axis), widening the axis tolerance
+#   to 0.9 (both strokes are already axis-parallel), and reading the far
+#   end's head for a leaving foot (the gate rejects the pair before any head
+#   is consulted) all leave both reds red. Reporting at bind time and
+#   nudging the attach point at mint do not flip them either, and cannot:
+#   both change what gets STORED, and these reds assert what the lint SAYS
+#   about a scene it is handed.
+#   OVER-FIRES: widening the gate AND dropping the terminator cue reports
+#   80px on both neighbours below and turns the artifact's 0 findings into
+#   4, three of them ordinary chained nodes — the 70-finding failure the
+#   no-ink arm was narrowed to avoid. That is what the neighbours buy.
+#
+# THE MAGNITUDE IS THE SIBLINGS', at the same +-10% band: 80px is the span
+# of N the reader completes across, and the readings that band excludes are
+# the same three the entries above list — 0 (the covered span, which is 0
+# here BY CONSTRUCTION), and the merged stroke's full length. The artifact's
+# own reading is 80 too, and independently: there it is `st-application`'s
+# HEIGHT, 320..400, not this scene's node width.
+_register(Mutant(
+    "forked_feet_read_through_node",
+    build=lambda: _attach_chain(shared=False, headless=True),
+    op="flip_direction", args={"arrow_id": "e1"},
+    expect=FindingSpec("phantom_passthrough", element="N",
+                       magnitude=(80, 0.10)),
+    neighbour=Neighbour(lambda: _cued_feet_at_node(join=False),
+                        Silence("phantom_passthrough"))))
+
+_register(Mutant(
+    "joined_feet_read_through_node",
+    build=lambda: _attach_chain(shared=False, headless=True),
+    op="flip_direction", args={"arrow_id": "e2"},
+    expect=FindingSpec("phantom_passthrough", element="N",
+                       magnitude=(80, 0.10)),
+    neighbour=Neighbour(lambda: _cued_feet_at_node(join=True),
                         Silence("phantom_passthrough"))))
 
 # ---------------------------------------------------------------------------
@@ -20912,8 +21894,10 @@ _register(Mutant(
 # Origin: found during the bound-text padding investigation (curator, routed
 # by v0.9 WP4-AND-GUARDS), 2026-08-19 — the one defect left standing after
 # the padding, the shape arms and the advance table were each measured and
-# cleared. `_s` was read verbatim from the shipped bundle rather than
-# recalled, which is how the rounding was noticed at all.
+# cleared. The wrap helper — `js` (@555679) in the bundle that ships,
+# and cited as `_s` (@486243) when this was written, which rescales an
+# image crop and never wrapped anything — was read verbatim rather
+# than recalled, which is how the rounding was noticed at all.
 _register(Mutant(
     "rhombus_half_pixel_cap",
     build=lambda: _half_pixel_rhombus("acceptance"),
@@ -24484,6 +25468,172 @@ _register(Mutant(
                                     magnitude=(40, 0.10),
                                     direction="outside"))))
 
+# Found during r8 assessment, finding r8-7, 2026-09-01, and it is IN THE
+# FROZEN CORPUS rather than only in the session that found it —
+# `argus-r4-arm4/artifacts/admin-console-wireframe.excalidraw`, which the
+# r7 and r8 runs then reproduced byte-for-byte. The ❓ `pin-rerun-unit`
+# asks about `btn-rerun-enrich`, stands 8px off it, and its 26px slot
+# (x 920-946) is drawn 10px INSIDE `btn-rerun-scoring` (x 936-1320).
+# `pin_drift` fires and does everything its own entries ask — names both
+# nodes, quotes the question, declines to guess whether the ❓ or the
+# `target` is the error, offers the waive key. This pin is not about that
+# behaviour and must not make it noisier.
+#
+# TWO OF THE FIVE, not one, and the denominator is the reason to say so.
+# The whole corpus emits FIVE pin_drift sentences across 24 artifacts, and
+# TWO are clamped overlaps: this one at 10px of burial, and
+# `argus-r4-arm4/dashboard-wireframe` where `pin-report-page` asks about
+# `card-digest` and reads "only 0px from chart-heatmap" over 20px. Both
+# pins are `open` and neither is waived in that project's `model.json`
+# (its only waive is a `q12:` key). 40% of everything this check says
+# about a rival's distance understates the picture.
+#
+# WHAT THE DRAWING GETS WRONG IS THE SECOND NUMBER. The sentence reports
+# the rival as "only 0px from btn-rerun-scoring", and 0 is not what a
+# reader gets: 0px is two boxes touching, and this ❓ is drawn ON the
+# button, 10px in, with the button's fill behind the glyph. An agent
+# relaying "0px" tells the user their marker is beside the wrong button
+# when it is on top of it, and those are different repairs — nudge it, or
+# get it out of there. The cause is `_rect_gap`, which on main had for its
+# whole body is
+#
+#     return math.hypot(max(bx1 - ax2, ax1 - bx2, 0),
+#                       max(by1 - ay2, ay1 - by2, 0))
+#
+# — two axis separations clamped INDEPENDENTLY and then combined, so when
+# the boxes overlap BOTH terms clamp and the result is `hypot(0, 0)`. So
+# a ❓ ABUTTING a rival and a ❓ BURIED in one produce the same reading.
+# That
+# is the conflated pair, and an earlier draft of this comment named the
+# wrong one: the two poles BELOW are 16/clear and 10/overlap, and the
+# neighbour reads its 16 correctly. What no scene can distinguish today is
+# 0px-of-air from 10px-of-burial.
+#
+# THE MAGNITUDE IS THE MINIMUM TRANSLATION DISTANCE, 10px, and the band
+# around it is where this entry does its work. `hypot` has discarded the
+# direction on both axes, so a repair has to choose what to report, and
+# three of the choices are wrong: 36 (the y-depth — the ❓ lies wholly
+# inside `gate`'s vertical band, so that axis is not what a reader would
+# move it along), 37.4 (`hypot(10, 36)`, which is "put a sign on the
+# hypotenuse" and is the mistake this shape invites, since for DISJOINT
+# boxes hypot IS the minimum translation distance and it stops being so
+# the moment they overlap — one axis binds, they do not combine), and 360
+# (the overlap AREA, measured to leave this red red). Also excluded: 84
+# (the own-gap), 26 (the shift and the slot width), 16 (the neighbour's
+# own reading).
+#
+# WHAT FLIPS IT is any repair that makes the sentence name the
+# penetration as a number — extending the gap through zero, adding an
+# overlap clause, or an on-top phrasing. `_PIN_RIVAL_READINGS` accepts
+# all of them by construction and each was measured to flip this red from
+# a throwaway plugin, precisely so the red does not prescribe one; two
+# WRONG repairs were measured to leave it red. That comment also carries
+# the recommendation, (A), with its corpus cost and the two things it
+# must not do.
+#
+# IT IS NOT A `pin_spot` RED, which was the reported diagnosis. That
+# function's collision set already covers every non-target rectangle,
+# diamond and ellipse, and on this scene today's `pin_spot` returns the
+# inside-the-target fallback `(884, 622)` while the artifact holds
+# `(920, 612)` — which is exactly the hug spot the scene USED to allow.
+# The placement is stale, not mis-computed: a pin left behind by a scene
+# that changed after it was minted, which is the class `pin_drift` exists
+# to report — and it reports it, at the wrong magnitude.
+#
+# THE NEIGHBOUR IS THE OTHER POLE OF THE SAME READING, not a quiet
+# scene: 16px of real air between the ❓ and the rival, direction
+# `clear`, asserted ungated in every commit. It is the live half in the
+# strict sense — it runs the same lint line through the same collector,
+# so a `pin_drift` that went silent or crashed takes the neighbour down
+# rather than hiding inside this mutant's mask.
+_register(Mutant(
+    "pin_buried_in_a_rival_reads_as_adjacent",
+    build=_pin_drifted_but_clear_of_the_rival,
+    op="shift_label", args={"text_id": "q1", "dx": 26, "dy": 0},
+    expect=FindingSpec("pin_rival_gap", element="q1",
+                       magnitude=(10, 0.10), direction="overlap"),
+    neighbour=Neighbour(_pin_drifted_but_clear_of_the_rival,
+                        FindingSpec("pin_rival_gap", element="q1",
+                                    magnitude=(16, 0.10),
+                                    direction="clear"))))
+
+# THE OTHER HALF OF THE ENTRY ABOVE, and the half its own comment said
+# nothing asserted: "Extend the rival read and leave `own` clamped, or pin
+# the gate on a ❓-over-its-own-target scene. Nothing asserts that yet,
+# which is why it is written down." This is that, written down in the one
+# place that runs.
+#
+# WHAT IT HOLDS. `pin_drift` reads `_rect_gap` TWICE in one loop — the
+# distance to the pin's own target and the distance to the nearest rival —
+# and r8-7's repair extends only the second. The first stays clamped
+# because `crowded` subtracts one from
+# the other against `PIN_HUG_PX`, which is a PLACEMENT tolerance: 8px is
+# how far off a shape `pin_spot` mints a glyph, a fact about air, with no
+# reading at all for a negative operand. Under the clamp `crowded` can
+# never hold for a ❓ overlapping its own target — `own` floors at 0 and
+# the rival's gap was non-negative, so the difference is at most 0 — and
+# the population is not hypothetical: 5 of the corpus's 40 targeted
+# markers sit ON their own target, overlapping by 15-38px, and not one of
+# them speaks.
+#
+# IT IS GREEN ON MAIN AND THAT IS THE POINT. This entry pins no defect;
+# it pins a SILENCE that two plausible spellings of the repair break, so
+# it can only ever fail forward. Five whole trees were measured, each the
+# shipped canvas.py with one of its three edits undone:
+#
+#   canvas.py                                   this pin   r8-7
+#   main: both reads clamped, gate raw          green      RED
+#   sign the helper, gate raw                   RED        green
+#   sign the RIVAL READ ONLY, gate raw          RED        green
+#   sign the helper, gate clamped               green      green
+#   shipped: sign the rival read, gate clamped  green      green
+#
+# ROWS 2 AND 3 ARE WHAT THIS ENTRY IS FOR, and reading them together is
+# what says which. They differ only in whether the OWN read is signed and
+# both go red, so what this pin holds is not "the own read stayed
+# clamped" — it is that `crowded` still subtracts a CLEARANCE. Row 4
+# proves the same thing from the other side: signing the shared helper is
+# harmless while the gate floors its operand.
+#
+# SO THE INSTRUCTION WAS NOT SUFFICIENT, which is the finding worth
+# carrying. "Sign the rival read only, leave `own` clamped" is row 3, and
+# row 3 is red: `own` floors to 0, a rival 22px deep still gives
+# `0 - -22 = 22 >= 8`, and the check speaks about a ❓ sitting on the very
+# thing it asks about — "drawn 0px from it and only -22px from gate" —
+# with the own read left exactly as it was told to be. A reader who took
+# the instruction literally would have signed the rival read, watched
+# r8-7 flip, and shipped row 3.
+#
+# THE NEIGHBOUR IS BROKEN ON MAIN, measured, and that is correct rather
+# than a flaw: it asserts a 36px overlap reading, and main has no way to
+# say anything but 0/clear. It is a pole the repair CREATES, which is why
+# it is asserted ungated from here forward and could not have been
+# written before the fix.
+#
+# THE OPERATOR IS ONE DRAG AND NOT A CONSTRUCTED SCENE, which is what
+# makes it a mutant rather than a fixture: `shift_label` slides the ❓
+# 230px right, off `step`'s left edge and across the seam, and nothing
+# else in the drawing moves. That is a gesture a user makes with a mouse
+# and no op is issued for — the same door r6-1's producer half came
+# through — and it lands the glyph 4px into its own target and 22px into
+# the abutting rival at once.
+#
+# THE NEIGHBOUR IS A FIRING POLE AND NOT A SECOND QUIET SCENE, because a
+# dead `pin_drift` satisfies a `Silence` and nothing else here would
+# notice: it asserts the same check reaching the same rival clause and
+# reporting 36px of overlap on a ❓ that is clear of its own target. That
+# is also what supplies this check's ungated `FindingSpec` — see
+# `test_a_silence_pole_is_never_the_only_witness_of_a_check`.
+_register(Mutant(
+    "pin_over_its_own_target_stays_quiet_about_rivals",
+    build=_pin_hugging_a_target_that_abuts_a_rival,
+    op="shift_label", args={"text_id": "q1", "dx": 230, "dy": 0},
+    expect=Silence("pin_rival_gap"),
+    neighbour=Neighbour(_pin_into_a_rival_and_clear_of_its_target,
+                        FindingSpec("pin_rival_gap", element="q1",
+                                    magnitude=(36, 0.10),
+                                    direction="overlap"))))
+
 
 class TestMutantCatalogue(unittest.TestCase):
     """Verify mode: seeded defect -> asserted finding; neighbour -> pole."""
@@ -26133,6 +27283,118 @@ class TestMutantCatalogue(unittest.TestCase):
             "the silence asserted just above is about the instrument and "
             "not about the picture" % spoke)
 
+    def test_mutant_forked_feet_read_through_node(self) -> None:
+        """r8-5: two feet LEAVING N draw one stroke and nothing says so.
+
+        RED BY ABSENCE. The scene is `headless_chain_reads_through_node`'s
+        own, with `e1` reversed — a model edit that repaints nothing, and
+        the neighbour below asserts that. The lint reports 80px before the
+        flip and is silent after it, because its pair gate demands one
+        arriving foot and one leaving one and this node now has two
+        leaving.
+
+        Reachable and reached: `onboarding-data`'s `d7` and `d10` both
+        leave `st-application` at x=860 on opposite borders, a cold
+        observer read the pair as one relation through the box, and the
+        artifact lint said nothing at all.
+        """
+        self._run("forked_feet_read_through_node")
+
+    def test_neighbour_forked_feet_read_through_node(self) -> None:
+        """The same fork with a head at N must stay quiet.
+
+        The discriminator, and the reason the reds cannot be bought by
+        deleting the terminator test: this scene differs from the mutant's
+        only in the cue, so a widening that reports every collinear
+        opposed pair fires here. Measured — the "widen and drop the cue"
+        patch reports 80px on this builder and four findings on the r8
+        artifact, three of them ordinary chained nodes.
+        """
+        self._run_neighbour("forked_feet_read_through_node")
+        # THE RED'S PREMISE, ASSERTED RATHER THAN CLAIMED, and the one
+        # thing that could make it dishonest. The mutant demands that the
+        # finding survive an edit A READER CANNOT SEE; if `flip_direction`
+        # moved so much as one mark, the silence it reports would be about
+        # a different picture and the entry would be indicting the check
+        # for answering a changed question. `_operator` deep-copies, so
+        # the base below is untouched by the call.
+        #
+        # WATCHED FAILING with the inputs damaged, not the function: hand
+        # this the HEADED chain (`headless=False`) and the flip carries
+        # e1's arrowhead from N to A, symmetric difference two marks, and
+        # the guard fails. Damaging `_drawn_ink` itself would have proved
+        # nothing about the scenes.
+        base = _attach_chain(shared=False, headless=True)
+        flipped = OPERATORS["flip_direction"](base, arrow_id="e1")
+        self.assertEqual(
+            _drawn_ink(base), _drawn_ink(flipped),
+            "reversing a headless stroke must repaint nothing, or the "
+            "mutant above is not about the check at all; marks in one "
+            "scene and not the other: %s"
+            % sorted(map(str, _drawn_ink(base) ^ _drawn_ink(flipped))))
+        # THE LIVE HALF, and the row this mutant holds in `RULE8_EXEMPT`
+        # is what owes it. Rule 8 refuses to count a RED mutant's own
+        # `FindingSpec`, so nothing in the catalogue makes
+        # `phantom_passthrough` fire beside the Silence just asserted —
+        # and a detector that has stopped answering passes both poles.
+        # Same builder family, same check, same `collect_findings` entry
+        # point, so a dead detector fails HERE instead of reading green.
+        spoke = [f for f in collect_findings(_attach_chain(shared=True))
+                 if f["check"] == "phantom_passthrough"]
+        self.assertEqual(
+            [(f["element"], f["magnitude"]) for f in spoke], [("N", 80.0)],
+            "the shared-attach chain draws 80px of arrow across N and "
+            "`phantom_passthrough` should say so; got %s. Until it does, "
+            "the silence asserted above is about the instrument and not "
+            "about the picture" % spoke)
+
+    def test_mutant_joined_feet_read_through_node(self) -> None:
+        """r8-5's other pole: two feet ARRIVING at N, same silence.
+
+        RED BY ABSENCE, and it exists because the gate that rejects the
+        fork is a conjunction. `not f_arr or g_arr` fails on a different
+        foot here, so a repair keyed on "both leaving" flips the sibling
+        above and leaves this one exactly where it is. Same base scene,
+        same null edit, same 80px of bare N.
+        """
+        self._run("joined_feet_read_through_node")
+
+    def test_neighbour_joined_feet_read_through_node(self) -> None:
+        """The same join with a head at N must stay quiet.
+
+        The join's cue is `endArrowhead`, where the fork's is
+        `startArrowhead`: the client paints a head at the point string's
+        end it belongs to, so the two poles are cued through different
+        keys and neither neighbour can stand in for the other.
+        """
+        self._run_neighbour("joined_feet_read_through_node")
+        # The same premise for this mutant's own operator argument. One
+        # mutant, one control, one guard — see `_run_neighbour` on why the
+        # repeat is the convention rather than an oversight.
+        base = _attach_chain(shared=False, headless=True)
+        flipped = OPERATORS["flip_direction"](base, arrow_id="e2")
+        self.assertEqual(
+            _drawn_ink(base), _drawn_ink(flipped),
+            "reversing a headless stroke must repaint nothing, or the "
+            "mutant above is not about the check at all; marks in one "
+            "scene and not the other: %s"
+            % sorted(map(str, _drawn_ink(base) ^ _drawn_ink(flipped))))
+        # THE LIVE HALF, and the row this mutant holds in `RULE8_EXEMPT`
+        # is what owes it. Rule 8 refuses to count a RED mutant's own
+        # `FindingSpec`, so nothing in the catalogue makes
+        # `phantom_passthrough` fire beside the Silence just asserted —
+        # and a detector that has stopped answering passes both poles.
+        # Same builder family, same check, same `collect_findings` entry
+        # point, so a dead detector fails HERE instead of reading green.
+        spoke = [f for f in collect_findings(_attach_chain(shared=True))
+                 if f["check"] == "phantom_passthrough"]
+        self.assertEqual(
+            [(f["element"], f["magnitude"]) for f in spoke], [("N", 80.0)],
+            "the shared-attach chain draws 80px of arrow across N and "
+            "`phantom_passthrough` should say so; got %s. Until it does, "
+            "the silence asserted above is about the instrument and not "
+            "about the picture" % spoke)
+
     def test_mutant_ellipse_corner_overfire(self) -> None:
         """An arrow 27px clear of the circle draws no complaint."""
         # Bbox-shaped through-node test, ellipse instance. FLIPPED by WP4
@@ -26296,6 +27558,35 @@ class TestMutantCatalogue(unittest.TestCase):
     def test_neighbour_pin_left_behind_by_its_moved_target(self) -> None:
         """A minted ❓ with a bystander 2px nearer is not a drifted one."""
         self._run_neighbour("pin_left_behind_by_its_moved_target")
+
+    def test_mutant_pin_buried_in_a_rival_reads_as_adjacent(self) -> None:
+        """A ❓ drawn 10px INSIDE a rival is reported at 10px of overlap."""
+        # GREEN as of 2026-09-01, by repair (A) of the three the entry
+        # measured: `_rect_gap_signed` extends the gap through zero and
+        # the RIVAL read takes it, so the sentence
+        # carries -10px where it carried 0px. The own read is still
+        # clamped, which is the half of (A) that is not free — see
+        # `pin_over_its_own_target_stays_quiet_about_rivals` below,
+        # which is the gate the entry asked for and which goes red
+        # under a helper-level signing.
+        self._run("pin_buried_in_a_rival_reads_as_adjacent")
+
+    def test_neighbour_pin_buried_in_a_rival_reads_as_adjacent(self) -> None:
+        """16px of air between the same ❓ and the same rival reads clear."""
+        self._run_neighbour("pin_buried_in_a_rival_reads_as_adjacent")
+
+    def test_mutant_pin_over_its_own_target_stays_quiet_about_rivals(
+            self) -> None:
+        """A ❓ dragged onto its own target says nothing about a rival."""
+        # Green here and red under two spellings of the r8-7 repair that
+        # look right — signing the shared helper, and signing the rival
+        # read but gating `crowded` on the signed value. See the entry.
+        self._run("pin_over_its_own_target_stays_quiet_about_rivals")
+
+    def test_neighbour_pin_over_its_own_target_stays_quiet_about_rivals(
+            self) -> None:
+        """Clear of its target and 36px into a rival, the check speaks."""
+        self._run_neighbour("pin_over_its_own_target_stays_quiet_about_rivals")
 
     def test_mutant_border_run_reads_an_unbound_neighbour(self) -> None:
         """80px of drop lies on a box the arrow binds neither end to."""
@@ -26585,6 +27876,98 @@ def render_evidence_currency() -> tuple[str, str]:
                 % rec.get("recorded", "undated"))
     return ("current", "render-tier evidence last executed %s against this "
                        "canvas.py" % rec.get("recorded", "undated"))
+
+
+def browser_capture_currency(cap: dict[str, Any], spec: str
+                             ) -> tuple[str, str]:
+    """Report whether a recorded browser capture still describes this tree.
+
+    THE SECOND READER OF `canvas_digest`, deliberately shaped like the
+    first. The comment above `RENDER_RUN_RECORD` records this repo's
+    ruling on evidence a browser had to produce: currency is REPORTED
+    and not enforced, because binding a commit to it makes every
+    `canvas.py` edit demand a browser. The browser CAPTURES are the same
+    kind of evidence, so they get the same answer — with one difference
+    that decides everything about how their consumers use this. The
+    render-tier run is read only by `--coverage`; the two captures are
+    read by the ORDINARY suite, which replays them through `canvas.py`
+    with no browser anywhere. So a stale capture has to be answered
+    INSIDE a test run, and a consumer that merely weakens its comparison
+    and says nothing is the gate going dark.
+
+    Args:
+        cap: A capture as its spec wrote it, or `{}` when no run has
+            ever written one.
+        spec: The playwright spec that records it, so the remedy in the
+            message names the command rather than describing it.
+
+    Returns:
+        `(state, detail)` where `state` is "missing" (no capture
+        recorded), "stale" (recorded against a different `canvas.py`) or
+        "current". `detail` is a sentence a reader can act on. The stale
+        one names BOTH digests, because a message about a mismatch that
+        names one of the two has not told anybody which of the record
+        and the tree moved — and `DIGEST_NAMED_BY` is the floor a skip
+        has to clear before it counts as an answer rather than silence.
+    """
+    if not cap:
+        return ("missing",
+                "no browser has ever spoken about %s, so the tests that "
+                "read its capture have no subject. Record one: npm "
+                "--prefix frontends/wysiwyg-grilling exec -- playwright "
+                "test %s" % (spec, spec.split(".")[0]))
+    recorded = str(cap.get("canvas_sha256") or "undated")
+    tree = canvas_digest()
+    if recorded != tree:
+        return ("stale",
+                "THE BROWSER CAPTURE IS OLDER THAN THE CODE IT IS ABOUT. "
+                "It was recorded against a canvas.py hashing %s and this "
+                "tree's hashes %s, so the fact-for-fact comparison "
+                "against what the browser itself narrated is OFF in the "
+                "two tests that read it, and only the halves that "
+                "survive a canvas.py change still assert anything. This "
+                "is what editing canvas.py costs and it is not a fault "
+                "in your change: drive a real tab again and the "
+                "comparison comes back. Run: npm --prefix "
+                "frontends/wysiwyg-grilling exec -- playwright test %s"
+                % (recorded[:12], tree[:12], spec.split(".")[0]))
+    return ("current",
+            "recorded against the canvas.py this tree ships (%s)"
+            % tree[:12])
+
+
+def answer_a_stale_capture(case: unittest.TestCase, detail: str) -> None:
+    """Skip a case over a stale capture, audibly on both of this repo's runners.
+
+    A SKIP IS AN ANSWER ONLY IF SOMEBODY IS TOLD, and `skipTest` alone
+    is not that. Measured, both ways: `python3 -m unittest test_mutants`
+    prints `s` and `skipped=2`, and the reason only under `-v`;
+    `pre-commit`'s own runner, `pytest -n auto tests -q`, prints two
+    dots' worth of `s` and `2 skipped` and needs `-rs` before it will
+    say why. So the reader who edits `canvas.py` and commits meets a
+    green either way — which is the very shape this repair exists to
+    remove, one rung quieter than the fallback it replaced.
+
+    THE WARNING IS THE CHANNEL THAT SURVIVES BOTH. `unittest` lets it
+    through to stderr; pytest collects it into the warnings summary it
+    prints by default, without `-r` and without turning capture off. It
+    fires only over a stale capture, so an ordinary run stays silent.
+
+    NOT A FAILURE, and the ruling is not this function's to make: see
+    `RENDER_RUN_RECORD`'s comment. Failing would make every `canvas.py`
+    edit demand a browser, and the e2e tier is a manual-stage hook
+    precisely so an ordinary commit does not need one. This never
+    returns: `skipTest` ends the calling test on every path.
+
+    Args:
+        case: The test case to skip.
+        detail: `browser_capture_currency`'s sentence, which names both
+            digests and the command that re-records. It goes to the
+            warning as well as to the skip, because the warning is the
+            only copy of it a default run prints.
+    """
+    warnings.warn(detail, stacklevel=2)
+    case.skipTest(detail)
 
 
 # Check names a catalogue entry may name with no `DETECTORS` detector
@@ -28000,15 +29383,180 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # which is two phantom captions disappearing under a browser's own witness.
 # A GREEN UNDER A DARK GATE IS THE SHAPE THIS FILE EXISTS TO REFUSE.
 #
-# WHAT IS NOT CLOSED, so the empty dict is not read as an all-clear.
+# AND THE DICT IS NO LONGER EMPTY, as of 2026-09-01: the paragraphs above
+# describe the 2026-08-30 drain and were written while it read `{}`. Two
+# entries stand now — see the note under the dict itself — so "the empty
+# dict" below means the state this section was written in, not the state
+# the file is in. The residual it names is still open and still unpinned.
+#
+# WHAT IS NOT CLOSED, so that emptiness was not read as an all-clear.
 # `recenter_label` models no shape inset, so an ellipse's and a diamond's
 # captions still sit where the tab will not draw them at every alignment
 # including `middle` — reachable and narrated, 29 and 14 of 116 middle
 # cells driven through a real `Store`. That is unpinned on purpose: it is
 # a whole-placement-rule repair, seeded above this file's anchor class,
 # and no red here should prescribe it.
+#
+# ONE ARRIVED AND LEFT ON 2026-09-01,
+# `...StillMeansWhatTheProseSaysItMeans`, filed by the mutant-curator after
+# a re-review found the citation rot alive behind two sweeps that had each
+# declared it closed, and drained the same day by the fix round for it. Its
+# single red said every minified name this tree spells for the client is
+# anchored to an offset the shipping bundle resolves to that same name, or
+# scoped to a build that no longer ships. It was HAND-AUTHORED rather than
+# a catalogue entry for the usual reason: the subject is prose, not a
+# scene, and no operator can forge a docstring. It left as a LINE and not
+# as a number, its class carrying exactly one red.
+#
+# THE REPAIR WAS ANCHORING AND NOT SCOPING, which is the half worth
+# reading, because the class advertised five repairs and the cheapest of
+# them verifies nothing. Of the 54 unverifiable citations it reported, the
+# fix round anchored the overwhelming majority to an offset or a quoted
+# code slice that the shipping bundle resolves back to the cited name, and
+# the tree's scoped-only count went DOWN by 30 rather than up. The
+# `landed` clause in that class's guard is what makes an anchor cost
+# something: a false one names a symbol the bundle does not bind, and the
+# always-run pole beside the red goes red over it.
+#
+# IT ALSO COST THAT GUARD A CLAUSE. Its live paste attack asserted that
+# scoping every loose name leaves survivors, which is unassertable on a
+# tree with no loose names — the clause failed over the REPAIRED tree, so
+# it now runs on a forged source when the tree offers no subject. A guard
+# that can only run while its defect is present retires itself on the day
+# the defect is fixed, which is this file's own subject one level up.
+#
+# THE OTHER HALF OF THIS CENSUS IS `tests/RED-ROSTER.md`, and a red that
+# edits one without the other fails the suite. This dict and that roster
+# are two hand copies of the same fact, each compared against the LIVE
+# decorators by a guard of its own —
+# `test_the_hand_authored_red_classes_are_the_ones_that_exist` for the
+# dict, `test_the_handover_transcribes_the_hand_authored_red_classes` for
+# the file — so neither can be repaired by agreeing with the other. The
+# roster was SESSION-HANDOVER.md's census paragraph until 2026-09-01 and
+# moved so that a curator, who owns this file and that one and nothing
+# else, can land a red without editing a handover they are told not to
+# touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2}
+# `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` ARRIVED ON
+# 2026-09-01 as `r8-2`, the persisted-scene sibling of the caption-anchor
+# class this dict emptied a day earlier — and it is the reason a drained
+# entry is not the same as a closed class. `84f33fb` moved the WRITER onto
+# `BOUND_TEXT_PADDING` and flipped the mint-time red; every caption that
+# writer had ALREADY written is still on disk a pixel from where the tab
+# draws it, and no reader in the product says a word about it. One red,
+# because the relation is one thing (reported OR repaired) measured over
+# twelve cells; the two alignments, the two signs and the two routes are a
+# population and not four defects.
+# LEFT 2026-09-02, flipped by repair (b) of the five its docstring measured
+# and by a different hand than the one that curated it: `project_lint` gains
+# `stale_caption_notes`, an aggregate note naming the captions an artifact
+# stores off the anchor the canvas draws them at. REPORT-ONLY WAS THE
+# CHOICE and the other four are why — (a), (c) and (e) all re-anchor a
+# stored caption on sight, and none of them can tell a pre-fix pixel from
+# an 8px nudge somebody meant, so each buys this class by taking bound-
+# caption dragging away from the user and re-reding
+# `TestAModThatReachesDiskIsNamedByItsOwnRecord`'s durability grid. (d)
+# repairs nothing either but files the sentence on the ROUTING fossil
+# surface, whose own docstring is about connectors. The note is the y
+# anchor under a RECTANGLE only, which is the whole of what the writer can
+# prove about the picture; the arm's docstring holds the three exclusions
+# and the measurement behind each. Corpus effect: +43 captions named, in
+# 11 aggregate notes across 11 of the 24 artifacts.
+# `TestOnePairGetsOneVerdictOnWhetherItMayStand` ARRIVED 2026-09-01 carrying
+# R8's finding r8-4 (P2, half-waivable-warning-pair). Two warnings fire on one
+# arrow pair; the lane one offers a waive key and cleared 4W -> 3W, the
+# shared-attach one offers none and its three remedies are all geometry —
+# including the very move the user had just forbidden. Two reds because the
+# halves fail apart: the ROUND TRIP (every door taken, the pair still warned)
+# and the AFFORDANCE (the surviving warning has no door of its own). Nine
+# repair shapes were driven and flip them; a tenth that only rewords the
+# remedy flips neither, which is what the class is for.
+# `TestAClosedPinSaysWhyItClosed` ARRIVED ON 2026-09-01, found during the
+# R8 close (finding r8-8), hours after the entry below left. It is the
+# other end of the same door: the provenance repair made the agent's
+# answer a PROPOSAL, and `resolve_pin` still carries an id and nothing
+# else — so a pin the user answered out loud closes to the same bytes as
+# one that merely stopped mattering (29 of 43 pins at revision 98), and a
+# pin with a draft nobody ruled on closes over it in silence. Two reds
+# because the halves do not share a repair: of eleven shapes measured,
+# three flip the first, six flip the second, and not one flips both.
+# `TestAShadedBoxKeepsTheLineWrittenOnIt` ARRIVED 2026-09-01 with the R8
+# close's fill-over-text finding (pipeline r8-close, leaf 1.3.1) — a
+# RECURRENCE at n=2 inside one run, and the first entry here whose subject
+# is a hole a previous fix left on purpose rather than one nobody had seen.
+# Task 45 lifted every TAGGED composed part above its owner and wrote down
+# that an untagged `role: decoration` stays beneath because it is a
+# backdrop; R8 shaded three boxes and the fill ate the blast-radius TEXT
+# lines drawn on them, which is that sentence meeting an element a backdrop
+# can never be. One red because the class has one subject and the arms of
+# its disjunction fail together: refused, visible and reported are three
+# ways of being honest about the same line, and today's tree is none of
+# them.
+#
+# THE SECOND ENTRY ARRIVED 2026-09-01, filed by the mutant-curator from
+# finding r8-10 of the R8 optimizer round: an answer that named twelve
+# things the drawing holds none of closes its pin with byte-identical
+# bytes to one that named three it holds all of. HAND-AUTHORED and not a
+# catalogue mutant for the reason the sibling above it gives — the
+# subject is a registry answer and a save record, not a scene, and
+# `collect_findings` runs `lint_layout` over elements and can never see
+# a pin's answer at all. Two reds because the halves fail apart: eight
+# measured repair shapes flip the transient one and only three of them
+# flip the durable one. The catalogue's own comment carries the table.
+# `TestAConfigChangeSaysWhoseHandTurnedIt` ARRIVED ON 2026-09-01, both
+# halves in one change, and it arrived as a LINE rather than as a number.
+# Filed as r8-9 during the R8 optimizer assessment: `config_changed`
+# records `{seq, ts, type, patch}` and no actor, and `x-as-user config`
+# posts the rail's own body to the rail's own route, so the 05:26:01Z
+# event that turned review-before-landing off could not say whose hand
+# did it. Two reds because the halves fail apart in BOTH directions —
+# marking the durable config alone leaves the emission red, splitting the
+# event type alone leaves the durable red — and both were driven.
+#
+# THE SAME SHAPE AS `TestAnAnswerSaysWhoseWordsItIs`, ONE EVENT OVER, and
+# it reuses that class's bench pattern rather than restating it:
+# `_prov_recorder`, `_prov_control` and `_PROV_DECIDED_STATUSES` are
+# borrowed whole. What it does NOT borrow is the one-world shape — a pin
+# can be minted twice and a config cannot, so `_cfg_drive` gives each
+# door its own project, which is also what keeps a refused agent door
+# from reading as two identical snapshots.
+# THE GATE-DARKENING PAIR ARRIVED 2026-09-01, filed by the mutant-curator
+# for pipeline r8-close on a finding three agents reached independently
+# that day: a recorded browser capture whose `canvas_sha256` stops
+# matching the tree downgrades its consumers from an exact fact-for-fact
+# comparison against a real browser's answer to `assertNotEqual(facts,
+# [])`, with no failure, no skip, and `pre-commit` still exiting 0. Two
+# reds because the two captures are consumed by two classes whose gates
+# are written out separately, so a half-repair is a thing that can land.
+# `TestACorrectionWaveHeadlinesWhatSomebodyAuthored` ARRIVED 2026-09-01,
+# from the R8 assessment's `r8-1` — the escalation of `r7-2`, reproduced
+# on `f29c3f3` before anything was written. A correction wave's headline
+# names a DERIVED re-route, by raw machine id, ahead of the additions and
+# deletions the turn was about, and no `by_element` entry says what caused
+# the re-route. Two reds because the halves fail apart, which was measured
+# and not assumed: `mark_consequences` feeds the ENTRY while the `rerouted`
+# fact is appended from `extra_facts` afterwards, so no single candidate in
+# the class's own matrix flips both. The fix belongs to whoever owns
+# `mechanical_summary` and `mark_consequences`; the curator wrote neither.
+# `TestAnAnswerSaysWhoseWordsItIs` FILLED THIS ON 2026-09-01 AND LEFT IT
+# THE SAME DAY, both halves at once, and it left as a LINE rather than as
+# a number — the twelfth time that has been the shape here. Filed because
+# a pin answer recorded nothing about whose composition it was, on either
+# of the two stores that already model authorship for the QUESTION; two
+# reds because the halves fail apart, one over what an answer is stored in
+# and emitted as, one over the two surfaces that render it.
+#
+# BOTH MOVED IN ONE CHANGE BECAUSE THE REPAIR WAS ONE THING. The class
+# measured four shapes that flip them and prescribed none; the owner chose
+# (c), a proposal the user promotes. `canvas.py x-as-user answer` posts to
+# `/api/pins/propose` now — the words park on the pin, `answer` stays
+# empty, the pin stays `open`, and only the user's own promote turns them
+# into testimony. So the storage half flips because the two doors write
+# different records, and the rendering half flips with it because the
+# agent's composition never reaches the `--for user` feed at all and the
+# nag says a proposal is waiting. A repair that had stopped at the stores
+# would have left the second red exactly where it was pointing.
 # EMPTIED AGAIN on 2026-08-30, hours after curator batch 47 filled it, and
 # the dict lost a LINE rather than a number — the eleventh time that has
 # been the shape here, and this one was predictable: the class carried
@@ -28086,6 +29634,13 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # to catch. So Face B is open on purpose, with the cost of closing it
 # named; a reader who takes "both closed" above to mean "WP-A is done"
 # has read one sentence too few.
+#
+# THE R8 WAVE LEFT ON 2026-09-02. Every class that ARRIVED on 2026-09-01
+# above — nine of them, eighteen reds — was flipped by the r8-fixes pipeline,
+# each by hands that did not curate it, each with its body untouched except
+# the decorator, and each fold commit carries the fix branch as a parent. The
+# ARRIVED notes stay as the record of why each red was filed; the dict and
+# the roster are the record of what is red NOW, and they agree by test.
 
 # ONE JOINED on 2026-08-25 (curator, from the fold-wp4 duplicate-constant
 # batch), and it re-opens this dict after it had emptied. It belongs to the
@@ -28595,6 +30150,71 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
 CATALOGUE_RED_IDS: set[str] = set()
+# DRAINED 2026-09-02 by the pair-gate widening, and the PAIR emptied in one
+# change because the repair was not keyed on a role at all: the pair loop
+# now walks every unordered pair of feet by INDEX and asks the geometry,
+# so the conjunction that rejected the fork on `not f_arr` and the join on
+# `g_arr` has no halves left to fail on. Of the entries' four measured
+# repairs this is (1), taken because the role test was never a criterion —
+# every reader past it is geometry plus the terminator cue — and the
+# reversal it hinged on is a null edit on the page.
+# MEASURED OVER THE FROZEN CORPUS against this fix rather than carried over
+# from the entry: `phantom_passthrough` goes 0 -> 7 over the 24 fixtures
+# and 0 -> 5 over the 13 r8 artifacts, and every one of the 12 is a FORK or
+# a JOIN drawing one line through a node with nothing terminating at it —
+# no ordinary chained node among them, which is the over-fire the entry
+# named and the neighbours buy. `onboarding-data` gains exactly the one
+# 80px finding on `st-application` the entry predicted.
+# REFILLED 2026-09-01 by curator finding r8-5, hours after the drain
+# below, and with a PAIR rather than a single id — the gate they indicted
+# was a conjunction whose halves failed on different feet.
+# DRAINED on 2026-09-01, hours after it refilled, by repair (A) of the four
+# its own entry had measured: `_rect_gap_signed` continues the box gap
+# through zero and returns the negated MINIMUM TRANSLATION DISTANCE, and
+# the RIVAL read takes it. `_rect_gap` stays clamped and
+# is now that function floored, so there is one geometry with two views of
+# it. The entry offered four spellings and refused three; the choice among
+# the four was the fixer's, and the two it refuses were re-measured against
+# this tree before the decorator came off (`hypot(10, 36)` = 37.4px at row
+# G, the overlap area at 360 at row F).
+#
+# WHAT THE ENTRY ASKED FOR AND DID NOT GET UNTIL NOW is the other half:
+# "extend the rival read and leave `own` clamped, OR pin the gate on a
+# ❓-over-its-own-target scene. Nothing asserts that yet." Both halves
+# landed here — `pin_over_its_own_target_stays_quiet_about_rivals` is that
+# pin, it is green, and it goes RED under two spellings of this repair that
+# look right, including the one this entry itself recommended in those
+# words. Signing the rival read alone is NOT sufficient: `crowded`
+# subtracts the rival's gap from the own gap, so `own`
+# floors to 0 and a rival 22px deep still gives `0 - -22 = 22 >= 8`. The
+# gate has to keep subtracting a CLEARANCE, and the new entry carries the
+# five-tree matrix that says so.
+#
+# MEASURED COST OVER THE FROZEN CORPUS, re-derived here against the fix
+# rather than carried over from the entry: 3 artifacts fire before and
+# after, 5 pin_drift sentences before and after, and 2 changed text — the
+# two the finding named (`argus-r4-arm4/admin-console-wireframe`
+# `pin-rerun-unit` 0px -> -10px, `argus-r4-arm4/dashboard-wireframe`
+# `pin-report-page` 0px -> -20px). THE VALUE ABOVE WAS READ OFF THE GUARD:
+# the decorator was dropped first, `test_the_catalogue_reds_are_the_ones_
+# declared` was run, and it reported `measured []`.
+# REFILLED on 2026-09-01 by the curator, from r8 finding r8-7, and it is a
+# third drain shape's opposite: nothing was fixed and nothing was
+# re-judged, a check that has been reporting correctly for weeks was found
+# to be reporting correctly about the WRONG ONE OF ITS TWO NUMBERS.
+# `pin_drift` carries the distance to the pin's TARGET — in both arms —
+# and `_PIN_DRIFT_RE` deliberately stops there, so the rival's distance
+# was the one number in that sentence nothing had ever read. `_rect_gap`
+# clamps each axis before taking the hypotenuse, so an overlap comes back
+# `hypot(0, 0)`: "0px" is what an agent is told about a ❓ merely touching
+# a button and about a ❓ drawn 10px inside one, and 2 of the 5 pin_drift
+# sentences the frozen corpus emits are the second case. The red belongs
+# to WHICHEVER WP OWNS `pin_drift`, and that is the whole population —
+# `_rect_gap`'s only two production call sites are the `own` and `d` reads
+# inside that one loop. Four honest repairs were measured to flip it and
+# three wrong ones to leave it red; `_PIN_RIVAL_READINGS` names them all
+# and recommends (A).
+#
 # TWO DRAINS ON ONE DAY AND THEY ARE NOT THE SAME REPAIR, which is what
 # the R6 integration merge had to decide and did not decide by picking a
 # branch: WP-A and WP-B each emptied this set on 2026-08-30, through
@@ -28963,88 +30583,6 @@ def catalogue_red_ids() -> set[str]:
 
 
 HANDOVER = Path(__file__).resolve().parents[1] / "SESSION-HANDOVER.md"
-# The table cell this reads, by its row label. Matched on the label rather
-# than on a line number because the file is edited by every task in the
-# wave; a moved table should re-find itself, and a RENAMED row should fail
-# loudly rather than silently match nothing (which is the failure mode that
-# would turn this guard back into the sentence it replaced).
-_HANDOVER_MODEL_ROW = "| model (default suite) |"
-
-
-def handover_catalogue_reds() -> set[str]:
-    """The catalog reds SESSION-HANDOVER.md transcribes, as ids.
-
-    Curator batch 23 item 1 (task 45 §7.1), 2026-08-15. The half of the
-    census that batch 22's guard said it covered and did not: this reads
-    the hand-copied table out of the file so the transcription can be
-    compared to the derivation instead of trusted.
-
-    EXACTLY ONE row is required, and the walk that finds it reads the
-    WHOLE file rather than returning at the first hit. The first draft
-    returned on the first matching line, which is the same
-    first-match-wins hole `handover_durable_counts` was found to have
-    (v0.9 census, `2db8a5b`) — all three readers of this file had it,
-    and this one is the second of the two that change together.
-
-    THE DIRECTION THAT IS SILENT is the one to test, and it is not the
-    obvious one. A WRONG row placed above the canonical one fails loudly
-    and would have cleared this guard on a first look; what is silent is
-    a CORRECT copy above a STALE canonical row — the guard reads the
-    copy, finds it agrees with the derivation, and reports the census
-    healthy while the row a human reads is missing an id. Demonstrated
-    live before this fix landed.
-
-    RESIDUAL, stated rather than papered over: the exactly-one check
-    catches a duplicate in THIS spelling — a line starting with the row
-    label. The same ids restated as prose elsewhere in the file are
-    invisible to it, and the fifth hand copy of the durable counts that
-    `2db8a5b` deleted was exactly that shape. No guard here detects a
-    fact restated in new words; the discipline is the instruction, and
-    the pointers in the file are what carry it.
-
-    Returns:
-        Every backticked id in the model row of the "Catalog reds" table.
-
-    Raises:
-        AssertionError: If the file is absent, if the row is absent, or
-            if the row appears more than once. A census guard that
-            quietly returns an empty set when its subject moves is worth
-            less than no guard, because it reports agreement while
-            reading nothing — the exact shape of the defect this closes,
-            and a guard that reads one of two copies is the same defect
-            wearing a table. Every case is an ASSERTION and not the
-            underlying OSError: this file's own doctrine is that a red
-            must be red by assertion, and an isolated tree — `tests/`
-            copied beside a symlinked `skills/`, which is how every
-            mutation proof in this repo is run — hits the missing-file
-            case as a matter of course. It should read as one sentence
-            about the tree, not as a traceback about the census.
-    """
-    if not HANDOVER.exists():
-        raise AssertionError(
-            "%s is not in this tree, so the census transcription cannot "
-            "be checked. If this is an isolated mutation-proof tree, copy "
-            "the file in beside tests/ — the guard is not what you are "
-            "measuring and this failure is not a finding" % HANDOVER)
-    rows = [line for line in HANDOVER.read_text(encoding="utf-8").splitlines()
-            if line.startswith(_HANDOVER_MODEL_ROW)]
-    if not rows:
-        raise AssertionError(
-            "no %r row in %s: the catalog-reds table has been renamed or "
-            "removed. If it is gone on purpose, delete this function and "
-            "its test in the same change — do not leave them matching "
-            "nothing" % (_HANDOVER_MODEL_ROW, HANDOVER.name))
-    if len(rows) > 1:
-        raise AssertionError(
-            "%d copies of the %r row in %s: %s. These ids are transcribed "
-            "ONCE, in the catalog-reds table, and pointed at from "
-            "everywhere else — a second copy is the census defect this "
-            "guard exists for, arriving by duplication instead of by "
-            "drift" % (len(rows), _HANDOVER_MODEL_ROW, HANDOVER.name, rows))
-    return set(re.findall(r"`([a-z0-9_]+)`",
-                          rows[0][len(_HANDOVER_MODEL_ROW):]))
-
-
 # The handover's transcription of `coverage_table`'s totals. Matched on the
 # four numbers in order rather than on surrounding prose, so the sentence
 # can be rewritten without breaking the guard and cannot be rewritten to say
@@ -29335,30 +30873,317 @@ def handover_render_reds() -> set[str]:
         if n.startswith("test_")}
 
 
-# The handover's roster of non-catalogue red CLASSES, by the label its line
-# starts with. A label and not a table row, because this fact was prose for
-# its whole life and a reader arriving mid-paragraph should still be able to
-# find the one line that is checked.
-_HANDOVER_HAND_AUTHORED = "Non-catalog red classes:"
-# One entry: a backticked class name followed by its red count in parens.
-_HAND_AUTHORED_ENTRY = re.compile(r"`(Test[A-Za-z0-9_]*)`\s*\((\d+)\)")
-# Everything the grammar reads lives inside backticks, so a class name that
-# LOST its backticks is invisible to both patterns above and to the `*none*`
+# ---------------------------------------------------------------------------
+# THE RED ROSTER: both hand-typed halves of the census, in one file that
+# holds nothing else. `tests/RED-ROSTER.md` carries two labelled sections —
+# the non-catalogue red CLASSES and the catalogue red IDS — and the two
+# readers below share every refusal, because the two sections have identical
+# discipline and a rule enforced on one of them only is a rule with a hole
+# in it. The declarations they are checked against are
+# `HAND_AUTHORED_RED_CLASSES` and `CATALOGUE_RED_IDS`; the truth both are
+# checked against is the live `expectedFailure` decorators.
+#
+# BOTH SECTIONS LEFT SESSION-HANDOVER.md ON 2026-09-01, the classes out of
+# its census paragraph and the ids out of the model row of its "Catalog
+# reds" table. The ruling is in `handover_hand_authored_red_classes`; the id
+# section's own reasons, which are NOT the same reasons, are in
+# `handover_catalogue_reds`.
+RED_ROSTER = Path(__file__).resolve().parent / "RED-ROSTER.md"
+# The two labels a section body begins after, by the wording each has
+# carried since it was prose. A label and not "the whole file", so the file
+# can explain its own grammar above each line and still be read EXACTLY
+# below it: prose above a label cannot be mistaken for an entry, and an
+# entry cannot hide in prose.
+_ROSTER_LABEL = "Non-catalog red classes:"
+_ROSTER_ID_LABEL = "Catalog red ids:"
+_ROSTER_LABELS = (_ROSTER_LABEL, _ROSTER_ID_LABEL)
+# A section's BODY runs from its label to the next markdown heading, or to
+# the end of the file. The terminator is what lets two rosters share one
+# file: without it the first section's body would swallow the second's prose
+# AND its label, and a reader that cannot say where the roster it is reading
+# ends is back to guessing, which is the whole disease here.
+_ROSTER_HEADING = "#"
+# One entry of each kind, matched against a WHOLE stripped line rather than
+# searched for inside one: a bullet, the backticked subject, and for a class
+# its red count in parens. Whole-line is the difference between "this line
+# IS an entry" and "this line CONTAINS one", and the second is what let a
+# garbled line half-parse while the reader reported only the half it
+# understood. Ids carry no count because a catalogue mutant is red or it is
+# not; a class carries one because it can drain by one.
+_ROSTER_ENTRY = re.compile(r"-\s+`(Test[A-Za-z0-9_]*)`\s*\((\d+)\)")
+_ROSTER_ID_ENTRY = re.compile(r"-\s+`([a-z0-9_]+)`")
+# The positive spelling of "empty", which is the whole reason these readers
+# are longer than their siblings. See `handover_hand_authored_red_classes`.
+# Spelled as its own whole line, and kept as a bare string as well because
+# every failure message here has to be able to name it.
+_HAND_AUTHORED_NONE = "*none*"
+_ROSTER_NONE_LINE = re.compile(r"-\s+\*none\*")
+# Everything the grammars read lives inside backticks, so a subject that
+# LOST its backticks is invisible to every pattern above and to the `*none*`
 # contradiction check. Blanking the backticked spans and looking at what is
-# left is what makes "no class is named here" mean it.
+# left is what makes "no red is named here" mean it. Applied to the WHOLE
+# file and not only to the bodies: the file explains its own grammar, and an
+# unbackticked name in that explanation reads to a human exactly like an
+# entry that has drifted above a label.
 _TICKED_SPAN = re.compile(r"`[^`]*`")
 _BARE_CLASS = re.compile(r"\bTest[A-Z]\w*")
-# The names `_HAND_AUTHORED_ENTRY` can express, as a whole-string match. The
-# guard's two halves must agree on this or no legal line can satisfy it; see
-# the `unspellable` assertion in the test.
+# The class names `_ROSTER_ENTRY` can express, as a whole-string match. A
+# guard's two halves must agree on what a subject's name is or no legal line
+# can satisfy it; see the `unspellable` assertions in the tests. The id half
+# needs no pattern of its own — `CATALOGUE`'s keys are the enumeration, so
+# the test checks them against `_ROSTER_ID_ENTRY` directly.
 _HAND_AUTHORED_SPELLABLE = re.compile(r"Test[A-Za-z0-9_]*\Z")
-# The positive spelling of "empty", which is the whole reason this reader is
-# longer than its four siblings. See the docstring.
-_HAND_AUTHORED_NONE = "*none*"
+
+
+def _roster_lines() -> list[str]:
+    """`tests/RED-ROSTER.md`'s lines, with every whole-FILE refusal made.
+
+    The refusals both sections share, made ONCE so neither can be given a
+    rule the other lacks. Three of them, and each is a state in which the
+    roster cannot be read rather than a roster that reads as empty —
+    which is the distinction every guard in this family exists for.
+
+    THE OLD ADDRESSES ARE CHECKED, which is the failure the move itself
+    creates. Both sections lived in SESSION-HANDOVER.md for their whole
+    lives, so the next agent to rebuild a paragraph from memory, resolve
+    a conflicted hunk the lazy way, or revert a commit across one puts a
+    roster line back at the old address — and a correct copy beside a
+    stale original is the silent direction this guard's whole family was
+    written about. So both labels are refused in that file outright
+    rather than merely ignored: each fact has exactly ONE home, and a
+    line at an old one is a finding and not a duplicate to reconcile.
+
+    THE UNBACKTICKED SUBJECT IS REFUSED BY NAME AND NOT BY SHAPE for the
+    id half, which is the one place the two sections could not share a
+    pattern. A class name is self-announcing — `Test` and a capital —
+    but a catalogue id is lowercase snake_case and indistinguishable
+    from ordinary prose, so no regex over English can find one. What CAN
+    is `CATALOGUE` itself: the ids are enumerated in this module, so the
+    check asks whether any id the catalogue actually holds appears in
+    the file outside backticks. Derived rather than guessed, and it
+    cannot misfire on a sentence that merely reads like an id.
+
+    Returns:
+        The file's lines, unstripped, for a section reader to slice.
+
+    Raises:
+        AssertionError: If the roster file is absent; if either label has
+            come back in SESSION-HANDOVER.md; or if a red class name or a
+            catalogue id is written anywhere in the file without its
+            backticks.
+    """
+    if not RED_ROSTER.exists():
+        raise AssertionError(
+            "%s is not in this tree, so the red roster cannot be checked. "
+            "It is the file curators own alongside this one, and both "
+            "halves of the census moved into it on 2026-09-01. If this is "
+            "an isolated mutation-proof tree, copy it in beside tests/ — "
+            "the guard is not what you are measuring and this failure is "
+            "not a finding" % RED_ROSTER)
+    text = RED_ROSTER.read_text(encoding="utf-8")
+    if HANDOVER.exists():
+        handover = HANDOVER.read_text(encoding="utf-8").splitlines()
+        for label in _ROSTER_LABELS:
+            stray = [ln for ln in handover if ln.startswith(label)]
+            if stray:
+                raise AssertionError(
+                    "%s still carries a %r line: %s. That roster moved to "
+                    "%s on 2026-09-01 and has exactly ONE home — a copy at "
+                    "the old address is the silent direction this guard's "
+                    "whole family is about, because the reader agrees with "
+                    "the file it reads while the human reads the other "
+                    "one. Delete it there: the handover keeps a pointer "
+                    "and no roster"
+                    % (HANDOVER.name, label, stray, RED_ROSTER.name))
+    blanked = _TICKED_SPAN.sub(" ", text)
+    bare = sorted(set(_BARE_CLASS.findall(blanked)))
+    bare += [mid for mid in sorted(CATALOGUE)
+             if re.search(r"\b%s\b" % re.escape(mid), blanked)]
+    if bare:
+        raise AssertionError(
+            "%s names %s outside backticks. Every check here reads only "
+            "what is INSIDE backticks, so an unbackticked name is read by "
+            "nothing: a section saying '%s' and then naming a red with the "
+            "ticks dropped would parse to empty, agree with an empty tree, "
+            "and pass while a human read it naming a red. One reflow or "
+            "one paste from a plain-text note is all it takes. Backtick "
+            "the name, or delete it" % (RED_ROSTER.name, bare,
+                                        _HAND_AUTHORED_NONE))
+    return text.splitlines()
+
+
+def _roster_section(lines: list[str], label: str,
+                    entry: re.Pattern[str]) -> list[tuple[str, ...]]:
+    """One labelled section of the roster, parsed or refused.
+
+    The refusals that are per-SECTION rather than per-file, made once for
+    both so the classes and the ids cannot drift apart in strictness.
+    Every one of them is a state in which that section cannot be read.
+
+    WHY AN EMPTY SECTION NEEDS A WORD FOR ITSELF, which is the part that
+    generalizes past this file. Either half can honestly sit at zero, so
+    the honest transcription enumerates nothing — and so does a section
+    that has been truncated, half-deleted, reworded, or replaced with a
+    note about something else. A reader that returned nothing for all of
+    those would be green over every one, and would say the same thing
+    about a correct roster and a destroyed one. `*none*` is therefore a
+    POSITIVE assertion of emptiness and the only accepted spelling of it;
+    anything the grammar does not recognise raises rather than parsing to
+    nothing. That is also why a drift-repair tool could not hold this
+    file as a floor: its repair is to agree with what it finds, and what
+    it finds when a roster is gone is nothing.
+
+    Args:
+        lines: What `_roster_lines` returned.
+        label: The line this section's body begins after.
+        entry: The whole-line grammar one entry of this section obeys,
+            whose FIRST group is the subject the duplicate check keys on.
+
+    Returns:
+        One tuple of captured groups per entry, in file order; empty for
+        `*none*`, which is the only way an empty list is returned.
+
+    Raises:
+        AssertionError: If the label is absent or appears twice, if
+            nothing follows it, if `*none*` shares the section with
+            anything else, if a body line matches neither the sentinel
+            nor `entry`, or if a subject is transcribed twice.
+    """
+    at = [n for n, ln in enumerate(lines) if ln.startswith(label)]
+    if not at:
+        raise AssertionError(
+            "no line starting %r in %s: that section's label has been "
+            "reworded or deleted, and everything below it is read only "
+            "because the label says where the roster starts. At zero reds "
+            "a missing roster and a correct one both enumerate nothing, so "
+            "absence has to be a failure or it is invisible. If the "
+            "section is gone on purpose, delete its reader and its test in "
+            "the same change" % (label, RED_ROSTER.name))
+    if len(at) > 1:
+        raise AssertionError(
+            "%d copies of the %r label in %s, at lines %s. Each roster is "
+            "transcribed ONCE and pointed at from everywhere else — a "
+            "second label means everything under the first is the whole "
+            "roster and everything under the second is invisible, which is "
+            "a correct copy above a stale original wearing a different hat"
+            % (len(at), label, RED_ROSTER.name, [n + 1 for n in at]))
+    body = []
+    for line in lines[at[0] + 1:]:
+        if line.startswith(_ROSTER_HEADING):
+            break
+        if line.strip():
+            body.append(line.strip())
+    if not body:
+        raise AssertionError(
+            "nothing follows the %r label in %s. An empty roster is "
+            "written '- %s' and never as a blank: a blank is what a "
+            "truncation, a botched merge and an honestly empty tree all "
+            "look like, and this reader must not say the same thing about "
+            "the three of them" % (label, RED_ROSTER.name,
+                                   _HAND_AUTHORED_NONE))
+    if any(_HAND_AUTHORED_NONE in ln for ln in body):
+        if len(body) > 1 or not _ROSTER_NONE_LINE.fullmatch(body[0]):
+            raise AssertionError(
+                "the %r section of %s says %s and does not stop there: %s. "
+                "%s is a positive assertion that this half of the census "
+                "is EMPTY, so it is the only line the section may hold — "
+                "one of the two halves of this is wrong and nothing here "
+                "can tell which" % (label, RED_ROSTER.name,
+                                    _HAND_AUTHORED_NONE, body,
+                                    _HAND_AUTHORED_NONE))
+        return []
+    found = []
+    for line in body:
+        matched = entry.fullmatch(line)
+        if not matched:
+            raise AssertionError(
+                "the line %r under %r in %s is neither '- %s' nor that "
+                "section's entry grammar. Every line below a label is an "
+                "entry — a subject whose count was dropped, a note "
+                "somebody left, or prose that drifted down here must not "
+                "be skipped, because a skipped line reads exactly like a "
+                "roster that never had it" % (line, label, RED_ROSTER.name,
+                                              _HAND_AUTHORED_NONE))
+        found.append(matched.groups())
+    subjects = [groups[0] for groups in found]
+    if len(set(subjects)) != len(subjects):
+        raise AssertionError(
+            "the %r section of %s transcribes %s on more than one line; a "
+            "dict would keep the last entry and hide the other"
+            % (label, RED_ROSTER.name,
+               sorted({s for s in subjects if subjects.count(s) > 1})))
+    return found
+
+
+def handover_catalogue_reds() -> set[str]:
+    """The catalogue red ids `tests/RED-ROSTER.md` transcribes.
+
+    Curator batch 23 item 1 (task 45 §7.1), 2026-08-15. The half of the
+    census that batch 22's guard said it covered and did not: this reads
+    the hand copy so the transcription can be COMPARED to the derivation
+    instead of trusted. It stood green over a table listing six of eight
+    — the fifth staleness of that transcription and the first with a
+    guard watching it.
+
+    THE IDS LEFT SESSION-HANDOVER.md ON 2026-09-01, and unlike the class
+    roster beside them they left because the row they lived in had become
+    TWO INSTRUMENTS SHARING ONE SYNTAX. The model row of the "Catalog
+    reds" table is a long narrative about why each entry was red, and
+    this reader harvested every backticked token in it as a live red id.
+    So the narrative could not use a backtick: the row spelled its own
+    subjects with escaped underscores and carried the instruction
+    "Backtick an id here ONLY as a live red", twice, in a cell that also
+    quotes source. A prose author paying a tax to avoid tripping a census
+    reader is a design defect, not a discipline, and one slip published a
+    function name as a red mutant id. The roster is a roster now, the row
+    is prose again, and neither has to know about the other.
+
+    WHAT THE MOVE DID NOT CHANGE is the property this guard exists for.
+    The ids are still typed by a hand and never generated, so a catalogue
+    mutant going red without its line fails here, and a line naming an id
+    the decorators do not carry fails here too. The name of this function
+    and of its test are deliberately unchanged: `tests/census_probes.py`
+    keys a probe on the test's name and `tests/test_livedoc.py` cites the
+    function, and `handover_` is the family prefix for the TRANSCRIPTION
+    half of a census guard rather than a claim about a path.
+
+    WHY THIS IS NOT A LIVEDOC VALUE. `tests/livedoc.py`'s boundary
+    section rules that a marker may carry a TOTAL and may not carry a
+    ROSTER, because `refresh` silently repairs and a red arriving or
+    leaving BY NAME is the event a human has to stop and open the file
+    for. A list of ids is a roster by that rule's own words, so it stays
+    a literal with a guard over it. The `durable_red_counts` marker in
+    the handover is a total and stays where it is.
+
+    RESIDUAL, inherited and stated rather than papered over. The
+    exactly-one-label check catches a duplicate in THIS spelling. The
+    same ids restated as prose elsewhere — in the handover's narrative
+    row, for instance, which is exactly where they used to live — are
+    invisible to it. No guard here detects a fact restated in new words;
+    what closes that gap is the unbackticked-id refusal in
+    `_roster_lines`, which at least means the roster's own file cannot
+    hold a second uncheckable copy.
+
+    IT RAISES THROUGH ITS HELPERS AND CARRIES NO `Raises:` OF ITS OWN,
+    which is a documentation shape worth naming rather than an omission.
+    Every refusal here is `_roster_lines`' or `_roster_section`'s, listed
+    in theirs, and duplicating the list would be a third hand copy of a
+    fact that moves — in the file whose whole subject is hand copies of
+    facts that move. What matters at this level is the rule they enforce
+    together: every unreadable state is an ASSERTION and never an empty
+    set, because a census guard that reports agreement while reading
+    nothing is the defect this one exists to close.
+
+    Returns:
+        Every catalogue id the roster's id section transcribes, empty for
+        `*none*`.
+    """
+    return {groups[0] for groups in _roster_section(
+        _roster_lines(), _ROSTER_ID_LABEL, _ROSTER_ID_ENTRY)}
 
 
 def handover_hand_authored_red_classes() -> dict[str, int]:
-    """The non-catalogue red classes SESSION-HANDOVER.md transcribes.
+    """The non-catalogue red classes `tests/RED-ROSTER.md` transcribes.
 
     The SIXTH census guard's transcription half (v0.9, 2026-08-20). The
     roster of hand-authored red classes had been prose since batch 16 put
@@ -29369,154 +31194,90 @@ def handover_hand_authored_red_classes() -> dict[str, int]:
     *"Read the dict, not this sentence"*, which is a pointer at a checked
     fact and not a check: nothing failed, on any of the nine.
 
+    THE ROSTER MOVED OUT OF SESSION-HANDOVER.md ON 2026-09-01 and this
+    function reads `tests/RED-ROSTER.md` now. Three curators in one
+    session each landed a hand-authored red, each was stopped here, and
+    each edited SESSION-HANDOVER.md under protest — a file curators are
+    told not to touch. The ruling was that the constraint does not give
+    and the roster moves: curators own `tests/RED-ROSTER.md` alongside
+    `tests/test_mutants.py`, AGENTS.md's curation section says so, and
+    concurrent curators add DISTINCT LINES to a roster-only file instead
+    of rewording one line of one shared prose document. The catalogue's
+    id roster followed on the same day for reasons of its own; see
+    `handover_catalogue_reds`.
+
+    WHAT THE MOVE DOES NOT CHANGE is the property this guard exists for.
+    The roster is still typed by a hand and never generated, so a red
+    arriving without its line fails here, and a line naming a class the
+    decorators do not carry fails here too. All nine drifts were
+    prose-versus-dict, and a file whose only content is one line per
+    class, under the same guard, has no prose to drift. This function's
+    name and its test's are deliberately unchanged: `handover_` is the
+    family prefix for the TRANSCRIPTION half of a census guard rather
+    than a claim about a path, `tests/census_probes.py` keys probes on
+    the test's name, and `tests/test_livedoc.py` cites this one — a
+    rename buys accuracy in one identifier at the price of every
+    citation of it.
+
     WHY THIS IS NOT A LIVEDOC VALUE, recorded here because the tool is
     right there and reaching for it would be the obvious move.
     `tests/livedoc.py`'s boundary section rules that a marker may carry a
     TOTAL and may not carry a ROSTER, because `refresh` silently repairs
     and a class arriving or leaving BY NAME is the event a human has to
-    open the paragraph for. This is a roster of class names, so it stays
-    a literal with a guard over it, and
+    stop and open the file for. This is a roster of class names, so it
+    stays a literal with a guard over it, and the move did not soften
+    that by an inch: it is a hand-typed literal at a new address, in a
+    file livedoc scans and finds no marker in, and
     `test_the_census_sentences_carry_only_the_two_live_totals` in
-    `tests/test_livedoc.py` enforces that mechanically — a marker added
-    here would fail it.
-
-    WHY AN EMPTY ROSTER NEEDS A WORD FOR ITSELF, which is the part that
-    generalizes past this sentence. The tree is at zero reds, so the
-    honest transcription enumerates nothing — and so does a line that has
-    been reworded, truncated, half-deleted or replaced with a sentence
-    about something else. A reader that returned `{}` for all of those
-    would be green over every one of them and would say the same thing
-    about a correct paragraph and a destroyed one. `*none*` is therefore
-    a POSITIVE assertion of emptiness and the only accepted spelling of
-    it; anything the grammar does not recognise raises rather than
-    parsing to nothing. That is also why a drift-repair tool could not
-    have held this line as a floor: its repair is to agree with what it
-    finds, and what it finds when the roster is gone is nothing.
+    `tests/test_livedoc.py` still holds over the handover it left.
 
     THE HOLE THE FIRST DRAFT LEFT, kept because it is the same defect one
     level in and it survived a review that this file's author passed.
-    Every check in the paragraph above reads what is INSIDE backticks —
-    `_HAND_AUTHORED_ENTRY` wants backticks plus a count, and the `*none*`
+    Every check in `_roster_section` reads what is INSIDE backticks —
+    `_ROSTER_ENTRY` wants backticks plus a count, and the `*none*`
     contradiction check wanted a backticked `Test...`. So a class name
-    that lost its backticks was read by NOTHING, and
-
-        Non-catalog red classes: *none* — TestBatchPathIntegrity (3)
-
-    parsed to `{}`, agreed with an empty tree and passed, with a human
-    reading a line that asserts emptiness while naming a class. That is
-    not a contrived shape: it is this line's own recorded history with
-    the backticks dropped, which one reflow or one paste from a
-    plain-text note produces. Thirteen of fifteen attack shapes raised;
-    these two did not. The fix blanks every backticked span and refuses
-    what is left if it looks like a class name — "no class is named
-    here" now means it, rather than meaning "no class is named here in
-    the one spelling I look at".
+    that lost its backticks was read by NOTHING, and a roster asserting
+    `*none*` beside an unbackticked class and a count parsed to `{}`,
+    agreed with an empty tree and passed, with a human reading a roster
+    that asserts emptiness while naming a class. That is not a contrived
+    shape: it is this roster's own recorded history with the backticks
+    dropped, which one reflow or one paste from a plain-text note
+    produces. Thirteen of fifteen attack shapes raised; these two did
+    not. `_roster_lines` is where the refusal lives now, and it covers
+    the id half by the same argument through a different mechanism.
 
     RESIDUAL, stated rather than papered over, and it is inherited.
     `red_bearing_classes` scans THIS MODULE only, so this guard sees
     exactly what `HAND_AUTHORED_RED_CLASSES` sees and no more — a red in
     `tests/test_backend.py` or `tests/test_mutants_render.py` is outside
-    it. `TestSnapshotTierOne` was such a red and is the one this
-    paragraph had to be hand-edited for. The render file's names are
-    covered by `handover_render_reds`; `tests/test_backend.py`'s names
-    are covered by nothing, which the catalog-reds table's `other` row
-    now says in its own cell.
+    it. `TestSnapshotTierOne` was such a red and is the one this roster
+    had to be hand-edited for. The render file's names are covered by
+    `handover_render_reds`; `tests/test_backend.py`'s names are covered
+    by nothing, which the catalog-reds table's `other` row now says in
+    its own cell.
 
     Returns:
         Class name -> transcribed red count, empty for `*none*`.
 
     Raises:
-        AssertionError: If the file is absent, if the labelled line is
-            absent, if it appears more than once, if the text after the
-            label matches neither the sentinel nor the entry grammar, if
-            `*none*` is contradicted by an entry or a backticked `Test`
-            name on the same line, if a backticked token sits outside a
-            well-formed entry (a name whose count was dropped), or if a
-            class is transcribed twice. Every one of these is a state in
-            which the roster cannot be read, and a census reader that
-            reports agreement while reading nothing is the defect every
-            guard beside this one was written to close.
+        AssertionError: For every shape `_roster_lines` and
+            `_roster_section` refuse, and additionally if a class is
+            transcribed at (0) — `red_bearing_classes` never emits a
+            zero, because a class whose last red flips LEAVES the roster
+            rather than dropping to it.
     """
-    if not HANDOVER.exists():
-        raise AssertionError(
-            "%s is not in this tree, so the non-catalogue red roster "
-            "cannot be checked. If this is an isolated mutation-proof "
-            "tree, copy the file in beside tests/ — the guard is not what "
-            "you are measuring and this failure is not a finding"
-            % HANDOVER)
-    lines = [line for line in HANDOVER.read_text(encoding="utf-8").splitlines()
-             if line.startswith(_HANDOVER_HAND_AUTHORED)]
-    if not lines:
-        raise AssertionError(
-            "no line starting %r in %s: the non-catalogue red roster has "
-            "been reworded or deleted. At zero reds that line enumerates "
-            "nothing, so its absence and its correctness look identical "
-            "to any reader that does not demand it — which is why this is "
-            "a failure. If the roster is gone on purpose, delete this "
-            "function and its test in the same change"
-            % (_HANDOVER_HAND_AUTHORED, HANDOVER.name))
-    if len(lines) > 1:
-        raise AssertionError(
-            "%d copies of the %r line in %s: %s. The roster is transcribed "
-            "ONCE and pointed at from everywhere else — a correct copy "
-            "above a stale original is the silent direction, because the "
-            "reader agrees with the copy and the human reads the original"
-            % (len(lines), _HANDOVER_HAND_AUTHORED, HANDOVER.name, lines))
-    rest = lines[0][len(_HANDOVER_HAND_AUTHORED):].strip()
-    entries = _HAND_AUTHORED_ENTRY.findall(rest)
-    ticked = re.findall(r"`(Test[A-Za-z0-9_]*)`", rest)
-    bare = _BARE_CLASS.findall(_TICKED_SPAN.sub(" ", rest))
-    if bare:
-        raise AssertionError(
-            "the roster line in %s names %s outside backticks. Every "
-            "check below reads only what is INSIDE backticks, so an "
-            "unbackticked class name is read by nothing: the line "
-            "'%s %s TestSomeClass (3)' would parse to an empty roster, "
-            "agree with an empty tree, and pass while a human read it "
-            "naming a class. One reflow or one paste from a plain-text "
-            "note is all it takes. Backtick the name, or delete it"
-            % (HANDOVER.name, sorted(set(bare)), _HANDOVER_HAND_AUTHORED,
-               _HAND_AUTHORED_NONE))
-    if rest.startswith(_HAND_AUTHORED_NONE):
-        if entries or ticked:
-            raise AssertionError(
-                "the roster line in %s says %s and then names %s. One of "
-                "the two is wrong and nothing here can tell which"
-                % (HANDOVER.name, _HAND_AUTHORED_NONE,
-                   sorted(set(ticked)) or [e[0] for e in entries]))
-        return {}
-    if not entries:
-        raise AssertionError(
-            "the roster line in %s reads %r, which matches neither %s nor "
-            "the `TestClassName` (N) grammar. An unreadable roster must "
-            "not parse to an empty one: at zero reds that would make this "
-            "guard say the same thing about this line and a correct one"
-            % (HANDOVER.name, rest, _HAND_AUTHORED_NONE))
-    if len(ticked) != len(entries):
-        raise AssertionError(
-            "the roster line in %s backticks %s but gives counts for only "
-            "%s. A class named without its count would be dropped "
-            "silently, and a dropped entry reads exactly like a drained "
-            "one" % (HANDOVER.name, sorted(ticked),
-                     sorted(e[0] for e in entries)))
-    names = [name for name, _count in entries]
-    if len(set(names)) != len(names):
-        raise AssertionError(
-            "the roster line in %s transcribes %s twice; a dict would keep "
-            "the last count and hide the other"
-            % (HANDOVER.name,
-               sorted({n for n in names if names.count(n) > 1})))
-    drained = sorted(n for n, c in entries if int(c) == 0)
+    found = _roster_section(_roster_lines(), _ROSTER_LABEL, _ROSTER_ENTRY)
+    drained = sorted(name for name, count in found if int(count) == 0)
     if drained:
         raise AssertionError(
-            "the roster line in %s transcribes %s at (0). "
-            "`red_bearing_classes` never emits a zero — a class whose last "
-            "red flips LEAVES the roster rather than dropping to 0, which "
-            "is the one thing this line's own paragraph tells you. The "
-            "comparison below would have failed anyway; this refuses the "
-            "shape here so the message names the rule instead of two "
-            "dicts" % (HANDOVER.name, drained))
-    return {name: int(count) for name, count in entries}
+            "the roster in %s transcribes %s at (0). `red_bearing_classes` "
+            "never emits a zero — a class whose last red flips LEAVES the "
+            "roster rather than dropping to 0, which is the one rule this "
+            "file's own header states. The comparison below would have "
+            "failed anyway; this refuses the shape here so the message "
+            "names the rule instead of two dicts"
+            % (RED_ROSTER.name, drained))
+    return {name: int(count) for name, count in found}
 
 
 def red_bearing_classes() -> dict[str, int]:
@@ -31202,12 +32963,16 @@ _CLIENT_FONT_METRICS = re.compile(
 # has a space) and `dn` itself maps those names to the `fontFamily`
 # integers our elements carry.
 # BY SHAPE, NEVER BY MINIFIED NAME. Every identifier in these
-# patterns is reassigned on each bundle build: the font enum was
-# `dn` and is now `un`, its metrics map `wm` -> `Vm`,
-# `getLineHeight` `Hc` -> `bd`, `detectLineHeight` `x$` -> `_$`,
-# all four moving in the 2026-08-20 font-readiness rebuild alone. A
-# pin that spells one of them fails on the next `npm run build` and
-# teaches its owner to re-baseline rather than to read. The enum is
+# patterns is reassigned on each bundle build: the font enum, its
+# metrics map, `getLineHeight` and `detectLineHeight` all four moved
+# in the 2026-08-20 font-readiness rebuild alone, and three of the
+# four names that rebuild handed out have moved again since. The one
+# of them this file's own vocabulary polices makes the point on its
+# own — `getLineHeight` is `md` (@470173) in the bundle that ships,
+# while `bd`, the name it was given in 2026-08-20, is now the test for
+# a degenerate element (@660451). A pin that spells one of them fails
+# on the next `npm run build` and teaches its owner to re-baseline
+# rather than to read. The enum is
 # found by its own CONTENT — a map carrying Virgil and Nunito — and
 # the rows by their shape, with the table identifier captured
 # rather than assumed.
@@ -38416,6 +40181,18 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
         another head. That is correct and it is not free — re-record the
         capture once the repair lands, so the comparison comes back and a
         browser has confirmed the head that ships.
+
+        AND THE TEST NOW SAYS SO OUT LOUD, which is the 2026-09-01
+        repair. Off the capture's head this used to fall to
+        `assertNotEqual(facts, [])` and PASS, so the paragraph above was
+        the only place the loss was written down and nothing but a
+        reader could notice it. Every head-stable half still runs
+        first — the geometry comparison, the non-empty record, the
+        phantom list — and THEN the test skips, naming both digests and
+        the command that re-records. A skip and not a failure for the
+        reason `RENDER_RUN_RECORD`'s comment gives: an ordinary commit
+        must not need a browser. A skip that names the pair is not
+        silence; a green is.
         """
         cap = self._capture()
         out = replay_browser_capture(canvas, self.root / "same")
@@ -38433,7 +40210,9 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
             "repair may change what is narrated and may not change what "
             "is stored, so this is the replay measuring some other "
             "scene: %s" % drifted)
-        if cap.get("canvas_sha256") == canvas_digest():
+        state, detail = browser_capture_currency(
+            cap, "pin-untouched-captions.spec.ts")
+        if state == "current":
             self.assertEqual(
                 out["facts"], [list(f) for f in cap["observed"]["facts"]],
                 "the replay disagrees with the browser about the record "
@@ -38456,6 +40235,8 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
             "the replay narrates %s as having moved, and those captions "
             "did not move on disk in the browser's own save — so this "
             "replay is not measuring the captured scene" % invented)
+        if state != "current":
+            answer_a_stale_capture(self, detail)
 
     def test_the_record_still_names_the_box_the_user_dragged(self) -> None:
         """The neighbour, ungated: the check still speaks, in the same save.
@@ -39071,6 +40852,16 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
         THE GEOMETRY THE BROWSER'S OWN SAVE LANDED. A repair to the
         record layer may change what is NARRATED and may not change what
         is STORED.
+
+        OFF THAT HEAD IT NOW SAYS SO, repaired 2026-09-01 in the same
+        change as its sibling above and for the same reason: this fell
+        to `assertNotEqual(facts, [])` and PASSED, so the strongest
+        browser testimony in this file degraded to "something was said"
+        with nothing printed. The head-stable halves still run and then
+        the test skips, naming both digests and the re-record command. A
+        skip rather than a failure because an ordinary commit must not
+        need a browser — see `RENDER_RUN_RECORD`'s comment for the
+        ruling and `browser_capture_currency` for the message.
         """
         cap = self._capture()
         out = self._replay("same")
@@ -39087,7 +40878,9 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
             "the replay's save landed different geometry than the "
             "browser's did, from the very same request body — so this is "
             "the replay measuring some other scene: %s" % drifted)
-        if cap.get("canvas_sha256") == canvas_digest():
+        state, detail = browser_capture_currency(
+            cap, "pin-rewrapped-caption-drag.spec.ts")
+        if state == "current":
             self.assertEqual(
                 out["facts"], [list(f) for f in cap["observed"]["facts"]],
                 "the replay disagrees with the browser about the record "
@@ -39103,6 +40896,7 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
                 "save that narrates nothing about a %spx drag is not a "
                 "repair" % ((cap.get("canvas_sha256") or "undated")[:12],
                             cap["population"]["drag_dx"]))
+            answer_a_stale_capture(self, detail)
 
     def test_the_record_still_names_the_box_the_user_dragged(self) -> None:
         """The neighbour that refuses silence bought by breaking narration.
@@ -39395,6 +41189,535 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
                pop["rewrapped"], out["facts"]))
 
 
+class TestTheCaptureCurrencyReportCanSayStale(unittest.TestCase):
+    """The channel that carries "this capture is older than the code".
+
+    A REPORTED-ONLY CHANNEL THAT CANNOT SAY THE BAD WORD IS A CAVEAT AND
+    NOT AN INSTRUMENT, which is the lesson `--coverage`'s render-tier
+    line already carries in `test_mutants_render.py`. The difference
+    worth pinning here is that this reporter is not only printed: the
+    two browser-capture consumers SKIP on what it returns, so a
+    "current" it gets wrong is the gate going dark again by another
+    route, and a "stale" it gets wrong stops the fact-for-fact
+    comparison ever running.
+
+    FABRICATED CAPTURES AND NOT THE RECORDED ONES, deliberately. Reading
+    the real capture files here would make this class a consumer of them
+    by `consumer_classes_naming`'s reckoning — it counts any name bound
+    in a class body — and the gate-darkening probe below would then run
+    this class as if it were a gate. It is not one; it watches the
+    reporter the gates read.
+    """
+
+    def test_all_three_states_are_reachable_and_named(self) -> None:
+        """Exercise missing, stale and current, and read the stale message.
+
+        THE MESSAGE IS ASSERTED AND NOT ONLY THE STATE, because the
+        state is what the consumers branch on and the message is the
+        whole of what a reader gets. Both digests have to be in it at
+        `DIGEST_NAMED_BY` or a skip carrying it is silence with extra
+        steps, and the re-record command has to be in it or the reader
+        who meets this after a `canvas.py` edit is told a thing is wrong
+        and not what to do about it.
+        """
+        spec = "pin-untouched-captions.spec.ts"
+        self.assertEqual(browser_capture_currency({}, spec)[0], "missing")
+        tree = canvas_digest()
+        stale = "0" * len(tree)
+        state, detail = browser_capture_currency(
+            {"canvas_sha256": stale, "observed": {}}, spec)
+        self.assertEqual(state, "stale")
+        self.assertEqual(
+            [stale[:DIGEST_NAMED_BY] in detail, tree[:DIGEST_NAMED_BY] in
+             detail, "playwright test pin-untouched-captions" in detail],
+            [True, True, True],
+            "the stale report does not name both digests and the command "
+            "that re-records, so a consumer skipping with it has told "
+            "the reader nothing they can act on: %s" % detail)
+        self.assertEqual(
+            browser_capture_currency(
+                {"canvas_sha256": tree, "observed": {}}, spec)[0], "current")
+
+    def test_a_capture_with_no_digest_at_all_reads_stale(self) -> None:
+        """An undated capture is stale, never current.
+
+        THE UNSAFE DEFAULT IS THE ONE WORTH PINNING. A capture written
+        before the digest field existed, or by anything other than the
+        spec's own gate, carries no `canvas_sha256`; a reporter that
+        read absence as agreement would hand the consumers a "current"
+        and turn the exact comparison back on over testimony about a
+        tree nobody can name.
+        """
+        state, detail = browser_capture_currency(
+            {"observed": {}}, "pin-rewrapped-caption-drag.spec.ts")
+        self.assertEqual(state, "stale")
+        self.assertIn("undated", detail)
+
+    def test_the_skip_is_audible_and_not_only_recorded(self) -> None:
+        """A skip nobody is told about is the old fallback, one rung quieter.
+
+        `answer_a_stale_capture`'s docstring has the measurement: under
+        BOTH runners this repo uses, a bare `skipTest` reason is invisible
+        without a flag nobody passes. So the warning is not decoration and
+        deleting it would restore the silence this whole section is about —
+        which is what this pins. The sentence must reach the warning intact,
+        because the warning is the only copy of it a default run shows.
+        """
+        with warnings.catch_warnings(record=True) as heard:
+            warnings.simplefilter("always")
+            with self.assertRaises(unittest.SkipTest):
+                answer_a_stale_capture(self, "capture 0000abcd, tree beef1234")
+        self.assertEqual(
+            [str(w.message) for w in heard], ["capture 0000abcd, tree beef1234"],
+            "the stale-capture skip reaches no channel a default run "
+            "prints, so the two consumers answer with an `s` and nothing "
+            "else — the fallback this repaired, one rung quieter. Heard: "
+            "%s" % [str(w.message) for w in heard])
+
+
+# ---------------------------------------------------------------------------
+# GATE-DARKENING: A BROWSER CAPTURE THAT STOPPED DESCRIBING THIS TREE IS
+# CONSUMED IN SILENCE. Filed by the mutant-curator for pipeline r8-close,
+# 2026-09-01, on a finding three agents reached independently that day.
+#
+# BASE: the two recorded captures this file already ships, read by the two
+# classes directly above exactly as ordinary discovery reads them.
+# MUTATION: each capture is re-recorded against another head — its
+# `canvas_sha256` becomes the digest of this tree's `canvas.py` plus one
+# comment line, and the fact that head narrated is the drag going the
+# other way. Two fields, one event: a capture is testimony about ONE
+# `canvas.py` and cannot half-belong to a second. `canvas.py` itself is
+# never edited, because the darkening is a property of the COMPARISON;
+# it was confirmed from the other side once, and a `# .` appended to
+# `canvas.py` in a throwaway export left all 712 tests of this module
+# green and the process exiting 0.
+# MAGNITUDE: `assertEqual(out["facts"], cap["observed"]["facts"])` pins
+# each browser-measured fact by four fields — name, element, dx, dy. The
+# fallback pins none of them, so on the caption capture a record that
+# reported the 60px drag as -60 sails through: 120px of error, and the
+# rewrap capture's is 50.
+# DIRECTION: strictly WEAKER, which is the unsafe direction. Any record
+# that narrates anything at all now passes, so this file's strongest
+# browser testimony degrades to "something was said".
+# NEIGHBOURS, both ungated and both green: a capture that DOES describe
+# this `canvas.py` is not refused where a stale one passes, so no repair
+# is being asked for that would reject the testimony it protects; and a
+# vacuity guard damages the capture's INPUT — `stored_after` emptied —
+# and watches the same probe report a consumer going loud, so quiet from
+# this probe is a reading and not a deafness.
+# ---------------------------------------------------------------------------
+
+# The shortest run of a sha256 that identifies WHICH digest a message is
+# talking about. A skip is an acceptable answer to a stale capture only
+# when its reason names both digests, and this is a FLOOR on identifying
+# them, never a format: a repair that prints twelve chars, or all
+# sixty-four, contains its own first eight either way. Eight hex chars is
+# four bytes, so two unrelated digests colliding on it is not a thing
+# that happens to a repo.
+DIGEST_NAMED_BY = 8
+
+
+@functools.cache
+def consumer_classes_naming(constant: str) -> tuple[str, ...]:
+    """Name every top-level test class in this module that reads `constant`.
+
+    NOT SPELLED `test_...`, which the first draft was: pytest collects a
+    module-level `test_`-prefixed callable as a test, and this one takes
+    an argument, so `pre-commit` reported it as a collection ERROR
+    rather than as anything about captures.
+
+    PARSED RATHER THAN LISTED, because the SET is the subject. A repair
+    to the gate below may answer a stale capture inside the class that
+    consumes it or from a gate class added beside it, and a probe that
+    hardcoded one class name would have flipped for the first shape only
+    and quietly prescribed it. A name bound anywhere inside a class body
+    counts as a read of that capture.
+
+    Args:
+        constant: The module-level name a capture file is bound to.
+
+    Returns:
+        The class names that read it, in source order.
+    """
+    parsed = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    return tuple(node.name for node in parsed.body
+                 if isinstance(node, ast.ClassDef)
+                 and constant in {n.id for n in ast.walk(node)
+                                  if isinstance(n, ast.Name)})
+
+
+def run_capture_consumers(constant: str, path: Path,
+                          exclude: str) -> dict[str, Any]:
+    """Run every consumer of a capture against the capture file at `path`.
+
+    THE CONSUMERS ARE RUN WHOLE, not one method each, because the gate
+    this measures is owned by no single method: a currency clause sits
+    just as naturally in a class's shared absence guard, or in its
+    `setUp`, as in the replay test that reads the digest today.
+
+    Args:
+        constant: The module-level name the capture file is bound to.
+        path: The capture the consumers should read instead of theirs.
+        exclude: One class name to leave out — the caller's own, which
+            names the constant to build its subject and is not a
+            consumer of it.
+
+    Returns:
+        `{"classes", "ran", "loud", "skipped", "answered"}` — the classes
+        run, how many tests ran, the method names that failed or errored,
+        the `(method, reason)` pairs that skipped, and the union of the
+        method names in those two.
+    """
+    module = sys.modules[__name__]
+    names = tuple(n for n in consumer_classes_naming(constant) if n != exclude)
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite(loader.loadTestsFromTestCase(
+        getattr(module, n)) for n in names)
+    result = unittest.TestResult()
+    with mock.patch.object(module, constant, path):
+        suite.run(result)
+    loud = sorted(t.id().rsplit(".", 1)[-1]
+                  for t, _ in result.failures + result.errors)
+    skipped = sorted((t.id().rsplit(".", 1)[-1], why)
+                     for t, why in result.skipped)
+    return {"classes": names, "ran": result.testsRun, "loud": loud,
+            "skipped": skipped,
+            "answered": sorted(set(loud) | {n for n, _ in skipped})}
+
+
+def a_capture_recorded_against_another_head(cap: dict[str, Any]
+                                            ) -> dict[str, Any]:
+    """Re-record a capture against a `canvas.py` one comment line away.
+
+    ONE EVENT, TWO FIELDS, and they move together because a capture is
+    testimony about ONE `canvas.py`. Its `canvas_sha256` becomes the
+    digest of this tree's file plus a comment line, and the fact that
+    other head narrated is this head's drag reversed — the plainest
+    thing an exact comparison exists to catch, and the plainest thing a
+    fallback asking only for a non-empty list cannot see.
+
+    MOVING THE DIGEST ALONE WAS THE FIRST DRAFT AND IT PRESCRIBED A
+    REPAIR, which is why this reads the way it does. A record whose
+    digest names one head while its facts still describe another is an
+    artefact no recording can produce; measured against it, the repair
+    that deletes the conditional outright — always compare the facts,
+    exactly — looks broken while being honest, because the facts agree
+    and it correctly stays quiet. That draft flipped under six of the
+    seven repairs and not that one, and a red that flips under all but
+    one candidate is pointing at the other six.
+
+    Args:
+        cap: A capture as its spec wrote it.
+
+    Returns:
+        A copy that is testimony about a tree this one is not.
+    """
+    observed: dict[str, Any] = dict(cap["observed"])
+    observed["facts"] = [
+        [f[0], f[1], -f[2] if isinstance(f[2], (int, float)) else f[2],
+         f[3]] for f in cap["observed"]["facts"]]
+    other: dict[str, Any] = dict(cap, observed=observed)
+    other["canvas_sha256"] = hashlib.sha256(
+        Path(canvas.__file__).read_bytes() + b"# .\n").hexdigest()
+    return other
+
+
+def a_capture_that_still_describes_this_tree(cap: dict[str, Any],
+                                             root: Path) -> dict[str, Any]:
+    """Re-pin a capture to this `canvas.py`, and to what it narrates now.
+
+    THE OPPOSITE POLE, AND IT MUST BE HEAD-STABLE OR IT IS NOT ONE. A
+    capture whose digest is forced to match while its recorded facts
+    still describe an older head would fail the exact comparison and
+    report a refusal where there is none — the pole would become a
+    second copy of the red, red for another reason, on the first honest
+    `canvas.py` edit anyone makes.
+
+    SO THE FACTS ARE DERIVED FROM THE SUBJECT, DELIBERATELY, which is
+    normally how a pin goes vacuous. It is safe only because the fact
+    comparison is not what this pole reads: neutralising it is what
+    leaves CURRENCY as the single variable between this pole and the
+    red. What keeps the neutralisation honest is the vacuity guard
+    beside it, which damages a different input of the same capture and
+    watches the same probe report a consumer failing.
+
+    Args:
+        cap: A capture as its spec wrote it.
+        root: An empty directory to replay the capture in.
+
+    Returns:
+        A copy that is current testimony about this tree's `canvas.py`.
+    """
+    fresh: dict[str, Any] = dict(cap, canvas_sha256=canvas_digest())
+    observed: dict[str, Any] = dict(cap["observed"])
+    observed["facts"] = replay_a_capture(canvas, root, fresh,
+                                         set())["facts"]
+    fresh["observed"] = observed
+    return fresh
+
+
+def consumers_that_answered_a_stale_capture(verdict: dict[str, Any],
+                                            recorded: str,
+                                            tree: str) -> list[str]:
+    """Report which consumers said anything about a capture that is not current.
+
+    A FAILURE OR AN ERROR IS AN ANSWER; A SKIP IS ONE ONLY IF IT NAMES
+    BOTH DIGESTS. That asymmetry is the whole content of the word
+    "silently" in this finding: 45 render-tier tests in this repo
+    already skip for want of a browser and every one of them reads as a
+    green, so a skip earns its keep only by printing the pair a reader
+    has to compare.
+
+    Args:
+        verdict: What `run_capture_consumers` returned.
+        recorded: The digest the capture carries.
+        tree: The digest this tree's `canvas.py` actually has.
+
+    Returns:
+        The method names that answered, sorted.
+    """
+    return sorted(set(verdict["loud"]) |
+                  {name for name, why in verdict["skipped"]
+                   if recorded[:DIGEST_NAMED_BY] in why
+                   and tree[:DIGEST_NAMED_BY] in why})
+
+
+class TestAStaleBrowserCaptureIsNotConsumedInSilence(unittest.TestCase):
+    """gate-darkening: a capture describing another canvas.py still passes.
+
+    THE INVARIANT, and it holds no digest literal: a recorded browser
+    capture whose `canvas_sha256` no longer matches the tree's
+    `canvas.py` is either RE-RECORDED, or the tests that consume it
+    FAIL — or skip with both digests named in the reason. A mismatch may
+    not pass. Today it passes, in silence, on both captures.
+
+    WHAT THE DRAWING GETS WRONG, in one line: edit `canvas.py` by one
+    comment character and this file's two browser-fidelity classes stop
+    comparing the replay's record against the browser's fact for fact
+    and start asserting that the replay narrated SOMETHING — with no
+    failure, no skip, no message, and `pre-commit` still exiting 0.
+
+    HOW IT WAS REPRODUCED, both ways round. Appending `# .` to
+    `canvas.py` in a throwaway export of this tree left all 712 tests of
+    this module green, exit 0, with the fallback branch demonstrably
+    taken. The reds below reach the same branch from the capture's side
+    and never touch `canvas.py`, because the darkening is a property of
+    the comparison rather than of any particular edit.
+
+    THE REPAIRS IT WAS MEASURED AGAINST, all seven monkeypatched into
+    throwaway copies of this file under /tmp and none of them applied
+    here: (1) the fallback becomes `self.fail`; (2) the fallback becomes
+    `skipTest` with the digest pair in the message; (3) the capture
+    loaders return `{}` for a record that describes another tree; (4) a
+    fifth clause in `assert_a_capture_is_current_testimony`, which both
+    captures share; (5) a `setUp` that refuses a stale capture, so every
+    method of the class errors rather than one; (6) the conditional
+    deleted outright, so the exact comparison always runs and a capture
+    from another head fails on the facts; (7) a gate class added beside
+    the consumers instead of inside them. Both reds flip under all
+    seven. An eighth shape — a `pre-commit` hook comparing the digests
+    before python starts — is NOT measurable from here and is named so
+    nobody reads its absence as a verdict; this class sees only what a
+    test run sees.
+
+    WHAT MEASURING THEM COST, because it is the reason two things here
+    are shaped oddly. Repair (6) is why the mutation moves the facts as
+    well as the digest, documented on
+    `a_capture_recorded_against_another_head`. Repair (4) is why the
+    currency pole below compares two runs instead of demanding an
+    all-green one: that repair makes the consuming class's OWN
+    damaged-capture meta-test fail, on artificial captures it builds
+    itself, so an all-green pole would have gone red over an honest
+    repair that had simply not updated that meta-test in the same
+    change. Whoever lands (4) still owes that update.
+
+    WHAT THIS CLASS DOES NOT DO IS CHOOSE. It asserts the relation and
+    prescribes none of the seven; picking one belongs to whoever owns
+    the browser-capture gate.
+    """
+
+    def setUp(self) -> None:
+        """Give each test a scratch directory for the captures it re-pins."""
+        self.root = Path(tempfile.mkdtemp(prefix="capture-currency-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _consume(self, constant: str, cap: dict[str, Any],
+                 name: str) -> dict[str, Any]:
+        """Run a capture's consumers over `cap`, refusing an empty run.
+
+        The two clauses here are what stop every reading in this class
+        from being a claim about nobody: a constant no class reads, or a
+        suite that ran no test at all, produces exactly the quiet the
+        reds below report as darkness.
+
+        Args:
+            constant: The module-level name the capture file is bound to.
+            cap: The capture to write out and have the consumers read.
+            name: A file name for it, so each run gets its own.
+
+        Returns:
+            What `run_capture_consumers` returned.
+        """
+        path = self.root / name
+        path.write_text(json.dumps(cap), encoding="utf-8")
+        verdict = run_capture_consumers(constant, path, type(self).__name__)
+        self.assertNotEqual(
+            verdict["classes"], (),
+            "no test class in this module reads %s, so every reading in "
+            "this class is a claim about nobody. Either the capture was "
+            "renamed or its consumers were deleted" % constant)
+        self.assertGreater(
+            verdict["ran"], 0,
+            "the consumers of %s (%s) ran no test at all, so a quiet "
+            "result here means nothing" % (constant, verdict["classes"]))
+        return verdict
+
+    def test_the_probe_hears_a_consumer_that_does_speak(self) -> None:
+        """Hear a consumer fail: the vacuity guard, damaged and watched.
+
+        DAMAGED AT THE INPUT AND NOT AT THE FUNCTION, which is the only
+        version of this guard worth having. `stored_after` is emptied —
+        one field of the capture, the post-save geometry both replay
+        tests read — and both consuming classes carry an explicit clause
+        saying a capture with no post-save geometry makes their
+        head-stable half vacuous. So a probe that can hear anything must
+        hear that clause, on BOTH captures, under a digest this tree
+        still matches. If this goes quiet, the reds below are reporting
+        the probe's deafness and not a gate.
+        """
+        for constant, cap, name in (
+                ("BROWSER_CAPTION_CAPTURE", browser_caption_capture(),
+                 "caption-no-geometry.json"),
+                ("BROWSER_REWRAP_CAPTURE", browser_rewrap_capture(),
+                 "rewrap-no-geometry.json")):
+            damaged = dict(cap, canvas_sha256=canvas_digest(),
+                           stored_after={})
+            verdict = self._consume(constant, damaged, name)
+            self.assertNotEqual(
+                verdict["loud"], [],
+                "the probe reports every consumer of %s passing over a "
+                "capture with NO post-save geometry, which both classes "
+                "say makes their head-stable half vacuous. This probe "
+                "cannot hear a consumer fail, so nothing else in this "
+                "class is evidence: %s" % (constant, verdict))
+
+    def test_a_current_capture_is_not_refused_where_a_stale_one_passes(
+            self) -> None:
+        """Refuse the over-fire: currency may only ever buy a capture green.
+
+        THE OTHER POLE OF THE SAME PROBE, and what stops the reds below
+        from being satisfiable by a gate that rejects every capture
+        there is. Each record is run twice — once re-pinned to this
+        tree's own `canvas.py` and to what this `canvas.py` narrates,
+        once as testimony from another head — and nothing may answer
+        over the current one that stayed quiet over the stale one.
+
+        A SUBSET AND NOT AN ALL-GREEN, and the difference was paid for.
+        Demanding an all-green run over the current capture went red
+        under repair (4) of the seven in the class docstring, which
+        trips the consuming class's own damaged-capture meta-test on
+        captures that meta-test builds itself — an honest repair, one
+        same-change update short. The relation this pole actually needs
+        is narrower and is the one asserted: currency never costs a
+        capture anything.
+
+        THE DERIVED FACTS ARE NOT EVIDENCE HERE and say so on
+        `a_capture_that_still_describes_this_tree`; they exist to leave
+        currency as the single variable. What makes this pole's quiet a
+        reading is the guard above it.
+        """
+        for constant, cap, name in (
+                ("BROWSER_CAPTION_CAPTURE", browser_caption_capture(),
+                 "caption"), ("BROWSER_REWRAP_CAPTURE",
+                              browser_rewrap_capture(), "rewrap")):
+            current = self._consume(
+                constant, a_capture_that_still_describes_this_tree(
+                    cap, self.root / (name + "-replay")),
+                name + "-current.json")
+            stale = self._consume(
+                constant, a_capture_recorded_against_another_head(cap),
+                name + "-stale.json")
+            only_current = sorted(set(current["answered"]) -
+                                  set(stale["answered"]))
+            self.assertEqual(
+                only_current, [],
+                "%s answers over a capture that DOES describe this "
+                "tree's canvas.py while staying quiet over one that does "
+                "not, so a currency gate here is refusing the very "
+                "testimony it exists to protect. current %s, stale %s"
+                % (only_current, current, stale))
+
+    def test_a_stale_caption_capture_is_not_consumed_in_silence(self) -> None:
+        """Answer a caption capture from another head, or re-record it.
+
+        RED. See the class docstring for the invariant, the magnitude
+        and the seven repairs this was measured against.
+        """
+        self._assert_a_stale_capture_is_answered(
+            "BROWSER_CAPTION_CAPTURE", browser_caption_capture(),
+            "caption-stale.json")
+
+    def test_a_stale_rewrap_capture_is_not_consumed_in_silence(self) -> None:
+        """Answer a rewrap capture from another head, or re-record it.
+
+        RED, and a second one rather than a case of the first, because
+        the two captures are consumed by two classes whose gates are
+        written out separately — a repair that lands in one and not the
+        other is exactly the half-repair this pair exists to report, and
+        a single red over both would report it closed.
+        """
+        self._assert_a_stale_capture_is_answered(
+            "BROWSER_REWRAP_CAPTURE", browser_rewrap_capture(),
+            "rewrap-stale.json")
+
+    def _assert_a_stale_capture_is_answered(self, constant: str,
+                                            cap: dict[str, Any],
+                                            name: str) -> None:
+        """Assert a capture recorded against another `canvas.py` is answered.
+
+        Args:
+            constant: The module-level name the capture file is bound to.
+            cap: The capture as its spec wrote it.
+            name: A file name for the re-recorded copy.
+        """
+        self.assertNotEqual(
+            cap, {},
+            "no capture is recorded at %s, so this red has no subject; "
+            "the consuming class's own absence guard is what reports "
+            "that" % constant)
+        stale = a_capture_recorded_against_another_head(cap)
+        tree = canvas_digest()
+        self.assertNotEqual(
+            stale["canvas_sha256"], tree,
+            "the re-recorded capture carries this tree's own digest, so "
+            "the mutation did not take and this red asserts nothing")
+        self.assertNotEqual(
+            stale["observed"]["facts"], cap["observed"]["facts"],
+            "the re-recorded capture narrates exactly what the recorded "
+            "one does, so the mutation did not take on the half a repair "
+            "that always compares the facts would answer: %s"
+            % cap["observed"]["facts"])
+        verdict = self._consume(constant, stale, name)
+        self.assertNotEqual(
+            consumers_that_answered_a_stale_capture(
+                verdict, stale["canvas_sha256"], tree), [],
+            "GATE-DARKENING. All %d test(s) of %s passed in silence over "
+            "a capture recorded against a canvas.py this tree does not "
+            "have (capture %s…, tree %s…) and narrating %s where this "
+            "head narrates %s. No failure, no error, no skip naming the "
+            "pair. The exact comparison — each fact pinned by name, "
+            "element, dx and dy — has fallen to "
+            "`assertNotEqual(facts, [])`, which is weaker in the unsafe "
+            "direction: any record that narrates anything passes, at any "
+            "magnitude, either way round. Re-record the capture, or make "
+            "its consumers fail — or skip with both digests in the "
+            "reason. Verdict: %s"
+            % (verdict["ran"], ", ".join(verdict["classes"]),
+               stale["canvas_sha256"][:12], tree[:12],
+               stale["observed"]["facts"], cap["observed"]["facts"],
+               verdict))
+
+
 # ---------------------------------------------------------------------------
 # THE WRITER'S VERTICAL ANCHOR IS ONE PIXEL OFF THE CLIENT'S, AND IT IS
 # PRE-EXISTING. Filed by the mutant-curator, 2026-08-31, settled from the
@@ -39445,7 +41768,7 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
 #     `c.y + 22.57` — 17.57px, and the figure moved when the anchor did,
 #     which is why it is derived below rather than restated here. The
 #     client's own inset is `nY`'s shape term: `h/2*(1 - sqrt(2)/2)` for an
-#     ellipse, `h/4` for a diamond, added to `Kn` on BOTH axes.
+#     ellipse, `h/4` for a diamond, added to `Zn` on BOTH axes.
 #
 #     THE FOLLOW-UP IS THE WHOLE PLACEMENT RULE, NOT THE INSET. This entry
 #     said "the shape's inset, not the padding" and that prescription is
@@ -39484,8 +41807,8 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
 #     ellipse over 60..260 and exactly `{0, 0.25}` for a diamond.
 #
 #     IT DOES REDUCE, and the cancellation is exact. The client's middle is
-#     `c.y + Kn + inset + (Kg/2 - lh/2)` with `Kg = round(h/2*sqrt2) - 2Kn`,
-#     so the `+Kn` and the `-2Kn/2` cancel outright, and the inset
+#     `c.y + Zn + inset + (nU/2 - lh/2)` with `nU = round(h/2*sqrt2) - 2Zn`,
+#     so the `+Zn` and the `-2Zn/2` cancel outright, and the inset
 #     `h/2 - h*sqrt2/4` is EXACTLY half the unrounded max-height reduction
 #     `(h - h*sqrt2/2)/2`. What survives is `Math.round`'s residual, halved:
 #     `(round(h*sqrt2/2) - h*sqrt2/2)/2`, bounded by 0.25. At `h = 120` that
@@ -39811,7 +42134,8 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
                  [pattern.sub("/*renamed*/", whole, count=1)],
                  "0 of the tracked"))
         # THE SYMBOL COMES OUT OF THE BUNDLE, NEVER OFF THIS LINE. This
-        # mutant spelled `Kn` twice as a literal, inside a class whose
+        # mutant spelled `Kn` (@248729) twice as a literal, inside a
+        # class whose
         # stated doctrine three screens up is ANCHORED ON STRUCTURE,
         # NEVER ON MINIFIED NAMES. It fails safe and it fails WRONG: a
         # rebuild that renames the padding makes the `re.sub` match
@@ -40002,8 +42326,8 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
         `recenter_label` wrote a top-anchored caption at
         `container.y + 6` and a bottom-anchored one at
         `container.y + height - h - 6`. The client's
-        `computeBoundTextPosition` writes `container.y + Kn` and
-        `container.y + height - h - Kn`, and `Kn` is 5. So the stored
+        `computeBoundTextPosition` writes `container.y + Zn` and
+        `container.y + height - h - Zn`, and `Zn` is 5. So the stored
         caption sat one pixel from where the tab draws it; the first
         layout the tab performed moved it there, and the record reported
         `Term nudged` about a caption nobody touched. On a resize the
@@ -40098,6 +42422,463 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
 
 
 # ---------------------------------------------------------------------------
+# THE PERSISTED-SCENE SIBLING OF THE CLASS ABOVE. Filed by the
+# mutant-curator as `r8-2`, 2026-09-01, out of the R8 assessment's
+# `mint-time-only-repair` class — the same shape as R6's `r6-1` one field
+# over: the fix stopped the gesture MANUFACTURING the state and left every
+# instance it had already manufactured sitting on disk.
+#
+# `84f33fb` moved `recenter_label` onto `BOUND_TEXT_PADDING`, so what this
+# product WRITES now agrees with what the tab DRAWS. Nothing re-read what
+# it had already written. The load-time repair catalogue covers structural
+# damage only — `_label_detached` asks whether the two boxes overlap AT
+# ALL — so a caption stored one pixel from where it is drawn is inside
+# every threshold the loader owns, and `catch_up()` re-reads it unchanged
+# every session for the life of the project.
+#
+# THE CLASS BELOW IS ABOUT THE READERS AND NOT ABOUT THE PIXEL. Which
+# repair closes it is deliberately unnamed: a lint note, a load-time
+# re-anchor that narrates, a migration on save, a silent migration and a
+# fossil line are all honest, and all five were measured to flip it (see
+# the red's own docstring). What it refuses is silence — and, because it is
+# DIFFERENTIAL against a scene whose caption already agrees, it also
+# refuses a reader that says the same thing about every caption in the
+# project, which would be noise wearing a repair's name.
+# ---------------------------------------------------------------------------
+class TestAStoredCaptionAnchorTheClientDisagreesWithIsReported(
+        unittest.TestCase):
+    """`r8-2`: a caption already on disk, against the tab that draws it.
+
+    THE FINDING, in one line: **v0.9.1's caption-anchor repair is
+    mint-time only — persisted scenes keep the pre-fix offset and no
+    reader says so.** `onboarding-domain` stores all seven entity
+    captions at `container.y + 6`; `recenter_label` produces
+    `container.y + BOUND_TEXT_PADDING` now and the shipped client draws
+    there, and `lint` says nothing about caption placement at all.
+
+    THE RELATION, which is what is pinned: a stored caption whose anchor
+    differs from where the client will draw it is either REPORTED by
+    some reader or REPAIRED before a reader sees it. The disjunction is
+    deliberate — pinning "reported" alone would refuse an honest silent
+    migration, and pinning "repaired" alone would prescribe touching the
+    picture. Neither happens today, at any magnitude short of the two
+    boxes coming apart.
+
+    NO SERVER-SIDE COORDINATE LITERAL LIVES IN THIS CLASS. `6` and `5`
+    are two spellings of one disagreement; every caption below is built
+    at the CLIENT's own anchor plus a signed delta, so the population
+    survives a rebuild that moves the padding and fails loudly on one
+    that renames it.
+
+    FIVE REPAIR SHAPES WERE MEASURED TO FLIP IT and it prescribes none.
+    They sit at five different layers, none of them had been tried
+    before this red, and each was monkeypatched over a scratch import of
+    the module — never edited into it — with every ungated pole of this
+    class still green in all five:
+
+      (a) THE LOADER. `_label_detached` widened from "the two boxes do
+          not touch" to "the loader would move it", so the existing
+          ART-007 arm re-glues a stale caption and names it. Reports AND
+          repairs.
+      (b) THE LINT. `project_lint` gains a note per caption whose stored
+          anchor is not the writer's — report-only, picture untouched.
+      (c) A SILENT MIGRATION AT LOAD. `validate_scene` re-anchors and
+          files no `Issue`. Flips the REPAIRED arm alone, which is the
+          whole reason that arm is in the disjunction: a repair that
+          mends the picture without a sentence is still a repair, and a
+          red demanding a sentence would have refused it.
+      (d) A FOSSIL NOTE. `legacy_routing_notes` gains a line — the
+          "noticed and deliberately left alone" surface, a third reader
+          again, repairing nothing.
+      (e) A MIGRATION ON SAVE. `Store.commit` re-anchors before it
+          writes, so the next load reads an agreeing scene.
+
+    THREE MORE WERE RUN AND DO NOT FLIP IT, and each is worth its line:
+
+      * `label_position_sticks` refusing a stale caption. It is the
+        right predicate at the wrong end — no reader prints its answer,
+        so the file and the screen still disagree in silence.
+      * ANNOTATING THE `catch_up` HEADLINE. Measured: it closes all six
+        SERVED cells and leaves all six OFFLINE ones, which the red then
+        reports by route. `catch_up` has one caller and only
+        `run_server` reaches it; eleven of the twelve `Store(...)` sites
+        are CLI commands that never do.
+      * A NOTE ON EVERY BOUND CAPTION. Identical on the agreeing
+        control, so the differential cancels it — noise wearing a
+        repair's name.
+
+    AND THE REPAIR THAT ALREADY LANDED DOES NOT FLIP IT EITHER, which is
+    not a fourth entry in that list but the finding itself: `84f33fb` is
+    in the tree this red is red on.
+
+    Attributes:
+        rules: What `client_bound_text_rules` read out of the bundle.
+    """
+
+    AID: ClassVar[str] = "d"
+    # One rectangle and one caption, on round coordinates. A rectangle
+    # because `client_caption_y` is a rectangle's rule and an ellipse's
+    # divergence is a different, larger, still-open class; `domain`
+    # because that is the artifact type the finding was found on.
+    BOX: ClassVar[dict[str, Any]] = {
+        "id": "c", "type": "rectangle", "x": 200, "y": 100,
+        "width": 160, "height": 120}
+    CAP_W: ClassVar[int] = 90
+    CAP_H: ClassVar[int] = 22
+    # SIGNED DELTAS OFF THE CLIENT'S OWN ANCHOR, never absolute offsets.
+    # Both signs, because the corpus holds both — 23 rectangle captions
+    # at +1 and 12 at -1 — and a repair that closes one sign only is a
+    # repair this red must keep reporting. `20` is here so that no
+    # reading of this class can be that it is about one pixel.
+    DELTAS: ClassVar[tuple[float, ...]] = (-1.0, 1.0, 20.0)
+    # BOTH ROUTES. `catch_up` has one caller and only `run_server`
+    # reaches it, so a repair sited there leaves every CLI command —
+    # eleven of the twelve `Store(...)` sites — reading the stale anchor.
+    ROUTES: ClassVar[tuple[bool, ...]] = (True, False)
+    # Far enough that the two boxes come apart, which is the one
+    # magnitude today's loader does answer. The live half below.
+    DETACHED: ClassVar[tuple[float, ...]] = (-400.0, 400.0)
+
+    def setUp(self) -> None:
+        """Read the client's rules once; every pole asserts on them."""
+        self.rules = client_bound_text_rules()
+
+    def _scene(self, align: str, delta: float) -> list[dict[str, Any]]:
+        """One container and one caption stored `delta` off the client's.
+
+        Args:
+            align: The caption's `verticalAlign` — `top` or `bottom`,
+                the two the writer and the client can disagree on.
+            delta: Signed pixels between the stored `y` and the `y`
+                `computeBoundTextPosition` will draw it at. `0` is the
+                agreeing control every red cell is measured against.
+
+        Returns:
+            The two elements, as a pre-fix session left them on disk.
+        """
+        box = dict(self.BOX,
+                   boundElements=[{"id": "c-label", "type": "text"}])
+        cap = {"id": "c-label", "type": "text", "containerId": "c",
+               "width": self.CAP_W, "height": self.CAP_H,
+               "verticalAlign": align, "textAlign": "center",
+               "text": "Term", "originalText": "Term", "fontSize": 16,
+               "lineHeight": canvas.NUNITO_LINE_HEIGHT,
+               "x": box["x"] + (box["width"] - self.CAP_W) / 2, "y": 0}
+        cap["y"] = client_caption_y(self.rules, box, cap) + delta
+        return [box, cap]
+
+    def _reading(self, align: str, delta: float, served: bool
+                 ) -> tuple[tuple[str, ...], float | None, float]:
+        """Put the scene on disk and ask every reader what it says.
+
+        THE DOOR IS THE FILE AND NOT A REQUEST, which is the whole
+        difference from the class above. A pre-fix scene was written by
+        a session that has ended; the only way to reach it is to write
+        the artifact and construct a NEW `Store`, because a store that
+        never reloaded would be reading its own memory.
+
+        Args:
+            align: The caption's `verticalAlign`.
+            delta: Signed pixels off the client's own anchor.
+            served: Reconcile the way a running server does. False is
+                the agent with no server — the route that reaches the
+                readers before anything reconciles.
+
+        Returns:
+            `(said, stored_y, client_y)`, where `said` is every line
+            every reader emitted and `stored_y` is where the caption
+            ended up — `None` when nothing on disk carries it any more.
+        """
+        root = Path(tempfile.mkdtemp(prefix="r8-2-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({"base_revn": 0, "artifact": self.AID,
+                           "create": {"id": self.AID, "name": "D",
+                                      "type": "domain"}, "ops": []})
+        path = project.artifacts_dir / (self.AID + ".excalidraw")
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        doc["elements"] = self._scene(align, delta)
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        store = canvas.Store(project)
+        said: list[str] = []
+        record = store.catch_up() if served else None
+        said.extend(self._record_lines("catch_up", record))
+        said.extend("issue=%s: %s" % (i.get("code"), i.get("msg"))
+                    for i in store.issues)
+        said.extend("scene_repair=%s: %s" % (i.get("code"), i.get("msg"))
+                    for i in getattr(store, "scene_repairs", None) or [])
+        lines = store.lint_lines().get(self.AID) or {}
+        for tier in ("errors", "warnings", "notes"):
+            said.extend("lint.%s=%s" % (tier, msg)
+                        for msg in lines.get(tier) or [])
+        said.extend("legacy=%s" % line
+                    for line in store.legacy_routing_notes())
+        said.append("debt=%s" % json.dumps(store.lint_debt(),
+                                           sort_keys=True, default=str))
+        # The save door, last: a client posting the scene back unchanged
+        # is the other moment a migration could honestly happen.
+        posted = [copy.deepcopy(e) for e in store.scenes[self.AID]]
+        said.extend(self._record_lines("save", store.commit(
+            author="user", new_scenes={self.AID: posted},
+            base_revn=store.head_revn())))
+        live = canvas.Store(canvas.Project(root))
+        els = live.scenes.get(self.AID) or []
+        cap = next((e for e in els if e["id"] == "c-label"), None)
+        box = next((e for e in els if e["id"] == "c"), None)
+        if cap is None or box is None:
+            return tuple(sorted(said)), None, 0.0
+        return (tuple(sorted(said)), cap.get("y"),
+                client_caption_y(self.rules, box, cap))
+
+    @staticmethod
+    def _record_lines(door: str, record: dict[str, Any] | None
+                      ) -> list[str]:
+        """Flatten one commit record into the lines it says out loud.
+
+        Args:
+            door: Which reader produced it, used as the line's prefix.
+            record: The record, or None when that door minted none.
+
+        Returns:
+            Its headline and every `by_element` entry, one line each.
+        """
+        if not record:
+            return []
+        summary = record.get("summary") or {}
+        out = ["%s=%s" % (door, summary.get("headline"))]
+        for part in (record.get("artifacts") or {}).values():
+            out.extend("%s.by_element=%s"
+                       % (door, json.dumps(entry, sort_keys=True,
+                                           default=str))
+                       for entry in part.get("by_element") or [])
+        return out
+
+    def _cells(self, deltas: tuple[float, ...]
+               ) -> list[tuple[str, float, bool]]:
+        """The population, as `(align, delta, served)` triples.
+
+        Args:
+            deltas: The signed offsets to build cells at.
+
+        Returns:
+            Every alignment crossed with every delta and every route.
+        """
+        return [(align, delta, served) for align in ("top", "bottom")
+                for delta in deltas for served in self.ROUTES]
+
+    def _vacuity_says(self, deltas: tuple[float, ...]) -> str | None:
+        """What this class's own vacuity clause says about a population.
+
+        Args:
+            deltas: The signed offsets a population would be built at.
+
+        Returns:
+            The message the red would raise, or None when the
+            population really does hold the failing case — which is a
+            SURVIVOR when the deltas were damaged to remove it.
+        """
+        apart = []
+        for align, delta, served in self._cells(deltas):
+            box, cap = self._scene(align, delta)
+            gap = cap["y"] - client_caption_y(self.rules, box, cap)
+            if gap:
+                apart.append((align, served, gap))
+        signs = {gap > 0 for _, _, gap in apart}
+        if apart and len(signs) == 2:
+            return None
+        return ("this class's population holds %d cells the client "
+                "disagrees with, at %d of the 2 signs. A red over a "
+                "population with no failing case in it passes on every "
+                "input, and one with a single sign in it cannot see a "
+                "repair that closes one direction only — the corpus "
+                "holds both. Deltas were %s" % (len(apart), len(signs),
+                                                list(deltas)))
+
+    def test_the_bundle_still_says_what_this_class_reads(self) -> None:
+        """The staleness guard, ungated: an unread client is a failure."""
+        assert_the_client_rules_were_read(self, self.rules)
+
+    def test_the_population_contains_the_failing_case(self) -> None:
+        """The vacuity guard, and the damage that makes it speak.
+
+        THE INPUTS ARE DAMAGED, NOT THE FUNCTION. Replacing the clause
+        with a stub would prove only that a stub can be called; what is
+        wanted is the clause deciding, over a population somebody built
+        wrong. So the deltas — this class's one input — are replaced by
+        an agreeing set and by a single-signed one, and the clause is
+        watched saying so in each. A guard nobody has seen fail is worth
+        nothing, and this one is all that stands between a repair and a
+        red that would have passed over any scene at all.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        self.assertIsNone(
+            self._vacuity_says(self.DELTAS),
+            "the population this class actually measures is refused by "
+            "its own vacuity clause, so the red below is asserting over "
+            "no failing case: %s" % self._vacuity_says(self.DELTAS))
+        damaged = [("every caption already agrees", (0.0,), "0 cells"),
+                   ("one sign only", (1.0, 20.0), "1 of the 2 signs"),
+                   ("the other sign only", (-1.0,), "1 of the 2 signs")]
+        survived = [(name, want) for name, deltas, want in damaged
+                    if want not in (self._vacuity_says(deltas) or "")]
+        self.assertEqual(
+            survived, [],
+            "the vacuity clause did not notice %s. A survivor here is "
+            "the finding: the clause is decoration, and the red below "
+            "could be handed a population with nothing wrong in it and "
+            "would report success" % [n for n, _ in survived])
+
+    def test_the_shipped_corpus_really_holds_this_state(self) -> None:
+        """The reach pole: real drawings are in this state, both signs.
+
+        A red over a hand-built scene is a red about a scene somebody
+        could argue nobody has. This walks the frozen corpus and asserts
+        the state exists in it at BOTH signs — which is also what makes
+        the two-signed population above a measurement rather than a
+        preference. The census is in the message and not in the
+        assertion, because which fixtures are tracked is not this
+        class's subject.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        apart: list[tuple[str, str, str, float]] = []
+        agreed = 0
+        corpus = sorted((Path(__file__).resolve().parent
+                         / "fixtures").rglob("*.excalidraw"))
+        for path in corpus:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            els = doc.get("elements") if isinstance(doc, dict) else doc
+            if not isinstance(els, list):
+                continue
+            by = {e.get("id"): e for e in els if isinstance(e, dict)}
+            for e in els:
+                if not isinstance(e, dict) or e.get("type") != "text":
+                    continue
+                box = by.get(e.get("containerId"))
+                if not box or box.get("type") != "rectangle":
+                    continue
+                gap = e.get("y", 0) - client_caption_y(self.rules, box, e)
+                if gap:
+                    apart.append((path.name, e["id"],
+                                  e.get("verticalAlign"), gap))
+                else:
+                    agreed += 1
+        signs = {row[3] > 0 for row in apart}
+        self.assertEqual(
+            (bool(apart), sorted(signs)), (True, [False, True]),
+            "the frozen corpus holds %d rectangle-bound captions stored "
+            "away from where the client draws them (%d agree), at signs "
+            "%s. The red below needs both signs present in real "
+            "drawings for its two-signed population to be a measurement "
+            "rather than a preference; if this has gone to one sign or "
+            "to none, re-derive the population before reading the red. "
+            "Sample: %s" % (len(apart), agreed, sorted(signs),
+                            apart[:6]))
+
+    def test_the_readers_do_speak_when_the_boxes_come_apart(self) -> None:
+        """The live half: the battery is not dead, and here is its edge.
+
+        UNGATED, AND IT IS WHAT MAKES THE RED'S SILENCE MEAN SOMETHING.
+        Same scene, same element, same readers, same two routes — only
+        the magnitude differs. At `±400` the loader answers: ART-007
+        names the caption and `recenter_label` puts it back at the
+        client's own anchor EXACTLY, which is the direction half and not
+        merely "somewhere". So the readers can see a caption's position;
+        the threshold they see it at is `_label_detached`'s, and that
+        clause asks whether the two boxes touch at all.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        mute, misplaced = [], []
+        for align, delta, served in self._cells(self.DETACHED):
+            said, stored, drawn = self._reading(align, delta, served)
+            base, _, _ = self._reading(align, 0.0, served)
+            spoke = [line for line in sorted(set(said) - set(base))
+                     if "c-label" in line]
+            if not spoke:
+                mute.append((align, delta, served))
+            if stored != drawn:
+                misplaced.append((align, delta, served, stored, drawn))
+        self.assertEqual(
+            (mute, misplaced), ([], []),
+            "a caption stored 400px off its container is not named by "
+            "any reader in %s, and is not put back on the client's own "
+            "anchor in %s. Until this pole is green the red below can "
+            "be satisfied by a battery that reads nothing, which is the "
+            "one way it must never be satisfied" % (mute, misplaced))
+
+    def test_a_stored_caption_the_client_disagrees_with_is_read(
+            self) -> None:
+        """`r8-2`, RED: nothing reads a caption already on disk.
+
+        WHAT THE DRAWING GETS WRONG. Every pre-fix domain artifact
+        stores its entity captions a pixel from where the tab draws
+        them. The picture self-heals on the first write that touches the
+        container — measured at R8 turn 5, where a resize moved all
+        seven captions unasked — and until then the file and the screen
+        disagree, and every surface an agent can read says the project
+        is clean. 43 of the 273 rectangle-bound captions in this repo's
+        own frozen corpus are in that state right now, at both signs.
+
+        WHAT IS ASSERTED. For each cell: the readers are handed the
+        stale scene and the AGREEING scene, and the stale one must
+        either produce a line the agreeing one does not, or come back
+        with the caption on the client's anchor. The differential is the
+        anti-noise clause — a reader that says the same thing about
+        every bound caption in the project cancels, and rightly, since
+        it has not distinguished the defect from the health.
+
+        WHY IT IS NOT THE MINT-TIME CLASS AGAIN. `84f33fb` closed the
+        writer and this red is red anyway, which is the finding: it is
+        `r6-1` one field over. The class's own message says so out loud
+        — it prints the writer's anchor beside the client's and they
+        AGREE, so a reader who arrives here looking for a wrong constant
+        will find two right ones and the wrong scenes underneath them.
+
+        WHAT MUST NOT FLIP IT: deleting the caption (the `vanished` arm
+        refuses it); noting every caption regardless (the differential
+        refuses it); and closing the served route alone, which leaves
+        the six offline cells and is reported by name.
+        """
+        assert_the_client_rules_were_read(self, self.rules)
+        self.assertIsNone(
+            self._vacuity_says(self.DELTAS),
+            "this red's population no longer holds the failing case, so "
+            "a pass below would mean nothing: %s"
+            % self._vacuity_says(self.DELTAS))
+        unread, vanished = [], []
+        for align, delta, served in self._cells(self.DELTAS):
+            said, stored, drawn = self._reading(align, delta, served)
+            base, _, _ = self._reading(align, 0.0, served)
+            if stored is None:
+                vanished.append((align, delta, served))
+                continue
+            if sorted(set(said) - set(base)):
+                continue
+            if stored == drawn:
+                continue
+            unread.append({"align": align, "route":
+                           "served" if served else "offline",
+                           "stored_y": stored, "client_draws_it_at": drawn,
+                           "delta": stored - drawn})
+        self.assertEqual(
+            (unread, vanished), ([], []),
+            "%d of %d cells store a caption away from where the client "
+            "draws it, and no reader — `catch_up`, the load issues, the "
+            "scene repairs, `lint`, the fossil notes, the standing debt "
+            "or the save record — says one word the agreeing scene does "
+            "not, and nothing moves it. The writer's own anchor is "
+            "`container.y + %g` (canvas.BOUND_TEXT_PADDING) and the "
+            "client's is `container.y + %g` (read from the bundle); "
+            "they agree, which is the point — this is not the writer, "
+            "it is every caption the writer had already written. %s "
+            "cells lost the caption entirely. Cells: %s"
+            % (len(unread), len(self._cells(self.DELTAS)),
+               canvas.BOUND_TEXT_PADDING, self.rules["padding"],
+               len(vanished), unread))
+
+
+# ---------------------------------------------------------------------------
 # THE CITATIONS ROTTED AND FOUR OF FIVE LANDED ON REAL FUNCTIONS. Filed by
 # the mutant-curator, 2026-08-31, during the closing pass of the caption
 # wave — found while re-deriving a figure, not by any check.
@@ -40114,15 +42895,33 @@ class TestAServerWrittenCaptionSitsWhereTheClientWillDrawIt(
 # that guard SURVIVE.
 #
 # THE DANGLING NAME IS THE MILD HALF. Four of the five symbols `canvas.py`
-# named resolve, IN THE BUNDLE THAT SHIPS, to real functions doing
-# something else: `Yn` is assigned nowhere (the padding is `Kn`), `_s`
-# crops images (the wrap width is `js`), `qg` draws an arc (the max height
-# is `Kg`), `yd` aliases `useLayoutEffect` (the growth is `bd`), and `ai`
-# handles text editing (the redraw is `ri`). Every transcribed ARITHMETIC
-# was re-derived against the shipped file and every one was correct — so
-# what rotted was the address and never the rule. A reader following one of
-# those lands on working code and has no way to know they are in the wrong
-# function.
+# once named resolve to real functions doing something else, and every one
+# of the four is still bound in the bundle that ships: the padding was
+# cited as `Yn`, which multiplies a triple by a scalar (@798193); the wrap
+# width as `_s`, which rescales an image crop (@486243); the max height as
+# `qg`, which measures a point's distance to a shape (@511464); the growth
+# as `yd`, which walks a DOM node to its assigned slot or shadow host
+# (@737845); and the redraw as `ai`, which memoises which elements a
+# selected group contains (@525989). Every transcribed
+# ARITHMETIC was re-derived against the shipped file and every one was
+# correct — so what rotted was the address and never the rule. A reader
+# following one of those lands on working code and has no way to know they
+# are in the wrong function.
+#
+# EVERY REBUILD SINCE HAS MADE THE POINT SHARPER, and the corrections rot
+# as fast as the errors did. `index-KJTydiiR.js` was rebuilt TWICE IN
+# PARALLEL on two branches that both landed here, and neither of those two
+# bundles is on disk; folding them rebuilt once more and produced
+# `index-DMIFGF1r.js`. Across those builds the wrap width has been cited as
+# `js`, `Ts` and `js` again, the max height as `Kg` and `Qg`, the growth as
+# `bd` and `md`, and the redraw as `ri` and `ii` — and in the file that
+# ships the wrap width is `js` (@555679) while `Ts` (@659125), `Kg`
+# (@507298), `Qg` (@512250), `bd` (@660451), `md` (@470173), `ri` (@275922)
+# and `ii` (@1035588) are all live and all something else. Sharper still,
+# `z$` (@274754) was the chop walker and is the grapheme splitter that
+# walker calls — a live symbol, still resolving, pointing one function
+# sideways. The obvious repair for a dangling citation (swap the filename,
+# keep the symbol) would have written that error into the tree.
 #
 # WHY THIS CHECK PINS FILENAMES AND NOT SYMBOLS. Minified names change on
 # every rebuild, so a check that pinned them would fail on every rebuild
@@ -40162,6 +42961,29 @@ RETIRED_BUNDLES: dict[str, str] = {
     "index-DIydcWDi.js":
         "named in one retirement clause, on the arrowhead-default anchor "
         "comment in this file.",
+    "index-KJTydiiR.js":
+        "shipped from 3f57a17 until 2026-08-31 and named now only where "
+        "the rot is recorded — the citation note above `_client_chop`, "
+        "which needs it twice to say that `z$` came through that rebuild "
+        "as a DIFFERENT function; the freedraw field set; and the "
+        "paragraph above this table. It is the LAST COMMON ANCESTOR of "
+        "the two branches below, which is why it outlived both of them.",
+    "index-DFry315l.js":
+        "one of two parallel rebuilds of `index-KJTydiiR.js`, made on "
+        "the caption rail. Named in the citation note above "
+        "`_client_chop`, which records the fork. IT NEVER SHIPPED FROM "
+        "A MERGED TREE: it was current only on its own branch, and "
+        "folding that branch rebuilt past it.",
+    "index-DTzHdgzu.js":
+        "the other parallel rebuild, made on the v0.9.1 build that "
+        "added the 🐞 bug-hunter to the client, and named in the same "
+        "note for the same reason. THE PAIR IS THE LESSON: a citation "
+        "inherited from either branch names a build that no reader can "
+        "open, and taking one side of a merge conflict over a citation "
+        "is how a tree acquires them. Every live citation in this tree "
+        "was re-derived against `index-DMIFGF1r.js` by anchoring on "
+        "rename-invariant slices of the code and reading the symbol "
+        "back out, never by swapping a filename.",
 }
 
 
@@ -40357,6 +43179,1331 @@ class TestTheBundleCitationsNameAFileThatExists(unittest.TestCase):
             _BUNDLE_CITATION.findall("see %s @555678" % live), [live],
             "the citation pattern no longer matches a real citation, so "
             "it would be green over any rot at all")
+
+
+# ---------------------------------------------------------------------------
+# THE SYMBOL BESIDE THE FILENAME, AND THE THIRD ROUND OF THE SAME ROT. Filed
+# by the mutant-curator, 2026-09-01, from a re-review that found the class
+# alive after two hand sweeps had each declared it closed.
+#
+# THE NOTE ABOVE IS NOT WRONG AND THIS DOES NOT OVERTURN IT. It says a check
+# that PINNED minified names would fail on every rebuild and be relaxed into
+# uselessness by the third one. True, and this check pins none. It READS the
+# name back out of the file that ships, at the offset the prose itself
+# supplies, and compares the two. A rebuild moves the offsets, the read
+# answers whatever the new name is, and the message names it. Nothing here
+# is a baseline anybody could be tempted to re-take: no minified name is
+# written down as an expectation at any point in this section.
+#
+# WHY IT TOOK THREE ROUNDS. The first repair swept dangling FILENAMES. The
+# second swept every citation carrying an OFFSET, which is the form the
+# repaired sites take, and repaired nine. Neither could see a citation that
+# names a symbol and supplies no offset at all, because there was nothing to
+# check it against — and that shape is the majority of them. So the class
+# was twice declared closed by a sweep whose instrument could not reach it,
+# which is this repo's oldest failure wearing a new hat.
+#
+# WHAT IS BEING ASSERTED, and it is a RELATION rather than a roster: a name
+# this tree spells for the client is either ANCHORED — the same prose region
+# pins it to the shipping bundle, by an offset that resolves to that very
+# symbol or by a quoted rename-invariant slice of code that does — or
+# SCOPED, saying IN THAT NAME'S OWN SENTENCE, in the tree's own past-tense
+# vocabulary, that it belonged to a bundle that no longer ships. There is no
+# third state — one was tried and withdrawn, and the paragraph on prose
+# about prose below is why — and an unanchored present-tense name is
+# unverifiable BY ANYONE, which is the property that let four of five rot
+# into live unrelated functions and go on reading correct for two rebuilds.
+#
+# THE ASYMMETRY BETWEEN THE TWO EXITS IS DELIBERATE and is the C-1 repair
+# (independent re-curation review, 2026-09-01). An anchor reaches the whole
+# region because it is a POSITIVE claim resolved against the shipping file:
+# a false one turns the always-run pole red, so it cannot be pasted in. A
+# scoping clause reaches one sentence because it is an unverifiable
+# EXEMPTION. While it reached the region, pasting the bare phrase "in the
+# previous bundle" once into each loose region — one edit per region,
+# nothing made checkable — took the violation list to ZERO, and a bare
+# RETIRED FILENAME did the same, which made the cheapest of the five
+# advertised repairs the one that verifies nothing. That measurement was
+# taken against `c3f7b95` and is history, not a live figure; the same
+# attack now lives in the guard below, run on whatever tree it finds, so
+# the property cannot come back quietly.
+#
+# NO CENSUS COUNT IS WRITTEN IN THIS SECTION, and the omission is the
+# point. `a4b83c9`'s commit message says "Census: 27 -> 55" and the note
+# here said "fifty-odd"; the red's own message on that very tree said 58,
+# deterministically, because the number had been taken before the last two
+# comment blocks were written and both copies then rotted in place. This
+# file opens with the same lesson about a call-site count that was wrong
+# for a week. THE RED PRINTS THE NUMBER — run the class and read it, or
+# `len(unverifiable_symbol_citations(symbol_citations(tracked, bundle)))`
+# for the same figure — and nothing in the tree has to be kept in step
+# with it.
+#
+# WHAT STILL DEFEATS IT, stated rather than left to be found: writing the
+# past-tense clause beside EVERY loose name greens most of the class. That
+# is not a shortcut — it is one specific false statement per citation, each
+# saying of one name that it belonged to a build that no longer ships, and
+# no reading of text can tell a deliberate lie from a true sentence. What
+# the repair buys is measurable, and NO FIGURE FOR IT IS WRITTEN HERE for
+# the reason two paragraphs up: an insertion count is the loose-occurrence
+# count wearing a hat, and it rots on the first repair. The guard below runs
+# the attack instead — one marker straight after each loose name's own
+# backtick span — and what it demonstrates is a SHAPE rather than a number:
+# the survivors are EXACTLY the citations whose sentence carries a
+# `SYMBOL_PRESENT_TENSE` phrase, identical set by name, and they cannot be
+# scoped at all. Clearing those means deleting a false present-tense claim,
+# which is a repair and not an exemption. So the refusal converts a paste
+# into work, and the lie that remains has to be told in the sentence it
+# falsifies, where a reviewer meets it.
+#
+# THE HALF THIS CANNOT REACH, said plainly, because a limit that is not
+# written down gets re-discovered as a defect. The vocabulary below is a
+# DECLARED list of names, so a citation that spells a minified symbol this
+# table does not carry is invisible. That list cannot be derived: measured
+# on 2026-08-31, a scan for short backticked tokens that the bundle happens
+# to bind answered 108 distinct names over this tree, almost all of them
+# Python-side coincidences (x, y, t1, n1, b, d), and a check with that
+# false-positive rate is one nobody keeps. So the cost of a NEW client
+# symbol is one line here, and the
+# guard below asks whether this vocabulary still MOSTLY lands in the bundle
+# that ships rather than whether it is complete, which it cannot know.
+#
+# THE SECOND UNREACHABLE HALF is a symbol named inside a quoted CODE block
+# rather than on its own. Two of the live sites hide a wrong name there —
+# the shipping bundle renamed both the wrapper and the measure it calls, and
+# the prose quotes the call, so `code_slice_owner` finds no match and can
+# only answer "not in this bundle", never "you meant this one". Telling
+# those apart needs identifier-BLIND matching of a minified statement, which
+# is a different instrument; here the two sites are reached only because
+# their regions also name a symbol in the open.
+#
+# THE THIRD is a surface question and it is a RULING rather than an
+# oversight (re-curation M-1, 2026-09-01). The scan reads tracked Python
+# only. Tracked MARKDOWN carries citations too — one v0.9 work-package
+# report holds about ten — and they are NOT scanned, because that report is
+# a dated record of what was believed on the day it was written, which is
+# the one document class where a stale name is the point. Extending the
+# scan there would demand scoping clauses inside a historical artefact
+# nobody may edit. A live document that starts citing symbols is a
+# different case and belongs in `_TRACKED_PROSE` when it appears.
+
+# The client's minified names this tree talks about, each with the reason
+# the token is unambiguous HERE — not what the function does, which is
+# exactly the thing that rots. Adding a name is the cost of citing one.
+CLIENT_SYMBOLS: dict[str, str] = {
+    "$$": "no Python identifier can spell it",
+    "F$": "no Python identifier can spell it",
+    "z$": "no Python identifier can spell it",
+    "Ed": "two-letter mixed case; this tree binds no such Python name",
+    "Cd": "two-letter mixed case; this tree binds no such Python name",
+    "Id": "two-letter mixed case; this tree binds no such Python name",
+    "Kn": "two-letter mixed case; this tree binds no such Python name",
+    "Yn": "two-letter mixed case; this tree binds no such Python name",
+    "Ts": "two-letter mixed case; this tree binds no such Python name",
+    "Qg": "two-letter mixed case; this tree binds no such Python name",
+    "Kg": "two-letter mixed case; this tree binds no such Python name",
+    "Zr": "two-letter mixed case; this tree binds no such Python name",
+    "Kr": "two-letter mixed case; this tree binds no such Python name",
+    "Bp": "two-letter mixed case; this tree binds no such Python name",
+    "Wp": "two-letter mixed case; this tree binds no such Python name",
+    "gY": "two-letter mixed case; this tree binds no such Python name",
+    "mY": "two-letter mixed case; this tree binds no such Python name",
+    "dd": "cited only in client arithmetic; no Python meaning in this tree",
+    "md": "cited only in client arithmetic; the span form below keeps it "
+          "off every `*.md` filename, which is where the ambiguity is",
+    "bd": "cited only in client arithmetic; no Python meaning in this tree",
+    "yd": "cited only in client arithmetic; no Python meaning in this tree",
+    "qg": "cited only in client arithmetic; no Python meaning in this tree",
+    "ii": "cited only in client arithmetic; no Python meaning in this tree",
+    "ri": "cited only in client arithmetic; no Python meaning in this tree",
+    "ai": "cited only in client arithmetic; the span form keeps it off "
+          "`p[ai]`, this repo's own along-axis index",
+    "_s": "cited only in client arithmetic; no Python meaning in this tree",
+    "js": "cited only in client arithmetic; the span form keeps it off "
+          "every `*.js` filename, which is where the ambiguity is",
+    # ADDED BY THE 2026-09-01 RE-DERIVATION, and every one of them is a
+    # name this tree started spelling in that pass. The rule the header
+    # states is that citing a name costs a line here; these are that
+    # cost paid rather than the cheaper alternative, which is to cite a
+    # symbol the scan cannot see and call the class green.
+    "aU": "two-letter mixed case; this tree binds no such Python name",
+    "aZ": "two-letter mixed case; this tree binds no such Python name",
+    "iU": "two-letter mixed case; this tree binds no such Python name",
+    "Ud": "two-letter mixed case; this tree binds no such Python name",
+    "fd": "cited only in client arithmetic; no Python meaning in this tree",
+    "kd": "cited only in client arithmetic; no Python meaning in this tree",
+    "qr": "cited only in client arithmetic; no Python meaning in this tree",
+    "si": "cited only in client arithmetic; no Python meaning in this tree",
+}
+
+# The tree's OWN past-tense vocabulary for "that name belonged to a bundle
+# that no longer ships", quoted from the sites that already say it. Every
+# phrase carries the word "bundle" on purpose: scoping a minified name is a
+# claim about WHICH BUILD it was true of, and a marker that does not name a
+# build is a blanket. Extending this tuple is a legitimate part of a repair;
+# padding it is not, and the guard below refuses a marker nothing uses and a
+# marker too short to be a sentence. `RETIRED_BUNDLES`' keys join it at the
+# point of use rather than being spelled here: naming the dead build IS the
+# scoping act, it is already a table with reasons, and a filename written
+# into this module would be a citation of its own.
+#
+# SIX PHRASES LEFT ON 2026-09-01 AND THE TABLE IS SHORTER FOR IT. The fix
+# round for the red below repaired the loose citations by ANCHORING them —
+# an offset or a quoted code slice the shipping bundle resolves — rather
+# than by scoping them, so the sites those six phrases were quoted from
+# stopped saying them. The guard's own rule then applies: a marker nothing
+# writes is a stale exemption, indistinguishable from one padded in to
+# widen the exit. ONE PHRASE IS THE HONEST SIZE OF THIS TABLE TODAY, and
+# a reader should read that as the anchors having done the work rather
+# than as scoping having been withdrawn. Re-extending the tuple when a
+# genuine scoping repair needs a phrase is the legitimate move it always
+# was; what is not legitimate is keeping phrases in reserve so that a
+# later paste has a wider vocabulary to reach for. `RETIRED_BUNDLES`'
+# three new keys are the live scoping vocabulary in practice — naming the
+# dead build is the scoping act, and this tree now does that instead.
+SYMBOL_SCOPE_MARKERS: tuple[str, ...] = (
+    "in the bundle that shipped at the time",)
+
+# And the tree's vocabulary for the OPPOSITE claim. A sentence that says a
+# name is true of the build shipping NOW cannot be excused by a past-tense
+# clause pasted into the same sentence — that is not scoping, it is a
+# sentence contradicting itself, and it was the residue left after C-1's
+# region-wide hole was closed. The live example is the claim at
+# tests/test_backend.py:24240, which four appended words would otherwise
+# green while it went on asserting the opposite. NO PROPORTION IS WRITTEN
+# HERE: this note carried "29%" for one commit, inherited from the tree
+# before it while the truth had moved to a quarter, which is exactly the
+# rot the paragraph above forbids. The guard runs the attack and asserts
+# the SET, not its size.
+#
+# THE TWO TABLES DO NOT OWE THE SAME CENSUS, and "in the shipped file"
+# came back on 2026-09-01 (curator review of the fix round) because it was
+# removed under the marker table's rule. The rules are asymmetric because
+# the tables point opposite ways. A SCOPE MARKER IS AN EXIT: every phrase
+# in that table is one more thing a repair can paste beside a bare name to
+# excuse it without verifying anything, so a phrase nobody writes is a
+# stale exit and dropping it makes the red STRICTER. A PRESENT-TENSE
+# PHRASE IS A REFUSAL: it excuses nothing, it only forbids scoping over a
+# sentence that claims the name of the build shipping now, so a phrase
+# nobody writes today costs nothing and guards tomorrow's sentence, and
+# dropping it makes the red LOOSER. Applying the exit table's rule here
+# retires each refusal on the day its last false claim is repaired, which
+# is the failure this whole class is about, one table over.
+#
+# AND THE RULE WAS SELF-SATISFYING BESIDES, which is why it is not merely
+# weakened here but replaced. Measured on this tree: the only region that
+# spells "in the shipped file" is the note that recorded its own removal,
+# so restoring the phrase re-passed a "somebody writes it" assertion on
+# the strength of its own obituary. A table whose contents are decided by
+# what its comment happens to quote is not a census. What replaces it is
+# stated at the guard clause, together with the stronger-looking version
+# that was tried first and thrown away for passing on every input.
+SYMBOL_PRESENT_TENSE: tuple[str, ...] = (
+    "in the shipped bundle", "in the bundle that ships",
+    "the file that ships", "in the shipped file")
+
+# THERE IS NO EXIT FOR PROSE ABOUT PROSE, and this paragraph is the ruling
+# rather than a gap. A curator writing the note above reached for one: prose
+# that reports where a symbol APPEARS IN THIS REPO claims nothing about the
+# client, so a sentence naming a `file.py:line` was exempted, provided the
+# named line really carried the name and was not inside the sentence's own
+# region. It shipped for one commit and it was WRONG, in a way worth keeping
+# written down because it is the failure this whole class is about.
+#
+# IT VERIFIED THE WRONG PROPOSITION. An anchor checks the very thing it
+# licenses: the bundle resolves this offset to this name, so the sentence's
+# subject is what got examined. The site read-back checked something else
+# entirely — SOME line somewhere spells this token — and licensed a verdict
+# about tense and subject that nothing looked at. The two are orthogonal,
+# and orthogonal is fatal here: every citation is itself a line carrying its
+# own symbol, so a verifying site always exists. Measured on the tree that
+# shipped it, all 27 vocabulary names had a carrying line, all 54 loose
+# pairs had one available OUTSIDE their own region, and the same paste
+# budget the scoping clause survives took the whole list to ZERO. A live
+# defect could be excused, still saying what the client does, by pointing at
+# another citation of the same name.
+#
+# AND IT CONTRADICTED THE SCANNER BESIDE IT. `symbol_spans` goes to trouble
+# to refuse `p[ai]`, this repo's own along-axis index, as noise; the
+# read-back then accepted an unrelated Python local of the same name as
+# proof that a sentence about the client's minified one was not about the
+# client. One function's noise was the other's evidence.
+#
+# SO THE FOUR EXITS ARE THE WHOLE RULE, and they were always enough: every
+# sentence that tripped this — including the roster below, which reports a
+# fact about prose and then makes a live claim about the bundle in its next
+# breath — repairs by anchoring the name or by naming the site and not
+# spelling the name. Both were taken here. A syntactic rule that pretends to
+# be a check is worse than a judgement that admits it is one, and worse
+# again than not needing either.
+
+_SYMBOL_OFFSET = re.compile(r"@(\d{4,7})")
+_BACKTICK_SPAN = re.compile(r"`([^`\n]{1,200})`")
+# A sentence, for the purpose of deciding what a scoping clause excuses.
+# Deliberately conservative: only a full stop followed by something that
+# starts a sentence. A colon does NOT end one, because this tree's densest
+# scoping clause is "…in the bundle that shipped at the time, to real
+# functions doing something else: `Yn` is assigned nowhere…" and splitting
+# there would strand the clause from every name it is about.
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-Z(`])")
+# A quoted slice of bundle CODE, as opposed to a quoted symbol: long enough
+# not to collide by accident and carrying at least one piece of syntax. The
+# minimum is 16 characters because the shortest slice this tree actually
+# anchors on is `.normalize("NFC").split(` and the shortest plausible one is
+# a property access plus a call.
+_CODE_SLICE_MIN = 16
+_CODE_SYNTAX = re.compile(r"[(){};=]")
+_WHITESPACE = re.compile(r"\s+")
+# Sources whose prose is scanned. `tests/*.py` plus the single-file writer;
+# tracked MARKDOWN is out of scope with its reason at the head of this
+# section. A live document that starts citing symbols belongs here.
+# A minified binding, in the two forms an esbuild bundle emits. Used only to
+# walk LEFT from a cited offset to the definition that encloses it; nothing
+# downstream compares a name to a name this file wrote.
+_JS_BINDING = re.compile(
+    r"(?:function\s+([A-Za-z_$][\w$]*)\s*\("
+    r"|(?<![\w$.])([A-Za-z_$][\w$]*)\s*=\s*"
+    r"(?:function\b|async\b|\([^()]{0,80}\)\s*=>|[A-Za-z_$][\w$]*\s*=>))")
+# A binding STARTING at the cited offset. `function X(` or `X=`, and never a
+# bare `X(`: an offset landing on `if (e.type === "arrow")` would otherwise
+# resolve to the name `if`, which a code-slice anchor reaches routinely.
+_JS_BINDING_HERE = re.compile(
+    r"\A(?:function\s+([A-Za-z_$][\w$]*)\s*\(|([A-Za-z_$][\w$]*)\s*=(?!=))")
+_TRACKED_PROSE = ("tests/*.py",)
+
+
+def shipped_bundle_text() -> str:
+    """The entry bundle the canvas server actually serves, as text.
+
+    Derived from `index.html` through the single reader
+    `guard_mutants.frontend_bundle` rather than globbing, because the
+    assets directory ships more than one `index-*.js` and only one of
+    them is the app. A second copy of that derivation is a second thing
+    to get wrong on the next rebuild.
+
+    Returns:
+        The bundle source, decoded. Read as CHARACTERS: every offset in
+        this tree's prose is a character offset, and the two readings
+        differ by more than a thousand over this file.
+    """
+    return guard_mutants.frontend_bundle().read_text(
+        encoding="utf-8", errors="replace")
+
+
+@functools.lru_cache(maxsize=4)
+def _js_bindings(bundle: str) -> tuple[tuple[int, ...], tuple[str, ...]]:
+    """Every minified binding in one bundle, by ascending offset.
+
+    Cached because the walk is per-citation and the file is over a
+    million characters: without it this class costs sixteen seconds in
+    a suite that budgets three minutes for two thousand tests. Two
+    parallel tuples rather than pairs so the offsets bisect directly.
+
+    Args:
+        bundle: The bundle source.
+
+    Returns:
+        `(offsets, names)`, index-aligned and sorted by offset.
+    """
+    found = sorted((m.start(), m.group(1) or m.group(2))
+                   for m in _JS_BINDING.finditer(bundle))
+    return tuple(o for o, _ in found), tuple(n for _, n in found)
+
+
+def bundle_symbol_owner(bundle: str, offset: int) -> str | None:
+    """Which minified name owns the code at this character offset.
+
+    Two cases, because the tree's citations use both: an offset may
+    point AT a binding (the repaired form does) or INTO the body of one
+    (the form that quotes a statement does). The first is read
+    directly; the second walks left to the nearest enclosing function
+    binding.
+
+    Args:
+        bundle: The bundle source to read. Passed rather than read so
+            the guard's own mutants can hand over a damaged one.
+        offset: A character offset into it.
+
+    Returns:
+        The name, or None when the offset is off the end of the file or
+        no binding precedes it — which is what a rebuild that shortened
+        the bundle looks like.
+    """
+    if not 0 <= offset < len(bundle):
+        return None
+    here = _JS_BINDING_HERE.match(bundle[offset:offset + 60])
+    if here:
+        return here.group(1) or here.group(2)
+    offsets, names = _js_bindings(bundle)
+    at = bisect.bisect_right(offsets, offset)
+    return names[at - 1] if at else None
+
+
+@functools.lru_cache(maxsize=32)
+def prose_regions(source: str) -> tuple[tuple[int, int, str], ...]:
+    """Every docstring and comment run in one Python file, joined.
+
+    THE REGION IS THE UNIT AN ANCHOR REACHES, and neither a line nor a
+    function will do. A line splits an offset from the name it belongs
+    to when the sentence wraps; a function lumps a class's honest
+    historical note together with a live falsehood two methods down
+    and lets the first vouch for the second. NO OFFSET IS SPELLED IN
+    THIS PARAGRAPH: the file scans its own docstrings, so an
+    illustrative number here would be a live anchor the moment anybody
+    put a backticked name beside it. A docstring or an unbroken run of
+    comment lines is one thing somebody wrote in one sitting, which is
+    the granularity an offset applies at. A SCOPING CLAUSE APPLIES
+    NARROWER — see `sentence_spans`, which is where the C-1 repair
+    lives.
+
+    Args:
+        source: The file's text. Cached on it, because both poles and
+            the guard walk the same dozen files and the parse is the
+            expensive half.
+
+    Returns:
+        `(first_line, last_line, joined_text)` per region, in file
+        order, with each region's lines stripped and space-joined so a
+        sentence that wraps reads as one.
+    """
+    lines = source.splitlines()
+    spans: list[tuple[int, int]] = []
+    inside: set[int] = set()
+    try:
+        tree: ast.AST | None = ast.parse(source)
+    except SyntaxError:
+        tree = None
+    for node in ast.walk(tree) if tree is not None else ():
+        if not isinstance(node, (ast.Module, ast.FunctionDef,
+                                 ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        body = getattr(node, "body", None) or []
+        first = body[0] if body else None
+        if (isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)):
+            span = (first.lineno, first.end_lineno or first.lineno)
+            spans.append(span)
+            inside.update(range(span[0], span[1] + 1))
+    run: list[int] = []
+    for lineno, line in enumerate(lines, 1):
+        if line.lstrip().startswith("#") and lineno not in inside:
+            run.append(lineno)
+        elif run:
+            spans.append((run[0], run[-1]))
+            run = []
+    if run:
+        spans.append((run[0], run[-1]))
+    return tuple((a, b, " ".join(x.strip() for x in lines[a - 1:b]))
+                 for a, b in sorted(spans))
+
+
+@functools.lru_cache(maxsize=8)
+def _symbol_span(names: tuple[str, ...]) -> re.Pattern[str]:
+    """One alternation over a vocabulary, in the forms a citation uses.
+
+    Args:
+        names: The vocabulary, as a hashable tuple.
+
+    Returns:
+        A pattern whose first group is the symbol, matching a whole
+        backticked span and nothing less.
+    """
+    alt = "|".join(re.escape(n) for n in
+                   sorted(names, key=len, reverse=True))
+    return re.compile(
+        r"(%s)(?:\s*=\s*[-\w.]+|\(.*\)|\.[\w.]+(?:\(.*\))?)?" % alt)
+
+
+def symbol_spans(text: str, vocabulary: dict[str, str]
+                 ) -> list[tuple[str, int, int]]:
+    """Where this region spells a vocabulary symbol AS a symbol.
+
+    THE SPAN FORM IS THE WHOLE DISCRIMINATOR. A backticked span counts
+    only when it is the bare name, a call on it, an attribute of it, or
+    an assignment of it to a literal — which is how a citation spells a
+    symbol and is not how a filename, a subscript or a sentence spells
+    one. Without it the scan reports every `*.md` document and every
+    `p[ai]` in this repo, and a check nobody can keep green is a check
+    nobody keeps.
+
+    Args:
+        text: The joined region.
+        vocabulary: `CLIENT_SYMBOLS`, or a stand-in.
+
+    Returns:
+        `(symbol, start, end)` per OCCURRENCE, in reading order.
+        Occurrences and not a set, because a scoping clause excuses the
+        mention it sits beside and not every later mention of the same
+        name — which is the whole of the C-1 repair.
+    """
+    if not vocabulary:
+        return []
+    pat = _symbol_span(tuple(sorted(vocabulary)))
+    out = []
+    for m in _BACKTICK_SPAN.finditer(text):
+        hit = pat.fullmatch(m.group(1).strip())
+        if hit:
+            out.append((hit.group(1), m.start(), m.end()))
+    return out
+
+
+def _region_names(text: str, vocabulary: dict[str, str]) -> list[str]:
+    """Which vocabulary symbols this region spells, deduplicated.
+
+    Args:
+        text: The joined region.
+        vocabulary: `CLIENT_SYMBOLS`, or a stand-in.
+
+    Returns:
+        The symbols named, sorted, without duplicates.
+    """
+    return sorted({s for s, _, _ in symbol_spans(text, vocabulary)})
+
+
+def sentence_spans(region: str) -> list[tuple[int, int]]:
+    """The region's sentences, as character ranges.
+
+    THE UNIT A SCOPING CLAUSE REACHES. Region-wide scoping was the C-1
+    defect: one past-tense phrase anywhere in an 81-line docstring
+    excused every name that docstring mentioned, so the cheapest of the
+    three advertised repairs was to paste a bare marker in and verify
+    nothing. Measured before the repair: inserting the phrase once into
+    each loose region took the violation list from 27 to 0.
+
+    An ANCHOR still reaches the whole region and that asymmetry is the
+    point. An anchor is a positive claim this check resolves against the
+    shipping bundle, so a false one turns the pole above red; a scoping
+    clause is an unverifiable exemption, so it may only excuse what it
+    stands next to.
+
+    Args:
+        region: The joined region.
+
+    Returns:
+        `(start, end)` per sentence, covering the region exactly once.
+    """
+    out, pos = [], 0
+    for m in _SENTENCE_BREAK.finditer(region):
+        out.append((pos, m.start()))
+        pos = m.end()
+    out.append((pos, len(region)))
+    return out
+
+
+def _parse_complaint(path: str, source: str) -> str | None:
+    """Why this source's docstrings are invisible, or None if they are not.
+
+    Args:
+        path: Display path, for the message.
+        source: The file's text.
+
+    Returns:
+        `"path: reason"` when `ast.parse` refuses it, else None.
+    """
+    try:
+        ast.parse(source)
+    except SyntaxError as exc:
+        return "%s: %s" % (path, exc)
+    return None
+
+
+@functools.lru_cache(maxsize=4)
+def _flattened_bundle(bundle: str) -> tuple[str, tuple[int, ...]]:
+    """The bundle with whitespace removed, plus each character's home.
+
+    Prose quotes minified code with spaces put back for readability, so
+    a quoted slice never matches the file verbatim. Flattening both
+    sides is what makes a code-slice citation checkable at all.
+
+    Args:
+        bundle: The bundle source.
+
+    Returns:
+        `(flattened_text, original_offsets)`, index-aligned.
+    """
+    keep = tuple(i for i, ch in enumerate(bundle) if not ch.isspace())
+    return "".join(bundle[i] for i in keep), keep
+
+
+@functools.lru_cache(maxsize=4096)
+def _slice_site(bundle: str, flat: str) -> tuple[int, int] | None:
+    """Where a whitespace-free slice sits in the bundle, if uniquely.
+
+    THE CACHE STOPS HERE ON PURPOSE. `code_slice_owner`'s length floor
+    is a module constant its own guard damages, and a cache wrapped
+    round the whole function held the pre-damage answer and let that
+    case pass — the guard went quiet about a floor that had been
+    removed. Only the million-character `find` is memoised; every
+    refusal is re-decided on every call.
+
+    Args:
+        bundle: The bundle source.
+        flat: The slice, whitespace already removed.
+
+    Returns:
+        `(start, stop)` in the ORIGINAL text, or None when the slice is
+        absent or appears more than once.
+    """
+    text, home = _flattened_bundle(bundle)
+    at = text.find(flat)
+    if at < 0 or text.find(flat, at + 1) >= 0:
+        return None
+    return home[at], home[at + len(flat) - 1] + 1
+
+
+def code_slice_owner(bundle: str, quoted: str) -> str | None:
+    """Which name owns the code this prose quotes, if exactly one does.
+
+    THE ANCHOR `canvas.py` ITSELF RECOMMENDS. Its citation note tells
+    the reader that the trustworthy re-derivation "does not read the
+    symbol at all: anchor on a rename-invariant slice of the CODE, find
+    it in the new file, and read the name back out". That form is
+    strictly better than a numeric offset — it survives a rebuild
+    instead of being invalidated by one — so it is accepted here as an
+    anchor in its own right, and the tree's own advice is not left
+    failing the tree's own check.
+
+    Args:
+        bundle: The bundle source.
+        quoted: One backticked span, as written in the prose.
+
+    WALKED SINCE 2026-09-01, and the sentence this replaces is worth
+    keeping in view: it said thirteen quoted spans resolved here, that
+    none of them named a symbol its own region also spelled, and so
+    that the anchored set was identical with this function forced to
+    None — the path was open and nothing had taken it. Two citations
+    take it now, and they were chosen to be the two whose quoted
+    structure is least likely to move: `client_wrapped_lines`' wrap
+    test and `client_wrap_width`'s redraw slice, each carrying NO
+    offset beside the name, so a rebuild moves the address without
+    invalidating the citation. Force this function to None and both go
+    unverifiable, which is the property that sentence could not
+    assert.
+
+    Returns:
+        The owning name, or None when the slice is too short, carries
+        no syntax, does not occur in the shipping bundle exactly once,
+        or straddles a binding boundary. Ambiguity answers None rather
+        than a guess.
+    """
+    flat = _WHITESPACE.sub("", quoted)
+    if len(flat) < _CODE_SLICE_MIN or not _CODE_SYNTAX.search(flat):
+        return None
+    site = _slice_site(bundle, flat)
+    if site is None:
+        return None
+    start, stop = site
+    # A SLICE THAT STRADDLES TWO FUNCTIONS ANSWERS THE FIRST, which is
+    # the one false-positive shape this anchor has: a quote running from
+    # the tail of one binding into the head of the next would name the
+    # function it is leaving. Refuse rather than guess — the honest
+    # failure of a code anchor is a false negative.
+    for m in _JS_BINDING.finditer(bundle[start:stop]):
+        if m.start() > 0:
+            return None
+    return bundle_symbol_owner(bundle, start)
+
+
+def region_anchors(region: str, bundle: str,
+                   vocabulary: dict[str, str]) -> dict[str, str]:
+    """Which symbols this region anchors, and how each one is anchored.
+
+    Args:
+        region: The joined region.
+        bundle: The shipping bundle's source.
+        vocabulary: `CLIENT_SYMBOLS`, or a stand-in.
+
+    Returns:
+        `{symbol: how}` for every symbol the region pins to the bundle,
+        by numeric offset or by quoted code slice.
+    """
+    out: dict[str, str] = {}
+    named = set(_region_names(region, vocabulary))
+    for m in _SYMBOL_OFFSET.finditer(region):
+        owner = bundle_symbol_owner(bundle, int(m.group(1)))
+        if owner in named:
+            out.setdefault(owner, "@%s" % m.group(1))
+    pat = _symbol_span(tuple(sorted(vocabulary))) if vocabulary else None
+    for m in _BACKTICK_SPAN.finditer(region):
+        if pat is not None and pat.fullmatch(m.group(1).strip()):
+            continue
+        owner = code_slice_owner(bundle, m.group(1))
+        if owner in named:
+            out.setdefault(owner, "the code slice `%s`" % m.group(1)[:40])
+    return out
+
+
+def symbol_citations(sources: dict[str, str], bundle: str,
+                     vocabulary: dict[str, str] | None = None,
+                     markers: tuple[str, ...] | None = None
+                     ) -> list[dict[str, Any]]:
+    """Every client-symbol citation in tracked prose, with its verdict.
+
+    Split from both assertions so the guard's own mutants run the REAL
+    walk over a damaged inventory. A demonstration that re-implements
+    the rule it demonstrates proves the copy.
+
+    Args:
+        sources: `{display_path: file_text}`.
+        bundle: The shipping bundle's source.
+        vocabulary: The names to look for; `CLIENT_SYMBOLS` when None.
+        markers: The past-tense scoping phrases; `SYMBOL_SCOPE_MARKERS`
+            plus every declared-retired filename when None.
+
+    Returns:
+        One record per OCCURRENCE: `where`, `symbol`, `scoped` — a
+        scoping clause in that occurrence's own sentence, and that
+        sentence not also claiming the name is true of the build
+        shipping now — and `owner`, the symbol itself when the region
+        anchors it and None otherwise. `owner == symbol` is the
+        anchored, verified state.
+    """
+    vocab = CLIENT_SYMBOLS if vocabulary is None else vocabulary
+    marks = (SYMBOL_SCOPE_MARKERS + tuple(sorted(RETIRED_BUNDLES))
+             if markers is None else markers)
+    marks = tuple(m.lower() for m in marks)
+    out: list[dict[str, Any]] = []
+    for path, text in sorted(sources.items()):
+        for first, last, region in prose_regions(text):
+            occurrences = symbol_spans(region, vocab)
+            if not occurrences:
+                continue
+            anchors = region_anchors(region, bundle, vocab)
+            low = region.lower()
+            sentences = sentence_spans(region)
+            marked = [(sa, sz) for sa, sz in sentences
+                      if any(m in low[sa:sz] for m in marks)
+                      and not any(p in low[sa:sz]
+                                  for p in SYMBOL_PRESENT_TENSE)]
+            for sym, start, end in occurrences:
+                out.append({
+                    "where": "%s:%d-%d" % (path, first, last),
+                    "symbol": sym,
+                    "scoped": any(sa <= start and end <= sz
+                                  for sa, sz in marked),
+                    "owner": sym if sym in anchors else None})
+    return out
+
+
+def paste_a_scope_beside_every_loose_name(
+        sources: dict[str, str], loose: list[str], vocabulary: dict[str, str],
+        marker: str) -> dict[str, str]:
+    """The cheapest dishonest repair, applied everywhere, as sources.
+
+    One scoping clause per unverifiable citation, inserted straight
+    after that name's own closing backtick so it lands in the name's
+    own sentence. This is the attack the sentence-binding repair has to
+    survive, and running it is the only way to know what survives it —
+    the answer is a SET, and the guard asserts the set rather than its
+    size so that nothing here rots into a stale count.
+
+    Args:
+        sources: `{display_path: file_text}`.
+        loose: What `unverifiable_symbol_citations` returned.
+        vocabulary: The names to look for.
+        marker: The scoping phrase to paste.
+
+    Returns:
+        The same mapping with the clause inserted; input untouched.
+    """
+    wanted: dict[str, set[str]] = {}
+    for entry in loose:
+        where, sym = entry.rsplit(" ", 1)
+        wanted.setdefault(where, set()).add(sym)
+    pat = _symbol_span(tuple(sorted(vocabulary))) if vocabulary else None
+    out = dict(sources)
+    for path, text in sources.items():
+        lines, edits = text.splitlines(), {}
+        for first, last, _ in prose_regions(text):
+            want = wanted.get("%s:%d-%d" % (path, first, last))
+            if not want or pat is None:
+                continue
+            for lineno in range(first, min(last, len(lines)) + 1):
+                for m in _BACKTICK_SPAN.finditer(lines[lineno - 1]):
+                    hit = pat.fullmatch(m.group(1).strip())
+                    if hit and hit.group(1) in want:
+                        edits.setdefault(lineno, []).append(m.end())
+        for lineno, ends in sorted(edits.items(), reverse=True):
+            for at in sorted(ends, reverse=True):
+                line = lines[lineno - 1]
+                lines[lineno - 1] = line[:at] + " " + marker + line[at:]
+        out[path] = "\n".join(lines) + "\n"
+    return out
+
+
+def tense_refused_citations(sources: dict[str, str], loose: list[str],
+                            vocabulary: dict[str, str]) -> list[str]:
+    """Which unverifiable citations a present-tense clause forbids scoping.
+
+    Args:
+        sources: `{display_path: file_text}`.
+        loose: What `unverifiable_symbol_citations` returned.
+        vocabulary: The names to look for.
+
+    Returns:
+        `"where symbol"` for every loose pair with an occurrence in a
+        sentence that claims the name of the build shipping now.
+    """
+    keep = {tuple(e.rsplit(" ", 1)) for e in loose}
+    out = set()
+    for path, text in sources.items():
+        for first, last, region in prose_regions(text):
+            low = region.lower()
+            for sa, sz in sentence_spans(region):
+                if not any(p in low[sa:sz] for p in SYMBOL_PRESENT_TENSE):
+                    continue
+                for sym, start, end in symbol_spans(region, vocabulary):
+                    where = "%s:%d-%d" % (path, first, last)
+                    if sa <= start and end <= sz and (where, sym) in keep:
+                        out.add("%s %s" % (where, sym))
+    return sorted(out)
+
+
+def unverifiable_symbol_citations(cites: list[dict[str, Any]]) -> list[str]:
+    """Which citations name a symbol nothing in the tree can check.
+
+    Args:
+        cites: What `symbol_citations` returned, or a damaged stand-in.
+
+    Returns:
+        `"where symbol"` per citation that is neither anchored to
+        something the bundle resolves to it nor scoped, in its own
+        sentence, to a build that no longer ships. Deduplicated and
+        sorted: one loose occurrence condemns the pairing, and a second
+        adds nothing a reader has to be told twice. Empty is the
+        healthy answer.
+    """
+    return sorted({"%s %s" % (c["where"], c["symbol"]) for c in cites
+                   if c["owner"] is None and not c["scoped"]})
+
+
+class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
+        unittest.TestCase):
+    """The names this repo reads the client at, kept honest by reading.
+
+    THE INVARIANT: a minified name this tree spells for the client is
+    anchored — to an offset or to a quoted code slice that the SHIPPING
+    bundle resolves to that same name — or scoped, in its own sentence,
+    to a build that no longer ships, or a meta-mention that reports
+    where the name appears in THIS repo and claims nothing about the
+    client at all. Nothing may make a present-tense claim about a
+    symbol that nobody, including its author, has any way to check.
+
+    NOT A STYLE RULE, and the history is the argument. The class above
+    keeps the FILENAMES resolvable and says in its own note that a
+    citation whose file exists and whose symbol has been reassigned
+    passes it. That is the defect that has now been repaired by hand
+    twice and returned twice: four of five names in the first round
+    resolved, in the bundle that shipped at the time, to live unrelated
+    functions, and a reader following one lands in working code with no
+    signal at all that it is the wrong code.
+    """
+
+    @staticmethod
+    def _tracked() -> dict[str, str]:
+        """The Python whose prose is scanned, as `{path: text}`.
+
+        The same surface the filename check walks — tracked tests plus
+        the single-file writer — because a citation is prose and prose
+        is where this repo answers "what does the tab actually do".
+
+        Returns:
+            Display path to file text.
+        """
+        root = Path(__file__).resolve().parents[1]
+        paths = [p for pat in _TRACKED_PROSE for p in sorted(root.glob(pat))]
+        paths.append(root / "skills" / "wysiwyg-grilling" / "scripts"
+                     / "canvas.py")
+        return {str(p.relative_to(root)):
+                p.read_text(encoding="utf-8", errors="replace")
+                for p in paths}
+
+    def test_every_anchored_client_symbol_still_owns_its_offset(self) -> None:
+        """The live half, ungated: every anchor reads back its own name.
+
+        A REBUILD REDS THIS, ON PURPOSE, and that is a contract the
+        rebuild procedure owes its reader rather than a surprise. Run
+        against the bundle that shipped before this one, five of the
+        fifteen anchors read back and ten do not — which is the correct
+        answer and the reason the message names the REPLACEMENT symbol
+        instead of asking anybody to go find it. What it does not do is
+        pin: no minified name is written down here as an expectation,
+        so there is no baseline to re-take, only offsets to re-derive.
+        `README.md`'s build block carries that obligation; this
+        docstring is not the only place it is written down.
+
+        It is also the proof that the reader WORKS, which is what stops
+        the red beside it from being red because the machinery is dead.
+        """
+        bundle = shipped_bundle_text()
+        self.assertGreater(
+            len(bundle), 100_000,
+            "the entry bundle is %d characters, which is not an "
+            "Excalidraw build — every symbol read below would answer "
+            "None and both poles of this class would go quiet"
+            % len(bundle))
+        tracked = self._tracked()
+        cites = symbol_citations(tracked, bundle)
+        anchored = [c for c in cites if c["owner"] is not None]
+        self.assertNotEqual(
+            anchored, [],
+            "not one client-symbol citation in this tree resolves to an "
+            "offset in the bundle that ships. Either the offsets are all "
+            "stale (a rebuild landed and nothing re-derived them) or the "
+            "region walk has stopped seeing prose; %d citations were "
+            "found in total" % len(cites))
+        # ONLY AN OFFSET STANDING BESIDE A CITATION IS JUDGED, and the
+        # narrowing is not laziness. `@` plus four digits is a shape
+        # this repo's prose reaches for freely — a line number, a year,
+        # a task id — and judging every one of them would red this
+        # always-run pole over a prose edit that changed no claim. An
+        # offset in the same SENTENCE as a client symbol is a citation
+        # of that symbol; one three paragraphs away is not.
+        wrong = []
+        for path, text in sorted(tracked.items()):
+            for first, last, region in prose_regions(text):
+                occurrences = symbol_spans(region, CLIENT_SYMBOLS)
+                if not occurrences:
+                    continue
+                for sa, sz in sentence_spans(region):
+                    named = sorted({s for s, a, b in occurrences
+                                    if sa <= a and b <= sz})
+                    if not named:
+                        continue
+                    for m in _SYMBOL_OFFSET.finditer(region[sa:sz]):
+                        owner = bundle_symbol_owner(bundle, int(m.group(1)))
+                        if owner is not None and owner in named:
+                            continue
+                        wrong.append("%s:%d-%d @%s names %s, bundle says %r"
+                                     % (path, first, last, m.group(1),
+                                        named, owner))
+        self.assertEqual(
+            wrong, [],
+            "these citations carry an offset the shipping bundle does "
+            "not resolve to any name they spell: %s. Re-derive each by "
+            "anchoring on a rename-invariant slice of the CODE, finding "
+            "it in the file that ships and reading the name back out — "
+            "never by keeping the name and moving the offset, which is "
+            "the repair that put a live unrelated function into this "
+            "tree twice." % wrong)
+
+    def test_no_client_symbol_is_cited_without_an_anchor_or_a_scope(
+            self) -> None:
+        """The red: a name nobody can check is the defect itself.
+
+        RED BY INTENT, filed 2026-09-01. The repair belongs to whoever
+        owns these checks and deliberately not to whoever wrote this.
+        FIVE repairs satisfy it and it prescribes none of them: put an
+        offset beside the name; quote a rename-invariant slice of the
+        CODE beside it, which is the form `canvas.py`'s own citation
+        note recommends and which survives a rebuild rather than being
+        invalidated by one; say, in that name's own sentence, which
+        build it was true of; name the file and line where the symbol
+        APPEARS, when the sentence is about this repo's prose and not
+        about the client; or drop the name and cite the shape. All were
+        run against one site before this was filed, and so was a
+        dishonest one — the right offset beside the WRONG name — which
+        the pole above catches instead of this one.
+
+        A NAME THAT IS CORRECT TODAY IS IN SCOPE, and that is not
+        over-reach. Correct-today is precisely what every rotted
+        citation was on the day it was written; three of the sites
+        this reports name the padding constant and name it rightly,
+        and the only thing separating them from the four that went bad
+        is luck the tree's own prose says out loud. Anchoring one of
+        them costs a parenthesis.
+        """
+        cites = symbol_citations(self._tracked(), shipped_bundle_text())
+        self.assertNotEqual(
+            cites, [],
+            "no client-symbol citation was found at all, which means "
+            "the vocabulary or the region walk stopped matching rather "
+            "than that the citations are gone")
+        loose = unverifiable_symbol_citations(cites)
+        self.assertEqual(
+            loose, [],
+            "%d of %d client-symbol citations are unverifiable: the "
+            "region spells a minified name, anchors it to nothing the "
+            "shipping bundle resolves — no offset, no quoted code "
+            "slice — its own sentence does not say the name belonged "
+            "to a build that no longer ships, and it is not reporting "
+            "where the name sits in this repo either. FIVE REPAIRS "
+            "SATISFY THIS AND IT ASKS FOR NONE — an offset beside the "
+            "name, in the form the repaired sites already use; a "
+            "rename-invariant code slice beside it, which is better "
+            "than either and is what `canvas.py`'s citation note "
+            "recommends; a scoping clause in that name's own sentence, "
+            "in this tree's past-tense vocabulary "
+            "(`SYMBOL_SCOPE_MARKERS`, which a repair may extend); a "
+            "`file.py:line` when the sentence is about this repo's own "
+            "prose rather than about the client; or delete the name "
+            "and cite the shape. THIS COUNT IS THIS MESSAGE'S, derived "
+            "on the tree it ran against — do not copy it into prose. "
+            "Sites: %s" % (len(loose), len(cites), loose))
+
+    def test_the_symbol_check_notices_each_way_it_can_go_blind(self) -> None:
+        """The guard, watched failing, one case per way it goes quiet.
+
+        A check nobody has seen fail is decoration, and this class's
+        entire history is checks that could not see it. Each clause
+        below was run against a deliberately damaged input and watched
+        to answer wrong before it was written down.
+        """
+        bundle = shipped_bundle_text()
+        tracked = self._tracked()
+        real = symbol_citations(tracked, bundle)
+        self.assertNotEqual(
+            real, [], "no citation exists to damage, so this "
+                      "demonstration has no subject")
+        # THE READER MUST NOT BE CONSTANT. A resolver that answered one
+        # name for every offset would mark every anchor verified and
+        # every bare name a violation, and both poles would be lying.
+        owners = {c["symbol"] for c in real if c["owner"] is not None}
+        self.assertGreater(
+            len(owners), 1,
+            "every anchored citation in the tree resolves to the same "
+            "name (%s), so the offset walk cannot be distinguished from "
+            "a constant" % sorted(owners))
+        # AND IT MUST ANSWER NONE OFF THE END, rather than the last
+        # binding in the file, which is how a shortened bundle would
+        # read as a tree full of valid anchors.
+        self.assertIsNone(
+            bundle_symbol_owner(bundle, len(bundle) + 1),
+            "an offset past the end of the bundle resolves to a name, "
+            "so a rebuild that shortened the file would leave every "
+            "anchor reading as verified")
+        # THE REGION WALK MUST FIND PROSE IN EVERY FILE IT IS GIVEN. An
+        # empty walk finds nothing wrong, which is the failure that made
+        # the retired-bundle guard inert one section above.
+        blind = sorted(p for p, t in tracked.items() if not prose_regions(t))
+        self.assertEqual(
+            blind, [],
+            "the region walk found no docstring and no comment in %s, "
+            "so every citation in them is invisible to both poles"
+            % blind)
+        # THE PREDICATE, over inventories with exactly one thing wrong.
+        cases: list[tuple[str, list[dict[str, Any]], bool]] = [
+            ("THE ROT ITSELF: a name with neither an anchor nor a scope",
+             [{"where": "canvas.py:1-2", "symbol": "ai", "owner": None,
+               "scoped": False}], True),
+            ("the same, beside a verified citation, so one good anchor "
+             "cannot vouch for a bare name",
+             [{"where": "canvas.py:1-2", "symbol": "ai", "owner": None,
+               "scoped": False},
+              {"where": "canvas.py:4-5", "symbol": "ii", "owner": "ii",
+               "scoped": False}], True),
+            ("an anchored citation — must not be flagged",
+             [{"where": "canvas.py:4-5", "symbol": "ii", "owner": "ii",
+               "scoped": False}], False),
+            ("a bare name SCOPED to a build that no longer ships — must "
+             "not be flagged",
+             [{"where": "canvas.py:1-2", "symbol": "ai", "owner": None,
+               "scoped": True}], False),
+            ("no citation at all: the walk went blind and the answer "
+             "must not be `healthy`",
+             [], False)]
+        missed = [name for name, cites, want in cases
+                  if bool(unverifiable_symbol_citations(cites)) != want]
+        self.assertEqual(
+            missed, [],
+            "the verifiability predicate answered wrong for %s. A "
+            "survivor here means this check is decoration and the "
+            "symbols are unguarded again" % missed)
+        # C-1: A SCOPING CLAUSE MAY NOT EXCUSE A NAME IT DOES NOT STAND
+        # BESIDE, and this is the case that proves it. Until 2026-09-01
+        # `scoped` was region-wide: one past-tense phrase anywhere in a
+        # region exempted every name that region mentioned, so pasting a
+        # bare marker into each loose region — 20 edits, no thought,
+        # nothing made checkable — took the violation list from 27 to
+        # ZERO. Measured, not argued. It is repeated here on the LIVE
+        # tree so it can never quietly come back.
+        # The deterministic half: one region, two sentences, the clause
+        # in the first and the name alone in the second. Sentence-bound
+        # scoping calls that loose; region-wide scoping calls it clean.
+        stranded = '"""A note %s. The name `ai` is bare in this one."""\n'
+        self.assertEqual(
+            unverifiable_symbol_citations(symbol_citations(
+                {"p.py": stranded % SYMBOL_SCOPE_MARKERS[0]}, bundle)),
+            ["p.py:1-1 ai"],
+            "a scoping clause in ONE sentence excused a bare name in "
+            "ANOTHER, so the exemption is region-wide again and the "
+            "cheapest of the five advertised repairs is the one that "
+            "verifies nothing")
+        # AND A SENTENCE MAY NOT SCOPE AND CLAIM AT ONCE. The residue
+        # C-1 left was a sentence saying a name is true of the build
+        # shipping NOW, greened by four words of past tense bolted on.
+        both = "`ai` %s wraps a bound label, and %s it did too." % (
+            SYMBOL_PRESENT_TENSE[0], SYMBOL_SCOPE_MARKERS[0])
+        self.assertEqual(
+            unverifiable_symbol_citations(symbol_citations(
+                {"p.py": '"""%s"""\n' % both}, bundle)),
+            ["p.py:1-1 ai"],
+            "a sentence that scopes a name to a dead build AND claims "
+            "it of the shipping one reads as scoped, so the tense "
+            "refusal is not biting")
+        # And the attack run to completion: one clause beside every
+        # loose name, which is the honest repair told as a lie once per
+        # name. WHAT SURVIVES IS ASSERTED AS A SET and never as a count
+        # — a count here is the loose-occurrence count wearing a hat,
+        # and this class has already shipped two figures that rotted
+        # where they stood.
+        #
+        # THE SUBJECT IS FORGED WHEN THE TREE NO LONGER OFFERS ONE, and
+        # that is a repair rather than a relaxation (2026-09-01, the
+        # fix round for the red above). This clause was written on a
+        # tree carrying fifty-odd unverifiable citations and it asserts
+        # that pasting a scope beside every one of them leaves
+        # survivors. The moment the red beside it went green the tree
+        # stopped having a subject: `before` empties, the paste edits
+        # nothing, the survivor set is empty for an uninteresting
+        # reason, and the clause fails OVER A REPAIRED TREE. A guard
+        # that can only run while the defect it guards is present
+        # retires itself on the day the defect is fixed, which is the
+        # failure this whole class exists to talk about, one level up.
+        # So the attack runs on the tree while the tree offers names
+        # and on a forged source when it does not, and the property
+        # asserted is identical either way — the survivors are exactly
+        # the citations a present-tense claim forbids scoping.
+        live = unverifiable_symbol_citations(real)
+        tracked_or_forged = tracked if live else {
+            "p.py": '"""`ai` %s wraps a bound label. `js` is bare in '
+                    'this one."""\n' % SYMBOL_PRESENT_TENSE[0]}
+        before = live or unverifiable_symbol_citations(
+            symbol_citations(tracked_or_forged, bundle))
+        self.assertNotEqual(
+            before, [],
+            "neither the tree nor the forged stand-in offers a single "
+            "unverifiable citation, so the paste attack below has no "
+            "subject and proves nothing about the tense refusal")
+        after = unverifiable_symbol_citations(symbol_citations(
+            paste_a_scope_beside_every_loose_name(
+                tracked_or_forged, before, CLIENT_SYMBOLS,
+                SYMBOL_SCOPE_MARKERS[0]),
+            bundle))
+        refused = tense_refused_citations(tracked_or_forged, before,
+                                          CLIENT_SYMBOLS)
+        self.assertEqual(
+            after, refused,
+            "with a scoping clause written beside EVERY unverifiable "
+            "name, what survives is no longer exactly the set a "
+            "present-tense claim forbids scoping. Survivors not "
+            "refused on tense: %s. Refused but not surviving: %s. The "
+            "first means an exemption is reaching past its own "
+            "sentence; the second means the tense refusal has stopped "
+            "biting" % (sorted(set(after) - set(refused)),
+                        sorted(set(refused) - set(after))))
+        self.assertNotEqual(
+            after, [],
+            "every unverifiable citation in the subject can be excused "
+            "by pasting one phrase beside it, so the cheapest repair "
+            "is again the one that verifies nothing")
+        # A COLON DOES NOT END A SENTENCE HERE, and nothing held that
+        # decision until the second re-curation asked. Adding one to
+        # `_SENTENCE_BREAK` moves the census by eight, in the fail-safe
+        # direction, by stranding this tree's densest scoping clause
+        # from the names after its colon.
+        self.assertEqual(
+            unverifiable_symbol_citations(symbol_citations(
+                {"p.py": '"""A note %s: the name `ai` sat there."""\n'
+                         % SYMBOL_SCOPE_MARKERS[0]}, bundle)),
+            [],
+            "a colon split a scoping clause from the name it excuses, "
+            "so every list-shaped historical note in this tree now "
+            "reports its own contents as unverifiable")
+        # C-2: POINTING AT A LINE IS NOT AN EXIT, and this pins the
+        # absence. A "meta-mention" exemption shipped for one commit —
+        # a sentence naming a `file.py:line` that really carried the
+        # name was read as prose about prose — and it was cheaper than
+        # the clause C-1 was raised to close: every citation is itself a
+        # line carrying its own symbol, so a verifying site always
+        # exists, and the same paste budget took the whole list to zero.
+        # The probe below is the attack in one sentence: a live claim
+        # about the shipping bundle, with a true site reference stapled
+        # on. It must stay loose.
+        stapled = ('"""`ai` %s wraps a bound label (q.py:1)."""\n'
+                   % SYMBOL_PRESENT_TENSE[0])
+        self.assertEqual(
+            unverifiable_symbol_citations(symbol_citations(
+                {"p.py": stapled, "q.py": "ai = 1\n"}, bundle)),
+            ["p.py:1-1 ai"],
+            "a true statement about where a name appears in this repo "
+            "excused a live claim about what it means in the client. "
+            "Those are different propositions and the second is the "
+            "one being licensed — an exit verified against the wrong "
+            "sentence is a scoping clause with a receipt attached")
+        # THE CODE-SLICE ANCHOR MUST RESOLVE, AND MUST REFUSE — four
+        # ways, each of which left the guard green when the second
+        # re-curation went looking (M-7, M-8, M-11). The refusals run
+        # against SYNTHETIC bundles so each one names exactly one
+        # property and none of them depends on what today's build
+        # happens to contain.
+        pinned = [c for c in real if c["owner"] is not None]
+        probe = bundle[_JS_BINDING.search(bundle).start():][:60]
+        self.assertIsNotNone(
+            code_slice_owner(bundle, probe),
+            "a slice copied verbatim out of the bundle resolves to "
+            "nothing, so the code-slice anchor is inert and only the "
+            "numeric form works")
+        one = "aa=()=>{return foo(bar,baz);};"
+        self.assertEqual(
+            code_slice_owner(one, "return foo(bar, baz);"), "aa",
+            "a whitespace-differing slice of a one-binding file does "
+            "not resolve, so the flattening is not doing its job")
+        self.assertIsNone(
+            code_slice_owner(one + "bb=9,", "bb=9,"),
+            "a five-character slice carrying syntax resolves, so the "
+            "length floor is not the thing refusing short slices and "
+            "any scrap of quoted code would anchor a name beside it")
+        self.assertIsNone(
+            code_slice_owner(one + one.replace("aa", "bb"),
+                             "return foo(bar,baz);"),
+            "a slice appearing TWICE resolves to its first hit, so an "
+            "ambiguous quote silently anchors whichever function the "
+            "minifier happened to emit earlier")
+        self.assertIsNone(
+            code_slice_owner("aa=()=>{return 1};bb=()=>{return 2};",
+                             "return 1};bb=()=>{"),
+            "a slice straddling two bindings resolves to the one it is "
+            "LEAVING, which is the single false-positive shape this "
+            "anchor has")
+        self.assertIsNone(
+            code_slice_owner(bundle, "return e" + "!" * 40),
+            "a slice that appears nowhere in the bundle still "
+            "resolves, so the anchor is not reading the file")
+        # AND THE OFFSET READER MUST NOT TAKE A KEYWORD FOR A BINDING.
+        keyworded = "zz=()=>{if(e.type===1)return 2};"
+        self.assertEqual(
+            bundle_symbol_owner(keyworded, keyworded.index("if(")), "zz",
+            "an offset landing on a bare `keyword(` reads the keyword "
+            "as the owning name, which every code-slice anchor into a "
+            "conditional would then report")
+        self.assertNotEqual(
+            pinned, [], "nothing in the tree is anchored at all, so "
+                        "neither anchor form is being exercised")
+        # EVERY TRACKED SOURCE MUST PARSE. `prose_regions` falls back to
+        # comment runs when `ast.parse` raises, which is right for a
+        # pure function and is a silent 70% blindness for this class:
+        # docstrings are most of the prose and the `blind` clause above
+        # only notices a file that yields NOTHING at all.
+        # THE DETECTOR FIRST, then the tree. Without this line the
+        # clause below passes with `_parse_complaint` replaced by a
+        # function that always answers None — it was the one non-
+        # synthetic clause in this guard and nothing exercised it.
+        self.assertIsNotNone(
+            _parse_complaint("p.py", "def (\n"),
+            "the parse detector answers nothing about a file that "
+            "cannot be parsed, so the clause below is watching a tree "
+            "through an instrument that is switched off")
+        unparsed = [w for w in
+                    (_parse_complaint(p, t) for p, t in sorted(
+                        tracked.items())) if w]
+        self.assertEqual(
+            unparsed, [],
+            "these tracked sources do not parse, so every DOCSTRING in "
+            "them is invisible to both poles while their comments go "
+            "on being scanned — partial silence, which is the failure "
+            "this whole class is about: %s" % unparsed)
+        # THE VOCABULARY MUST STILL BE ABOUT THIS CLIENT. It is declared
+        # rather than derived and therefore cannot be complete; what it
+        # can be asked is whether it still lands in the file that ships.
+        # BOTH BINDING FORMS, and the second one is not pedantry.
+        # `Yn` (@798193) is a `function` DECLARATION that an `X=`
+        # search walks straight past, and so is `Kr` (@267580); a
+        # census repeating that search would report both as gone and a
+        # roster of sites "reassuring their reader that the name is
+        # assigned nowhere" would inherit the blind spot. Four sites
+        # once carried exactly that reassurance, two names between
+        # them, and each one has since been replaced by an anchor.
+        #
+        # AND THE FORM IS NOT STABLE EITHER, which the rebuilds have
+        # now demonstrated: `bd` (@660451) and `Zr` (@959264) are arrow
+        # bindings here and one of them was a declaration a build ago,
+        # so a search that knew only the form it met last time would
+        # have gone quiet on whichever way round it landed.
+        # CORRECTION TO `c3f7b95`, whose message says "three sites ...
+        # each of the three names": the mechanism it claims is right
+        # and its roster is not. It counted the sites as three and
+        # folded in `Zr`, which appeared in prose exactly once, inside
+        # a quoted code block, with nothing claiming it was unassigned.
+        # Recorded here rather than by rewriting the commit, because a
+        # reader meets this line and not that one.
+        #
+        # THOSE FOUR OFFSETS ARE THE REPAIR AND NOT DECORATION. This
+        # comment reports a fact about PROSE and then makes a live
+        # claim about the bundle in its next breath, so the red was
+        # right to flag it; anchoring is the honest exit and it makes
+        # the paragraph checkable besides. A curator briefly gave prose
+        # about prose an exit of its own — see the ruling at the head
+        # of this section for why that was withdrawn.
+        landed = [s for s in CLIENT_SYMBOLS
+                  if re.search(r"(?:function\s+%s\s*\(|(?<![\w$.])%s\s*"
+                               r"=(?!=))" % (re.escape(s), re.escape(s)),
+                               bundle)]
+        self.assertGreater(
+            len(landed) * 2, len(CLIENT_SYMBOLS),
+            "only %d of the %d declared client symbols are bound in the "
+            "bundle that ships (%s), so most of this vocabulary is "
+            "describing some other build and the scan is watching "
+            "mostly nothing. A minority NOT landing is expected and is "
+            "the rot itself — a name that has been reassigned away."
+            % (len(landed), len(CLIENT_SYMBOLS), landed))
+        # AND THE SCOPING VOCABULARY MUST NOT BE A BLANKET. A marker is
+        # a claim about WHICH BUILD, so it carries the word; a marker
+        # nobody uses is a stale exemption, exactly as an unused retired
+        # bundle is one.
+        regions = [r for t in tracked.values() for _, _, r in
+                   prose_regions(t)]
+        for marker in SYMBOL_SCOPE_MARKERS:
+            self.assertIn(
+                "bundle", marker,
+                "the scope marker %r does not name a build, so it "
+                "exempts a name without saying what it was true of"
+                % marker)
+            self.assertGreaterEqual(
+                len(marker), 20,
+                "the scope marker %r is short enough to appear by "
+                "accident, which makes it a blanket exemption" % marker)
+            self.assertTrue(
+                any(marker in r.lower() for r in regions),
+                "nothing in the tree uses the scope marker %r; it "
+                "outlived the site it was written for" % marker)
+        # THE PRESENT-TENSE TABLE OWES SOMETHING ELSE, and the asymmetry
+        # is argued at the tuple. A marker is an EXIT and an unused one
+        # widens the paste attack; a phrase here is a REFUSAL and an
+        # unused one costs nothing while guarding tomorrow's sentence.
+        # Demanding a live site retires each refusal on the day its last
+        # false claim is repaired — and the demand was self-satisfying
+        # anyway, since the note recording a phrase's removal is itself
+        # a site that spells it.
+        #
+        # WHAT REPLACES IT IS DELIBERATELY NOT A PROBE, and the discarded
+        # draft is worth a line because it looked like the stronger
+        # check. It forged a sentence per phrase and asserted the phrase
+        # refused a scope pasted beside it — and it passed for EVERY
+        # phrase including two damaged ones, because the forged sentence
+        # is built from the phrase and a sibling in the tuple lowercases
+        # to cover it. A clause that derives its subject from the thing
+        # it is judging passes on all inputs. The real failure mode is
+        # narrow and static: `symbol_citations` matches these against
+        # LOWERED prose without lowering the table, so a phrase carrying
+        # a capital or a stray space silently never matches and the
+        # refusal it was added for never happens. That is what is
+        # asserted. The MECHANISM is proven live by the `both` clause
+        # above and by the paste attack, both of which read this table.
+        for phrase in SYMBOL_PRESENT_TENSE:
+            self.assertTrue(
+                "ship" in phrase or "bundle" in phrase,
+                "the present-tense phrase %r does not name the build "
+                "that ships, so it refuses a scoping clause over a "
+                "sentence making no claim at all" % phrase)
+            self.assertEqual(
+                phrase, phrase.lower().strip(),
+                "the present-tense phrase %r is not lowered and "
+                "stripped, and the prose it is matched against is "
+                "lowered — so it can never match, refuses nothing, and "
+                "reads in this table as a guard that is present"
+                % phrase)
 
 
 # ---------------------------------------------------------------------------
@@ -42196,8 +46343,9 @@ class TestTheBandIsScoredOnTheBodyTheClientDraws(unittest.TestCase):
     """The half of the same fold that no single control could see.
 
     I-3 made the band deep enough to run off the body, and the body on
-    disk is not always the body the browser paints: `ai` (@553053) grows
-    a container whose bound label outgrows its headroom. Scoring a
+    disk is not always the body the browser paints: the client's redraw
+    `si` (@552896) grows a container whose bound label outgrows its
+    headroom. Scoring a
     client-wrapped block against a STORED height turns true sizing
     findings into pinched ones that are false about the picture.
 
@@ -46677,6 +50825,4010 @@ class TestNoErrorTrapsTheAgentBehindIt(unittest.TestCase):
                sorted(_TRAPPED_PAIRS)))
 
 
+# ---------------------------------------------------------------------------
+# AUTHORSHIP IS MODELLED FOR THE QUESTION AND DROPPED FOR THE ANSWER. Filed
+# 2026-09-01, at P2.
+#
+# NOTHING BELOW RESTS ON AN INCIDENT, and that is deliberate rather than
+# modest. This class was first written against a narrative from an
+# assessment run — an agent that had answered pins on the user's out-of-band
+# instruction and then could not tell its own answers from theirs. That
+# narrative was WITHDRAWN by the user afterwards, twice over, and every
+# sentence resting on it has been struck from this file. What is left is
+# constructed evidence: two pins, one question, two doors, driven here. The
+# class stands on that alone and would stand if no run had ever happened,
+# which is the only footing a durable red can have.
+#
+# THE PIN IS NOT SHORT OF AN AUTHORSHIP FIELD — IT HAS TWO, ON THE OTHER
+# HALF. This is the claim a first reading gets backwards, so it is written
+# out per store:
+#
+#   * THE ELEMENT, `customData` on the ❓ glyph, six keys: `answer`,
+#     `author`, `question`, `role`, `status`, `target`. `author` is set at
+#     mint by `apply_ops` and says WHO ASKED. It sits directly beside
+#     `answer`, which has no counterpart of its own.
+#   * THE REGISTRY, `model.json`'s pin record — a DIFFERENT record with a
+#     different shape and no `author` at all. It carries `direction`, also
+#     WHO ASKED, written explicitly by both minters (the op path files
+#     `agent`, the save ingest files `user`).
+#
+# So the design decided twice that authorship is worth storing, and renders
+# it in two places: `pin_debt_entry` prints `pin-pay(user, open, ...)` off
+# `direction` on every `status` and every apply, and `Rail.tsx:345` draws a
+# `yours`/`agent` chip off the same field. Both answer a question that is
+# almost always "agent" — the agent asks nearly all the pins. The half where
+# authorship actually VARIES, who composed the answer, has no field in either
+# store and no mark on either surface.
+#
+# THE CHIP IS WORSE PLACED THAN THAT PARAGRAPH SOUNDS, and the detail is
+# owed because "the rail draws a chip off the same field" implies a badge
+# sitting beside the answer. It does not. `Rail.tsx:336` renders the chip
+# inside `openPins.map`, so it is drawn on OPEN cards only; an answered pin
+# moves to `resolvedPins`, and its archive card (`:400-408`) draws the
+# question and `↳ {p.answer}` with NO CHIP AT ALL. The moment an answer
+# exists is the moment the rail stops marking authorship of any kind.
+#
+# WHY THE FEED IS PART OF THE SUBJECT. `pin_answer` is a member of
+# `USER_EVENT_TYPES`, so `canvas.py wait --for user` serves every answer as
+# user activity BY CLASSIFICATION — because of what KIND of event it is,
+# never because of who sent it. That filter is the agent's own read surface,
+# and it cannot consult a fact neither store carries.
+#
+# MEASURED BEFORE IT WAS WRITTEN, on this tree, through the two doors that
+# exist. Two pins minted in one batch with identical question text; one
+# answered by the body `App.tsx` posts, one by `canvas.py x-as-user answer`.
+# Registry record, element `customData`, `pin_answer` event, `PIN_DEBT=` line
+# and the `wait --for user` feed came back BYTE-IDENTICAL on both once the
+# pin id and the wall clock are normalised away — `author` reading `"agent"`
+# on the user's own answer, because it is describing the question. One
+# distinct reading for two distinct origins: the direction is COLLAPSE, a
+# surface saying fewer things than there are facts, never one saying the
+# wrong thing.
+#
+# WHAT THIS DELIBERATELY DOES NOT PIN, so the omissions are arguable rather
+# than invisible:
+#
+#   * Any particular answer text. Strings from a run are one incident; the
+#     class is the unmodelled half and the unmarked rendering, and a pin on
+#     a sentence would go green the moment the sentence changed.
+#   * `/api/pins/answer` as a door that ought to be shut, guarded or
+#     authenticated. It is a legitimate door; nothing here authenticates
+#     anything.
+#   * The answer's VOICE — whether a sentence overclaims, or speaks in a
+#     first person that did not do the thing it describes. That is a
+#     judgement about free text, and this repo refuses those on purpose:
+#     `_glossary_ruling` (canvas.py:24007-24021) says so in as many words,
+#     "interpreting free text to decide whether the ruling counts would be
+#     this check issuing a verdict on an answer, which is the one thing a
+#     tripwire is built not to do". A mark saying whose COMPOSITION an
+#     answer is makes such a sentence readable correctly without anything
+#     having to parse it — but that is an argument for the mark, not a
+#     claim about any sentence anyone wrote.
+#   * `export --with-footnotes`. Measured, not assumed: it renders tooltips
+#     and the glossary, and a pin's answer never reaches it. A surface that
+#     does not show the answer cannot mis-attribute it.
+#   * The rail itself, which is TypeScript and outside both tiers. What is
+#     asserted instead is the necessary condition plus the exact pole:
+#     `api_state()["pins"]` is the rail's entire input and is read here, and
+#     `pin_debt_entry` renders the SAME `direction` field the chip does, so
+#     the pair below says the two things the chip cannot be asked directly —
+#     that mark moves when the QUESTION's source moves, and does not move
+#     when the ANSWER's source moves.
+# ---------------------------------------------------------------------------
+
+#: The two doors, named for the ORIGIN of the answer that comes through
+#: them. Their contents are deliberately the same string through both: an
+#: answer that differed in wording would let a reading tell them apart for a
+#: reason that is not provenance, which is the one false green available here.
+_PROV_DOORS = ("typed", "composed")
+#: Door -> the pin id it answers, and the ids are DELIBERATELY NOT the door
+#: names. `_prov_reading` substitutes the id out of the rendered nag line so
+#: two pins compare, and "typed"/"composed" are exactly the two English words
+#: a repaired provenance rendering is likeliest to print — an id that is also
+#: a plausible rendering would mangle the repaired line inside the very
+#: failure message a reader uses to judge the repair. Non-word ids cost
+#: nothing and cannot collide.
+_PROV_PINS = {"typed": "q1", "composed": "q2"}
+#: One question, asked twice, in one batch — so `author`, `direction`,
+#: `asked_at_revn` and `round` are equal by construction and cannot stand in
+#: for an attribution nobody made.
+_PROV_QUESTION = "Does anything retry?"
+#: The answer. A flat assertion of fact, worth exactly as much as knowing who
+#: wrote it — which is the whole subject. Invented here, like everything else
+#: in this bench; no sentence from any run survives in this file.
+_PROV_ANSWER = "Nothing retries."
+#: Keys whose value differs between two pins whoever answered them, and which
+#: would therefore manufacture a difference the subject did not put there.
+#: `answered_at` is here even though a repair COULD in principle mark
+#: provenance temporally; none of the four candidates does, and a per-pin
+#: wall clock is a flake generator in every run that does not.
+_PROV_VOLATILE = frozenset({"id", "pin", "element", "answered_at", "ts",
+                            "seq", "proposed_at"})
+
+
+def _prov_scrub(obj: Any) -> Any:
+    """Strip the keys that differ per pin regardless of who answered.
+
+    Recursive because the readings nest: a pin's events arrive as a list
+    of dicts and the served record holds lists of its own.
+
+    Args:
+        obj: Any part of a reading — dict, list or scalar.
+
+    Returns:
+        The same structure with `_PROV_VOLATILE` keys removed at every
+        depth, and dict keys sorted so two readings compare as text as
+        well as by value.
+    """
+    if isinstance(obj, dict):
+        return {k: _prov_scrub(v) for k, v in sorted(obj.items())
+                if k not in _PROV_VOLATILE}
+    if isinstance(obj, list):
+        return [_prov_scrub(v) for v in obj]
+    return obj
+
+
+def _prov_strings(obj: Any) -> set[str]:
+    """Every string anywhere in a structure, at any depth.
+
+    THE GUARD'S ANSWER TO ITS OWN GENERATOR, and the reason it is
+    recursive rather than a `.values()` comprehension. The two reds in
+    this class compare whole readings and name no key, deliberately —
+    "naming a key names a repair". The guard was not written to that
+    discipline, and every literal in it turned out to be a bet on how a
+    repair would be SPELLED: a top-level scan of the request body read
+    an id nested inside an `ops` list as absent, and reported a repair
+    that had answered the pin as a driver that aimed at nothing.
+
+    Keys are deliberately NOT collected. A key is a spelling; a value is
+    what the caller actually said. Collecting both would let a body that
+    merely happens to have a key named after the pin satisfy a check
+    about what the body ADDRESSED.
+
+    Args:
+        obj: Any JSON-shaped structure — dict, list, or scalar.
+
+    Returns:
+        The set of every string VALUE reachable in it. Non-strings are
+        ignored rather than coerced: `2` and `"2"` are different claims
+        and an id comparison should not merge them.
+    """
+    if isinstance(obj, dict):
+        return set().union(*(_prov_strings(v) for v in obj.values())) \
+            if obj else set()
+    if isinstance(obj, (list, tuple)):
+        return set().union(*(_prov_strings(v) for v in obj)) if obj else set()
+    return {obj} if isinstance(obj, str) else set()
+
+
+def _prov_reading(app: canvas.ServerApp, pid: str,
+                  feed: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collect what every shipped surface says about one answered pin.
+
+    BOTH STORES AND BOTH RENDERINGS, because the defect is not confined
+    to either: `record` is the registry copy (and the rail's whole
+    input), `element` is the ❓ glyph's own six-key `customData` where
+    `author` sits beside `answer`, and `nag` is the CLI rendering of the
+    same `direction` the rail chip draws. A repair that marked one store
+    and left the other is a pin whose two copies disagree about who
+    spoke, which is the class `pin_glyph_notes` already exists to catch
+    for status.
+
+    The nag has the pin id SUBSTITUTED OUT rather than sliced off, so a
+    repair that rewords `PIN_DEBT=` entirely still compares — slicing on
+    the `(` would hand back two empty strings and read as agreement.
+
+    Args:
+        app: The live server the bench drove both doors against.
+        pid: The pin to read.
+        feed: The events `canvas.py wait --for user` actually printed.
+
+    Returns:
+        Keys `record`, `element`, `events`, `nag` and `feed`.
+    """
+    served = {p["id"]: p for p in app.api_state().get("pins") or []}
+    rows = {d["id"]: d for d in app.store.pin_debt()}
+    glyphs = {e["id"]: e for e in app.store.scenes["flow"]}
+    row = rows.get(pid)
+    return {
+        "record": _prov_scrub(served.get(pid)),
+        "element": _prov_scrub((glyphs[pid].get("customData") or {})
+                               if pid in glyphs else None),
+        "events": _prov_scrub([e for e in app.events.since(0)
+                               if e.get("pin") == pid]),
+        "nag": (canvas.pin_debt_entry(row).replace(pid, "<pin>")
+                if row else None),
+        "feed": _prov_scrub([e for e in feed if e.get("pin") == pid]),
+    }
+
+
+#: The 4xx codes that mean THE SERVER DECIDED, as opposed to the ones that
+#: mean THE DRIVER IS BROKEN. An allowlist, so an unrecognised code falls to
+#: the second — a legitimate repair using an unusual status then gets a loud
+#: guard failure somebody looks at, while a damaged bench never gets a quiet
+#: green. That is the safe direction and it is the same one
+#: `_prov_recorder` takes for an exception with no status at all.
+#:
+#: THE RULE, from which the list is derived rather than the other way round:
+#: a 4xx is a DECISION when the server understood a WELL-FORMED request
+#: about a subject that EXISTS, and declined it anyway. This bench owns both
+#: of those halves — it builds every request body, and
+#: `answer_provenance_bench` mints both pins two statements before it drives
+#: either door. So a route that answers "your body is wrong" or "no such
+#: pin" is not declining anything; it is telling the bench the bench is
+#: broken, and the bench must believe it.
+#:
+#:   * 401 / 403 — declined on who is asking. The shape candidate (d) takes.
+#:   * 405 — declined on the method: the route exists and no longer accepts
+#:     this write. A repair that closes the route lands here.
+#:   * 423 / 429 / 451 — declined on lock, rate and law. None is reachable
+#:     from this bench today; they are here because they are decisions
+#:     under the rule above, and leaving a decision out would fail a
+#:     repair for spelling.
+#:
+#: EXCLUDED, and each one is a measured false green rather than a judgement
+#: call: 400 (this codebase's commonest, and it means the body was wrong —
+#: the bench wrote the body), 404 (the subject was missing — the bench
+#: minted the subject), 422 (used here as a batch/internal backstop, which
+#: is a failure wearing a 4xx). All three were driven and all three reported
+#: GUARD GREEN with both reds green before this list existed.
+#:
+#: 409 WAS ON THIS LIST FOR A DAY AND THE JUSTIFICATION WAS BACKWARDS,
+#: which is worth more than the correction. It was admitted as "declined on
+#: state, and this codebase already uses it that way, at two sites" — and
+#: both sites (`canvas.py:27318`, `:27416`) are `err(409, str(e),
+#: stale=True, head_revn=…)` raised from a `StaleError`. That is the server
+#: saying THE CALLER'S VIEW OF THE WORLD IS OUT OF DATE, which is the
+#: caller being wrong: the same category as 400 and 404, not the opposite
+#: of it. The evidence cited for including it was evidence for excluding
+#: it, and nothing in the rule above ever supported it.
+#:
+#: AND THIS BENCH IS BUILT TO GENERATE THE TRIGGER, which is what made it
+#: Critical rather than untidy. `_prov_control`'s revision floor depends on
+#: the outer `Store` lagging permanently behind the server's — see the
+#: comment at its call site, which states that lag as the reason the floor
+#: is worth having. A stale revision is exactly what produces a 409. So the
+#: single 4xx this bench is PREDISPOSED to emit was the one waved through
+#: as a product decision. Driven: a route 409-ing the verb's stale
+#: `base_revn` gave GUARD GREEN with both reds green and the composed pin
+#: unanswered. A repair wanting conflict semantics for refusing the agent
+#: has 403, which is on the list and is the natural code.
+_PROV_DECIDED_STATUSES = frozenset({401, 403, 405, 423, 429, 451})
+
+
+def _prov_recorder(
+        transport: Callable[..., dict]) -> tuple[Callable[..., dict],
+                                                 list[dict[str, Any]]]:
+    """Wrap the driver's transport and record what actually crossed it.
+
+    A PRODUCT REFUSAL AND A BROKEN PIPE ARRIVE AS THE SAME `SystemExit`,
+    and the difference between them is not in the exception's TYPE — it
+    is in what the server said. Both come out of `_x_post` as
+    `die("ERROR=… refused by the server", 5)`.
+
+    SO THE TEST IS THE STATUS, NOT "DID IT RAISE", and the first version
+    of this recorder got that wrong. A refusal written at the ROUTE with
+    this repo's own `err(403, …)` idiom raises `HTTPError` exactly as a
+    500 does; judging on the raise alone called a deliberate product
+    decision broken plumbing, and said so in the failure message.
+
+    BUT "4xx MEANS DECISION" IS TOO COARSE, and taking it whole opened a
+    silent all-clear the round before this one. See
+    `_PROV_DECIDED_STATUSES` for the taxonomy and the reasoning; the
+    short version is that a 4xx is a decision only when the server
+    understood a well-formed request about a subject that EXISTS, and
+    this bench owns both of those.
+
+    Args:
+        transport: The in-process transport double to wrap.
+
+    Returns:
+        The wrapper, and the list it appends to — one entry per call,
+        carrying the path, whether it was a POST, the `body_names` it
+        carried (every string value, so no key spelling is privileged),
+        the HTTP status when there was one, whether the call was
+        `stopped` (nobody answered, or nobody could have) and the
+        exception text if it did not return.
+    """
+    calls: list[dict[str, Any]] = []
+
+    def recording(url: str, payload: dict | None = None,
+                  timeout: float = 10.0) -> dict:
+        """Pass one call through, recording how it ended.
+
+        Args:
+            url: The absolute URL the driver built.
+            payload: JSON body for a POST; None for a GET.
+            timeout: Passed straight through.
+
+        Returns:
+            Whatever the wrapped transport returned. Anything the
+            transport raises is recorded and re-raised UNCHANGED: the
+            driver's own error handling is the subject here, and
+            swallowing a failure would rewrite the behaviour under test.
+        """
+        entry: dict[str, Any] = {"path": url.split(_AS_USER_URL, 1)[-1],
+                                 "post": payload is not None, "raised": None,
+                                 "status": None, "stopped": False,
+                                 # EVERY STRING THE BODY CARRIES, AT ANY
+                                 # DEPTH, not `payload["id"]` and not its
+                                 # top level either. Both narrower forms
+                                 # shipped and both were false REDs over
+                                 # repairs that answered the pin: reading
+                                 # one key refused a body naming the pin
+                                 # as `pin_id`, and reading one level
+                                 # refused a batch body carrying it
+                                 # inside `ops`. The bet each time was on
+                                 # how a repair would be WRITTEN.
+                                 "body_names": sorted(_prov_strings(payload))}
+        calls.append(entry)
+        try:
+            resp = transport(url, payload, timeout)
+        except BaseException as exc:
+            # `BaseException` AND NOT `Exception`, for one word's cost: a
+            # `SystemExit` or a `KeyboardInterrupt` raised inside the
+            # transport would otherwise be recorded as neither answered
+            # nor stopped, which is the one state this classification has
+            # no name for. Broad for the same reason either way — a real
+            # transport crosses a socket, so what it can raise is open,
+            # and an unclassified failure is the defect this recorder
+            # exists to end. Nothing is swallowed; the re-raise is
+            # unconditional.
+            entry["raised"] = "%s: %s" % (type(exc).__name__, exc)
+            # READ OFF THE TYPE, never off a `.code` attribute. `SystemExit`
+            # carries `.code` too, and `SystemExit(5)` would have been read
+            # as HTTP status 5 by a `getattr(exc, "code", None)`.
+            entry["status"] = (exc.code
+                               if isinstance(exc, urllib.error.HTTPError)
+                               else None)
+            entry["stopped"] = entry["status"] not in _PROV_DECIDED_STATUSES
+            raise
+        entry["status"] = 200
+        return resp
+
+    return recording, calls
+
+
+def _prov_control(url: str, expect_revn: int,
+                  calls: list[dict[str, Any]]) -> dict[str, Any]:
+    """Decide whether the agent's door said no, or the bench fell over.
+
+    THE FIRST VERSION OF THIS BENCH COULD NOT TELL, and reported
+    `refused` for both. Measured with every `api/pins/*` POST answering
+    HTTP 500: `_x_post` died, `composed_outcome` read `refused` with an
+    exit code, and BOTH reds went green over a tree where nothing had
+    been repaired. Found in review, and it is the same shape as the
+    `vanished` hole one door over — an exception that means four
+    different things read as the one that flatters the tree.
+
+    TWO QUESTIONS, AND THE FIRST IS THE ONE THAT BITES. A liveness probe
+    alone is not enough and was tried: `api/heartbeat` came back healthy
+    while the pins route was answering 500, because a server can be up
+    and one endpoint broken. So the first question is about the verb's
+    OWN traffic — was any call it made STOPPED, in `_prov_recorder`'s
+    sense of nobody answering — and only the second is about the server
+    still being there afterwards.
+
+    A 4xx IS NOT A STOPPED CALL, which is the correction that matters
+    here and the reason `stopped` exists rather than `raised`. See the
+    ruling in `TestAnAnswerSaysWhoseWordsItIs`: a refusal written at the
+    route with `err(403, …)` is a product decision and must pass.
+
+    `api/heartbeat` is the liveness POST because it is the one live write
+    with no side effect and no event. `api/config` would append a
+    `config_changed` that the `--for user` feed then counts, and a
+    control that perturbs the measurement it protects is not a control.
+
+    THE REVISION CLAUSE IS A FLOOR AND NOT AN EQUALITY, corrected after
+    it failed a legitimate repair. `expect_revn` is read off the bench's
+    OUTER `Store` while the heartbeat reports the server's — two
+    instances over the same files, and the outer one never sees the
+    server's writes. A candidate that COMMITS when it records an answer
+    therefore read `head_revn=4 (expected 2)` and was reported as broken
+    plumbing while `alive=True ok=True`. A floor keeps the clause alive
+    (a server that has lost revisions still fails) without legislating
+    that a repair may not write.
+
+    Args:
+        url: The base URL the driver posts against.
+        expect_revn: A revision the store is known to have reached, used
+            as a FLOOR — so a server answering `ok` out of a rolled-back
+            or empty state fails rather than passing on the truthiness of
+            a dict.
+        calls: `_prov_recorder`'s log of what the verb actually sent.
+
+    Returns:
+        `ok` (no call was stopped, the server is alive, a write is
+        accepted and the revision is at or past the floor) plus
+        `stopped`, `alive`, `beat` and a `why` naming whichever half
+        failed — `half` says which, so a caller can word its own message
+        without re-deriving it.
+    """
+    stopped = [c for c in calls if c["stopped"]]
+    try:
+        alive = bool(canvas.server_alive({"url": url}))
+        beat = canvas.http_json(url + "api/heartbeat", {"dirty": False})
+    except Exception as exc:
+        # Broad for `_prov_recorder`'s reason: a control that cannot be
+        # taken is a dead bench, whatever killed it.
+        return {"ok": False, "stopped": stopped, "alive": None, "beat": None,
+                "half": "control",
+                "why": "the control itself could not be taken (%s: %s)"
+                       % (type(exc).__name__, exc)}
+    revn = beat.get("head_revn")
+    served = bool(alive and beat.get("ok")
+                  and isinstance(revn, int) and revn >= expect_revn)
+    why, half = "", ""
+    if stopped:
+        half = "traffic"
+        # TWO WORDINGS, because `stopped` covers two situations and one
+        # sentence for both misnames whichever it is not. A call with no
+        # status was never answered; a call answered 400 or 404 WAS
+        # answered, with a code that indicts the request or the subject —
+        # and the bench wrote the request and minted the subject, so that
+        # is the bench being told it is broken.
+        answered = [c for c in stopped if c["status"] is not None]
+        why = ("%d of the %d call(s) the verb made did not reach a "
+               "decision: %s. " % (len(stopped), len(calls),
+                                   [(c["path"], c["status"], c["raised"])
+                                    for c in stopped])
+               + ("Those with a status were ANSWERED, but with a code "
+                  "that says the request or the subject was wrong — and "
+                  "this bench writes every request and mints every pin "
+                  "it names, so it owns both."
+                  if answered else
+                  "Nothing answered at all, so the verb was cut off "
+                  "rather than told no."))
+    elif not served:
+        half = "liveness"
+        why = ("the server did not answer a control write afterwards: "
+               "alive=%r ok=%r head_revn=%r (floor %r)"
+               % (alive, beat.get("ok"), revn, expect_revn))
+    return {"ok": bool(not stopped and served), "stopped": stopped,
+            "alive": alive, "beat": beat, "half": half, "why": why}
+
+
+def answer_provenance_bench() -> dict[str, Any]:
+    """Answer one question twice — once by the user's hand, once by the agent.
+
+    THE GROUND TRUTH IS WHICH ENTRY POINT WAS DRIVEN, and that is the
+    only place it can live: the tool has nowhere to record it, which is
+    the finding. `typed` goes through the exact body `App.tsx` posts from
+    the rail, `composed` through `canvas.py x-as-user answer` — the
+    shipped verb an agent reaches for when the user says "answer them for
+    me". Both land the same sentence, so any difference in the readings
+    is provenance and nothing else.
+
+    A REFUSAL IS A RESULT, not an error. Shutting the agent's route is
+    one of the honest product answers, so `SystemExit` out of the verb is
+    caught and reported as `refused`; what must never happen is
+    `vanished`, a door that did nothing and said nothing, which is a
+    broken bench wearing a passing test's clothes.
+
+    AND `refused` IS NOT SELF-EVIDENCING, which is what the first version
+    of this function got wrong. `_x_post` turns a product refusal, an
+    HTTP 500, a refused connection and a timeout into the same `ERROR=`
+    line and the same `SystemExit`, so the exception says only that
+    SOMETHING stopped the verb. `control` is therefore taken after the
+    verb runs, through the same transport, and it is what separates the
+    two — see `_prov_control`.
+
+    Returns:
+        `typed` and `composed` readings from `_prov_reading`, plus
+        `composed_outcome` (`landed`/`refused`/`vanished`), `refusal`
+        (the exit code, when there was one), `control` (the liveness
+        probe, asserted by the guard) and `feed_size` (how many events
+        `wait --for user` printed in total).
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-prov-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": _PROV_PINS[door], "target": "n1",
+                     "question": _PROV_QUESTION} for door in _PROV_DOORS]})
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        app = canvas.ServerApp(project)
+        transport, calls = _prov_recorder(_as_user_transport(app))
+        # DOOR ONE — the rail. `apiPost("/api/pins/answer", { id, answer })`
+        # is the whole of what the client sends, from THREE call sites in
+        # App.tsx — the anchored popover, the rail card and the detail
+        # modal — all posting that same body. Reproduced here rather than
+        # reached through a browser because the model tier has none. The
+        # server sees this body and no other fact about its caller.
+        #
+        # THROUGH THE TRANSPORT, not `app.handle_post` directly, and the
+        # difference is not cosmetic: the browser crosses HTTP, so a route
+        # that refuses with `err(403, …)` must reach this door as an
+        # `HTTPError` and not as a raw `_Err`. Calling the app directly
+        # skipped the translation and blew the bench up — and an
+        # `@expectedFailure` reports an ERROR exactly as it reports a
+        # FAILURE, so both reds went on looking healthy while the bench
+        # was in pieces.
+        typed_refusal = None
+        with mock.patch.object(canvas, "http_json", transport):
+            try:
+                transport(_AS_USER_URL + "api/pins/answer",
+                          {"id": _PROV_PINS["typed"],
+                           "answer": _PROV_ANSWER})
+            except Exception as exc:    # the user's door is allowed to be
+                # refused by a product; it is clause 1's job to say so in
+                # a sentence rather than this function's to crash.
+                typed_refusal = "%s: %s" % (type(exc).__name__, exc)
+        # DOOR TWO — the agent, instructed. Driven through `cmd_x_as_user`
+        # rather than by posting the same body again, because a repair that
+        # marks the door has to have a door to mark: two identical POSTs
+        # would erase the distinction this is measuring, and no honest fix
+        # could then flip it.
+        outcome, refusal = "landed", None
+        # EVERYTHING FROM HERE IS THE VERB'S OWN TRAFFIC. The control and
+        # the accepted-write clause both judge what the AGENT's door did,
+        # and door one's successful write is in the same log — counting it
+        # would make every run look like a door that was told yes.
+        verb_from = len(calls)
+        with mock.patch.object(canvas, "http_json", transport), \
+                contextlib.redirect_stdout(io.StringIO()):
+            try:
+                canvas.cmd_x_as_user(argparse.Namespace(
+                    project=str(tmp), verb="answer", artifact="flow",
+                    target=_PROV_PINS["composed"], text=_PROV_ANSWER,
+                    dx=0, dy=0, note=None))
+            except SystemExit as exc:
+                outcome, refusal = "refused", exc.code
+            # TAKEN INSIDE THE SAME PATCH, and immediately: the question
+            # it answers is whether the transport the verb just used is
+            # still alive, so it has to be that transport and not a fresh
+            # one. A control outside this block would prove the store is
+            # readable and nothing about the door.
+            #
+            # THE FLOOR COMES OFF THE OUTER `store` DELIBERATELY. That is
+            # a second `Store` over the same files and it never sees the
+            # server's writes, so it can only ever LAG — which is what
+            # makes it a floor worth having, and why the comparison is
+            # `>=` rather than `==`. Reading the floor off `app.store`
+            # would make the clause compare the heartbeat's own source
+            # against itself and assert nothing at all.
+            control = _prov_control(_AS_USER_URL, store.head_revn(),
+                                    calls[verb_from:])
+        # AND THEN READ BACK THE WAY THE AGENT READS. `wait --for user` is
+        # run for real, filter and all, so the classification that made the
+        # agent unable to separate its own words is exercised rather than
+        # restated — a transcription of `USER_EVENT_TYPES` here would be a
+        # second copy free to agree with a broken original.
+        printed = io.StringIO()
+        with mock.patch.object(canvas, "http_json", transport), \
+                contextlib.redirect_stdout(printed), \
+                contextlib.suppress(SystemExit):
+            # SUPPRESSED AND NOT CAUGHT, unlike the verb above, because
+            # `cmd_wait`'s exits carry no information this bench wants:
+            # it returns 3 on a quiet window and dies only when no server
+            # answered, and the feed assertions below say more about
+            # either than an exit code would.
+            canvas.cmd_wait(argparse.Namespace(
+                project=str(tmp), since=0, timeout=1, types=None,
+                for_whom="user"))
+        feed = [json.loads(line) for line in printed.getvalue().splitlines()
+                if line.startswith("{")]
+        # WHICH PIN WRITES WERE ACCEPTED, kept so the guard can refuse
+        # the one corner neither `vanished` nor `control` reaches: a verb
+        # that POSTS, is answered 200, and dies afterwards. Nothing was
+        # stopped, the server is healthy, the exit code is real — and the
+        # pin is unanswered. `vanished` cannot see it, being gated on
+        # `landed`. A door that was told yes did not refuse.
+        # THE TRIPLE FILTER IS LOAD-BEARING AND IS SPELLED OUT BECAUSE IT
+        # WAS CORRECT BY COINCIDENCE. This slice runs to the end of the
+        # log, so it also holds `cmd_wait`'s `api/events` GETs and the
+        # control's own health/heartbeat calls; `post` drops the GETs,
+        # the path prefix drops the control, and `status == 200` drops
+        # anything refused. Each of the three is doing real work — remove
+        # one and this counts calls that are not pin writes.
+        pin_calls = [c for c in calls[verb_from:]
+                     if c["post"] and c["path"].startswith("api/pins/")]
+        pin_writes = [c for c in pin_calls if c["status"] == 200]
+        # AND THE VERB HAS TO HAVE AIMED AT THE PIN THIS BENCH MINTED.
+        # Unconditional, not gated on the outcome: aiming wrong is always
+        # the driver's fault and never a product decision, whatever the
+        # server then said about it. A `refused` from a 404 was a silent
+        # all-clear on exactly this — see `_PROV_DECIDED_STATUSES`, which
+        # is the other half of the same repair.
+        #
+        # "AT LEAST ONE NAMED IT", NOT "EVERY ONE NAMED IT", and the
+        # difference is a prescription this class is not allowed to make.
+        # RULED 2026-09-01 after the strict form reddened a legitimate
+        # repair: one that parks the agent's draft on a companion record
+        # and then answers the pin normally writes two pins, only one of
+        # them `composed`. That repair answered the pin, flipped both
+        # reds, and the guard called it damage — which is the class
+        # claiming to prescribe no repair while forbidding one. The
+        # alternative on offer was to keep the strict form and DISCLOSE
+        # it as a judgement, the way the (d) placement ruling is
+        # disclosed. Rejected: disclosure is right when a judgement earns
+        # its keep, and this one earns nothing. The damage actually being
+        # hunted is a driver that aimed at the WRONG pin, and `any` still
+        # catches every case of it — `wrong_pin_id` writes only
+        # `no-such-pin`, so no write names the composed pin and the
+        # clause fires exactly as before. Narrowing past that buys no
+        # detection and costs a repair.
+        #
+        # GATED ON THERE BEING A WRITE AT ALL, because candidate (d)
+        # refusing client-side makes no pin write whatever, and an
+        # `any()` over an empty list is False. A door that never posted
+        # is clauses 3 and 5's subject, not this one's.
+        #
+        # AND IT HAS A DISCLOSED FALSE NEGATIVE, RULED 2026-09-01 rather
+        # than closed. Widening from "every write named it" to "one of
+        # them did" also widened "AIMED at the pin" to "MENTIONED the
+        # pin": a driver posting `{"id": "no-such-pin", …, "context":
+        # "q2"}` against a route that answers a DECIDED status is silent
+        # here, silent at clause 5, and never reaches `vanished`. Driven,
+        # and the whole class went green over a bench that answered one
+        # door.
+        #
+        # NOT CLOSED, AND THE REASON IS STRUCTURAL RATHER THAN LAZY. The
+        # remedy on offer — look only at the strings a route would read
+        # as an id — is the generator returning: it names the id-bearing
+        # keys, which is the bet M-3 removed and the `ops` nesting
+        # removed again one level down. And the honest version of the
+        # question is unanswerable from here: "where did the route read
+        # the id" can only be settled by watching the route read it, and
+        # under a refusal nothing was read. The bench has no observable.
+        #
+        # WHY THIS IS NOT THE ROUND-3 404 MISTAKE, which is the objection
+        # to answer, because that disposition was also argued from
+        # reachability and was wrong. There the SIMPLE case was uncaught:
+        # a plain wrong id, the first typo anyone makes, sailed through.
+        # Here the simple case is caught twice over — `wrong_pin_id` is
+        # red at this clause and red again at clause 5.
+        #
+        # THE SPARE FIELD CAN BE A BY-PRODUCT, corrected after this
+        # comment claimed it "exists for no reason but to be there". It
+        # can: a driver that normalises `args.target` into `id` and posts
+        # the raw argument alongside sends a second copy for an ordinary
+        # reason, and `cmd_x_as_user` really is handed `--target q2`.
+        # What the miss still needs is that field AND a route answering a
+        # DECIDED status for a pin that does not exist — and nothing in
+        # this codebase does that. All ten `err(404, …)` sites answer the
+        # natural 404 for a missing subject, which is not a decided
+        # status and reddens clause 5. Driven both ways: with the
+        # normalising driver and a 403, GUARD GREEN; the same driver
+        # against the natural 404, GUARD RED. The conjunction is what the
+        # ruling rests on, not the field's implausibility.
+        #
+        # Trading it for a key-name bet would buy this corner and re-open
+        # the class of false REDs that four rounds were spent closing,
+        # which is the wrong direction for a guard whose measured error
+        # mode is over-refusal.
+        wrote_composed = any(_PROV_PINS["composed"] in c["body_names"]
+                             for c in pin_calls)
+        misaimed = [] if not pin_calls or wrote_composed else pin_calls
+        out: dict[str, Any] = {"composed_outcome": outcome,
+                               "refusal": refusal, "control": control,
+                               "pin_writes_accepted": pin_writes,
+                               "misaimed": misaimed,
+                               "typed_refusal": typed_refusal,
+                               "feed_size": len(feed)}
+        for door in _PROV_DOORS:
+            out[door] = _prov_reading(app, _PROV_PINS[door], feed)
+        # `landed` MEANS THE SENTENCE IS SOMEWHERE IN THE READING, and the
+        # first draft of this line asked whether the pin's record existed
+        # instead. It always does — the pin is in the registry from the
+        # moment it is minted — so a driver that silently did nothing
+        # reported `landed`, the two readings differed because one pin was
+        # unanswered, and BOTH reds went green over a bench that had
+        # driven one door. Caught by damaging this guard rather than by
+        # reading it. Searching the serialised reading rather than a named
+        # key is what keeps candidate (c) `landed`: its text arrives under
+        # `proposed_answer`, which no key list written today would name.
+        if outcome == "landed" and _PROV_ANSWER not in json.dumps(
+                out["composed"], ensure_ascii=False):
+            out["composed_outcome"] = "vanished"
+        return out
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def pin_marks_whose_question_it_is() -> dict[str, Any]:
+    """Read both authorship marks for a pin the agent asked and one the user drew.
+
+    THE LIVE POLE FOR THE HALF THAT WORKS. Both reds below accuse the
+    same two stores and the same rendering of saying nothing about who
+    ANSWERED, and an accusation of silence is satisfied perfectly by
+    machinery that has stopped saying anything at all. This drives the
+    provenance those surfaces DO carry, through the two writers that set
+    it: the op path files its own pins `agent`, and the save ingest files
+    a ❓ the user drew as `user`.
+
+    `nag` is the reading that matters most, because `pin_debt_entry`
+    renders the same `direction` the rail's `yours`/`agent` chip does —
+    the chip itself is TypeScript and out of reach, so this is the
+    nearest surface that can be asserted from here.
+
+    Returns:
+        `author` and `direction` and `nag`, each a dict keyed `agent` and
+        `user` by which hand asked the question.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-nag-"))
+    project = canvas.Project(tmp)
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": "asked-by-agent", "target": "n1",
+                     "question": _PROV_QUESTION}]})
+        # The user's own ❓, arriving the only way one can: on their save.
+        # Copied off the agent's glyph so the two differ in id, position
+        # and `customData` alone — a glyph that differed in shape would be
+        # testing the minter rather than the ingest, which keys on `role`.
+        scene = list(store.scenes["flow"])
+        drawn = dict(scene[-1])
+        drawn.update({"id": "asked-by-user", "x": 300, "y": 300,
+                      "customData": {"role": "pin", "target": "n1",
+                                     "question": _PROV_QUESTION,
+                                     "status": "open", "answer": None,
+                                     "author": "user"}})
+        store.commit(author="user", new_scenes={"flow": [*scene, drawn]},
+                     base_revn=store.head_revn())
+        glyphs = {e["id"]: e for e in store.scenes["flow"]}
+        pins = {p["id"]: p for p in store.registry["pins"]}
+        rows = {d["id"]: canvas.pin_debt_entry(d) for d in store.pin_debt()}
+        return {
+            "author": {who: (glyphs["asked-by-%s" % who]
+                             .get("customData") or {}).get("author")
+                       for who in ("agent", "user")},
+            "direction": {who: pins["asked-by-%s" % who].get("direction")
+                          for who in ("agent", "user")},
+            "nag": {who: rows.get("asked-by-%s" % who, "")
+                    for who in ("agent", "user")}}
+    finally:
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestAnAnswerSaysWhoseWordsItIs(unittest.TestCase):
+    """Two hands, one sentence, and no surface that can tell them apart.
+
+    THE RELATION, NOT THE INCIDENT: an answer on a pin carries the door
+    it came through, and an answer the agent supplied cannot be read as
+    one the user gave. Two reds, because the property has two halves that
+    fail independently — a repair that marks everything an answer is
+    STORED IN AND EMITTED AS, and stops there, has built provenance
+    nobody renders, and the second red is what would still be pointing at
+    it. Measured, not assumed: the ladder is in
+    `test_the_rendered_mark_does_not_move_with_the_answers_source`, and
+    it takes both stores AND the `pin_answer` event to turn the first red
+    green — marking the two stores alone leaves it RED on `events`.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT, on the
+    `TestADeclaredDatumSurvivesTheDoorItCameThrough` precedent and for
+    the same reason: every scene-level detector here is correctly quiet,
+    because the scene is internally coherent. What disagrees is the
+    record and the WORLD, and no rule handed a list of elements can reach
+    who typed something. Registering a check name for it would state a
+    contract no lint can meet.
+
+    IT PRESCRIBES NO REPAIR, and four shapes were MEASURED rather than
+    argued. Each monkeypatched from a throwaway plugin outside the repo,
+    applied alone against this tree on 2026-09-01, both reds turning
+    green under every one:
+
+      (a) A SIBLING FIELD AT THE DOOR. `answer_pin` grows a `by`, the
+          verb declares itself, the event and `pin_debt_entry` carry it.
+          The nag prints `<pin>(answered, ..., answered by agent)`.
+      (b) `author` WIDENED TO A PER-FIELD RECORD. No new key anywhere:
+          the authorship slot stops being a scalar about the question and
+          becomes `{"question": "agent", "answer": "user"}`. THE
+          MEASURED VERSION TOUCHES THREE SURFACES, and this sentence used
+          to name one — corrected in review after the reviewer built it
+          literally and found it flips NEITHER red. `answer_pin` widens
+          `customData.author` on the glyph, mirrors the same map onto the
+          registry record as `author`, and `handle_post` carries it on
+          the `pin_answer` event; `pin_debt_entry` then reads it and
+          prints `..., answer by agent)`. The element-only version is a
+          real datum and is kept below rather than discarded.
+      (c) A PROPOSAL THE USER PROMOTES. The verb posts to a `propose`
+          route, `proposed_answer` lands, `answer` stays None and the pin
+          stays `open`. The composed answer then does not reach the
+          `--for user` feed AT ALL, which is the sharpest of the four:
+          the agent stops being able to hear its own voice come back as
+          the user's.
+      (d) A DOOR THAT SHUTS. The route or the verb refuses, naming the
+          reason. The bench records `refused` and the readings differ
+          because one pin is answered and the other is not.
+
+          WHERE THE REFUSAL LIVES IS NOT THIS PIN'S BUSINESS, and that
+          is a RULING, recorded 2026-09-01 because the first version of
+          the guard silently decided otherwise. I wrote (d) as a
+          client-side `die` in `cmd_x_as_user` because it was the
+          shortest plugin to write, NOT because I judged client-side to
+          be the only honest placement — and the guard I then built
+          judged on "did a call raise", which fails a refusal written at
+          the ROUTE with `err(403, …)`, this repo's own idiom. Measured:
+          a route-level 403 read as broken plumbing and the failure
+          message asserted the opposite of the truth.
+          SERVER-SIDE IS LEGITIMATE AND MUST PASS. A refusal in the CLI
+          verb guards one caller; every other HTTP client still walks
+          through. The §8 note below argues an unmarked route the agent
+          still holds is the defect surviving — which points AT the
+          route, so a guard that fails a route-level refusal prescribes
+          the weaker of the two placements while the class claims to
+          prescribe none.
+
+    Four mechanisms, one law, and (b) is the one that proves this is not
+    a disguised "add a field": it adds none.
+
+    THREE REPAIRS THAT DO **NOT** FLIP THEM, measured rather than
+    predicted, and kept because a negative result is the part a reader
+    cannot reconstruct:
+
+      * (b) BUILT LITERALLY, widening `customData.author` on the glyph
+        and nothing else. Neither red moves — `record`, `events`, `nag`
+        and `feed` all still read the same for both answers. One store
+        is not the subject; the pair of them plus what they emit is.
+      * MARKING BOTH STORES AND NOT THE EVENT. Red 1 stays red on
+        `events`. See the ladder in
+        `test_the_rendered_mark_does_not_move_with_the_answers_source`.
+      * A SIDE TABLE. Provenance recorded in
+        `registry["answer_provenance"]`, keyed by pin, with the pin
+        record itself untouched. Both reds stay red and the guard is
+        GREEN, so this arrives as "your repair does not satisfy the
+        law" rather than as a broken bench — which is the right signal,
+        but only if the reader knows it is deliberate. IT IS: red 2's
+        whole argument is that a store nothing renders is provenance
+        nobody has, and an audit table beside the record is exactly
+        that until something reads it. A side table PLUS a rendering
+        that consults it would flip both; the table alone is half a
+        repair and the reds say so.
+
+    AND ONE REWRITE THEY BREAK UNDER, named because §8 says to name them:
+    a repair that adds a NEW marked route for the agent and leaves
+    `x-as-user answer` writing unmarked testimony keeps both reds red.
+    That is a judgement and it is the one this pin makes — an unmarked
+    route the agent still has is the defect surviving beside its own fix,
+    not a spelling difference.
+
+    ONE THING A REPAIR MUST CARRY WITH IT, learned by building (b) as a
+    `status` widening rather than an `author` one: whatever slot grows,
+    its READERS grow too. `Store.pin_debt` filters on
+    `status in ("open", "answered")`, so a `status` of
+    `answered_by_agent` drops the pin off the standing `PIN_DEBT=` nag
+    entirely. The guard catches that — it reports the nag rendering
+    nothing — and the catch is correct rather than prescriptive: a
+    repair that marks provenance by making the pin invisible on the one
+    surface that prints every apply has moved the defect, not fixed it.
+    Widen the filter in the same change and both reds flip.
+    """
+
+    def test_two_hands_leave_one_indistinguishable_record(self) -> None:
+        """The storage half: neither store can say what happened.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS COLLAPSE. Two
+        origins produce ONE distinct reading where they must produce two,
+        on all three stored surfaces at once. Asserted as a difference
+        between two readings and never as the presence of a named key,
+        because naming a key names a repair: `answered_by`, a widened
+        `author`, `proposed_answer` and a status the promotion moves are
+        all honest, and a guard that greps for one fails the other three
+        while the behaviour is correct.
+
+        `element` IS IN THE COMPARISON ON PURPOSE. That is the six-key
+        `customData` where `author` sits directly beside `answer` — the
+        pin is not short of an authorship field, it has one for the
+        question and none for the answer, and today it reads `"agent"`
+        over the sentence the USER typed. A reading that only looked at
+        `model.json` would miss that the two stores are wrong in the same
+        direction for two different reasons.
+
+        THE NEAREST FALSE GREEN is a difference that is not provenance —
+        two pins always differ by id and by wall clock — so
+        `_PROV_VOLATILE` removes those before the comparison, and both
+        pins are minted in ONE batch carrying ONE question string so that
+        `author`, `direction`, `round` and `asked_at_revn` are equal by
+        construction. Verified key-by-key on an UNSCRUBBED diff, in
+        review: the record differs only on `id`, the event only on
+        `pin`/`seq`, the glyph only on `id`/`seed`. `_PROV_VOLATILE` is a
+        strict superset of what varies, which is the safe direction —
+        every entry beyond that set makes this red HARDER to flip, never
+        easier.
+
+        THIS SURFACE LIST IS THREE AND NOT TWO, and the third is the one
+        that does the work. Measured 2026-09-01: a repair marking BOTH
+        STORES and stopping there leaves this red RED, on `events` — the
+        `pin_answer` payload is built by hand in `handle_post` and does
+        not inherit from the record it was built from. It takes stores
+        AND event together to turn this green.
+        """
+        bench = answer_provenance_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("record", "element", "events")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "an answer the user typed and an answer the agent composed on "
+            "their instruction left the SAME record on %d of 3 stored "
+            "surfaces (%s) — 1 distinct reading for 2 distinct origins. "
+            "The ❓'s own `customData` carries `author` for the QUESTION "
+            "and nothing for the ANSWER, so it reads %r over both. Mark "
+            "it at the door, widen the slot that is already there, park "
+            "it where the user promotes it, or refuse the route and say "
+            "why — but a store that cannot say whose words these are "
+            "makes every answer in the project unverifiable at once. "
+            "Typed element: %s. Composed element: %s"
+            % (len(same), ", ".join(same),
+               (typed["element"] or {}).get("author"),
+               json.dumps(typed["element"], sort_keys=True),
+               json.dumps(composed["element"], sort_keys=True)))
+
+    def test_the_rendered_mark_does_not_move_with_the_answers_source(
+            self) -> None:
+        """The rendering half: the badge answers the question nobody asked.
+
+        SEPARATE FROM ITS NEIGHBOUR ABOVE BECAUSE IT FAILS SEPARATELY,
+        and the separator is MEASURED rather than asserted. This
+        paragraph used to say that marking both stores satisfies the
+        storage red; that was wrong, and the two-mark ladder is what the
+        review ran to find out. 2026-09-01, one repair per rung, both
+        reds read at each:
+
+            stores only  (record + element)          red 1 RED, red 2 RED
+            stores + event                           red 1 GREEN, red 2 RED
+
+        So the real separator is the SECOND rung: a repair that marks
+        both stores AND the `pin_answer` event turns the storage red
+        green and leaves this one red on `nag` — the standing `PIN_DEBT=`
+        line, printed on every `status` and every apply, still reads
+        `<pin>(answered, age 0r, target edited 0×)` for both answers. A
+        product can therefore be fully marked everywhere it is STORED and
+        still tell a human nothing, which is precisely the state this red
+        exists to keep pointing at.
+
+        AND IT IS THE EXACT POLE OF THE ONE BELOW. `pin_debt_entry`
+        renders `direction`, the same field the rail's `yours`/`agent`
+        chip draws. `test_the_asking_hand_is_still_marked` proves that
+        mark MOVES when the question's source moves; this proves it does
+        NOT move when the answer's source moves. A mark that is rendered
+        on every apply and cannot follow the fact that varies is worse
+        than no mark: it reads as an attribution.
+
+        THE FEED IS THE SHARP END. `pin_answer` is a member of
+        `USER_EVENT_TYPES`, so the classification is static — every
+        answer is user activity because of what KIND of event it is,
+        never because of who sent it. `cmd_wait` is driven for real here,
+        with its own filter, so a repair anywhere on that path (a new
+        event type, a field the filter consults, a route that emits
+        nothing) moves this reading.
+        """
+        bench = answer_provenance_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("nag", "feed")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "the two answers render identically on %d of 2 surfaces "
+            "somebody reads (%s). PIN_DEBT= prints %r for both, and "
+            "`wait --for user` served %d event(s) with the agent's own "
+            "composition among them under the user's heading. That same "
+            "line already marks WHOSE QUESTION it is, off `direction`, "
+            "and the rail draws a chip off that field on OPEN cards only "
+            "— an answered pin's archive card carries no mark at all. So "
+            "authorship is rendered on the half that is almost always "
+            "the agent, and vanishes on the half that varies"
+            % (len(same), ", ".join(same), typed["nag"], bench["feed_size"]))
+
+    def test_the_bench_drove_both_doors_and_every_reader_spoke(self) -> None:
+        """The vacuity guard: an emptiness claim over a live measurement.
+
+        UNGATED AND ASSERTED IN EVERY COMMIT, because both reds above are
+        `assertEqual(same, [])` and an empty list is what a broken bench
+        produces most easily. A driver that missed the pin, a reader that
+        stopped reading, a feed that printed nothing — each makes the two
+        readings differ, and each reads as a fix. So this claims the
+        facts that make `same == []` mean something.
+
+        THE REDS NAME A RELATION; THIS GUARD MUST TOO. Four review rounds
+        found the same defect wearing four costumes — a raise mistaken
+        for a refusal, a 404, a 409, a misaim clause reading "every write"
+        for "any write" — and the root was one habit: the reds compare
+        whole readings and mention no key, on the stated ground that
+        naming a key names a repair, and the guard was not written to
+        that discipline. Every literal in it was a bet on how a repair
+        would be SPELLED, and each bet refused a repair that satisfied
+        the law:
+
+            asked for `record["answer"]`      -> refused `answer_text`
+            asked for `status == "answered"`  -> refused `answered_by_user`
+            scanned the body's top level      -> refused an id inside `ops`
+
+        All three are now relations. The sentence must be SOMEWHERE in
+        the record; the pin must no longer read as OPEN; the id is looked
+        for at any depth. The rule for anyone adding a clause here: ask
+        what the repair must ACHIEVE, never where it must write it. If a
+        clause cannot be phrased without a key name, it belongs in the
+        break-under list as a disclosed judgement, not in the assertions.
+
+        WATCHED FAILING, ONE CLAUSE AT A TIME, by damaging this bench in
+        a throwaway copy outside the repo. Every row was re-driven
+        2026-09-01 against the tree that ships it, and the WHICH CLAUSE
+        column is the point of the table: a stage that reddens the guard
+        by tripping some OTHER clause proves nothing about the one it is
+        filed under, and this table said exactly that about `http500` for
+        a day. NAME THE ISOLATING STAGE, or the next editor weakens a
+        clause, runs a stage that never reached it, and sees red.
+
+        Clause order, since the rows refer to it: 1 the user's door landed
+        the sentence, 2 it left the pin `answered`, 3 `composed_outcome`
+        is `landed` or `refused`, 4 the verb aimed at the pin this bench
+        minted, 5 the control, 6 no accepted write behind a refusal, 7
+        the nag rendered, 8 the feed was non-empty.
+
+          * `wrong_pin_id` — the verb posts `id="no-such-pin"` -> CLAUSE
+            4. `answer_pin` raises, the route answers 404, and the whole
+            chain reads as a decision: outcome `refused`, exit 5. Before
+            the 2026-09-01 taxonomy this was GUARD GREEN with both reds
+            green — a silent all-clear on the worst damage in the table,
+            and a REGRESSION introduced by the round-2 narrowing from
+            `raised` to `stopped`. The bench mints `q2` two statements
+            earlier, so a 404 here never means the product declined
+            anything.
+          * `malformed_body` — the route answers 400 -> CLAUSE 5
+            (traffic). The same shape as the row above and the reason
+            the fix is a taxonomy rather than a 404 special case: 400
+            says the BODY was wrong and the bench writes the body.
+          * `stale_revn_409` — the verb posts the outer store's revision
+            and the route 409s it -> CLAUSE 5 (traffic). GUARD GREEN with
+            both reds green until 409 came off `_PROV_DECIDED_STATUSES`
+            on 2026-09-01. The sharpest row in the table: this bench
+            carries a permanently stale revision BY CONSTRUCTION — the
+            control's floor depends on it — so a 409 is the one 4xx the
+            bench is predisposed to produce, and it was the one being
+            waved through.
+          * `agent_write_500` — only the composed pin's write 500s ->
+            CLAUSE 5, traffic half, ISOLATING. Both reds go GREEN and
+            this is the only thing that speaks.
+          * `server_lost_revisions` — heartbeat reports `head_revn` 0 ->
+            CLAUSE 5, liveness half, ISOLATING. Traffic is clean, so this
+            is the only stage that reaches the second half of the control.
+          * `http500` — every `api/pins/*` POST answers 500 -> CLAUSE 1,
+            NOT CLAUSE 5. It stops at the first clause because door one
+            crosses the transport too and is broken by the same damage.
+            Kept because it is the damage that FOUND the control, and
+            listed here with its true attribution so nobody reads its red
+            as evidence about the control. THE SAME TRAP CAUGHT THE
+            MUST-PASS SIDE: a `d_server_http` that refused every answer
+            reddened clause 1 as well, and had to be narrowed to the
+            agent's write before it measured what it claimed to. A stage
+            that refuses BOTH doors is a different product, not a
+            refusal of the agent's route.
+          * `health_oserror` — `api/health` raises -> CLAUSE 5, on a
+            stopped call with no status. Before the control existed this
+            was caught only incidentally, by clause 8 noticing an empty
+            feed, which is not the same as being detected.
+          * `accepted_then_dies` — the route answers 200 and no-ops, the
+            verb dies after -> CLAUSE 6, ISOLATING. Nothing stopped,
+            server healthy, `refusal` 7, pin unanswered, both reds GREEN.
+            `vanished` cannot reach it (gated on `landed`) and the
+            control cannot (nothing failed).
+          * `posted_ok_noop_route` — the same no-op without the death ->
+            CLAUSE 3, `vanished`. The sibling that keeps clause 3 proven
+            now that `wrong_pin_id` is caught earlier.
+          * `empty_answer` — the user's door posts `""` -> CLAUSE 1.
+          * `dead_nag` — `Store.pin_debt` returns `[]` -> CLAUSE 7.
+          * `dead_feed` — `cmd_wait` driven `--for agent` -> CLAUSE 8.
+
+        AND THE STAGES THAT MUST STAY GREEN, which are half the value of
+        the table: a guard that reddens on every perturbation is not
+        discriminating, it is just loud. NO COUNT IS WRITTEN for either
+        list, here or anywhere — a hand-maintained total beside a list
+        that grows every review is the one thing this file has been
+        bitten by more than once. Count the bullets.
+
+          * `d_client` — the verb refuses before posting. GUARD GREEN.
+          * `d_server_http` — the route refuses 403 over the wire.
+          * `d_server_err_agent_only` — the route refuses with this
+            repo's own `err(403, …)`, the shape a real repair takes.
+            Before the `_Err` translation this crashed the bench outright
+            and both reds read as ordinary expected failures, because an
+            `@expectedFailure` reports an ERROR exactly as it reports a
+            FAILURE.
+          * `e_commits` — a repair that COMMITS when it records an
+            answer. GUARD GREEN, both reds still red. This one was a
+            false RED until the revision clause became a floor.
+          * `companion_pin_repair` — the agent's draft is parked on its
+            own pin record and the composed pin is then answered
+            normally. GUARD GREEN, both reds flipped. A false RED until
+            clause 4 widened from "every write named it" to "one of them
+            did"; see that clause's own comment for the ruling.
+          * `renamed_body_key` — the same repair addressing the pin as
+            `pin_id` rather than `id`. GUARD GREEN. A false RED until the
+            recorder stopped privileging one key spelling.
+          * `posts_twice` — the verb writes the same pin twice. GUARD
+            GREEN, and it is the control that proves clause 4
+            discriminates on WHICH pin rather than on how many writes.
+          * `batch_write` — the repair answers through a batch route with
+            the id nested inside `ops`. GUARD GREEN. A false RED until
+            `body_names` went recursive; the message had asserted the pin
+            was unanswered over a pin that was answered.
+          * `renamed_record_field` — the stored answer moves to
+            `answer_text` with `answer_author` beside it. GUARD GREEN. A
+            false RED until clause 1 stopped naming `answer`.
+          * `provenance_in_status_complete` — `status` widens to
+            `answered_by_user`/`answered_by_agent`, WITH `pin_debt`'s
+            filter widened in the same change. GUARD GREEN, both reds
+            flipped, and no new key anywhere. A false RED until clause 2
+            stopped naming `"answered"`.
+          * `provenance_in_status` — the SAME repair with the filter left
+            alone. GUARD RED at clause 7, and correctly: the pin drops
+            off `PIN_DEBT=` entirely, so the mark was bought by making
+            the pin invisible on the surface that prints every apply.
+            Kept as a row because "the guard refuses this shape" and "the
+            guard caught half a repair" look identical from one reading,
+            and the pair separates them. AND THE PAIR IS LOAD-BEARING FOR
+            A CLAUSE THAT IS NOT ITS OWN — see the coupling note under
+            clause 2. Widening that filter is the blessed half of this
+            pair, and it is also what removes clause 7's backstop.
+
+        KNOWN LIMITS, in the same shape as the rows above so that a gap
+        is a record rather than a discovery. Each was driven; each leaves
+        the guard silent over a bench that should not have satisfied it:
+
+          * `wrong_pin_but_echoed` — the driver misaims while carrying
+            the correct id in a field it had reason to send, against a
+            route answering a decided status. GUARD GREEN. Ruled and
+            disclosed at clause 4 rather than closed.
+          * `answer_into_detail` / `answer_into_examples` — the user's
+            door stores the sentence in `detail` or `examples` and leaves
+            `answer` null. Clause 1 asks only that the sentence be
+            SOMEWHERE in the record, so both pass it. GUARD GREEN in
+            both; only red 2 stays red, and for an unrelated reason (the
+            feed differs because no event was emitted). A door that
+            stored no answer is not what clause 1 means to allow.
+          * `joint_evasion` — the two limits composed, plus a terminal
+            `status` of `settled` and the `pin_debt` filter widened.
+            ALL EIGHT CLAUSES PASS and BOTH REDS GO GREEN over a typed
+            door that stored no answer: `{"answer": null, "detail":
+            "Nothing retries.", "status": "settled"}`, nag
+            `<pin>(settled, …)`, feed 1. This is the deepest hole in the
+            guard and it is written down rather than papered over.
+
+        WHY THE PARTS ARE HARMLESS AND THE WHOLE IS NOT, which is the
+        half a future editor could not reconstruct: the components do not
+        compose by accident, they are held apart by ONE reader. Moving
+        the sentence out of `answer` needs `status` moved too, or red 2
+        stays red on the nag; and moving `status` off `answered` drops
+        the pin out of `Store.pin_debt`'s `("open", "answered")` filter,
+        which trips clause 7. Measured both ways:
+        `joint_evasion_no_widen` -> GUARD RED at clause 7,
+        `joint_evasion` (filter widened) -> GUARD GREEN. THE SAFETY IS
+        INCIDENTAL. It comes from a status filter in product code that a
+        blessed repair — `provenance_in_status_complete`, a must-stay-
+        green row above — is expected to widen. Widen it and the
+        composition opens.
+
+        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 to 6
+        are shaped around TOGETHER, and no one of them is sufficient.
+        `_x_post` turns a product refusal, an HTTP 500, a 404 and a dead
+        socket into one `SystemExit`, so `refused` names the exception
+        and not its cause. Clause 4 asks whether the verb aimed at the
+        right pin at all. Clause 5 asks whether anybody reached a
+        DECISION — see `_PROV_DECIDED_STATUSES` for which codes count and
+        why — and then whether the server survived. Clause 6 catches the
+        corner where everything answered and the write was accepted
+        anyway.
+
+        THREE JUDGEMENTS ARE BAKED INTO CLAUSES 1, 2 AND 8, and they are
+        written here rather than left implicit, because a guard whose
+        subject is unstated judgements should not carry any. Clauses 1
+        and 2 require the USER's door to land the sentence and leave the
+        pin no longer asking; clause 8 requires at least one event on the
+        `--for user` feed. A repair that turned BOTH doors into proposals
+        — nobody's answer lands until someone promotes it — would fail
+        this guard rather than flip the reds. That is deliberate: it is a
+        different product, one where the user cannot answer their own
+        pin, and it should arrive as a failing guard somebody has to look
+        at rather than as a quietly satisfied emptiness claim.
+        """
+        bench = answer_provenance_bench()
+        typed = bench["typed"]
+        # CLAUSE 1 — THE SENTENCE IS IN THE RECORD, wherever the record
+        # chose to put it. This asked `record["answer"] == _PROV_ANSWER`
+        # and refused a repair that renamed the field to `answer_text`
+        # while storing the sentence and the author side by side. The
+        # relation is "the user's words are in the store", and the key
+        # they are under is the repair's business.
+        #
+        # AND IT IS LOOSER THAN THE PROPERTY IT NAMES, disclosed rather
+        # than tightened. `detail` and `examples` are fields the record
+        # already carries, so a door writing the sentence into either and
+        # leaving `answer` null satisfies this clause completely — driven
+        # as `answer_into_detail` and `answer_into_examples`, both GUARD
+        # GREEN. Tightening means naming the fields that do NOT count,
+        # which is the generator returning in negative form.
+        self.assertIn(
+            _PROV_ANSWER, _prov_strings(typed["record"]),
+            "the user's own door did not land the answer anywhere in the "
+            "record, so the reds beside this are comparing a record that "
+            "was never written: %s%s"
+            % (json.dumps(typed["record"], sort_keys=True),
+               "" if bench["typed_refusal"] is None
+               else ". The rail's own POST was refused: %s"
+                    % bench["typed_refusal"]))
+        # CLAUSE 2 — THE PIN IS NO LONGER ASKING, which is what "the user
+        # answered it" means. This asked for the literal `"answered"` and
+        # refused a repair widening `status` to `answered_by_user` —
+        # while the class next door celebrates candidate (b) for widening
+        # the `author` slot in exactly that way. Accepting one and
+        # refusing the other was incoherent. `open` is the state the
+        # `pin` op MINTS, so testing against it is testing the domain's
+        # own starting vocabulary rather than a repair's chosen ending
+        # one, and every terminal spelling passes.
+        #
+        # THE CHOICE OF `open` IS RIGHT AND THE RELATION IS LOOSE, and
+        # both are true at once, which is why this is disclosed rather
+        # than reformulated a fifth time. `open` is the one word in the
+        # vocabulary no repair has a reason to move, so a legitimate
+        # widening cannot invalidate the test. But "not open" is weaker
+        # than the property it names: `pruned`, `dismissed`, a re-opened
+        # pin under another word, and `zzzz` all satisfy it, and none of
+        # them is a pin somebody answered. Tightening means enumerating
+        # the terminal states, which names the repair's ending vocabulary
+        # — the exact bet this clause was rewritten to stop making. It is
+        # at the floor of that trade.
+        #
+        # AND ITS COVERAGE IS COUPLED TO CLAUSE 7, WHICH IS NOT OBVIOUS
+        # FROM EITHER. Every evasion of this clause measured so far is
+        # actually stopped by the NAG: `Store.pin_debt` filters
+        # `status in ("open", "answered")`, so a status this clause
+        # permits usually drops the pin off `PIN_DEBT=` and clause 7
+        # fires instead. That backstop is product code, and
+        # `provenance_in_status_complete` — a repair this class blesses —
+        # widens exactly that filter. So the guard's cover for "the user
+        # actually answered" rests on a reader a good repair is expected
+        # to change. `joint_evasion` in the table above is what that
+        # looks like when it opens: all eight clauses green over a door
+        # that stored nothing.
+        self.assertNotIn(
+            "open", _prov_strings(typed["record"]),
+            "the user's answer left the pin still reading as an OPEN "
+            "question (%s) — whatever the two reds above compare, it is "
+            "not a pin somebody has answered"
+            % json.dumps(typed["record"], sort_keys=True))
+        self.assertIn(
+            bench["composed_outcome"], ("landed", "refused"),
+            "the agent's door neither landed an answer nor refused out "
+            "loud (%r). A route that silently does nothing makes the two "
+            "readings differ for a reason that has nothing to do with "
+            "provenance, and both reds above then pass over a bench that "
+            "measured one door" % bench["composed_outcome"])
+        self.assertEqual(
+            bench["misaimed"], [],
+            "the agent's door made %d pin write(s) and NOT ONE of them "
+            "named %r, the pin this bench minted for it: %s. Whatever "
+            "the server then answered, the composed pin is unanswered "
+            "because the DRIVER aimed wrong — and a 404 for a pin that "
+            "does not exist arrives as a 4xx, which the clause below "
+            "would otherwise read as the server making a decision. "
+            "Writing OTHER pins as well is fine and is not what this "
+            "asks"
+            % (len(bench["misaimed"]), _PROV_PINS["composed"],
+               [(c["path"], c["body_names"], c["status"])
+                for c in bench["misaimed"]]))
+        control = bench["control"]
+        self.assertTrue(
+            control["ok"],
+            # BRANCHED ON WHICH HALF FAILED, because one message for both
+            # printed "so `landed` describes the plumbing" over a bench
+            # whose traffic was fine and whose revision floor was stale.
+            # A guard that misnames its own finding sends a fixer hunting
+            # the wrong thing, which is the defect this whole clause was
+            # added to stop.
+            # AND THE DECIDING CODES ARE INTERPOLATED, NOT TYPED. This
+            # message carried "401/403/405/409" — four of seven members
+            # hand-copied beside the constant that holds them, and wrong
+            # within a day when 409 came off the list. The one place this
+            # file has been bitten repeatedly is a derived fact written
+            # out as prose.
+            {"traffic": "the agent's door never reached a DECISION: %s. "
+                        "Any of %s would be one and would pass here. "
+                        "`_x_post` exits identically for a refusal, a "
+                        "500, a 404 and a dead socket, so without this "
+                        "clause a broken bench reports `refused` and "
+                        "BOTH reds above go green over a tree where "
+                        "nothing was repaired"
+                        % ("%s", sorted(_PROV_DECIDED_STATUSES)),
+             "liveness": "the agent's door was answered, but the server "
+                         "did not survive it: %s. The readings the reds "
+                         "compare were taken off a server that is no "
+                         "longer serving",
+             "control": "the control could not be taken at all: %s"}
+            .get(control["half"], "the control failed: %s")
+            % (control["why"] or control,))
+        if bench["composed_outcome"] == "refused":
+            self.assertIsNotNone(
+                bench["refusal"],
+                "the agent's door refused without an exit code, so the "
+                "refusal is not something a caller could act on")
+            self.assertEqual(
+                bench["pin_writes_accepted"], [],
+                "the agent's door reported a refusal, but %d pin write(s) "
+                "came back 200 first: %s. A write the server ACCEPTED is "
+                "not a refusal — something died after being told yes, and "
+                "the composed pin is unanswered for a reason that has "
+                "nothing to do with provenance. `vanished` cannot see "
+                "this corner: it is gated on `landed`"
+                % (len(bench["pin_writes_accepted"]),
+                   [(c["path"], c["status"])
+                    for c in bench["pin_writes_accepted"]]))
+        for door in _PROV_DOORS:
+            self.assertTrue(
+                bench[door]["nag"],
+                "PIN_DEBT= rendered nothing for the %s door (%s), so the "
+                "rendering red is comparing two absences rather than two "
+                "lines" % (door, _PROV_PINS[door]))
+        self.assertGreaterEqual(
+            bench["feed_size"], 1,
+            "`canvas.py wait --for user` printed no events at all, so "
+            "the feed half of the rendering red would pass over a "
+            "channel that says nothing — a corpse, not a clean bill")
+
+    def test_the_asking_hand_is_still_marked(self) -> None:
+        """The live pole: both stores DO carry authorship, for the question.
+
+        THE ONE THE REDS CANNOT OBSERVE. They accuse two stores and one
+        rendering of saying nothing about who answered, and machinery
+        that has stopped saying anything about anyone satisfies that
+        perfectly — the accusation and the corpse read alike. This drives
+        the half that works, through both writers and all three readings,
+        so the reds can be read as "the second half was never built"
+        rather than "the first half died".
+
+        It is also the argument they rest on. `author` sits in the ❓'s
+        own six-key `customData`; `direction` sits in the registry;
+        `pin_debt_entry` prints it on every apply and the rail draws a
+        chip off it. The design took authorship seriously enough to store
+        it twice and render it twice. Whose ANSWER it is is that same
+        ruling, one field along.
+        """
+        marks = pin_marks_whose_question_it_is()
+        self.assertEqual(
+            marks["author"], {"agent": "agent", "user": "user"},
+            "the ❓ glyph's own `customData.author` no longer follows the "
+            "hand that asked (%s), so the element store has stopped "
+            "carrying authorship at all and the reds beside this would "
+            "be measuring a dead field rather than a missing one"
+            % (marks["author"],))
+        self.assertEqual(
+            marks["direction"], {"agent": "agent", "user": "user"},
+            "the registry's `direction` no longer follows the hand that "
+            "asked (%s) — both pin writers set it explicitly, so this is "
+            "one of them having gone quiet" % (marks["direction"],))
+        self.assertIn(
+            "user", marks["nag"]["user"],
+            "a ❓ the user drew came back unmarked on the standing nag "
+            "(%r). That line and the rail chip render the same field, so "
+            "this is the nearest assertable evidence that the badge the "
+            "reds accuse of standing still is capable of moving at all"
+            % marks["nag"]["user"])
+        self.assertNotEqual(
+            marks["nag"]["agent"], marks["nag"]["user"],
+            "the nag renders an agent's question and a user's question "
+            "identically (%r), so it distinguishes no provenance and "
+            "cannot be held to distinguishing this one"
+            % marks["nag"]["user"])
+
+
+# ---------------------------------------------------------------------------
+# r8-4 (P2, half-waivable-warning-pair). Found during the R8 capability
+# assessment, 2026-09-01, by a persona who told the drawing "it is not going
+# to change and I don't need to be told again — but don't redraw it", then
+# verified in canvas.py source rather than inferred. Two warnings fire on ONE
+# arrow pair; the lane warning offers `waive {op: registry, ...}` and cleared
+# (4W -> 3W), the shared-attach warning offers no key and its three remedies
+# are all geometry. `HAND_AUTHORED_RED_CLASSES` names the class below.
+# ---------------------------------------------------------------------------
+
+_R8_4_PAIR = ("e-a-t", "e-b-t")
+_R8_4_WAIVE_RE = re.compile(
+    r"waive \{op: registry, action: waive, key: '(?P<key>[^']+)'")
+
+
+def _r8_4_node(nid: str, x: float, y: float) -> dict[str, Any]:
+    """One 120x60 flow node, round-numbered so the feet arithmetic is read.
+
+    Args:
+        nid: The element id, which doubles as the name the warnings print.
+        x: Left edge.
+        y: Top edge.
+
+    Returns:
+        A `role: node` rectangle.
+    """
+    return el(id=nid, type="rectangle", x=float(x), y=float(y),
+              width=120.0, height=60.0,
+              customData={"role": "node", "label": nid})
+
+
+def _r8_4_arrow(aid: str, pts: list[tuple[float, float]],
+                src: str, dst: str) -> dict[str, Any]:
+    """One bound elbow arrow, BOUND BY ITS `points` AND NOT BY `width`.
+
+    The stored `width`/`height` are derived from the point list here
+    rather than given, because both checks under test read
+    `canvas.bbox_pts`, which walks `points` — a builder that set an
+    extent by hand could put the feet somewhere the lint never looks and
+    the class would measure a scene that is not the one drawn.
+
+    `routed: "authored"` is the sharpest form of the finding rather than
+    a convenience: `server_owns_geometry` reads that mark and answers
+    False, so the product KNOWS this path is the user's own and warns
+    about it anyway.
+
+    Args:
+        aid: The arrow's element id.
+        pts: Absolute (x, y) waypoints, first to last.
+        src: `startBinding` target id.
+        dst: `endBinding` target id.
+
+    Returns:
+        A `role: edge` arrow whose extent agrees with its point list.
+    """
+    x0, y0 = pts[0]
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return el(id=aid, type="arrow", x=float(x0), y=float(y0),
+              width=max(xs) - min(xs), height=max(ys) - min(ys),
+              points=[[float(px - x0), float(py - y0)] for px, py in pts],
+              startBinding={"elementId": src, "focus": 0, "gap": 1},
+              endBinding={"elementId": dst, "focus": 0, "gap": 1},
+              customData={"role": "edge", "routed": "authored"})
+
+
+def a_pair_arriving_at_one_point(sep: float = 10.0) -> list[dict[str, Any]]:
+    """Two authored edges converging on `n-t` with their feet `sep` apart.
+
+    The whole scene is three nodes and two arrows: fewer elements and
+    neither check has two arrows to compare. `sep` is a parameter for the
+    vacuity guard alone — at the shipped 10.0 the feet are inside both
+    `FAN_LANE_PITCH` (18px, the shared-attach radius) and `LANE_TOL`
+    (16px, the one-thick-stroke band), so both warnings are on the table;
+    the guard drives it past 18 to watch its own population empty.
+
+    The elbows exist so the arrows leave their sources at a real border —
+    a straight horizontal pair would have to start 60px off `n-a` and the
+    endpoint lint would fill the scene with errors about a defect this
+    class is not about.
+
+    Args:
+        sep: Vertical separation between the two feet on `n-t`, in px.
+
+    Returns:
+        The element list, in wire order.
+    """
+    return [
+        _r8_4_node("n-a", 280, 60), _r8_4_node("n-b", 280, 300),
+        _r8_4_node("n-t", 500, 200),
+        _r8_4_arrow("e-a-t", [(340, 120), (340, 220), (500, 220)],
+                    "n-a", "n-t"),
+        _r8_4_arrow("e-b-t", [(340, 300), (340, 220 + sep),
+                              (500, 220 + sep)], "n-b", "n-t"),
+    ]
+
+
+def a_pair_that_only_runs_together() -> list[dict[str, Any]]:
+    """Two edges inside the lane band that arrive at DIFFERENT nodes.
+
+    The control for the machinery: `lint_layout`'s waive path is real and
+    a pair it fully owns does go quiet. Without it a red that says "the
+    waive did not settle the pair" is satisfied by a registry that waives
+    nothing at all, and the class would accuse the wrong half.
+
+    Returns:
+        The element list, in wire order.
+    """
+    return [
+        _r8_4_node("n-a", 100, 60), _r8_4_node("n-b", 100, 300),
+        _r8_4_node("n-p", 500, 180), _r8_4_node("n-q", 500, 260),
+        _r8_4_arrow("e-a-p", [(220, 90), (340, 90), (340, 210), (500, 210)],
+                    "n-a", "n-p"),
+        _r8_4_arrow("e-b-q", [(220, 360), (340, 360), (340, 220), (500, 220)],
+                    "n-b", "n-q"),
+    ]
+
+
+def warnings_about(els: list[dict[str, Any]], pair: tuple[str, str],
+                   aid: str, waives: set[str] | None = None,
+                   channels: tuple[str, ...] = ("warnings",)) -> list[str]:
+    """Every layout line in `channels` that names BOTH arrows of `pair`.
+
+    Named by ELEMENT ID and not by any phrase either emitter prints,
+    because a repair that rewords a remedy must not move this class and a
+    repair that folds the two sentences into one must. Both checks open
+    with `connector_noun`, so a prose key would also have to track that.
+
+    `channels` DEFAULTS TO WARNINGS ALONE because a warning is what asks
+    the user to clear something; the guard widens it to notes, which is
+    the one reading that must survive a repair moving the finding out of
+    the warning channel.
+
+    Args:
+        els: The scene.
+        pair: The two arrow ids the lines must both name.
+        aid: The artifact id the waive keys are built from.
+        waives: Keys already recorded in the registry, or None.
+        channels: Which of `lint_layout`'s output lists to read.
+
+    Returns:
+        The matching strings, channel order then emission order.
+    """
+    lint = canvas.lint_layout(els, artifact_type="flow", aid=aid,
+                              waives=set(waives or ()))
+    return [ln for ch in channels for ln in lint[ch]
+            if all(i in ln for i in pair)]
+
+
+def settle_the_pair(els: list[dict[str, Any]], pair: tuple[str, str],
+                    aid: str) -> tuple[list[str], set[str]]:
+    """Take every door the lint offers about `pair`, until none are left.
+
+    THE LOOP IS THE POINT, not a convenience over one call: "waivable"
+    means the key the message printed, fed back through the same lint,
+    stops that message — and a repair may legitimately answer the first
+    waive with a second, differently-keyed sentence. A single pass would
+    call that a survivor. The bound refuses a registry that keeps minting
+    fresh keys forever, which is a different defect and should not read
+    as this one.
+
+    Args:
+        els: The scene.
+        pair: The two arrow ids.
+        aid: The artifact id the waive keys are built from.
+
+    Returns:
+        `(survivors, keys)` — the warnings still naming both arrows once
+        every offered key is recorded, and the keys that were recorded.
+
+    Raises:
+        AssertionError: If the offered keys never stop growing.
+    """
+    keys: set[str] = set()
+    for _ in range(6):
+        mine = warnings_about(els, pair, aid, keys)
+        offered = {m.group("key") for ln in mine
+                   for m in [_R8_4_WAIVE_RE.search(ln)] if m}
+        if not offered - keys:
+            return mine, keys
+        keys |= offered
+    raise AssertionError(
+        "the lint kept offering new waive keys for %s and never ran out "
+        "(%s) — that is a registry defect, not this class's subject"
+        % (pair, sorted(keys)))
+
+
+class TestOnePairGetsOneVerdictOnWhetherItMayStand(unittest.TestCase):
+    """r8-4: half a pair's warnings are waivable and the other half is not.
+
+    THE RELATION, NOT THE SPELLING: a warning a user may legitimately
+    decide to live with has to be answerable without changing the drawing
+    — and two warnings about ONE arrow pair must not disagree about
+    whether that pair may stand. The key's own spelling (`lane:...`,
+    `attach:...`, per-pair or per-node) is a spelling and nothing here
+    asserts one; "waivable, or not a warning" is the relation.
+
+    THE INCIDENT, R8 2026-09-01. A user said of two arrows into
+    `sentiment-scorer`: "it is not going to change and I don't need to be
+    told again — but don't redraw it." The lane warning carried
+    `Deliberate? waive {op: registry, action: waive, key: 'lane:...'}`
+    and cleared, 4W -> 3W. The shared-attach warning on the SAME pair
+    carried no key at all, and its three remedies — `mod points`,
+    "simplify the path", "move the nodes apart" — are all geometry
+    changes, the last of them precisely the thing the user forbade. Reach
+    was confirmed by a second pair (`e-fundamentals-risk` /
+    `e-risk-agg` into `risk-model`), so this is not a sample of one: any
+    deliberate shared attach point anywhere is permanently un-silenceable.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT. Both detectors are
+    correctly LOUD here — the feet really are 10px apart and the strokes
+    really do merge — so there is no magnitude or direction to seed
+    wrong, and `collect_findings` never passes `waives` or `aid` at all.
+    What is defective is the pair of messages taken together, which is a
+    property of the lint's own affordances rather than of any scene.
+
+    TWO REDS BECAUSE THE HALVES FAIL APART. One is the ROUND TRIP — the
+    door the pair was offered does not settle it — and one is the
+    AFFORDANCE — the surviving warning offers no door of its own. A
+    repair that suppresses the second warning when the first is waived
+    flips the round trip and leaves the affordance exactly where it is,
+    which is the reading that repair deserves.
+
+    IT PRESCRIBES NO REPAIR, and NINE shapes were MEASURED rather than
+    argued — each monkeypatched over `canvas.lint_layout` from a
+    throwaway plugin outside the repo, applied alone against this tree on
+    2026-09-01. Flipping BOTH reds: (a) the shared-attach emitter grows
+    its own `attach:<artifact>:<a>:<b>` key; (b) the two warnings fold
+    into one waivable finding; (d) the shared-attach finding becomes a
+    NOTE and stops being a warning at all; (5) one `attachnode:` key per
+    TARGET NODE silences every shared foot on it; (6) the shared-attach
+    warning offers the LANE key as its own, so one decision answers both
+    sentences; (7) a registry op distinct from `waive` records
+    acceptance and the lint reads it; (8) a generic post-pass folds every
+    warning naming one unordered arrow pair into a single keyed finding;
+    (9) geometry marked `routed: "authored"` downgrades to a note,
+    because the product already knows whose it is. Flipping the ROUND
+    TRIP ONLY: (c) the shared-attach warning is suppressed when the lane
+    key for the same pair is waived.
+
+    AND ONE THAT FLIPS NEITHER, kept because a negative result is the
+    half a reader cannot reconstruct: REWORDING THE REMEDY SENTENCE. A
+    version that prints "this cannot be waived: two feet at one point is
+    a genuine ambiguity" beside the same three geometry remedies leaves
+    both reds exactly red. Saying why a door is shut is not opening one,
+    and a class that accepted prose would be satisfied by every future
+    rewording of the same dead end.
+
+    AND ONE THE GUARD REFUSES INSTEAD OF ACCEPTING: deleting the
+    shared-attach check outright. Both reds go green under it — there is
+    no doorless warning left because there is no warning left — and
+    `test_the_lint_still_has_something_to_say_about_this_pair` fails, so
+    it arrives as "your repair removed the subject" rather than as a
+    flip. That is the one way a class shaped like this one can be
+    satisfied dishonestly, and it was driven rather than predicted.
+    """
+
+    def test_the_lint_still_has_something_to_say_about_this_pair(
+            self) -> None:
+        """The vacuity guard: the population contains the failing case.
+
+        BOTH REDS ARE STATEMENTS ABOUT WARNINGS THAT EXIST, so a scene
+        that stopped producing them satisfies both — zero survivors and
+        zero doorless lines — and a healthy expected failure would be
+        reported over a lint that had gone silent. This method is what
+        refuses that.
+
+        IT READS EVERY CHANNEL AND COUNTS NOTHING, and both of those are
+        corrections made after the first draft was DRIVEN under the nine
+        candidate repairs rather than reasoned about. That draft asserted
+        two warnings and exactly one waive key — which is the defect
+        restated, so it failed under eight of the nine honest repairs and
+        would have blocked the fix it exists to accept. A guard may say
+        the subject is alive; the moment it says HOW the subject is
+        packaged it has become a second red with no `expectedFailure` on
+        it. The fold repairs emit one line where there were two and the
+        demotion repairs move one out of `warnings` entirely, so the only
+        reading that is invariant under a fix is that the lint is not
+        SILENT about this pair, and that the shared-attach check in
+        particular is still awake.
+
+        `attach point` IS A LIVENESS KEY AND NOT A CONTRACT. It is the
+        emitter's own noun for the thing the user is being told about,
+        and it is here so that deleting the check outright — the one
+        "repair" that satisfies both reds by removing the subject — is
+        refused rather than celebrated. A repair that renames the concept
+        updates this line and says so; that is a cheaper failure than a
+        guard that cannot tell a fix from a deletion.
+
+        WATCHED FAILING ON DAMAGED INPUTS rather than reasoned about, and
+        the inputs are what was damaged, not the function: widening the
+        feet to 18.0px (`FAN_LANE_PITCH` exactly, `<` being strict) and
+        again to 40.0px empties the population — 0 lines about the pair
+        on every channel at both — and this method fails at both while
+        the two reds below go quietly green. Recorded 2026-09-01.
+        """
+        said = warnings_about(a_pair_arriving_at_one_point(), _R8_4_PAIR,
+                              "demo", channels=("errors", "warnings",
+                                                "notes"))
+        self.assertTrue(
+            said,
+            "the two feet are 10px apart on `n-t`, inside both the 18px "
+            "shared-attach radius and the 16px lane band, so the lint has "
+            "to say SOMETHING about this pair on some channel and it said "
+            "nothing at all. The reds beside this one are about which of "
+            "what it says can be answered, and over a silent lint they "
+            "pass vacuously")
+        self.assertTrue(
+            [ln for ln in said if "attach point" in ln],
+            "no line on any channel tells this pair they share an attach "
+            "point (%r). Both reds are satisfied by deleting that check, "
+            "and deleting it does not give the user a way to record a "
+            "decision — it removes the decision" % (said,))
+
+    def test_a_lane_only_pair_settles_under_the_waive_it_was_offered(
+            self) -> None:
+        """The live half: the registry's waive path really does silence.
+
+        THE RED CANNOT OBSERVE THIS. "Waiving every offered key left a
+        survivor" is satisfied by a `lint_layout` that ignores `waives`
+        entirely, by an artifact id that never reaches the key, and by a
+        key format that drifted from the one the message prints — three
+        different broken registries wearing this defect's face. A pair
+        that trips ONLY the lane check is the same machinery with the
+        shared-attach half removed, and it must go to zero.
+        """
+        pair = ("e-a-p", "e-b-q")
+        before = warnings_about(a_pair_that_only_runs_together(), pair, "ctl")
+        self.assertEqual(
+            len(before), 1,
+            "the control pair runs 160px together 10px apart into two "
+            "DIFFERENT nodes, so exactly the lane warning should name "
+            "both arrows and nothing else — %d did (%r)"
+            % (len(before), before))
+        survivors, keys = settle_the_pair(
+            a_pair_that_only_runs_together(), pair, "ctl")
+        self.assertEqual(
+            survivors, [],
+            "the waive key the lane warning printed (%s) did not silence "
+            "the lane warning when fed back to the same lint (%r). The "
+            "reds beside this accuse the shared-attach check of lacking "
+            "a door; over a registry that honours no door at all they "
+            "would be accusing the wrong half"
+            % (sorted(keys), survivors))
+
+    def test_waiving_every_door_the_pair_was_offered_settles_the_pair(
+            self) -> None:
+        """The round trip: the user's decision does not reach the pair.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS WHAT SURVIVES. One
+        warning of two remains after every key on offer is recorded, and
+        it is the un-keyed one — the direction matters because a pair
+        where the KEYED warning survived its own waive would be a broken
+        registry, which the green method above rules out first.
+
+        Asserted as "nothing about this pair is still warned" rather than
+        as the presence of any named key, because naming a key names a
+        repair: a per-pair key, a per-node key, the lane key inherited, a
+        fold, a demotion to a note and a suppression are all honest and
+        all measured, and a guard that greps for one fails the other
+        five while the behaviour is correct.
+        """
+        survivors, keys = settle_the_pair(
+            a_pair_arriving_at_one_point(), _R8_4_PAIR, "demo")
+        self.assertEqual(
+            survivors, [],
+            "the user took every door this pair was offered (%s) and the "
+            "drawing still argues with them: %d warning(s) stand, and "
+            "the remedies on offer are geometry changes to a shape they "
+            "have ruled fixed — %r"
+            % (sorted(keys), len(survivors), survivors))
+
+    def test_every_warning_about_the_pair_offers_a_door_of_its_own(
+            self) -> None:
+        """The affordance: one of the two sentences has no door at all.
+
+        THE MAGNITUDE IS 1 OF 2 AND THE DIRECTION IS DOORLESS. Measured
+        with no waive recorded, which is what makes this half independent
+        of the round trip above: it asks what the drawing OFFERS a user
+        who has not yet decided anything, and the answer is that one
+        sentence about this pair can be answered from the registry and
+        the other can only be answered with a pencil.
+
+        A WARNING IS THE CHANNEL UNDER TEST, deliberately, and that is
+        what keeps the "make it a note" repair honest rather than a
+        dodge: a note is the product saying something it does not ask the
+        user to clear, and a finding that stops demanding an action stops
+        needing a door.
+        """
+        mine = warnings_about(a_pair_arriving_at_one_point(), _R8_4_PAIR,
+                              "demo")
+        doorless = [ln for ln in mine if not _R8_4_WAIVE_RE.search(ln)]
+        self.assertEqual(
+            doorless, [],
+            "%d of the %d warnings about this one arrow pair offer no way "
+            "to record a decision, so the pair gets two verdicts on "
+            "whether it may stand: %r"
+            % (len(doorless), len(mine), doorless))
+
+
+#: r8-8's three closures. The ids are deliberately NOT the door names:
+#: `_r88_scrub` substitutes the id out of every rendered line so two
+#: closures compare as text, and an id that is also a plausible rendering
+#: ("answered", "lapsed") would be mangled inside the very failure message
+#: a reader uses to judge a candidate repair.
+_R88_DOORS = ("spoken", "lapsed", "unread")
+_R88_PINS = {"spoken": "p1", "lapsed": "p2", "unread": "p3"}
+#: One question, asked three times in ONE batch, so `direction`, `round`,
+#: `asked_at_revn` and the ❓'s own `author` are equal by construction and
+#: cannot stand in for a distinction nobody drew. Clause 1 of the guard
+#: ASSERTS that equality rather than trusting the construction, because
+#: the construction is exactly what a later edit breaks.
+_R88_QUESTION = "Which store holds the ledger?"
+#: The user's sentence, said out loud in the conversation and never typed
+#: into the rail. Invented here; no wording from any session survives in
+#: this file.
+_R88_ANSWER = "Postgres, with a read replica."
+#: Keys whose value differs between two closures for a reason that is not
+#: the reason they closed: `_PROV_VOLATILE`'s seven, plus the two this
+#: bench adds. Each closure here is its OWN apply, so `revn` and
+#: `short_id` count applies and say nothing about why a pin shut. Every
+#: entry makes these reds HARDER to flip and never easier, which is the
+#: safe direction for a set that is guessed at all.
+_R88_VOLATILE = _PROV_VOLATILE | {"revn", "short_id"}
+#: Everything one closure leaves behind: the registry record, whatever the
+#: apply SAID about the op, the events it appended, the standing `PIN_DEBT=`
+#: line, and the refusal when there was one. Red 1 demands the two closures
+#: differ on AT LEAST ONE of them — naming five and requiring one is what
+#: keeps the red from prescribing which surface a repair writes to.
+_R88_SURFACES = ("record", "say", "events", "nag", "refusal")
+#: The four of those a reader actually meets. Red 2 drops `record`, and
+#: that exclusion is the reason it is a separate method — see its
+#: docstring on the residue.
+_R88_TOLD = ("say", "events", "nag", "refusal")
+
+
+def _r88_scrub(obj: Any, pid: str) -> Any:
+    """Strip per-apply keys and blank the pin id out of every string.
+
+    Two jobs in one walk because they answer one question: what would
+    these two closures look like to a reader who did not already know
+    which pin was which. `_prov_scrub` does the first half against a
+    different volatile set and cannot do the second at all — the nag and
+    the echo are rendered TEXT, and an id left in them makes every
+    closure differ for the one reason that is never provenance.
+
+    Args:
+        obj: Any part of a reading — dict, list or scalar.
+        pid: The pin id to replace with `<pin>` wherever it appears.
+
+    Returns:
+        The same structure with `_R88_VOLATILE` keys removed at every
+        depth, dict keys sorted, and `pid` substituted inside strings.
+    """
+    if isinstance(obj, dict):
+        return {k: _r88_scrub(v, pid) for k, v in sorted(obj.items())
+                if k not in _R88_VOLATILE}
+    if isinstance(obj, list):
+        return [_r88_scrub(v, pid) for v in obj]
+    if isinstance(obj, str):
+        return obj.replace(pid, "<pin>")
+    return obj
+
+
+def pin_closure_bench() -> dict[str, Any]:
+    """Close three identical pins for three different reasons.
+
+    THE GROUND TRUTH IS WHY EACH ONE CLOSED, and the bench is the only
+    place it can live — which is the finding. `spoken` was answered in
+    conversation and the agent closes it holding the user's sentence;
+    `lapsed` was never answered and simply stopped mattering; `unread`
+    carries a draft the agent composed through its own door and that
+    nobody has ruled on. All three then go through the SAME shipped
+    close — a `resolve_pin` op posted to `/api/apply` — so any difference
+    in the readings is the reason for the closure and nothing else.
+
+    THE SENTENCE IS OFFERED AT THE DOOR, under the record's own word for
+    it. `spoken`'s op carries `answer`, which is not a bet on a repair's
+    spelling: it is the key the `pin` op MINTS on every pin record,
+    holding None from birth. The agent has the words and puts them where
+    the record already has a slot for them; today the op reaches
+    `apply_batch`, the key is ignored, and the pin closes with `answer`
+    still None. That is r8-8 in one line, and it is why a bench that
+    posted a bare resolve for both pins could not be flipped by any
+    repair at all — two identical bodies have nothing for a fix to read.
+
+    ONE APPLY PER CLOSURE, deliberately, and it is what `_R88_VOLATILE`
+    grew two keys for. Putting all three resolves in one batch would make
+    a refusal — the shape half the honest repairs take — refuse the
+    whole batch and leave every pin open and identical, so the red could
+    not flip under the repair most likely to land.
+
+    A REFUSAL IS A RESULT. An `HTTPError` out of the transport is
+    recorded as the closure's `refusal` and nothing else is caught: a
+    bench that swallowed the rest would report a broken driver as a
+    product decision, and both reds below are `@unittest.expectedFailure`
+    where an error and a failure read identically.
+
+    Returns:
+        One reading per entry of `_R88_DOORS`, each carrying
+        `_R88_SURFACES` plus `landed`; plus `minted` (all three records
+        before anything was said, for the guard's equality clause),
+        `waiting` (the `unread` record with its draft on it) and
+        `posted` (every string each close actually put on the wire).
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-pin-close-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        store.apply_batch({
+            "base_revn": store.head_revn(), "artifact": "flow",
+            "ops": [{"op": "pin", "id": _R88_PINS[door], "target": "n1",
+                     "question": _R88_QUESTION} for door in _R88_DOORS]})
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        app = canvas.ServerApp(project)
+        transport = _as_user_transport(app)
+
+        def record(pid: str) -> dict | None:
+            """Read one pin out of the live registry.
+
+            Args:
+                pid: The pin id.
+
+            Returns:
+                The registry record, or None once something has pruned
+                it — which no path here does, so None is a finding.
+            """
+            return next((p for p in app.store.registry["pins"]
+                         if p["id"] == pid), None)
+
+        out: dict[str, Any] = {
+            "minted": {door: _r88_scrub(record(_R88_PINS[door]),
+                                        _R88_PINS[door])
+                       for door in _R88_DOORS},
+            "posted": {}}
+        # THE AGENT'S ONLY TEXT DOOR, and the reason `unread` exists. Since
+        # the provenance repair landed, `x-as-user answer` posts here: the
+        # words park on the pin, `answer` stays empty and the pin stays
+        # open until the user promotes or discards. Driven as the route
+        # rather than as `Store.propose_pin_answer` so the `pin_proposal`
+        # event is real — it is the event a repair announcing the drop is
+        # likeliest to mirror.
+        transport(_AS_USER_URL + "api/pins/propose",
+                  {"id": _R88_PINS["unread"], "answer": _R88_ANSWER})
+        out["waiting"] = _r88_scrub(record(_R88_PINS["unread"]),
+                                    _R88_PINS["unread"])
+        for door in _R88_DOORS:
+            pid = _R88_PINS[door]
+            op: dict[str, Any] = {"op": "resolve_pin", "id": pid}
+            if door == "spoken":
+                op["answer"] = _R88_ANSWER
+            body = {"base_revn": app.store.head_revn(), "artifact": "flow",
+                    "ops": [op]}
+            # EVERY STRING THE BODY CARRIES, at any depth, so the guard's
+            # "the words crossed the door" clause reads what was SENT and
+            # not what this loop believes it sent.
+            out["posted"][door] = sorted(_prov_strings(body))
+            before = app.events.seq
+            resp: dict[str, Any] = {}
+            refusal = None
+            try:
+                resp = transport(_AS_USER_URL + "api/apply", body)
+            except urllib.error.HTTPError as exc:
+                refusal = "%s: %s" % (exc.code, exc.reason)
+            row = next((d for d in app.store.pin_debt() if d["id"] == pid),
+                       None)
+            out[door] = {
+                "record": _r88_scrub(record(pid), pid),
+                # THE THREE PROSE CHANNELS THE APPLY ANSWERS WITH, filtered
+                # to the lines naming this pin. Read off the response and
+                # not rebuilt from `intent_echo` here, because a repair may
+                # speak through any of the three and a transcription would
+                # only hear the one this file guessed.
+                "say": _r88_scrub(
+                    [line for key in ("intent_echo", "notes", "consequences")
+                     for line in (resp.get(key) or []) if pid in line], pid),
+                "events": _r88_scrub(
+                    [e for e in app.events.since(before)
+                     if pid in json.dumps(e, ensure_ascii=False)], pid),
+                # THE STANDING NAG, and it is the surface that catches the
+                # repair nobody expects to need catching: `Store.pin_debt`
+                # filters `status in ("open", "answered")`, so a repair
+                # that marks the closure with a NEW status and stops there
+                # renders here exactly as the silence it replaced.
+                "nag": _r88_scrub(canvas.pin_debt_entry(row) if row else "",
+                                  pid),
+                "refusal": _r88_scrub(refusal, pid),
+                "landed": refusal is None}
+        return out
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestAClosedPinSaysWhyItClosed(unittest.TestCase):
+    """Three reasons to shut a question, one record for all of them.
+
+    **r8-8**: an answer given in conversation is acted on and then
+    dropped, so a pin the user answered at length is indistinguishable
+    from one that merely stopped being relevant. Measured on the R8
+    session at revision 98: 43 pins, 42 resolved, 13 carrying stored
+    answer text and 29 carrying none — and the 13 are exactly the 13
+    that went through a `pin_answer` route, 1:1. The other 29 were closed
+    with `{"op": "resolve_pin", "id": ...}`, which carries an id and
+    nothing else. Only answers posted to the API keep their text.
+
+    THE RELATION, NOT THE INCIDENT: a closure records WHY it happened. A
+    pin closed on the user's answer and a pin closed because nobody cares
+    any more must not leave one reading, and a pin closed while a draft
+    nobody ruled on is still waiting must be refused or announced. Two
+    reds, because the halves fail apart and the measurement below shows
+    it: every repair that flips one leaves the other exactly where it
+    was, in both directions.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT, on the
+    `TestAnAnswerSaysWhoseWordsItIs` precedent. Every scene-level
+    detector is correctly quiet here: the scene is coherent, the ❓ is
+    gone because a resolve takes it down, and nothing a lint can be
+    handed knows what was said out loud. Registering a check name would
+    state a contract no rule over a list of elements can meet.
+
+    IT PRESCRIBES NO REPAIR, and eleven shapes were MEASURED rather than
+    argued — each monkeypatched from a throwaway plugin outside the repo
+    and applied alone against this tree on 2026-09-01, one process per
+    shape so no two stack. Three flip red 1:
+
+      (a) THE CLOSE KEEPS THE WORDS. `resolve_pin` reads the `answer` the
+          op already carries and writes it onto the record with a source
+          saying it was spoken. Red 1 green; red 2 untouched.
+      (b) A CLOSURE EVENT. Nothing is stored on the pin at all — the
+          apply appends a `pin_resolved` carrying what the op said, and
+          the event log is where the sentence survives. This is the one
+          that proves red 1 is not a disguised "add a field to the
+          record": it adds none.
+      (c) THE DOOR REFUSES WORDS IT CANNOT KEEP. A resolve carrying
+          anything beyond an id is refused, naming the pin and telling
+          the caller to have the user answer it first. The pin stays
+          open, which satisfies the red's second half rather than its
+          first: the answer was not kept, but it was not lost either,
+          because the question is still being asked.
+
+    Six flip red 2, and the last two are one repair measured twice:
+
+      (d) REFUSE WHILE A DRAFT WAITS. `resolve_pin` over a pin carrying
+          `proposed_answer` is refused; the user promotes or discards.
+      (e) REQUIRE THE DISCARD IN THE SAME BATCH. The same refusal with an
+          escape hatch — send the drop alongside the close and it lands.
+      (f) A DROP EVENT. The close emits the event a real discard emits,
+          carrying the wording that died with the pin.
+      (g) A HOUSEKEEPING NOTE. The apply's own `notes` name the pin whose
+          draft went unread, on the channel that already carries "its ❓
+          was already gone".
+      (h) PARK INSTEAD OF CLOSING. The resolve quietly does not close a
+          pin with a live draft; it stays open and stays on the nag.
+      (i) A STATUS OF ITS OWN, **with `Store.pin_debt` widened to carry
+          it**. Red 2 green.
+
+    FIVE THAT DO NOT FLIP EITHER RED, measured rather than predicted,
+    and kept because a negative result is the part a reader cannot
+    reconstruct:
+
+      * (j) THE ECHO REPEATS WHAT THE CLOSE CARRIED. `intent_echo` prints
+        the sentence back. Red 1's first half moves — the two closures
+        finally read differently — and its second does not, which is
+        correct and is the reason that half is phrased over the two
+        DURABLE surfaces: an echo is computed for one response and then
+        gone, so a product that recites the user's answer at apply time
+        and keeps none of it has fixed nothing r8-8 is about.
+      * (k) A `resolution` ENUM WITH NO TEXT, in both the flat form
+        (every close gets `"unspecified"`) and the derived form (a close
+        carrying words is filed `"answered"`, a bare one `"obsolete"`).
+        The derived form moves red 1's first half and not its second.
+        This is a JUDGEMENT and it is disclosed: a category records that
+        somebody answered and still throws the sentence away, and the
+        census this red was written from counts stored TEXT. An enum
+        plus the words flips it; the enum alone is half a repair.
+      * (l) A NEW STATUS WITH THE READER LEFT ALONE — (i) without its
+        second half. The pin closes into `closed_unread`, which is a
+        perfectly good record of what happened, and `Store.pin_debt`
+        filters `status in ("open", "answered")`, so the pin drops off
+        `PIN_DEBT=` entirely and red 2 stays red on all four surfaces.
+        THIS IS THE ONE TO READ IF YOU ARE HOLDING A REPAIR: whatever
+        slot you widen, its READERS widen too, and the nag is in red 2's
+        surface list precisely so that a repair which marks a closure by
+        making it invisible arrives as a failure rather than as a fix.
+
+    AND ONE REWRITE THEY BREAK UNDER, named because §8 says to name them:
+    a repair that adds a NEW, well-marked close verb and leaves
+    `resolve_pin` taking a bare id keeps both reds red. That is a
+    judgement and it is the one this pin makes — the census counted the
+    door the agent actually used 29 times, and an unmarked door left
+    standing beside a marked one is the defect surviving next to its own
+    fix.
+    """
+
+    def test_an_answered_close_and_a_lapsed_close_leave_one_record(
+            self) -> None:
+        """The record half: two reasons, one reading, on every surface.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS COLLAPSE. Five
+        surfaces, and the closure of a pin the user answered matches the
+        closure of a pin nobody cared about on FIVE of five — one
+        reading for two reasons. Not four, not one: the record, the
+        three prose channels the apply answers with, the events it
+        appended and the standing nag are all byte-identical once the id
+        is taken out, and the only thing that differed was a key the
+        door dropped on the floor.
+
+        REQUIRING ONE SURFACE OF FIVE AND NOT FIVE OF FIVE, deliberately.
+        A repair only has to make the two closures tell apart SOMEWHERE;
+        insisting on every surface would name the set of places a fix
+        must write, which is a repair wearing an assertion's clothes.
+        Candidate (b) writes to exactly one of the five and is honest.
+
+        THE SECOND HALF IS A DISJUNCTION AND BOTH ARMS ARE THE LAW: the
+        user's words survived the closure, OR the closure did not happen.
+        A door that refuses to shut a question it cannot record has not
+        lost the answer — the pin is still asking, and the user can still
+        answer it. A door that shuts and keeps the sentence has not lost
+        it either. What r8-8 names is the third case, which is the one
+        this tree ships.
+
+        AND THE SURVIVAL ARM IS READ OFF THE TWO DURABLE SURFACES ONLY.
+        Measured with candidate (j): a repair that recites the sentence
+        in the apply's echo makes the readings differ and stores nothing,
+        and an echo lives exactly as long as the response it rode in on.
+        The finding is that the TEXT is dropped, so the arm that says it
+        was kept looks where text is kept.
+
+        THE NEAREST FALSE GREEN is a difference that is not a reason —
+        two pins differ by id and two applies by revision — so
+        `_R88_VOLATILE` removes both before the comparison, all three
+        pins are minted in ONE batch carrying ONE question string, and
+        clause 1 of the guard asserts that the three were identical
+        before anything was said to them. Watched failing: minting the
+        three with different question text makes this red's first half
+        pass and the guard red.
+        """
+        bench = pin_closure_bench()
+        spoken, lapsed = bench["spoken"], bench["lapsed"]
+        same = [s for s in _R88_SURFACES if spoken[s] == lapsed[s]]
+        # THE STORES, NOT THE PROSE. See the docstring: an echo is not a
+        # place a sentence survives.
+        survived = _R88_ANSWER in json.dumps(
+            [spoken["record"], spoken["events"]], ensure_ascii=False)
+        # `open` IS THE WORD THE `pin` OP MINTS, so this arm tests the
+        # domain's own starting vocabulary rather than a repair's chosen
+        # ending one, and every terminal spelling passes it.
+        asking = "open" in _prov_strings(spoken["record"])
+        self.assertEqual(
+            (len(same) < len(_R88_SURFACES), survived or asking),
+            (True, True),
+            "a pin the user ANSWERED in conversation and a pin that "
+            "merely stopped mattering closed to the same reading on %d "
+            "of %d surfaces (%s) — 1 record for 2 reasons — and the "
+            "user's sentence survived in neither store while the pin "
+            "stopped asking. The close carried the words: %s. It kept "
+            "them nowhere: %s. Take them at the door, emit them on an "
+            "event, or refuse to shut a question you cannot record — "
+            "but a closure that says only `resolved` makes every "
+            "answered question in the project unverifiable at once"
+            % (len(same), len(_R88_SURFACES), ", ".join(same),
+               json.dumps(bench["posted"]["spoken"]),
+               json.dumps(spoken["record"], sort_keys=True)))
+
+    def test_a_draft_nobody_ruled_on_is_closed_in_silence(self) -> None:
+        """The waiting-draft half: the user is never asked.
+
+        SEPARATE FROM ITS NEIGHBOUR BECAUSE IT FAILS SEPARATELY, and the
+        separation is MEASURED in both directions rather than asserted.
+        Of the eleven shapes in the class docstring, three flip red 1 and
+        none of those three moves this one; six flip this one and none of
+        those six moves red 1. There is no rung of a ladder here — the
+        two halves do not share a repair at all.
+
+        THE SUBJECT is a pin carrying a draft the agent composed through
+        its own door, which the user has not promoted and has not
+        discarded. `resolve_pin` closes it: `status` becomes `resolved`,
+        `answer` stays None, the draft stays sitting on the record, and
+        the pin leaves the open list without the user ever ruling on it.
+        The provenance repair holds — no testimony was written, and the
+        agent's words never became the user's — and the pin is shut all
+        the same.
+
+        `record` IS NOT IN THIS COMPARISON, and that is the reason this
+        method exists rather than being a clause of its neighbour. The
+        abandoned draft IS still on the record, so the two records
+        differ, and a comparison including them would be green today
+        over exactly the defect. But that difference is a RESIDUE and
+        not a statement: an open pin with a draft on it and a closed pin
+        with a draft on it carry the same leftover, so the record
+        distinguishes "the user ruled" from "nobody looked" not at all.
+        What must differ is what somebody is TOLD.
+
+        THE NAG IS THE SHARP END, and it is here for a repair that has
+        not been written yet. `Store.pin_debt` filters
+        `status in ("open", "answered")`, so a closure marked with a new
+        status renders here as nothing — the same nothing it replaced —
+        and this red stays red until the reader is widened with the
+        writer. Measured as candidates (l) and (i), which are one repair
+        with and without its second half.
+
+        THE ALTERNATIVE ARM IS A REFUSAL. A close that will not shut a
+        question with an unruled draft on it satisfies this red without
+        announcing anything at all, because the pin is still asking and
+        the user still gets their say. Candidates (d), (e) and (h) all
+        take it.
+        """
+        bench = pin_closure_bench()
+        unread, lapsed = bench["unread"], bench["lapsed"]
+        same = [s for s in _R88_TOLD if unread[s] == lapsed[s]]
+        asking = "open" in _prov_strings(unread["record"])
+        self.assertTrue(
+            len(same) < len(_R88_TOLD) or asking,
+            "a pin closed while a draft answer nobody had ruled on was "
+            "waiting on it read identically to a pin closed with nothing "
+            "waiting, on %d of %d surfaces somebody reads (%s), and the "
+            "pin stopped asking. PIN_DEBT= printed %r for both. The "
+            "draft is still on the record (%s), which is a leftover and "
+            "not a sentence: an open pin carries the same one. Refuse "
+            "the close, or say that a draft died with it — a question "
+            "that leaves the open list without the user ever seeing the "
+            "wording put in their mouth is the provenance door being "
+            "walked around rather than through"
+            % (len(same), len(_R88_TOLD), ", ".join(same), lapsed["nag"],
+               json.dumps(unread["record"], sort_keys=True)))
+
+    def test_the_bench_shut_three_pins_and_every_reader_spoke(self) -> None:
+        """The vacuity guard: a sameness claim over a live measurement.
+
+        UNGATED AND ASSERTED IN EVERY COMMIT, because both reds above
+        fail on readings being EQUAL and a broken bench manufactures
+        DIFFERENCE with no effort at all. Three pins that were never
+        alike, a close aimed at the wrong id, a draft that was never
+        parked — each makes the readings differ, and each reads as a fix.
+        This claims the facts that make sameness mean something.
+
+        THE REDS NAME A RELATION AND SO DOES THIS. Every clause is
+        phrased over what a repair must ACHIEVE and none over where it
+        must write: `open` is the word the `pin` op mints, the sentence
+        is looked for at any depth in the posted body, and "the reader
+        spoke" asks that the closure produced a line naming its pin
+        rather than that any particular channel produced it.
+
+        WATCHED FAILING, ONE CLAUSE AT A TIME, by damaging the bench's
+        INPUTS in a throwaway copy outside the repo — never by replacing
+        a function, which is blind to anything cached or decorated
+        between the damage and the reading. Driven 2026-09-01 against
+        the tree that ships this, one process per row:
+
+            damage                       clause   reds while it fired
+            three different questions     1        red 1 half-passed
+            the control close aimed at
+              an id no pin carries        2        red 2 PASSED
+            the words left off the
+              spoken close's op body      3        both red
+            the proposal never posted     4        both red
+            the reading asked for a pin
+              that was never closed       5        both red
+
+        THE SECOND AND FIRST ROWS ARE THE POINT. Both damages turn a red
+        green over a tree where nothing was repaired, which is the exact
+        shape of every silent all-clear this harness exists to refuse,
+        and both arrive here as a failure somebody has to read.
+        """
+        bench = pin_closure_bench()
+        minted = list(bench["minted"].values())
+        self.assertEqual(
+            [m for m in minted if m != minted[0]], [],
+            "the three pins were not identical the moment they were "
+            "minted (%s), so the reds beside this are comparing closures "
+            "that differed before anything closed them — and a "
+            "difference the bench put there reads exactly like a repair"
+            % json.dumps(bench["minted"], sort_keys=True))
+        lapsed = bench["lapsed"]
+        self.assertEqual(
+            (lapsed["landed"], "open" in _prov_strings(lapsed["record"])),
+            (True, False),
+            "the control close — a pin nobody answered, shut the way the "
+            "agent shuts one — did not land and leave the pin closed "
+            "(landed=%r, record=%s%s). Both reds compare something "
+            "against that closure, so a door that is simply broken makes "
+            "them differ for a reason that has nothing to do with why "
+            "anything shut"
+            % (lapsed["landed"],
+               json.dumps(lapsed["record"], sort_keys=True),
+               "" if lapsed["refusal"] is None
+               else ", refused: %s" % lapsed["refusal"]))
+        self.assertIn(
+            _R88_ANSWER, bench["posted"]["spoken"],
+            "the user's sentence never crossed the door on the close "
+            "that is supposed to be carrying it: the body held %s. Red 1 "
+            "would then be accusing the product of dropping something "
+            "nobody handed it"
+            % json.dumps(bench["posted"]["spoken"]))
+        waiting = _prov_strings(bench["waiting"])
+        self.assertEqual(
+            (_R88_ANSWER in waiting, "open" in waiting), (True, True),
+            "no unruled draft was waiting on the third pin when it was "
+            "closed (%s), so red 2 is measuring an ordinary resolve and "
+            "calling it a draft closed unread"
+            % json.dumps(bench["waiting"], sort_keys=True))
+        mute = [door for door in _R88_DOORS
+                if (bench[door]["landed"] and not bench[door]["say"])
+                or (not bench[door]["landed"]
+                    and not bench[door]["refusal"])]
+        self.assertEqual(
+            mute, [],
+            "%d of %d closures said nothing at all — neither a line "
+            "naming the pin nor a reason for refusing: %s. Readings that "
+            "are empty for a bench reason are equal for a bench reason, "
+            "and both reds above are emptiness claims"
+            % (len(mute), len(_R88_DOORS),
+               json.dumps({d: bench[d] for d in mute}, sort_keys=True)))
+
+
+# r8-10 (2026-09-01): the R8 optimizer round's persona 2 named a benchmark
+# vendor feed, an overnight portfolio-value table, a six-column
+# reference-data layer and a one-contract-three-feeds merge. Exactly one
+# reached the picture — a `s-vendor` node with one outgoing arrow — and the
+# rest landed in `customData.tooltip`, where only a reader who opens that
+# element ever meets them. `daily-run-flow`, the diagram OF the pipeline
+# those sources feed, matched none of the four words at all. Measured on the
+# shipped project: `benchmark` False, `vendor` False, `reference` False,
+# `portfolio value` False. The agent's own report then said "nothing draws
+# them as three suppliers, and the note says so explicitly so nobody
+# re-splits them later" — true, and true for the wrong reason: nothing drew
+# them as anything, and a note forbidding a re-split guards a structure that
+# was never built.
+#
+# WHAT IS ENCODED HERE IS NOT THAT CHOICE. A defensible steelman exists and
+# is on the record — a screen mock is not where sources belong — and no
+# check can read intent, so nothing below asserts that the agent should have
+# drawn more. What is asserted is that the TOOL holds both halves of the
+# question and answers it nowhere: it stores the answer's words, it holds
+# every label in the project, and the revision that closes the pin reports
+# the same thing whether the answer named twelve things the drawing holds
+# none of or three it holds all of. The steelman is exactly the sentence
+# that has no slot to be written in.
+#
+# THE ANSWER'S OWN WORDS ARE SCRUBBED OUT OF EVERY SURFACE BEFORE THEY ARE
+# COMPARED (`_R8_ECHOED`). Holding the words is not reporting on them, and a
+# comparison that let `pin["answer"]` through would be satisfied by a store
+# that already exists and a reader who does not: the reader this finding is
+# about would still have to re-read the answer and re-scan the labels
+# himself. The pseudo-repair in the class docstring is that shape, and the
+# neighbour below refuses it.
+_ANSWER_STOPWORDS = frozenset((
+    "the", "and", "are", "was", "were", "this", "that", "from",
+    "with", "into", "onto", "over", "under", "they", "them", "their",
+    "there", "here", "what", "which", "when", "where", "does", "done",
+    "have", "has", "had", "will", "would", "shall", "should", "must",
+    "been", "being", "your", "yours", "ours", "than", "then", "also",
+    "just", "only", "very", "much", "such", "about", "after",
+    "before", "while", "because", "nothing", "something",
+    "anything"))
+
+# Three visible words, and the answers below are written against them: one
+# answer uses only these, one uses none of them. A tokenizer is a SPELLING
+# and the relation is `named things vs drawn things`, so the arms are built
+# so that no reasonable tokenizer could score them the other way round —
+# total coverage against total absence, never a margin.
+_R8_LABELS = ("EDGAR", "Filings", "Fundamentals")
+
+_R8_ANSWERS = {
+    "undrawn": ("A vendor feed carries the benchmark series, a reference "
+                "table carries currency, and portfolio value is written "
+                "overnight."),
+    "drawn": "EDGAR, Filings, Fundamentals.",
+    "reworded": "Fundamentals, from Filings, out of EDGAR."}
+
+# BYTE-IDENTICAL ACROSS ALL THREE ARMS, which is what makes a difference in
+# the report evidence about the ANSWER rather than about the ops. The agent
+# wrote the same tooltip either way; that it happened to paraphrase the
+# answer in the R8 project is the agent's conduct and not the tool's.
+_R8_CLOSING_OPS = ({"op": "mod", "id": "n2",
+                    "attrs": {"tooltip": "Noted; see the detail."}},
+                   {"op": "resolve_pin", "id": "pin-src"})
+
+_R8_VOLATILE = ("saved_at", "short_id", "seed", "versionNonce", "updated",
+                "answered_at", "revn", "base_revn", "ts", "at")
+
+_R8_ECHOED = ("answer", "proposed_answer")
+
+
+def answer_words(text: str) -> set[str]:
+    """The content words a sentence names.
+
+    Args:
+        text: An answer, a label, or any prose.
+
+    Returns:
+        Lowercased words over three characters that are not stopwords.
+    """
+    return {w.lower() for w in re.findall(r"[A-Za-z][A-Za-z-]+", text or "")
+            if len(w) > 3 and w.lower() not in _ANSWER_STOPWORDS}
+
+
+def scene_words(elements: list[dict[str, Any]]) -> set[str]:
+    """Every content word a reader of the PICTURE can see.
+
+    `text` only, deliberately: a word that reaches a drawing solely
+    through `customData` is the r8-10 case itself, so counting it here
+    would make the finding unmeasurable by definition.
+
+    Args:
+        elements: A scene's element list.
+
+    Returns:
+        The union of `answer_words` over every element's visible text.
+    """
+    out: set[str] = set()
+    for e in elements:
+        if isinstance(e.get("text"), str):
+            out |= answer_words(e["text"])
+    return out
+
+
+def answer_coverage(answer: str, elements: list[dict[str, Any]]
+                    ) -> tuple[int, int]:
+    """How much of an answer the drawing already says out loud.
+
+    Args:
+        answer: The stored answer text.
+        elements: The scene the pin lives on.
+
+    Returns:
+        `(drawn, named)` — how many of the things the answer names carry
+        a visible label, out of how many it names.
+    """
+    named = answer_words(answer)
+    return len(named & scene_words(elements)), len(named)
+
+
+def _r8_scrub(obj: Any) -> Any:
+    """Drop the keys nobody is asserting, and the verbatim answer.
+
+    Args:
+        obj: Any JSON-shaped surface.
+
+    Returns:
+        The same shape without `_R8_VOLATILE` (differs run to run) or
+        `_R8_ECHOED` (the answer's own words — see the header note).
+    """
+    if isinstance(obj, dict):
+        return {k: _r8_scrub(v) for k, v in obj.items()
+                if k not in _R8_VOLATILE and k not in _R8_ECHOED}
+    if isinstance(obj, list):
+        return [_r8_scrub(v) for v in obj]
+    return obj
+
+
+def r8_digest(surface: Any) -> str:
+    """A short identity for a surface, so a failure message stays readable.
+
+    Args:
+        surface: Any JSON-shaped surface.
+
+    Returns:
+        Twelve hex characters of its sorted-key JSON's SHA-256.
+    """
+    return hashlib.sha256(
+        json.dumps(surface, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:12]
+
+
+def _stage_r8_flow(root: Path, labels: tuple[str, ...]) -> None:
+    """Write a three-node flow whose only visible words are `labels`.
+
+    Three bare nodes and no arrows: the class asserts nothing about
+    geometry, and every element the scene does not need is a word a
+    reader could mistake for one of the answer's.
+
+    Args:
+        root: The project root to stage under.
+        labels: The captions to bind, shortest-first. A short tuple
+            leaves the remaining nodes unlabelled, which is how the
+            guard's wordless-scene mutant is built for real.
+    """
+    pk = root / "project_knowledge"
+    (pk / "artifacts").mkdir(parents=True)
+    (pk / "saves").mkdir(parents=True)
+    els: list[dict[str, Any]] = []
+    for i in range(3):
+        eid = "n%d" % i
+        base = {"angle": 0, "strokeColor": "#1e1e1e",
+                "backgroundColor": "transparent", "fillStyle": "solid",
+                "strokeWidth": 2, "strokeStyle": "solid", "roughness": 1,
+                "opacity": 100, "groupIds": [], "version": 1,
+                "isDeleted": False, "updated": 1, "link": None,
+                "locked": False, "roundness": None, "frameId": None}
+        lab = labels[i] if i < len(labels) else None
+        els.append(dict(base, id=eid, type="rectangle", x=i * 300, y=0,
+                        width=160, height=80, seed=i + 1, versionNonce=i + 1,
+                        boundElements=([{"id": eid + "t", "type": "text"}]
+                                       if lab else []),
+                        customData={"role": "node", "kind": "transform"}))
+        if lab:
+            els.append(dict(base, id=eid + "t", type="text", x=i * 300 + 10,
+                            y=30, width=140, height=25, seed=50 + i,
+                            versionNonce=50 + i, boundElements=[], text=lab,
+                            originalText=lab, fontSize=20, fontFamily=1,
+                            textAlign="center", verticalAlign="middle",
+                            containerId=eid, lineHeight=1.25,
+                            customData={"role": "label"}))
+    (pk / "artifacts" / "flow.excalidraw").write_text(
+        json.dumps({"type": "excalidraw", "version": 2, "source": "t",
+                    "elements": els, "appState": {}, "files": {}}),
+        encoding="utf-8")
+
+
+def close_a_pin_with(case: unittest.TestCase, answer: str,
+                     labels: tuple[str, ...] = _R8_LABELS
+                     ) -> dict[str, Any]:
+    """Ask a pin, answer it, close it — and collect every surface.
+
+    Driven through a real `ServerApp` rather than a bare `Store` because
+    two of the surfaces are the server's: `applied_reading` is the half
+    of an apply response the agent READS, and the `pin_answer` event is
+    the only place an answer's text reaches an agent watching the log.
+    A bare `Store` reaches neither, and a class about what nothing
+    reports may not quietly leave two reporters out of the room.
+
+    Args:
+        case: The test, for `addCleanup` on the temp project.
+        answer: The sentence the user typed into the rail.
+        labels: Passed through to `_stage_r8_flow`.
+
+    Returns:
+        `answer`, `coverage`, `scene_words`, `ops`, the `report` (every
+        surface the closing revision produces) and the durable `pin`
+        record, both scrubbed.
+    """
+    root = Path(tempfile.mkdtemp(prefix="r8-10-"))
+    case.addCleanup(shutil.rmtree, root, ignore_errors=True)
+    _stage_r8_flow(root, labels)
+    app = canvas.ServerApp(canvas.Project(root))
+    case.addCleanup(app.log_file.close)
+    st = app.store
+    st.apply_batch({"artifact": "flow", "base_revn": st.head_revn(),
+                    "summary": "ask", "ops": [
+                        {"op": "pin", "target": "n2", "id": "pin-src",
+                         "question": "Where do fundamentals come from?"}]})
+    app.pin_answered(st.answer_pin("pin-src", answer))
+    batch = {"artifact": "flow", "base_revn": st.head_revn(),
+             "summary": "record what they said",
+             "ops": json.loads(json.dumps(list(_R8_CLOSING_OPS)))}
+    record, _ = st.apply_batch(json.loads(json.dumps(batch)))
+    pin = next(p for p in st.registry["pins"] if p["id"] == "pin-src")
+    els = st.scenes["flow"]
+    return {
+        "answer": answer,
+        "coverage": answer_coverage(answer, els),
+        "scene_words": sorted(scene_words(els)),
+        "ops": _R8_CLOSING_OPS,
+        "report": _r8_scrub({
+            "summary": record["summary"],
+            "artifacts": record["artifacts"],
+            "registry_changes": record.get("registry_changes"),
+            "reconciliation": record.get("reconciliation"),
+            "tripwires": record.get("tripwires"),
+            "reading": app.applied_reading(batch, record),
+            "debt": st.pin_debt(),
+            "issues": list(st.issues),
+            "lint": canvas.lint_layout(els, artifact_type="flow"),
+            "events": app.events.since(0),
+            "state_pins": st.public_state().get("pins")}),
+        "pin": _r8_scrub(dict(pin))}
+
+
+def the_r8_arms(case: unittest.TestCase) -> dict[str, dict[str, Any]]:
+    """The three arms this class reads its colours off.
+
+    Args:
+        case: The test, threaded through for cleanup.
+
+    Returns:
+        `undrawn` (names twelve things, the drawing holds none) and the
+        two controls `drawn`/`reworded` (different sentences, identical
+        coverage), each closed by the same ops.
+    """
+    return {name: close_a_pin_with(case, text)
+            for name, text in _R8_ANSWERS.items()}
+
+
+def assert_the_r8_arms_put_the_case(case: unittest.TestCase,
+                                    arms: dict[str, dict[str, Any]]) -> None:
+    """Refuse to read a colour off arms that cannot carry the defect.
+
+    Nine clauses, because eight of the ways this class could go quiet
+    are ways of BUILDING it rather than of asserting it: an empty
+    surface, a wordless scene, an undrawn arm that is really drawn, a
+    two-word answer, a control that is really the defect, controls whose
+    coverage differs (which would make the neighbour call an honest
+    repair a regression), controls that are the same string, and arms
+    closed by different ops (which would make any difference in the
+    report evidence about the ops).
+
+    Args:
+        case: The test raising the assertions. The first clause the
+            arms fail raises through it and no later clause runs.
+        arms: The arm set to audit.
+    """
+    missing = [n for n in ("undrawn", "drawn", "reworded") if n not in arms]
+    case.assertEqual(missing, [],
+                     "arms missing: %s — there is nothing to compare"
+                     % missing)
+    blank = [n for n, a in arms.items()
+             if not a.get("report") or not a.get("pin")]
+    case.assertEqual(
+        blank, [], "%s produced an EMPTY surface, so every comparison "
+                   "below is between two nothings" % blank)
+    wordless = [n for n, a in arms.items() if not a.get("scene_words")]
+    case.assertEqual(
+        wordless, [], "%s runs on a scene with NO visible words, so "
+                      "'the drawing holds none of them' is true of every "
+                      "answer and distinguishes nothing" % wordless)
+    drawn_u, named_u = arms["undrawn"]["coverage"]
+    case.assertEqual(
+        drawn_u, 0, "the undrawn arm's answer reaches %d labels, so this "
+                    "population does not contain the r8-10 case at all"
+                    % drawn_u)
+    case.assertGreaterEqual(
+        named_u, 8, "the undrawn arm names only %d things; an answer that "
+                    "names almost nothing and draws none of it is not the "
+                    "finding" % named_u)
+    for name in ("drawn", "reworded"):
+        drawn, named = arms[name]["coverage"]
+        case.assertEqual(
+            (drawn, drawn == named), (named, True),
+            "the %s control draws %d of the %d things it names, so it is "
+            "not the opposite pole it is being used as" % (name, drawn,
+                                                           named))
+    case.assertEqual(
+        arms["drawn"]["coverage"], arms["reworded"]["coverage"],
+        "the two controls have DIFFERENT coverage (%s vs %s), so a report "
+        "that separates them may be reporting coverage honestly and the "
+        "neighbour would call an honest repair a regression"
+        % (arms["drawn"]["coverage"], arms["reworded"]["coverage"]))
+    case.assertNotEqual(
+        arms["drawn"]["answer"], arms["reworded"]["answer"],
+        "the two controls are the SAME SENTENCE, so the neighbour asserts "
+        "only that one string equals itself")
+    shapes = {n: json.dumps(a.get("ops"), sort_keys=True, default=str)
+              for n, a in arms.items()}
+    case.assertEqual(
+        len(set(shapes.values())), 1,
+        "the arms were closed by DIFFERENT ops (%s), so a difference in "
+        "their reports is evidence about the ops and not about the answer"
+        % sorted(shapes))
+
+
+class TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing(
+        unittest.TestCase):
+    """r8-10: an answer that drew nothing closes exactly like one that drew.
+
+    THE ONE-LINE STATEMENT. Two answers to the same pin, closed by
+    byte-identical ops — one naming twelve things the drawing holds none
+    of, one naming three it holds all of — produce a byte-identical
+    revision report and a byte-identical resolved pin record. Nothing
+    the tool emits is a function of whether the answer reached the
+    picture, although the tool holds the answer's words and every label
+    in the project.
+
+    WHERE IT CAME FROM. The R8 optimizer round, 2026-09-01, persona 2.
+    Four things were named — a benchmark vendor feed, an overnight
+    portfolio-value table, a six-column reference-data layer, and a
+    one-contract-three-feeds merge — and one became structure. The rest
+    reached `customData.tooltip` on two elements and `daily-run-flow`,
+    the diagram of the pipeline they feed, matched none of the four
+    words. Measured over that project's own registry, three of its
+    fourteen stored answers name content words that reach NO label of
+    the artifact they were asked on: `pin-recheck-noresult` (13 named, 0
+    drawn), `pin-appeal-team` (7, 0), `pin-intake-escalation` (5, 0).
+
+    THIS IS NOT AN ASSERTION ABOUT THE AGENT'S CHOICE, and it must not
+    become one. A steelman is on the record — a screen mock is not where
+    sources belong — and no check can read intent. The honest version of
+    that call is to SAY it, and the finding is that there is no slot to
+    say it in: the silence and the declaration are the same bytes.
+
+    THE RELATION, NOT A SPELLING. `answer_words` is a tokenizer and
+    tokenizers are spellings; the relation is `named things vs drawn
+    things`. So the arms are total rather than marginal — every content
+    word of one control is a label, no content word of the undrawn arm
+    is — and the guard refuses any arm set where that stops being true.
+
+    MEASURED REPAIRS, 2026-09-01 — nine shapes monkeypatched over a live
+    `Store`/`ServerApp` from `/tmp/curator-r8-10/repairs.py`, none of
+    them an edit to `canvas.py`, and this class PRESCRIBES NONE OF THEM:
+
+        shape                                     A     B
+        RA1 a note on `applied_reading`           flip  -
+        RA2 a verb in `summary.verb_counts`       flip  -
+        RA3 the pin kept on the standing nag      flip  -
+        RA4 a mark in `public_state`              flip  flip
+        RA5 an issue appended to `Store.issues`   flip  -
+        RB1 coverage stored at answer time        flip  flip
+        RB2 coverage stamped at resolve time      flip  flip
+        RB3 the undrawn terms stored on the pin   flip  flip
+        RP  the answer's text echoed in the       flip  -
+            headline (PSEUDO)                     + NEIGHBOUR RED
+
+    THE PSEUDO-REPAIR IS WHY THE NEIGHBOUR IS HERE. Copying the answer
+    into the record turns the first red green while reporting nothing at
+    all, and the neighbour below goes red over it — two answers with
+    identical coverage stop reading identically. Quoting is not
+    reporting, which is the same ruling `_R8_ECHOED` applies at the
+    other end.
+
+    THE TWO REDS FAIL APART, which is why they are two. RA1/RA2/RA3/RA5
+    are transient — they repair what the closing revision SAYS and leave
+    the pin's durable record exactly as it was, so they flip the first
+    red only. RB1/RB2/RB3 are durable and flip both. A fix that stops at
+    the apply response leaves a reader arriving next session with
+    nothing, and the second red is what says so.
+    """
+
+    def test_the_arms_differ_in_coverage_before_any_colour_is_read(
+            self) -> None:
+        """The premise, ungated: this population can contain the defect.
+
+        Both reds below are claims that two surfaces are EQUAL when they
+        should differ, and two surfaces are trivially equal when both
+        are empty, when the scene has no words, or when the two answers
+        were never opposite in the first place. `expectedFailure`
+        swallows errors as readily as failures, so the population is
+        asserted here, outside the mask, before any colour is believed.
+        """
+        assert_the_r8_arms_put_the_case(self, the_r8_arms(self))
+
+    def _guard_says(self, arms: dict[str, dict[str, Any]]) -> str | None:
+        """What the population guard says about a damaged arm set.
+
+        Args:
+            arms: An arm set with one property removed.
+
+        Returns:
+            The assertion message the guard raised, or None — which is a
+            SURVIVOR and the finding.
+        """
+        try:
+            assert_the_r8_arms_put_the_case(self, arms)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
+    def test_the_population_guard_notices_arms_that_cannot_carry_it(
+            self) -> None:
+        """The vacuity mutants, watched failing before any red is believed.
+
+        NINE MUTANTS FOR NINE CLAUSES, and each is required to fail on
+        the clause it targets rather than merely to fail: a mutant that
+        trips a different assertion has proved that assertion twice and
+        the intended one not at all.
+
+        THE INPUTS ARE DAMAGED, NOT THE GUARD. Seven of the nine are
+        REBUILT — a different answer through the same door, or a scene
+        staged with fewer captions — so what they audit is the arm the
+        product would really produce. Only two are forged, and both
+        forge a field no answer can change: an emptied surface, and an
+        arm labelled with ops it was not closed by. A mutant that
+        replaced the guard, or that stubbed `close_a_pin_with`, would be
+        blind to everything the staging does at load — which is the
+        failure this file has recorded once already.
+        """
+        arms = the_r8_arms(self)
+
+        def swap(name: str, answer: str, **kw: Any) -> dict[str, Any]:
+            """Rebuild one arm from a different answer.
+
+            Args:
+                name: The arm to replace.
+                answer: The sentence to answer the pin with.
+                **kw: Passed to `close_a_pin_with` (`labels`).
+
+            Returns:
+                The arm set with that one arm rebuilt.
+            """
+            return dict(arms, **{name: close_a_pin_with(self, answer, **kw)})
+
+        mutants: list[tuple[str, dict[str, Any], str]] = [
+            ("a control arm deleted",
+             {k: v for k, v in arms.items() if k != "reworded"},
+             "arms missing"),
+            ("one arm's surfaces emptied",
+             dict(arms, undrawn=dict(arms["undrawn"], report={})),
+             "EMPTY surface"),
+            ("a scene with no visible words",
+             swap("undrawn", _R8_ANSWERS["undrawn"], labels=()),
+             "NO visible words"),
+            ("the undrawn arm answered with a drawn answer",
+             swap("undrawn", _R8_ANSWERS["drawn"]),
+             "does not contain the r8-10 case"),
+            ("the undrawn arm answered with two words",
+             swap("undrawn", "A benchmark table."),
+             "is not the finding"),
+            ("the drawn control answered with the undrawn answer",
+             swap("drawn", _R8_ANSWERS["undrawn"]),
+             "not the opposite pole"),
+            ("the two controls given different coverage",
+             swap("reworded", "EDGAR, Filings."),
+             "DIFFERENT coverage"),
+            ("the two controls made the same sentence",
+             swap("reworded", _R8_ANSWERS["drawn"]),
+             "SAME SENTENCE"),
+            ("one arm labelled with ops it was not closed by",
+             dict(arms, undrawn=dict(arms["undrawn"],
+                                     ops=({"op": "resolve_pin"},))),
+             "DIFFERENT ops")]
+        verdicts = [(name, want, self._guard_says(damaged))
+                    for name, damaged, want in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, want, (said or "")[:200])
+                 for name, want, said in verdicts
+                 if said is not None and want not in said]
+        self.assertEqual(
+            (survived, [w[0] for w in wrong]), ([], []),
+            "the population guard did not notice %s, and answered the "
+            "wrong clause for %s. A survivor is the finding: that clause "
+            "is decoration, and the reds below are one edit to this "
+            "staging away from passing over nothing. Detail: %s"
+            % (survived, [w[0] for w in wrong], wrong))
+
+    def test_the_report_does_not_move_when_only_the_wording_moves(
+            self) -> None:
+        """The neighbour, ungated: the opposite pole of both reds.
+
+        Two answers with IDENTICAL coverage and different sentences must
+        close identically. It passes today for the uninteresting reason
+        that NOTHING moves the report — and it is here for tomorrow: the
+        cheapest way to turn either red below green is to copy the
+        user's words into the record, which reports nothing and flips
+        this. Measured 2026-09-01, that pseudo-repair turns the first
+        red green and this one red, which is the whole reason a
+        neighbour is mandatory rather than nice.
+
+        It also fails over any repair keyed on the answer's LENGTH or on
+        the presence of a particular noun rather than on coverage, which
+        is the other way a plausible-looking fix reports nothing.
+        """
+        arms = the_r8_arms(self)
+        assert_the_r8_arms_put_the_case(self, arms)
+        drawn, reworded = arms["drawn"], arms["reworded"]
+        self.assertEqual(
+            r8_digest(drawn["report"]), r8_digest(reworded["report"]),
+            "two answers with IDENTICAL coverage (%s and %s, both %d of "
+            "%d) closed the same pin with the same ops and produced "
+            "DIFFERENT reports. Whatever separates them is keyed on the "
+            "user's wording rather than on what the drawing holds, and "
+            "wording is not a fact about the picture."
+            % (drawn["answer"], reworded["answer"], drawn["coverage"][0],
+               drawn["coverage"][1]))
+
+    def test_the_closing_revision_says_the_answer_reached_nothing(
+            self) -> None:
+        """RED: the revision that closes a pin reports coverage nowhere.
+
+        Every surface the closing revision produces is compared: the
+        save record's `summary` and per-element `artifacts`, its
+        `registry_changes`, `reconciliation` and `tripwires`, the apply
+        response `applied_reading` builds, the standing nag
+        `Store.pin_debt` feeds, `Store.issues`, `lint_layout` over the
+        resulting scene, the `pin_answer` events, and the pin list
+        `/api/state` serves. All of it, scrubbed of the answer's own
+        words, hashes to one value for both arms.
+
+        Flips under RA1, RA2, RA3, RA4, RA5, RB1, RB2 and RB3 — eight
+        measured shapes at five different sites — so it asserts the
+        property and prescribes none of them.
+        """
+        arms = the_r8_arms(self)
+        assert_the_r8_arms_put_the_case(self, arms)
+        undrawn, drawn = arms["undrawn"], arms["drawn"]
+        self.assertNotEqual(
+            r8_digest(undrawn["report"]), r8_digest(drawn["report"]),
+            "the revision that closed this pin reports IDENTICALLY "
+            "whether the answer named %d things and the drawing held %d "
+            "of them, or named %d and held %d. Both hash to %s across "
+            "the save record, the apply response, the standing nag, the "
+            "store's issues, the scene lint, the event log and "
+            "`/api/state`. The answer that drew nothing closes exactly "
+            "like the answer that drew everything, and the undrawn "
+            "terms were %s."
+            % (drawn["coverage"][1], drawn["coverage"][0],
+               undrawn["coverage"][1], undrawn["coverage"][0],
+               r8_digest(undrawn["report"]),
+               sorted(answer_words(undrawn["answer"])
+                      - set(undrawn["scene_words"]))))
+
+    def test_the_resolved_pin_records_that_its_answer_reached_nothing(
+            self) -> None:
+        """RED: and the durable record forgets it too, so nobody can ask later.
+
+        The other half, and it fails apart from the first: a repair that
+        adds a line to the apply response leaves this record byte for
+        byte where it was, so a reader arriving next session — the
+        archive card, `catch_up`, the next round's nag — has nothing to
+        read. Measured: RA1/RA2/RA3/RA5 flip the revision red and leave
+        this one red; RB1/RB2/RB3 flip both.
+
+        The `answer` and `proposed_answer` keys are scrubbed for the
+        reason in this section's header: the pin stores the words
+        already, and storing words is not recording what they reached.
+        """
+        arms = the_r8_arms(self)
+        assert_the_r8_arms_put_the_case(self, arms)
+        undrawn, drawn = arms["undrawn"], arms["drawn"]
+        self.assertNotEqual(
+            r8_digest(undrawn["pin"]), r8_digest(drawn["pin"]),
+            "the resolved pin's durable record is IDENTICAL whether its "
+            "answer reached %d of %d or %d of %d. It is %s in both "
+            "cases — a status, a question, an artifact and an element, "
+            "and no trace of the %d things the answer named that the "
+            "drawing does not say out loud."
+            % (drawn["coverage"][0], drawn["coverage"][1],
+               undrawn["coverage"][0], undrawn["coverage"][1],
+               json.dumps(undrawn["pin"], sort_keys=True),
+               undrawn["coverage"][1] - undrawn["coverage"][0]))
+
+
+# ---------------------------------------------------------------------------
+# r8-9 — a config change records the patch and not the actor.
+#
+# A HAND-AUTHORED RED, not a catalogue mutant, and named in
+# `HAND_AUTHORED_RED_CLASSES`. BASE: a bare project, twice — no artifact,
+# no scene, nothing but the config a fresh `ensure_tree` mints. MUTATION:
+# none, and there is no operator, because the subject IS the shipped
+# behaviour: two doors post the same body to `/api/config` and the record
+# they leave cannot tell them apart. MAGNITUDE: a count and a direction —
+# 2 distinct origins collapse to 1 distinct reading, on 4 of 4 surfaces
+# that store, emit or render the change. NEIGHBOUR, green and in the same
+# class: the SAME product stamps `author` on every scene write and splits
+# the event by hand (`save` vs `agent_revision`), so this is a gap in a
+# living faculty rather than an accusation against a dead one.
+# ---------------------------------------------------------------------------
+
+#: The two hands that can turn a project setting, and the names the
+#: readings are keyed by. `typed` is the rail's own POST — the browser
+#: crossing `/api/config` when the user moves the cadence toggle.
+#: `composed` is `canvas.py x-as-user config KEY=VALUE`, the shipped verb
+#: an agent reaches for when the user says "put it on pulled for me".
+#: Both send the same body to the same route, which is the finding stated
+#: as machinery rather than as a complaint.
+_CFG_DOORS = ("typed", "composed")
+#: The setting turned, its new value, and the value a fresh project MINTS.
+#: `canvas_updates` on purpose: it is the one settable key with a
+#: rendering of its own (`cadence_of` -> `CADENCE=` on `start` and on
+#: `status`), so the reading half of this class has a shipped surface to
+#: measure rather than a hypothetical one. `per-round` occurs exactly ONCE
+#: in a default config — counted, not assumed — which is what lets the
+#: vacuity guard ask "the minted value is gone" without naming the key it
+#: left, and without a second occurrence making the question unanswerable.
+_CFG_KEY = "canvas_updates"
+_CFG_VALUE = "pulled"
+_CFG_MINTED = "per-round"
+#: Keys whose value differs between two runs whoever made the change, and
+#: which would therefore manufacture a difference the subject did not put
+#: there. NARROWER THAN `_PROV_VOLATILE` DELIBERATELY: that set strips
+#: `id` and `element` as well, and a config repair is perfectly free to
+#: record the hand under a key called `id`. Scrubbing more than varies is
+#: the safe direction for an emptiness claim only while the extra keys
+#: cannot carry the answer, and here they can.
+_CFG_VOLATILE = frozenset({"ts", "seq"})
+
+
+def _cfg_scrub(obj: Any) -> Any:
+    """Strip the keys that differ per run regardless of who turned the dial.
+
+    Recursive because the readings nest: the event feed arrives as a list
+    of dicts and the config holds maps of its own.
+
+    Args:
+        obj: Any part of a reading — dict, list or scalar.
+
+    Returns:
+        The same structure with `_CFG_VOLATILE` keys removed at every
+        depth, and dict keys sorted so two readings compare as text as
+        well as by value.
+    """
+    if isinstance(obj, dict):
+        return {k: _cfg_scrub(v) for k, v in sorted(obj.items())
+                if k not in _CFG_VOLATILE}
+    if isinstance(obj, list):
+        return [_cfg_scrub(v) for v in obj]
+    return obj
+
+
+def _cfg_addressed(payload: Any) -> set[str]:
+    """Collect every string a request body could be ADDRESSING, keys included.
+
+    THE ONE PLACE THIS BENCH DEPARTS FROM `_prov_strings`, and the
+    departure has a reason rather than being an oversight. That helper
+    drops dict KEYS on the stated ground that a key is a spelling and a
+    value is what the caller said — right for a pin, whose subject is an
+    id travelling as a value. A config change's subject IS a key name:
+    `{"patch": {"canvas_updates": "pulled"}}` says what it is about in
+    the key and only how far in the value. Reading values alone would
+    leave the aim clause below unable to see the subject at all, so it
+    would assert that the verb mentioned `pulled` somewhere and nothing
+    whatever about which setting it moved.
+
+    Args:
+        payload: Any JSON-shaped structure — dict, list, or scalar.
+
+    Returns:
+        Every string reachable in it, as a key or as a value, at any
+        depth. Non-strings are ignored rather than coerced: `2` and `"2"`
+        are different claims and a subject comparison should not merge
+        them.
+    """
+    if isinstance(payload, dict):
+        out = {k for k in payload if isinstance(k, str)}
+        for value in payload.values():
+            out |= _cfg_addressed(value)
+        return out
+    if isinstance(payload, (list, tuple)):
+        out: set[str] = set()
+        for value in payload:
+            out |= _cfg_addressed(value)
+        return out
+    return {payload} if isinstance(payload, str) else set()
+
+
+def _cfg_taping(
+        transport: Callable[..., dict]) -> tuple[Callable[..., dict],
+                                                 list[Any]]:
+    """Keep a copy of every body that crosses a transport, in call order.
+
+    A SECOND LAYER RATHER THAN A WIDENED `_prov_recorder`, because that
+    recorder belongs to `TestAnAnswerSaysWhoseWordsItIs` and its
+    `body_names` is deliberately values-only — a discipline four review
+    rounds paid for over there. This bench needs KEYS as well
+    (`_cfg_addressed` says why), and teaching the shared recorder two
+    vocabularies would put this class's needs inside that class's
+    evidence. Wrapping outside costs one list and changes nothing.
+
+    The two logs align by INDEX: both append exactly once per call, in
+    the same order, so `bodies[i]` is the payload of `calls[i]`.
+
+    Args:
+        transport: The already-recording transport to wrap.
+
+    Returns:
+        The wrapper, and the list of payloads it appends to.
+    """
+    bodies: list[Any] = []
+
+    def taping(url: str, payload: dict | None = None,
+               timeout: float = 10.0) -> dict:
+        """Record one body and pass the call straight through.
+
+        Args:
+            url: The absolute URL the driver built.
+            payload: JSON body for a POST; None for a GET.
+            timeout: Passed straight through.
+
+        Returns:
+            Whatever the wrapped transport returned. Nothing is
+            swallowed — an exception propagates unchanged, because the
+            driver's own error handling is part of the subject.
+        """
+        bodies.append(payload)
+        return transport(url, payload, timeout)
+
+    return taping, bodies
+
+
+def _cfg_status(project: canvas.Project) -> str:
+    """Run `status` for real and return what a reader would be shown.
+
+    THE RENDERING SURFACE, and it is DRIVEN rather than restated.
+    `status` is the first command an agent runs on resume and the only
+    shipped place a config value is rendered in English: `CADENCE=` comes
+    out of `cadence_of`, which the `start` banner prints too. A
+    transcription of that function here would be a second copy free to
+    agree with a broken original.
+
+    THE TWO SUBSTITUTIONS ARE THE WHOLE SCRUB, and both are tempdir noise
+    rather than anything a hand could have written. The doors run in
+    separate projects (see `_cfg_drive`), so `PROJECT=` carries a random
+    basename and `EVENTS_LOG=` a path hashed from it. Verified on an
+    unscrubbed diff, 2026-09-01: those two lines are the ONLY ones that
+    differ between the doors, which is why this is a pair of replacements
+    and not a line filter — a filter would also drop whatever a repair
+    added.
+
+    Args:
+        project: The project whose running server the command reports on.
+
+    Returns:
+        The printed block, with the project name and the events-log path
+        replaced by placeholders.
+    """
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed), \
+            contextlib.suppress(SystemExit):
+        canvas.cmd_status(argparse.Namespace(project=str(project.root)))
+    return (printed.getvalue()
+            .replace(str(project.events_path), "<events-log>")
+            .replace(project.root.name, "<project>"))
+
+
+def _cfg_drive(door: str) -> dict[str, Any]:
+    """Turn one setting through one door and read every surface behind it.
+
+    ONE WORLD PER DOOR, which is the shape decision this bench rests on
+    and the opposite of `answer_provenance_bench`'s. A pin is a subject
+    you can mint twice; a config is ONE slot, so two changes in one
+    project overwrite each other and the second reading is the first plus
+    a clock. Worse, sharing a world would build a false RED against an
+    honest repair: candidate (d) refuses the agent's door, nothing is
+    written, and two snapshots of one config are then identical BECAUSE
+    the repair worked.
+
+    Two projects are equal by construction instead — same `ensure_tree`,
+    same minted config, same empty event log, same revision — so the only
+    thing that differs between the readings is which door was driven.
+
+    A REFUSAL IS A RESULT, not an error, on either door. Shutting the
+    agent's route is one of the honest product answers, so `SystemExit`
+    out of the verb is caught and reported as `refused`; the rail's own
+    POST is allowed to be refused too, and clause 1 of the guard is what
+    says so in a sentence rather than this function crashing.
+
+    Args:
+        door: `typed` for the rail's POST, `composed` for the CLI verb.
+
+    Returns:
+        `config`, `events`, `feed`, `status` and `status_before` for
+        that world; `cadence` and `cadence_before`, the config's own
+        reader run over the file on either side of the change; plus
+        `outcome` and `refusal` for the door, `control` from
+        `_prov_control`, `writes` (every non-control POST the door made,
+        with what each addressed) and `feed_size`.
+
+    Raises:
+        ValueError: If `door` is not one of `_CFG_DOORS`. A typo in a
+            caller would otherwise silently drive the rail twice and read
+            as a product with no defect at all.
+    """
+    if door not in _CFG_DOORS:
+        raise ValueError("unknown door %r" % (door,))
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-cfg-prov-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        # NO ARTIFACT AND NO SCENE. A config change touches neither, and
+        # a drawing in the project would put a `LINT_DEBT=` line into the
+        # rendering reading that has nothing to do with who turned a
+        # dial. The outer `Store` exists only so the control can read a
+        # revision floor off an instance the server never writes through
+        # — see `_prov_control`, which wants exactly that lag.
+        store = canvas.Store(project)
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        app = canvas.ServerApp(project)
+        recording, calls = _prov_recorder(_as_user_transport(app))
+        transport, bodies = _cfg_taping(recording)
+        with mock.patch.object(canvas, "http_json", transport):
+            before = _cfg_status(project)
+        cadence_before = canvas.cadence_of(
+            canvas.read_json(project.config_path))
+        outcome: str = "landed"
+        refusal: Any = None
+        # EVERYTHING FROM HERE IS THIS DOOR'S OWN TRAFFIC. The control
+        # judges what the DOOR did, and the baseline `status` above made
+        # calls of its own; counting those would make every run look like
+        # a door that was answered.
+        door_from = len(calls)
+        with mock.patch.object(canvas, "http_json", transport):
+            if door == "typed":
+                # DOOR ONE — the rail. `apiPost("/api/config", { patch })`
+                # is the whole of what the client sends when the user
+                # moves the cadence toggle. Reproduced here rather than
+                # reached through a browser because the model tier has
+                # none. The server sees this body and no other fact about
+                # its caller, which is the finding stated as a fixture.
+                #
+                # THROUGH THE TRANSPORT, not `app.handle_post` directly:
+                # a route that refuses with `err(403, …)` must reach this
+                # door as an `HTTPError` and not as a raw `_Err`, and
+                # calling the app direct skips that translation — which
+                # blows the bench up, and an `@expectedFailure` reports
+                # an ERROR exactly as it reports a FAILURE.
+                try:
+                    transport(_AS_USER_URL + "api/config",
+                              {"patch": {_CFG_KEY: _CFG_VALUE}})
+                except Exception as exc:
+                    # The user's own door is allowed to be refused by a
+                    # product; clause 1 is what says so in a sentence.
+                    outcome = "refused"
+                    refusal = "%s: %s" % (type(exc).__name__, exc)
+            else:
+                # DOOR TWO — the agent, instructed. Driven through
+                # `cmd_x_as_user` rather than by posting the same body
+                # again, because a repair that marks the door has to have
+                # a door to mark: two identical POSTs would erase the
+                # distinction this measures, and no honest fix could then
+                # flip it.
+                with contextlib.redirect_stdout(io.StringIO()):
+                    try:
+                        canvas.cmd_x_as_user(argparse.Namespace(
+                            project=str(tmp), verb="config", artifact=None,
+                            target="", text="%s=%s" % (_CFG_KEY, _CFG_VALUE),
+                            dx=0, dy=0, note=None))
+                    except SystemExit as exc:
+                        outcome, refusal = "refused", exc.code
+            # TAKEN INSIDE THE SAME PATCH, and immediately: the question
+            # it answers is whether the transport the door just used is
+            # still alive, so it has to be that transport and not a fresh
+            # one. The floor comes off the OUTER `store`, a second
+            # instance over the same files that never sees the server's
+            # writes and can therefore only LAG — which is what makes it
+            # a floor worth having rather than a comparison of a source
+            # against itself.
+            control = _prov_control(_AS_USER_URL, store.head_revn(),
+                                    calls[door_from:])
+            # AND THEN READ BACK THE WAY THE AGENT READS. `wait --for
+            # user` and `status` are both run for real, filters and all,
+            # so the classification that lets an agent hear its own
+            # config change come back under the user's heading is
+            # exercised rather than restated.
+            printed = io.StringIO()
+            with contextlib.redirect_stdout(printed), \
+                    contextlib.suppress(SystemExit):
+                # SUPPRESSED AND NOT CAUGHT, unlike the verb above,
+                # because `cmd_wait`'s exits carry no information this
+                # bench wants: it returns 3 on a quiet window, and the
+                # feed clauses say more than an exit code would.
+                canvas.cmd_wait(argparse.Namespace(
+                    project=str(tmp), since=0, timeout=1, types=None,
+                    for_whom="user"))
+            feed = [json.loads(line)
+                    for line in printed.getvalue().splitlines()
+                    if line.startswith("{")]
+            after = _cfg_status(project)
+        # WHICH POSTS WERE THE DOOR'S OWN WRITES, BY EXCLUSION rather
+        # than by path prefix. `api/config` is where the write goes
+        # today and a repair is free to move it — to a settings route, to
+        # a propose route, into a batch. What is certainly NOT the door's
+        # write is the control's own liveness traffic, and that is two
+        # fixed paths this bench itself issues. Excluding what we sent is
+        # a fact; naming where a repair must post would be a
+        # prescription, and this class makes none.
+        writes = [dict(call, addressed=sorted(_cfg_addressed(body)))
+                  for call, body in zip(calls[door_from:],
+                                        bodies[door_from:])
+                  if call["post"] and not call["path"].startswith(
+                      ("api/heartbeat", "api/health"))]
+        stored = canvas.read_json(project.config_path)
+        out = {"config": _cfg_scrub(stored),
+               # THE DOMAIN'S OWN READER, run rather than transcribed, and
+               # kept out of the two reds because `status` already carries
+               # what it renders. The guard needs it: "the setting moved"
+               # has to be asked of the product's interpretation of the
+               # file, not of a spelling this bench chose, or a repair
+               # that encodes the hand inside the value reads as a config
+               # that never changed.
+               "cadence": canvas.cadence_of(stored),
+               "events": _cfg_scrub(app.events.since(0)),
+               "feed": _cfg_scrub(feed), "status": after,
+               "status_before": before, "cadence_before": cadence_before,
+               "outcome": outcome,
+               "refusal": refusal, "control": control, "writes": writes,
+               "feed_size": len(feed)}
+        # `landed` MEANS THE CHANGE IS SOMEWHERE IN THE READING, over the
+        # whole of it and not under a named key. A door that posts, is
+        # answered 200 and does nothing leaves a world identical to the
+        # one before it — and a comparison of two doors would then differ
+        # for a reason that is not provenance while both reds read green.
+        # Searching the serialised reading rather than a key list is what
+        # keeps a proposal repair `landed`: its value arrives inside a
+        # `config_proposal` event that no key list written today names.
+        marks = _cfg_addressed([out["config"], out["events"], out["feed"]])
+        if outcome == "landed" and _CFG_VALUE not in marks \
+                and _CFG_VALUE not in out["status"]:
+            out["outcome"] = "vanished"
+        return out
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def config_authorship_bench() -> dict[str, Any]:
+    """Turn one setting twice — once by the user's hand, once by the agent's.
+
+    THE GROUND TRUTH IS WHICH ENTRY POINT WAS DRIVEN, and that is the
+    only place it can live: the tool has nowhere to record it, which is
+    the finding. Both doors set the SAME key to the SAME value, so any
+    difference between the readings is provenance and nothing else.
+
+    Returns:
+        One `_cfg_drive` reading per door, keyed `typed` and `composed`.
+    """
+    return {door: _cfg_drive(door) for door in _CFG_DOORS}
+
+
+def save_marks_whose_hand_it_was() -> dict[str, Any]:
+    """Read the authorship mark on a scene write from each of the two hands.
+
+    THE LIVE POLE FOR THE FACULTY THE REDS ACCUSE. Both reds below say
+    that a config change records no actor, and an accusation of silence
+    is satisfied perfectly by machinery that has stopped saying anything
+    at all. This drives the provenance the SAME product does keep, over
+    the same two hands, through the two writers that set it: `/api/save`
+    commits `author="user"`, an op batch commits `author="agent"`, and
+    the event log splits by hand as well — `save` against
+    `agent_revision`.
+
+    That is the argument the reds rest on, and it is why they are a gap
+    rather than a wish. The design took "which hand did this" seriously
+    enough to stamp every revision with it AND to give the two hands
+    different event types, so that `wait --for user` can filter one out.
+    A config change is that same ruling, one write along.
+
+    Returns:
+        `author`, a dict keyed `user`/`agent` with each revision record's
+        stamp, and `types`, the same keys against the event type each
+        write emitted.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="mutants-cfg-live-"))
+    project = canvas.Project(tmp)
+    app = None
+    try:
+        project.ensure_tree()
+        canvas.atomic_write(project.state_path,
+                            json.dumps({"url": _AS_USER_URL, "pid": 0}))
+        # ONE STORE, THE SERVER'S OWN, unlike `_cfg_drive` next door: that
+        # bench wants a second, lagging instance so its control has an
+        # honest revision floor, and this one takes no control.
+        app = canvas.ServerApp(project)
+        # The agent's hand: an op batch, through the route the CLI posts.
+        app.handle_post("/api/apply", {
+            "base_revn": 0, "artifact": "flow",
+            "create": {"id": "flow", "name": "Flow", "type": "flow",
+                       "concept": "c", "concept_name": "C"},
+            "ops": [{"op": "add", "element": {
+                "type": "rectangle", "id": "n1", "label": "N1", "x": 0,
+                "y": 0, "width": 100, "height": 60, "role": "node"}}]})
+        agent_revn = app.store.head_revn()
+        # The user's hand: the client's own save, moving that one node.
+        scene = [dict(e) for e in app.store.scenes["flow"]]
+        for elem in scene:
+            if elem["id"] == "n1":
+                elem["x"] = 200.0
+        app.handle_post("/api/save", {"base_revn": agent_revn,
+                                      "scenes": {"flow": scene}})
+        user_revn = app.store.head_revn()
+        records = app.store.records
+        return {
+            "author": {"agent": records[agent_revn].get("author"),
+                       "user": records[user_revn].get("author")},
+            "types": {who: sorted({e["type"] for e in app.events.since(0)
+                                   if e["type"] in wanted})
+                      for who, wanted in (("agent", canvas.AGENT_EVENT_TYPES),
+                                          ("user", canvas.USER_EVENT_TYPES))}}
+    finally:
+        if app is not None:
+            app.log_file.close()
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestAConfigChangeSaysWhoseHandTurnedIt(unittest.TestCase):
+    """Two hands, one dial, and no record that can tell them apart.
+
+    r8-9. THE RELATION, NOT THE INCIDENT: a project setting turned by the
+    user's own hand and the same setting turned by the agent's verb leave
+    DIFFERENT records, and a change the agent made cannot be read back as
+    one the user made. Two reds, because the property has two halves that
+    fail independently — a repair that marks everything the change is
+    STORED IN AND EMITTED AS, and stops there, has built provenance
+    nobody renders, and the second red is what would still be pointing at
+    it. Measured in both directions, not assumed: the ladder is in
+    `test_no_reader_can_tell_which_hand_moved_the_dial`.
+
+    WHAT WENT WRONG. `config_changed` carries `{seq, ts, type, patch}`
+    and nothing else; `/api/config` writes the merged config to disk with
+    no mark; and `canvas.py x-as-user config KEY=VALUE` posts the rail's
+    exact body to the rail's exact route. In the R8 session the 05:26:01Z
+    event turned review-before-landing OFF — the control the onboarding
+    owner had specifically asked for — and no surface in the project
+    could say by whom. A human had to be asked; that is what makes this
+    demonstrated rather than argued.
+
+    A HAND-AUTHORED RED AND NOT A CATALOGUE MUTANT, on the
+    `TestAnAnswerSaysWhoseWordsItIs` precedent and for the same reason:
+    every scene-level detector is correctly quiet, because there is no
+    scene. What disagrees is the record and the WORLD, and no rule handed
+    a list of elements can reach whose hand moved a toggle. Registering a
+    check name for it would state a contract no lint can meet.
+
+    IT PRESCRIBES NO REPAIR, and TEN shapes were MEASURED rather than
+    argued. Each monkeypatched from a throwaway plugin outside the repo,
+    applied alone against this tree on 2026-09-01, both reds turning
+    green under every one and the guard staying green:
+
+      (a) A DECLARED SOURCE AT THE DOOR. `/api/config` reads an actor off
+          the body and defaults it to the user — the browser IS the user,
+          so an unmarked POST is theirs — while `x-as-user config`
+          declares itself. The event carries it, the config records it,
+          and `CADENCE=` grows `(set by agent)`.
+      (b) NO NEW KEY ANYWHERE: THE HAND IS ENCODED IN THE VALUE.
+          `canvas_updates` becomes `pulled|agent`, with `validate_config`
+          and `cadence_of` widened in the same change. This is the shape
+          that proves the class is not a disguised "add a field": it adds
+          none. Its unwidened twin is in the guard's table and is the
+          reason the readers paragraph below exists.
+      (c) A PROPOSAL THE USER PROMOTES. The verb posts a proposal, the
+          config is NOT written, the change waits as a `config_proposal`
+          in `AGENT_EVENT_TYPES`, and `status` says one is pending. The
+          sharpest of the ten: the agent stops being able to hear its own
+          dial-turn come back under the user's heading.
+      (d) A DOOR THAT SHUTS, driven in BOTH placements and both pass.
+          `d_server_err` refuses a declared agent source at the route
+          with this repo's own `err(403, …)`; `d_client` refuses in the
+          CLI verb before it posts. WHERE THE REFUSAL LIVES IS NOT THIS
+          PIN'S BUSINESS — a refusal in the verb guards one caller, a
+          refusal at the route guards every HTTP client, and the guard
+          judges the STATUS a door was answered with rather than whether
+          a call raised. `_PROV_DECIDED_STATUSES` is borrowed whole from
+          the pin bench for exactly that.
+      (e) A PER-KEY SIDECAR MAP PLUS ITS READERS. `config["changed_by"]`,
+          the same map on the event, and `CADENCE=` rendering it.
+      (f) AN APPEND-ONLY CHANGE LOG in the durable config, keeping the
+          old value as well as the new, its tail on the event, and the
+          last entry's hand rendered.
+      (g) PROVENANCE BY ORIGIN, NOT BY ROLE. Nothing declares itself: the
+          route records WHICH PROCESS asked, reusing the `origin: {pid}`
+          stamp `Store.commit` already puts on every revision.
+      (h) A CAPABILITY THE AGENT CANNOT MINT. The rail's POST carries the
+          session token the page was served with; the CLI has none, and
+          the route records `via: rail` or `via: cli` off its presence —
+          so a caller cannot lie about being the user by declaring
+          itself. THIS ONE CARRIES A CONDITION, and it is the fixture's
+          rather than the law's: `_cfg_drive` TRANSCRIBES the body
+          `App.tsx` posts, so a repair that changes the client changes
+          the transcription IN THE SAME CHANGE. Driven both ways —
+          without the update both reds stay RED, with it both flip.
+      (i) A SECOND, MARKED ROUTE THE VERB MOVES ONTO. `/api/config` stays
+          the user's door; the agent posts `/api/config/as-agent`, and
+          the route each change came through IS the provenance.
+
+    Nine mechanisms and ten drivings, one law. Not one of them is
+    "add a key called `actor`", and (b), (g) and (i) each satisfy the law
+    without adding a provenance field at all.
+
+    FIVE REPAIRS THAT DO **NOT** FLIP BOTH, measured rather than
+    predicted, and kept because a negative result is the part a reader
+    cannot reconstruct:
+
+      * THE EVENT TYPE SPLITS AND THE DURABLE STORE IS LEFT ALONE — the
+        agent's door emits `agent_config_changed` and `config.json` is
+        untouched. Red 1 RED on `config`, red 2 GREEN. The event log
+        lives in `tempfile.gettempdir()/wysiwyg-grilling/`, keyed by a
+        hash of the project path, so a mark that lives only there is gone
+        on the next reboot and gone again if the project moves. r8-9 was
+        a question asked the NEXT DAY.
+      * THE DURABLE STORE ALONE — `config["changed_by"]` written and
+        nothing emitted or rendered. Red 1 RED on `events`, red 2 RED.
+      * BOTH STORES AND NO RENDERING. Red 1 GREEN, red 2 RED on `status`.
+        This is the ladder's second rung and the reason the two reds are
+        separate methods: a product can be fully marked everywhere it
+        STORES a change and still tell a human nothing.
+      * A RENDERING WITH NOTHING BEHIND IT — `CADENCE=` prints the hand
+        off an out-of-band variable the stores never kept. Red 1 RED on
+        both, red 2 RED on `feed`. The mirror of the row above.
+      * PROVENANCE FILED IN THE SAVE HISTORY. The config write is
+        committed as a revision so it inherits the `author` every
+        revision already carries, `status` renders that author, and
+        neither the config file nor the `config_changed` event is
+        touched. BOTH REDS STAY RED, and that is a JUDGEMENT this class
+        makes rather than a spelling difference: the mark is reachable
+        only by joining a config value to a revision record, so an
+        auditor holding `config.json` cannot answer, and a watcher on the
+        event feed cannot either. Echo the author onto either surface and
+        both flip.
+
+    AND ONE REWRITE THEY BREAK UNDER, named because §8 says to name them:
+    a repair that adds a NEW marked route for the agent and leaves
+    `x-as-user config` posting to the old unmarked one keeps both reds
+    red. Measured. That is the same judgement (i) is blessed for making
+    the other way — an unmarked door the agent still holds is the defect
+    surviving beside its own fix.
+
+    ONE THING A REPAIR MUST CARRY WITH IT, learned by building (b)
+    without it: whatever slot widens, its READERS widen too.
+    `validate_config` is the one that bites — it runs on every load AND
+    on every `/api/config` write, and CFG-008 repairs a `canvas_updates`
+    it does not recognise back to `per-round`. Driven: the guard reddens
+    at CLAUSE 1 with the change nowhere in the config, `cadence_of` then
+    reports a cadence no server is running, and the mark was bought by
+    making the setting unreadable. The other readers a fixer should not
+    have to hunt for: `cadence_of` (the `CADENCE=` line on `start` and on
+    `status`), `USER_EVENT_TYPES` (which decides whether `wait --for
+    user` shows an agent its own change), and `api_state`'s `config`
+    block (what the rail draws the toggle from).
+    """
+
+    def test_two_hands_leave_one_indistinguishable_record(self) -> None:
+        """The storage half: neither store can say which hand it was.
+
+        THE MAGNITUDE IS A COUNT AND THE DIRECTION IS COLLAPSE. Two
+        origins produce ONE distinct reading where they must produce two,
+        on both stored surfaces at once. Asserted as a difference between
+        two readings and never as the presence of a named key, because
+        naming a key names a repair: an actor field, a split event type,
+        a proposal awaiting promotion and a refused route are all honest,
+        and a guard that greps for one fails the other three while the
+        behaviour is correct.
+
+        BOTH SURFACES ARE HERE ON PURPOSE, and the asymmetry between
+        them is the argument. `config.json` lives in
+        `project_knowledge/` and survives everything; the event log lives
+        in `tempfile.gettempdir()/wysiwyg-grilling/`, under a filename
+        hashed from the project's path, so a mark that lives only there
+        is gone on the next reboot and gone again if the project moves.
+        r8-9 was a question asked the NEXT DAY. They fail together today
+        and they repair apart — MEASURED, both ways: an actor on the
+        event alone leaves red 1 RED on `config`, and a mark in the file
+        alone leaves it RED on `events`, which is a live watcher told
+        nothing while the change is happening.
+
+        THE NEAREST FALSE GREEN is a difference that is not provenance.
+        The two doors run in separate projects, so `_cfg_scrub` removes
+        the per-run clock and sequence and nothing else, and every other
+        fact is equal by construction: same `ensure_tree`, same minted
+        config, same empty log, same revision, same key set to the same
+        value. Verified key-by-key on an unscrubbed diff, 2026-09-01 —
+        the two worlds differ on `ts` alone.
+        """
+        bench = config_authorship_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("config", "events")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "a setting the user turned and the same setting the agent "
+            "turned on their instruction left the SAME record on %d of 2 "
+            "stored surfaces (%s) — 1 distinct reading for 2 distinct "
+            "origins. `config_changed` carries %s and the config on disk "
+            "carries no mark at all, so a change that switched a control "
+            "off is unattributable the moment the session ends. Declare "
+            "the source at the door, split the event type, park it where "
+            "the user promotes it, or refuse the route and say why — but "
+            "a store that cannot say whose hand this was makes every "
+            "setting in the project unverifiable at once. Typed events: "
+            "%s. Composed events: %s"
+            % (len(same), ", ".join(same),
+               sorted(set().union(*(set(e) for e in typed["events"]))
+                      if typed["events"] else set()),
+               json.dumps(typed["events"], sort_keys=True),
+               json.dumps(composed["events"], sort_keys=True)))
+
+    def test_no_reader_can_tell_which_hand_moved_the_dial(self) -> None:
+        """The rendering half: the resume banner reports a cadence and no hand.
+
+        SEPARATE FROM ITS NEIGHBOUR ABOVE BECAUSE IT FAILS SEPARATELY,
+        and the separator is MEASURED rather than asserted — in BOTH
+        directions, which is what makes them two methods rather than one
+        with a longer list. 2026-09-01, one repair per rung, both reds
+        read at each:
+
+            the durable config marked, alone   red 1 RED,   red 2 RED
+            the config AND the event marked    red 1 GREEN, red 2 RED
+            + `CADENCE=` rendering the hand    red 1 GREEN, red 2 GREEN
+            the event type split, config mute  red 1 RED,   red 2 GREEN
+
+        So a product can be fully marked everywhere it STORES a change
+        and still tell a human nothing. `status` is the first command an
+        agent runs on resume and it prints `CADENCE=` off `cadence_of`,
+        which reads one key and renders one word; the line is identical
+        whoever turned the dial, and it is the line a returning agent
+        uses to decide how to read every apply response for the rest of
+        the session.
+
+        THE FEED IS THE SHARP END. `config_changed` is a member of
+        `USER_EVENT_TYPES`, so the classification is STATIC — a config
+        change is user activity because of what KIND of event it is,
+        never because of who sent it. `cmd_wait` is driven for real here,
+        with its own filter, so a repair anywhere on that path (a new
+        event type, a field the filter consults, a route that emits
+        nothing) moves this reading. An agent that turns a dial and then
+        watches `--for user` is served its own move as the user's, which
+        is the channel the pin proposal route was built to close one
+        surface over.
+
+        AND IT IS THE EXACT POLE OF `test_a_scene_write_still_says_whose
+        _hand_it_was`. That proves the event feed DOES split by hand for
+        a scene write; this proves it does not split for a config write.
+        """
+        bench = config_authorship_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        same = [surface for surface in ("status", "feed")
+                if typed[surface] == composed[surface]]
+        self.assertEqual(
+            same, [],
+            "the two changes render identically on %d of 2 surfaces "
+            "somebody reads (%s). `status` prints the same %r block for "
+            "both, and `wait --for user` served the agent's own dial-turn "
+            "under the user's heading (%d event(s) on the typed door, %d "
+            "on the composed one). The same product splits `save` from "
+            "`agent_revision` so that this filter can do its job for the "
+            "drawing; for a setting it emits one type whoever turned it"
+            % (len(same), ", ".join(same),
+               next((ln for ln in typed["status"].splitlines()
+                     if ln.startswith("CADENCE=")), typed["status"]),
+               typed["feed_size"], composed["feed_size"]))
+
+    def test_the_bench_turned_both_dials_and_every_reader_spoke(self) -> None:
+        """The vacuity guard: an emptiness claim over a live measurement.
+
+        UNGATED AND ASSERTED IN EVERY COMMIT, because both reds above are
+        `assertEqual(same, [])` and an empty list is what a broken bench
+        produces most easily. A door that never posted, a reader that
+        stopped reading, a feed that printed nothing — each makes the two
+        readings differ, and each reads as a fix. So this claims the
+        facts that make `same == []` mean something.
+
+        THE REDS NAME A RELATION; THIS GUARD MUST TOO. Every clause below
+        is phrased as what a repair must ACHIEVE, never where it must
+        write it — the discipline `TestAnAnswerSaysWhoseWordsItIs` paid
+        four review rounds for, inherited here rather than re-learned.
+        Two of its bets were re-made and re-corrected here anyway, which
+        is worth recording: clause 1 asked for the new value as a WHOLE
+        STRING and refused candidate (b), which stores it as `pulled|
+        agent`; clause 7 asked whether the printed `status` block moved
+        and passed over a rendering replaced by a constant, because
+        `EVENTS_SEQ=` advances on any event whatever. Both are relations
+        now — the value is looked for as a SUBSTRING of what the config
+        holds, and the movement is asked of `cadence_of`, the product's
+        own reader, run over the file on either side of the change.
+
+        WATCHED FAILING, ONE CLAUSE AT A TIME, by damaging the bench's
+        INPUTS in throwaway plugins outside the repo — the route's
+        answers, the verb's body, the constants the readers consult —
+        never by replacing the bench's own functions, which is blind to
+        caches and decorators. Every row was driven 2026-09-01 against
+        the tree that ships it, and the WHICH CLAUSE column is the point
+        of the table: a stage that reddens the guard by tripping some
+        OTHER clause proves nothing about the one it is filed under.
+
+        Clause order, since the rows refer to it: 1 the user's door
+        landed the change, 2 the config's own reader no longer reports
+        the minted value, 3 the agent's door landed or refused out loud,
+        4 the verb addressed the setting this bench named, 5 the control,
+        on BOTH doors, 6 no accepted write behind a refusal, 7 the
+        rendering surface is alive, 8 the feed was non-empty.
+
+          * `wrong_key` — the verb is handed `nudge_after_minutes=pulled`
+            -> CLAUSE 4, ISOLATING. The route 400s it, the whole chain
+            reads as a decision (`refused`, exit 5), and BOTH REDS GO
+            GREEN over a bench that turned no dial. The worst damage in
+            the table and this clause is the only thing that speaks.
+          * `unwrapped_body` — the verb posts `{key: value}` with no
+            `patch` wrapper -> CLAUSE 5, traffic half, ISOLATING. Both
+            reds GREEN. The route answers 400, which says the BODY was
+            wrong, and this bench writes the body.
+          * `agent_write_500` — only the agent's POST answers 500 ->
+            CLAUSE 5, traffic half, ISOLATING. Both reds GREEN.
+          * `typed_door_500` — every config POST answers 500 -> CLAUSE 1,
+            NOT CLAUSE 5. Listed with its true attribution so nobody
+            reads its red as evidence about the control: the user's door
+            crosses the same transport and breaks first. A stage that
+            refuses BOTH doors is a different product rather than a
+            refusal of the agent's, which is why `agent_write_500` had to
+            be narrowed to one door before it measured what it claims.
+          * `server_lost_revisions` — the heartbeat reports `head_revn`
+            -1 -> CLAUSE 5, liveness half, ISOLATING, and it fires on the
+            TYPED door first, which is the half the pin bench does not
+            probe at all.
+          * `heartbeat_raises` — the liveness write raises `OSError` ->
+            CLAUSE 5, control half, ISOLATING.
+          * `posted_ok_noop` — the route answers the agent 200 and writes
+            nothing -> CLAUSE 3, `vanished`, ISOLATING. Both reds GREEN.
+          * `accepted_then_dies` — the same write ACCEPTED 200 and the
+            verb dies afterwards -> CLAUSE 6, ISOLATING. Nothing stopped,
+            the server is healthy, the exit code is real, and the dial
+            did move. `vanished` cannot reach it, being gated on
+            `landed`, and the control cannot, nothing having failed.
+          * `frozen_cadence` — `cadence_of` answers the NEW value always
+            -> CLAUSE 7, ISOLATING. This is the clause that keeps red 2
+            honest: a rendering that cannot move at all makes "it did not
+            move with the hand" unremarkable.
+          * `dead_cadence` — `cadence_of` answers the MINTED value always
+            -> CLAUSE 2, NOT CLAUSE 7. The pair with the row above is
+            deliberate: the same damage in two flavours reaches two
+            different clauses, and filing this one under 7 would have
+            left 7 unwitnessed.
+          * `dead_feed` — `config_changed` is taken out of
+            `USER_EVENT_TYPES`, so `wait --for user` shows nothing ->
+            CLAUSE 8, ISOLATING. A damaged CONSTANT and not a replaced
+            `cmd_wait`, so the real filter runs over a real feed.
+          * `provenance_in_value_no_widen` — the hand encoded inside the
+            value with `validate_config` left alone -> CLAUSE 1. CFG-008
+            repairs `pulled|user` back to `per-round` on the way in, so
+            the change is nowhere in the config at all. Correct rather
+            than prescriptive: a repair that marks provenance by making
+            the setting unreadable has moved the defect.
+
+        AND THE STAGES THAT MUST STAY GREEN, which are half the value of
+        the table: a guard that reddens on every perturbation is not
+        discriminating, it is just loud. NO COUNT IS WRITTEN for either
+        list — a hand-maintained total beside a list that grows every
+        review is the thing this file has been bitten by most. Count the
+        bullets.
+
+          * `d_client` — the verb refuses before posting, with a `die`.
+            GUARD GREEN, both reds flipped.
+          * `d_server_err` — the route refuses with `err(403, …)`, the
+            shape a real repair takes, reaching the door as an
+            `HTTPError` rather than a raw `_Err`. GUARD GREEN.
+          * `a_actor_field`, `e_sidecar_and_reader`, `n1_change_log`,
+            `n2_origin_stamp`, `n5_second_route` — the five marking
+            repairs from the class docstring. GUARD GREEN, both reds
+            flipped, and no clause here privileges any of their
+            spellings.
+          * `b_provenance_in_value` — the hand inside the value WITH
+            `validate_config` and `cadence_of` widened in the same
+            change. GUARD GREEN, both reds flipped, no new key anywhere.
+            The blessed half of the pair whose other half is
+            `provenance_in_value_no_widen` above, and the two together
+            separate "the guard refuses this shape" from "the guard
+            caught half a repair".
+          * `c_proposal` — the agent's change waits for a promotion. The
+            config is NOT written and the `--for user` feed never sees
+            it; `landed` survives because clause 3 asks whether the
+            change is SOMEWHERE in the reading rather than in the config.
+          * `renamed_body_key` — the same repair addressing the route as
+            `{"settings": …}` rather than `{"patch": …}`. GUARD GREEN;
+            clause 4 reads keys at any depth.
+          * `batch_write` — the repair sets the key through a batch body
+            with the patch nested inside `ops`. GUARD GREEN.
+          * `moved_route` — the repair posts to `api/settings` instead.
+            GUARD GREEN; clause 4 identifies the door's writes by
+            EXCLUDING the control's own two paths rather than by naming
+            where a repair must post.
+
+        KNOWN LIMITS, in the same shape as the rows above so that a gap
+        is a record rather than a discovery. Each was driven; each leaves
+        the guard silent over a bench that should not have satisfied it:
+
+          * `value_into_a_second_key` — the user's door writes the new
+            cadence into a key nobody reads and clears the minted one.
+            Clause 1 asks only that the value be SOMEWHERE in the config
+            and clause 2 asks `cadence_of`, so a repair that satisfies
+            both while storing the setting where the product cannot use
+            it passes here. Tightening means naming the key that counts,
+            which is the generator returning.
+          * A CLIENT-SIDE MECHANISM IS INVISIBLE UNTIL THE FIXTURE
+            FOLLOWS IT. `_cfg_drive` transcribes the body `App.tsx`
+            posts, so candidate (h) — a session token the CLI cannot mint
+            — reads as unrepaired until the transcription is updated in
+            the same change. Driven both ways; both reds RED without the
+            update, both GREEN with it. This is a false RED and it is
+            disclosed rather than closed, because the model tier has no
+            browser and the alternative is a fixture that guesses.
+          * CLAUSE 4 ASKS THAT ONE WRITE ADDRESSED THE SETTING, not that
+            every one did, so a repair that writes a note beside the
+            change passes with only one of its two writes on target. The
+            damage actually hunted is a driver that aimed at the WRONG
+            setting, and `wrong_key` still catches every case of it.
+
+        A REFUSAL IS NOT A DAMAGED BENCH, which is what clauses 3 to 6
+        are shaped around TOGETHER, and no one of them is sufficient.
+        `_x_post` turns a product refusal, an HTTP 500, a 400 and a dead
+        socket into one `SystemExit`, so `refused` names the exception
+        and not its cause. Clause 4 asks whether the verb addressed the
+        right setting at all; clause 5 asks whether anybody reached a
+        DECISION and then whether the server survived; clause 6 catches
+        the corner where everything answered and the write was accepted
+        anyway.
+
+        THREE JUDGEMENTS ARE BAKED INTO CLAUSES 1, 2 AND 8, written here
+        rather than left implicit, because a guard whose subject is
+        unstated judgements should not carry any. Clauses 1 and 2 require
+        the USER's door to move the setting; clause 8 requires at least
+        one event on the `--for user` feed. A repair that turned BOTH
+        doors into proposals — nobody's setting changes until someone
+        promotes it — would fail this guard rather than flip the reds.
+        That is deliberate: it is a different product, one where the user
+        cannot change their own project's settings, and it should arrive
+        as a failing guard somebody has to look at rather than as a
+        quietly satisfied emptiness claim.
+        """
+        bench = config_authorship_bench()
+        typed, composed = bench["typed"], bench["composed"]
+        # CLAUSE 1 — THE CHANGE IS IN THE CONFIG, wherever the config
+        # chose to put it. Not `config[_CFG_KEY] == _CFG_VALUE`: a repair
+        # that stores the setting as a record rather than a scalar keeps
+        # the value and moves the shape, and the relation is "the user's
+        # change is in the store".
+        self.assertTrue(
+            any(_CFG_VALUE in s for s in _prov_strings(typed["config"])),
+            "the user's own door did not land the change anywhere in the "
+            "config, so the reds beside this are comparing a setting that "
+            "was never turned: %s%s"
+            % (json.dumps(typed["config"], sort_keys=True),
+               "" if typed["outcome"] != "refused"
+               else ". The rail's own POST was refused: %r"
+                    % (typed["refusal"],)))
+        # CLAUSE 2 — THE MINTED VALUE IS GONE, which is what "the setting
+        # moved" means without naming where it moved TO. `per-round` is
+        # what `ensure_tree` writes and what CFG-008 repairs a bad value
+        # back to, so testing against it tests the domain's own starting
+        # vocabulary rather than a repair's chosen ending one — and it is
+        # the one word no repair has a reason to keep. It occurs exactly
+        # once in a default config, which is what makes the question
+        # answerable at all.
+        self.assertNotIn(
+            _CFG_MINTED, str(typed["cadence"]),
+            "the config's OWN reader still reports the cadence a fresh "
+            "project MINTS (%r off %s). Either nothing moved, or a reader "
+            "repaired it back — `validate_config` runs on every write and "
+            "resets a value it does not recognise, so a repair that "
+            "encodes provenance inside the value must widen that reader "
+            "in the same change"
+            % (typed["cadence"], json.dumps(typed["config"],
+                                            sort_keys=True)))
+        # CLAUSE 3 — THE AGENT'S DOOR SAID SOMETHING. A route that
+        # silently does nothing makes the two readings differ for a
+        # reason that has nothing to do with provenance.
+        self.assertIn(
+            composed["outcome"], ("landed", "refused"),
+            "the agent's door neither moved the setting nor refused out "
+            "loud (%r), so both reds above would pass over a bench that "
+            "drove one door" % composed["outcome"])
+        # CLAUSE 4 — AND IT AIMED AT THE SETTING THIS BENCH NAMED.
+        # Unconditional on the outcome: aiming wrong is always the
+        # driver's fault and never a product decision, whatever the
+        # server then said about it — a 400 for a key that is not
+        # settable arrives as a 4xx that clause 5 would otherwise read as
+        # the server making a decision.
+        #
+        # "AT LEAST ONE ADDRESSED IT", not "every write did": a repair
+        # that records a note beside the change writes twice, and only
+        # one of the two is about the setting. Gated on there being a
+        # write at all, because a client-side refusal makes none and is
+        # clauses 3 and 5's subject rather than this one's.
+        writes = composed["writes"]
+        aimed = [w for w in writes
+                 if _CFG_KEY in w["addressed"] and _CFG_VALUE in
+                 w["addressed"]]
+        self.assertTrue(
+            not writes or aimed,
+            "the agent's door made %d write(s) and NOT ONE of them "
+            "addressed %r at %r, the setting this bench asked it to turn: "
+            "%s. Whatever the server then answered, the dial did not move "
+            "because the DRIVER aimed wrong"
+            % (len(writes), _CFG_KEY, _CFG_VALUE,
+               [(w["path"], w["addressed"], w["status"]) for w in writes]))
+        # CLAUSE 5 — THE CONTROL, ON BOTH DOORS. `_prov_control` is
+        # borrowed whole from the pin bench, including
+        # `_PROV_DECIDED_STATUSES`: a 4xx is a DECISION only when the
+        # server understood a well-formed request about a subject that
+        # exists, and this bench writes every body and mints every
+        # project it names. Both doors, because a dead world on the
+        # user's side makes the readings differ exactly as readily.
+        for door in _CFG_DOORS:
+            control = bench[door]["control"]
+            self.assertTrue(
+                control["ok"],
+                # BRANCHED ON WHICH HALF FAILED. One message for both
+                # sends a fixer hunting the wrong thing, which is the
+                # defect this clause exists to stop.
+                ("the %s door " % door) +
+                {"traffic": "never reached a DECISION: %s. Any of "
+                            + str(sorted(_PROV_DECIDED_STATUSES)) +
+                            " would be one and would pass here",
+                 "liveness": "was answered, but the server did not "
+                             "survive it: %s. The readings the reds "
+                             "compare were taken off a server that is "
+                             "no longer serving",
+                 "control": "could not be probed at all: %s"}
+                .get(control["half"], "failed its control: %s")
+                % (control["why"] or control,))
+        # CLAUSE 6 — NO ACCEPTED WRITE BEHIND A REFUSAL. The one corner
+        # neither `vanished` nor the control reaches: a verb that posts,
+        # is answered 200, and dies afterwards. A door that was told yes
+        # did not refuse.
+        if composed["outcome"] == "refused":
+            self.assertIsNotNone(
+                composed["refusal"],
+                "the agent's door refused without an exit code, so the "
+                "refusal is not something a caller could act on")
+            self.assertEqual(
+                [w for w in writes if w["status"] == 200], [],
+                "the agent's door reported a refusal, but %d write(s) "
+                "came back 200 first: %s. A write the server ACCEPTED is "
+                "not a door that was shut"
+                % (len([w for w in writes if w["status"] == 200]),
+                   [(w["path"], w["status"]) for w in writes]))
+        # CLAUSE 7 — THE RENDERING SURFACE IS ALIVE. Red 2 says `status`
+        # does not move with the HAND; that is worth nothing unless
+        # `status` moves with the CHANGE. Phrased as "it moved" rather
+        # than "it says `pulled`", because candidates (c) and (d) both
+        # leave the cadence where it was on purpose and a word-match
+        # would refuse them.
+        self.assertNotEqual(
+            typed["cadence_before"], typed["cadence"],
+            "the config's own reader answered %r both before and after "
+            "the user turned the setting, so the fact `status` renders "
+            "cannot move at all — and red 2's accusation that it does not "
+            "move with the HAND says nothing about a reading that does "
+            "not move with the CHANGE. Asked of `cadence_of` and not of "
+            "the printed block, because the block moves for free: "
+            "`EVENTS_SEQ=` advances on any event whatever, so a status "
+            "comparison here would pass over a rendering that had been "
+            "replaced by a constant" % (typed["cadence"],))
+        self.assertTrue(
+            typed["status"].strip(),
+            "`status` printed nothing at all, so red 2's `status` reading "
+            "is two empty strings agreeing with each other")
+        # CLAUSE 8 — AND THE FEED SPOKE. `wait --for user` printing
+        # nothing makes red 2's `feed` comparison a pair of empty lists
+        # that agree.
+        self.assertGreater(
+            typed["feed_size"], 0,
+            "`wait --for user` served nothing at all after the user's own "
+            "change, so red 2's feed reading compares two empty lists and "
+            "agrees with itself")
+
+    def test_a_scene_write_still_says_whose_hand_it_was(self) -> None:
+        """The live pole: the faculty the reds accuse of missing is alive.
+
+        UNGATED, AND IT IS THE ARGUMENT THE REDS REST ON. Both of them
+        accuse the project of recording no actor for a change, and an
+        accusation of silence is satisfied perfectly by machinery that
+        has stopped saying anything at all. This drives the SAME two
+        hands over a scene write, where the product does keep the mark:
+        `/api/save` commits `author="user"`, an op batch commits
+        `author="agent"`, and the event log splits them into `save` and
+        `agent_revision` so that `wait --for user` can filter one out.
+
+        BOTH HALVES ARE ASSERTED because the reds have both halves. The
+        record's `author` is the storage pole of red 1; the event-type
+        split is the emission pole of red 2, and it is the exact
+        mechanism candidate (b) proposes for config — which is what
+        makes (b) a reuse of a shipped design rather than an invention.
+
+        A config change is that same ruling one write along: the design
+        took "which hand did this" seriously enough to stamp every
+        revision with it and to give the two hands different event types.
+        """
+        marks = save_marks_whose_hand_it_was()
+        self.assertEqual(
+            marks["author"], {"agent": "agent", "user": "user"},
+            "a revision record no longer follows the hand that wrote it "
+            "(%s), so the store has stopped carrying authorship at all "
+            "and the reds beside this would be measuring a dead field "
+            "rather than a missing one" % (marks["author"],))
+        self.assertEqual(
+            marks["types"], {"agent": ["agent_revision"], "user": ["save"]},
+            "the event log no longer splits a scene write by the hand "
+            "that made it (%s). That split is what `wait --for user` "
+            "filters on, and it is the mechanism red 2 says a config "
+            "change does not get — held against a product that had "
+            "stopped making it anywhere, that red would be pointing at "
+            "nothing" % (marks["types"],))
+
+
 class TestCoverage(unittest.TestCase):
     """Spec §3: every detector is proven or named, never silently unproven."""
 
@@ -47177,8 +55329,9 @@ class TestCoverage(unittest.TestCase):
             found, CATALOGUE_RED_IDS,
             "the catalogue's red-by-intent entries have moved: measured "
             "%s against a declared %s. Update CATALOGUE_RED_IDS and the "
-            "'What is red' section of SESSION-HANDOVER.md, which cites it "
-            "by name rather than restating it"
+            "'Catalog red ids' section of tests/RED-ROSTER.md, which is "
+            "the transcription half and is checked by its own guard — "
+            "editing one and not the other fails the suite twice"
             % (sorted(found), sorted(CATALOGUE_RED_IDS)))
 
     def test_the_handover_transcribes_the_reds_it_declares(self) -> None:
@@ -47200,21 +55353,49 @@ class TestCoverage(unittest.TestCase):
         inside the guard — it can only be closed by writing the second
         assertion down.
 
-        The cheaper alternative was real and was rejected: the table
-        could simply be deleted, since §1a already says both halves are
-        derived and names where to read them. It stays because a reader
-        opening the handover to learn what is red should not have to run
-        the suite to find out, and a transcription that is CHECKED costs
-        one line per flip — the same line the flip already costs.
+        The cheaper alternative was real and was rejected: the copy
+        could simply be deleted, since the census already says both
+        halves are derived and names where to read them. It stays because
+        a reader who wants to know what is red should not have to run the
+        suite to find out, and a transcription that is CHECKED costs one
+        line per flip — the same line the flip already costs.
+
+        THE SUBJECT IS `tests/RED-ROSTER.md` SINCE 2026-09-01 and was the
+        model row of SESSION-HANDOVER.md's catalog-reds table before that.
+        This test did not change with it: the subject is the roster and
+        not the document that held it, and `tests/census_probes.py` keys a
+        probe on this method's name. What the move bought is in
+        `handover_catalogue_reds`, and it is not what the class roster's
+        move bought — the ids left because a narrative cell and a
+        machine-read roster were sharing one syntax, and the prose was
+        paying for it in escaped underscores.
         """
         transcribed = handover_catalogue_reds()
+        live = catalogue_red_ids()
+        unspellable = sorted(mid for mid in live
+                             if not _ROSTER_ID_ENTRY.fullmatch(
+                                 "- `%s`" % mid))
         self.assertEqual(
-            transcribed, catalogue_red_ids(),
-            "SESSION-HANDOVER.md's catalog-reds table lists %s while the "
-            "live decorators say %s. The table is a hand copy and this is "
-            "the fifth time it has drifted — edit the row, or delete the "
-            "row and this test together"
-            % (sorted(transcribed), sorted(catalogue_red_ids())))
+            unspellable, [],
+            "these catalogue ids cannot be written in the roster's "
+            "grammar: %s. `CATALOGUE`'s keys and `_ROSTER_ID_ENTRY` "
+            "disagree about what an id looks like, which makes this guard "
+            "UNFIXABLY red — no accepted spelling of the roster can "
+            "satisfy it. Rename the entry, or widen the pattern in the "
+            "same change. Checked before the comparison so the message "
+            "says which of the two problems you have" % (unspellable,))
+        self.assertEqual(
+            transcribed, live,
+            "tests/RED-ROSTER.md's 'Catalog red ids' section lists %s "
+            "while the live decorators say %s. Listed but flipped: %s. "
+            "Red but undisclosed: %s. Edit that section, which curators "
+            "own for exactly this and which is NOT SESSION-HANDOVER.md — "
+            "and note that an empty roster is written %s on its own bullet "
+            "and never as a blank"
+            % (sorted(transcribed) or "nothing", sorted(live) or "nothing",
+               sorted(set(transcribed) - set(live)) or "none",
+               sorted(set(live) - set(transcribed)) or "none",
+               _HAND_AUTHORED_NONE))
 
     def test_the_handover_transcribes_the_coverage_totals(self) -> None:
         """Curator batch 23's reconciliation pass, 2026-08-15.
@@ -47390,11 +55571,22 @@ class TestCoverage(unittest.TestCase):
 
         `test_the_hand_authored_red_classes_are_the_ones_that_exist` has
         compared the DICT to the decorators since batch 16 and has never
-        been wrong. The paragraph in SESSION-HANDOVER.md that transcribes
-        that dict drifted nine times underneath it, and the reason is the
-        same one batch 23 wrote down for the catalogue table: a guard
-        proves the property it evaluates and no part of the property its
-        author had in mind. That sibling never opens the file.
+        been wrong. The prose that transcribes that dict drifted nine
+        times underneath it, and the reason is the same one batch 23 wrote
+        down for the catalogue table: a guard proves the property it
+        evaluates and no part of the property its author had in mind. That
+        sibling never opens the file.
+
+        THE TRANSCRIPTION IS `tests/RED-ROSTER.md` SINCE 2026-09-01 and
+        was SESSION-HANDOVER.md's census paragraph before that. This test
+        did not change with it, deliberately: the subject is the roster
+        and not the document holding it, and the name this method has
+        carried is keyed on by `tests/census_probes.py`. What the move
+        bought is written in `handover_hand_authored_red_classes` —
+        curators own the roster's file, so landing a red no longer means
+        editing a handover they are told not to touch, and concurrent
+        curators add distinct lines rather than rewording one shared
+        sentence. What it did NOT buy is any softening here.
 
         WHAT MAKES THIS THE WORST OF THE SIX, and the reason it is worth a
         docstring rather than a line. The paragraph did not merely go
@@ -47411,13 +55603,15 @@ class TestCoverage(unittest.TestCase):
         both at different counts is the drain-by-one this dict's own
         comments say is rarer here than losing a whole line.
 
-        NOT MUTE AT ZERO. The tree is at zero reds, so both sides are
-        empty and a naive comparison would be `{} == {}` — true of a
-        correct paragraph, a deleted one and a garbled one alike. The
-        reading half is what carries the discrimination: `*none*` is a
-        positive spelling of empty and every other shape of that line
-        raises. See `handover_hand_authored_red_classes` for the grammar
-        and for why a livedoc marker was rejected here.
+        NOT MUTE AT ZERO. The tree can sit at zero non-catalogue reds,
+        so both sides are empty and a naive comparison would be
+        `{} == {}` — true of a correct roster, a deleted one and a
+        garbled one alike. The reading half is what carries the
+        discrimination: `*none*` is a positive spelling of empty and
+        every other shape of that file raises. See
+        `handover_hand_authored_red_classes` for the grammar, for why a
+        livedoc marker was rejected here, and for why a roster line left
+        behind at the old address is itself a failure.
         """
         transcribed = handover_hand_authored_red_classes()
         live = {k: v for k, v in red_bearing_classes().items()
@@ -47429,7 +55623,7 @@ class TestCoverage(unittest.TestCase):
             "these red-bearing classes cannot be written in the roster's "
             "grammar: %s. `red_bearing_classes` collects EVERY TestCase "
             "subclass carrying a red and applies no name filter, while "
-            "`_HAND_AUTHORED_ENTRY` accepts only `Test...`, so the two "
+            "`_ROSTER_ENTRY` accepts only `Test...`, so the two "
             "halves of this guard disagree about what a class name is — "
             "and the disagreement makes it UNFIXABLY red, because no "
             "accepted spelling of the line can satisfy it. Rename the "
@@ -47438,12 +55632,14 @@ class TestCoverage(unittest.TestCase):
             "the two problems you have" % (unspellable,))
         self.assertEqual(
             transcribed, live,
-            "SESSION-HANDOVER.md's non-catalogue red roster says %s while "
-            "the live decorators in this file say %s. Listed but drained: "
-            "%s. Red but undisclosed: %s. Transcribed at the wrong count: "
-            "%s. Edit the roster line — and note that a class whose LAST "
-            "red flips leaves the line entirely rather than dropping to 0, "
-            "and that an empty roster is written %s and never as a blank"
+            "tests/RED-ROSTER.md says %s while the live decorators in "
+            "this file say %s. Listed but drained: %s. Red but "
+            "undisclosed: %s. Transcribed at the wrong count: %s. Edit "
+            "tests/RED-ROSTER.md, which curators own for exactly this and "
+            "which is NOT SESSION-HANDOVER.md — and note that a class "
+            "whose LAST red flips leaves the roster entirely rather than "
+            "dropping to 0, and that an empty roster is written %s on its "
+            "own bullet and never as a blank"
             % (dict(sorted(transcribed.items())) or "nothing",
                dict(sorted(live.items())) or "nothing",
                sorted(set(transcribed) - set(live)) or "none",
@@ -48835,6 +57031,784 @@ class TestDiscovery(unittest.TestCase):
                          "run: python3 tests/test_mutants.py --sweep")
 
 
+# ---------------------------------------------------------------------------
+# r8-1 — A CORRECTION WAVE HEADLINES THE ONE CHANGE NOBODY ASKED FOR.
+# Filed by the R8 assessor (2026-09-01), escalated from r7-2 and reproduced
+# here on `f29c3f3` before a line of this was written. Save 0061 of R8 is a
+# 26-change wave whose whole point was "fix the picture so it's true": four
+# deletions, three additions, three renames, six restyles, eight tooltips.
+# Its headline is `rerouted d12 (+25 more)` — one arrow whose path moved
+# because the node it binds moved, named by RAW MACHINE ID — and
+# `consequence_of` is `None` on all 23 `by_element` entries. n=4 sightings
+# in R8 alone, so it is the rule and not an intermittency.
+#
+# THE SCENE IS FOUR ELEMENTS AND FOUR OPS, which is the fewest that can
+# hold the contest R8 held with 26: something a person authored (a deletion
+# and an addition), something the drawing derived (an arrow re-routed
+# because its endpoint moved), and one headline that has to choose. Nothing
+# in the ranking reads the width, so the width is not modelled.
+R8_ARTIFACT = "flow"
+R8_ARROW = "d12"          # raw machine id on purpose: R8's own arrow
+R8_SOURCE = "a1"
+R8_SINK = "b1"            # the endpoint whose MOVE is the cause
+R8_REMOVED = "c1"         # authored deletion
+R8_MINTED = "e1"          # authored addition
+# Both spellings of each authored subject, because "names an authored
+# change" is a claim about the SUBJECT and not about which surface form a
+# repair picks. A repair that headlines `deleted c1` is worse prose than
+# one that headlines `deleted Fiction` and is not this finding.
+R8_AUTHORED_NAMES = (R8_REMOVED, "Fiction", R8_MINTED, "Warehouse")
+
+
+def r8_correction_wave(structural: bool = True, reroute: bool = True,
+                       endpoint_moves: bool = True) -> dict[str, Any]:
+    """Stage r8-1's minimal correction wave and read the save back.
+
+    The first batch draws Source, Sink, Fiction and an arrow bound from
+    Source to Sink. The second is the correction: Fiction is deleted,
+    Warehouse is added, Sink is moved, and the arrow's `points` are
+    re-sent because Sink moved out from under them. That last op is what
+    R8's agent does — a re-route is written explicitly even when it is
+    entailed — so the wave is built through `apply_batch` rather than
+    assembled as facts, and the ranking measured here is the one a real
+    save produces.
+
+    Args:
+        structural: Keep the authored deletion and addition. False
+            removes the pole the headline is meant to reach.
+        reroute: Keep the `mod points` that mints `rerouted`. False
+            removes the derived pole.
+        endpoint_moves: Keep the move of the node the arrow binds. False
+            leaves the re-route standing on nothing changed — an
+            authored path request, where demanding a cause would be
+            wrong — which is the case this red must not reach.
+
+    Returns:
+        A reading of the second save: `headline`, `verbs` (its
+        `verb_counts`), `facts`, `entries` (`by_element` keyed by id),
+        `changed` (every element id the save touched) and `binds` (the
+        ids the arrow binds after it).
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-r8-1-"))
+    try:
+        project = canvas.Project(root)
+        project.ensure_tree()
+        store = canvas.Store(project)
+        store.apply_batch({
+            "base_revn": 0, "artifact": R8_ARTIFACT,
+            "create": {"id": R8_ARTIFACT, "name": "Flow", "type": "flow",
+                       "concept": "pipe", "concept_name": "Pipe"},
+            "ops": [
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": R8_SOURCE, "label": "Source",
+                    "x": 0, "y": 0, "width": 100, "height": 60,
+                    "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": R8_SINK, "label": "Sink",
+                    "x": 400, "y": 0, "width": 100, "height": 60,
+                    "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": R8_REMOVED, "label": "Fiction",
+                    "x": 200, "y": 200, "width": 100, "height": 60,
+                    "role": "node"}},
+                {"op": "add", "element": {
+                    "type": "arrow", "id": R8_ARROW, "x": 100, "y": 30,
+                    "points": [[0, 0], [300, 0]],
+                    "from": R8_SOURCE, "to": R8_SINK}}]})
+        ops: list[dict[str, Any]] = []
+        if structural:
+            ops += [{"op": "del", "id": R8_REMOVED},
+                    {"op": "add", "element": {
+                        "type": "rectangle", "id": R8_MINTED,
+                        "label": "Warehouse", "x": 200, "y": 200,
+                        "width": 100, "height": 60, "role": "node"}}]
+        if endpoint_moves:
+            ops.append({"op": "mod", "id": R8_SINK, "attrs": {"x": 500}})
+        if reroute:
+            ops.append({"op": "mod", "id": R8_ARROW,
+                        "attrs": {"points": [[0, 0], [400, 0]]}})
+        landed = store.apply_batch({"base_revn": store.head_revn(),
+                                    "artifact": R8_ARTIFACT, "ops": ops})
+        record = landed[0] if isinstance(landed, tuple) else landed
+        scene = list(store.scenes[R8_ARTIFACT])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+    part = (record.get("artifacts") or {}).get(R8_ARTIFACT) or {}
+    arrow = next((e for e in scene if e["id"] == R8_ARROW), {})
+    binds = {(arrow.get(side) or {}).get("elementId")
+             for side in ("startBinding", "endBinding")} - {None}
+    return {"headline": (record.get("summary") or {}).get("headline") or "",
+            "verbs": (record.get("summary") or {}).get("verb_counts") or {},
+            "facts": list(part.get("facts") or []),
+            "entries": {e["id"]: e for e in part.get("by_element") or []},
+            "changed": {c.get("id") or (c.get("element") or {}).get("id")
+                        for c in part.get("changes") or []} - {None},
+            "binds": binds}
+
+
+def assert_the_wave_puts_the_r8_case(case: unittest.TestCase,
+                                     reading: dict[str, Any]) -> None:
+    """Refuse a wave in which neither red below could fail.
+
+    Both reds are claims about a CONTEST — an authored change and a
+    derived one competing for one sentence — and a wave holding only one
+    side satisfies them for the wrong reason. The third clause is the
+    one that is easiest to lose and hardest to notice: strip the
+    endpoint's move and the re-route becomes an authored path request,
+    at which point demanding that it name a cause is demanding a lie.
+
+    Every clause fails through `case`, so a wave that cannot exhibit
+    r8-1 is refused at the caller's own site rather than here.
+
+    Args:
+        case: The test asserting, so failures read at its call site.
+        reading: A reading from `r8_correction_wave`, intact or damaged.
+    """
+    case.assertGreaterEqual(
+        reading["verbs"].get("added", 0), 1,
+        "no authored ADDITION landed in this wave, so 'the headline "
+        "names an authored change' has one fewer subject it could be "
+        "satisfied by. verb_counts: %s" % reading["verbs"])
+    case.assertGreaterEqual(
+        reading["verbs"].get("deleted", 0), 1,
+        "no authored DELETION landed in this wave — R8's instance "
+        "outranked four of them, and a wave with none cannot show it. "
+        "verb_counts: %s" % reading["verbs"])
+    case.assertGreaterEqual(
+        reading["verbs"].get("rerouted", 0), 1,
+        "no reroute landed in this wave, so there is no derived pole "
+        "for the authored one to be outranked by and both reds pass "
+        "over nothing. verb_counts: %s" % reading["verbs"])
+    case.assertIn(
+        R8_ARROW, reading["entries"],
+        "the re-routed arrow has no `by_element` entry, so the field "
+        "the consequence red reads has no home and its absence would "
+        "read as the defect. Entries: %s" % sorted(reading["entries"]))
+    case.assertNotEqual(
+        reading["binds"] & (reading["changed"] - {R8_ARROW}), set(),
+        "the re-routed arrow binds nothing this wave changed (binds %s, "
+        "changed %s), so its path change is an AUTHORED path request "
+        "rather than a consequence — and a red demanding that it name a "
+        "cause would be demanding an invention"
+        % (sorted(reading["binds"]), sorted(reading["changed"])))
+    case.assertNotEqual(
+        {f["fact"] for f in reading["facts"]} & {"added", "deleted"}, set(),
+        "no structural fact reaches the fact list `mechanical_summary` "
+        "ranks, so the headline never had an authored candidate to pick "
+        "and the rank red is measuring an empty contest. Facts: %s"
+        % sorted({f["fact"] for f in reading["facts"]}))
+
+
+class TestACorrectionWaveHeadlinesWhatSomebodyAuthored(unittest.TestCase):
+    """r8-1: a derived re-route outranks the work the turn was about.
+
+    THE FINDING, in one line: over a change wave a person authored, the
+    headline names a DERIVED re-route — by raw machine id — ahead of the
+    additions and deletions that were the point of the turn, and no
+    `by_element` entry says what caused the re-route.
+
+    TWO REDS BECAUSE THE TWO HALVES FAIL APART, which is not a guess:
+    the matrix below has no candidate that flips one by flipping the
+    other, and exactly one that closes both. `mark_consequences` feeds
+    `_by_element` and `semantic_facts`; the `rerouted` fact is appended
+    from `extra_facts` AFTER that, so a repair to the cause map reaches
+    the ENTRY and never the FACT `mechanical_summary` ranks. Close the
+    ranking alone and the record still cannot say why the arrow moved;
+    close the cause alone and the headline still opens with `rerouted
+    d12`.
+
+    WHAT THE REDS DO NOT SAY. Neither asks for a particular mechanism,
+    a particular cause, or better prose. The rank red is satisfied by
+    any headline naming the deletion or the addition, under either
+    spelling; the cause red is satisfied by any element this same save
+    changed. The single most tempting repair — teach `headline_for` to
+    render `rerouted Source → Sink` instead of `rerouted d12` — is
+    measured below and does NOT flip either, deliberately: the raw id is
+    how the defect is spotted, and the defect is the RANK.
+
+    MEASURED ON `f29c3f3`, 2026-09-01, every candidate monkeypatched
+    from a throwaway plugin and never by editing `canvas.py`:
+
+        repair                              rank    cause
+        (today's tree)                      red     red
+        demote `rerouted` in SALIENCE       GREEN   red
+        drop `rerouted` from SALIENCE       GREEN   red
+        `low_signal` on the derived fact    GREEN   red
+        `consequence_of` on the fact        GREEN   red
+        widen `mark_consequences`           red     GREEN
+        cause = the moved endpoint          red     GREEN
+        cause reaches the fact as well      GREEN   GREEN
+
+    FOUR SHAPES FLIP THE RANK AND TWO FLIP THE CAUSE, so neither red is
+    prescribing a repair. The two cause-repairs disagree about the
+    ANSWER — one names the structural add, one names the moved endpoint
+    — and both are accepted, because the relation is "the link resolves
+    to something this save changed" and not "the link says `b1`".
+
+    FIVE SHAPES NOBODY HAD TRIED WERE RUN IN THE OTHER DIRECTION, and
+    all five are REFUSED, which is what stops the relation from being
+    wider than the finding:
+
+      * re-sorting the fact list structurally — refused, and it is not
+        a repair at all: `mechanical_summary` walks SALIENCE by NAME,
+        so the order facts arrive in is multiplied by zero. A red that
+        went green here would have blessed a no-op.
+      * `consequence_of` set to an op INDEX — refused. The field is read
+        by `consequence_lines` as an element to name in a sentence; an
+        integer resolves to nothing and the record still cannot say what
+        caused the move.
+      * `consequence_of` set to the arrow's OWN id — refused. A link
+        that links to itself is the shape a repair takes when it is
+        satisfying a test rather than a reader.
+      * `consequence_of` set to an element the save never touched —
+        refused, for the same reason: it resolves, and it resolves to a
+        lie.
+      * the headline emptied, and every fact marked `low_signal` so the
+        save narrates as "housekeeping only" — both refused. Silence is
+        not a repair; that is doctrine §1 turned on our own record.
+
+    WHAT THIS CLASS DOES NOT REACH, said plainly. The R8 record's own
+    §10.5 carries a second, narrower half of r7-2 — revns 96/97/98
+    headline `removed pin <raw-id>` about pins a named person ANSWERED,
+    so both the id and the VERB are wrong there. That is a different
+    producer (`pin_deleted`) reached through a different door, and it
+    is not modelled here; filing it under this class would make one red
+    stand for two defects and let a fix for either read as a fix for
+    both.
+    """
+
+    def test_the_wave_puts_the_case(self) -> None:
+        """Assert the premise before either red's colour is believed.
+
+        Both reds are claims over a wave that holds two competing
+        changes, and a wave holding one satisfies them vacuously —
+        invisibly so, since `expectedFailure` swallows errors as
+        readily as failures.
+        """
+        assert_the_wave_puts_the_r8_case(self, r8_correction_wave())
+
+    def test_the_headline_names_something_somebody_authored(self) -> None:
+        """The rank half: a derived re-route may not open the sentence.
+
+        The subject is what is asserted, not the wording. Any headline
+        naming the deleted node or the added one passes, under either
+        the label or the id; a headline naming the arrow does not,
+        however well it names it.
+        """
+        reading = r8_correction_wave()
+        self.assertTrue(
+            any(name in reading["headline"]
+                for name in R8_AUTHORED_NAMES),
+            "the headline of this correction wave is %r. It names none "
+            "of the changes a person authored (%s) — it names the arrow "
+            "whose path moved BECAUSE one of them did. verb_counts: %s"
+            % (reading["headline"], list(R8_AUTHORED_NAMES),
+               reading["verbs"]))
+
+    def test_the_derived_reroute_names_what_caused_it(self) -> None:
+        """The cause half: the derived change says what derived it.
+
+        Satisfied by any element this same save changed, so the two
+        honest answers — the structural change, or the endpoint whose
+        move dragged the path — are both accepted and neither is
+        prescribed.
+        """
+        reading = r8_correction_wave()
+        cause = (reading["entries"].get(R8_ARROW)
+                 or {}).get("consequence_of")
+        self.assertIn(
+            cause, reading["changed"] - {R8_ARROW},
+            "the re-routed arrow %s records its cause as %r, and this "
+            "save changed %s — any of which would have been an answer. "
+            "`consequence_of` across the whole wave: %s"
+            % (R8_ARROW, cause, sorted(reading["changed"] - {R8_ARROW}),
+               {k: v.get("consequence_of")
+                for k, v in reading["entries"].items()}))
+
+    def _guard_says(self, reading: dict[str, Any]) -> str | None:
+        """Report what the population guard says about one damaged wave.
+
+        Args:
+            reading: A wave reading with one pole removed.
+
+        Returns:
+            The assertion message the guard raised, or None when it
+            raised nothing — which is a survivor and the finding.
+        """
+        try:
+            assert_the_wave_puts_the_r8_case(self, reading)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
+    def test_the_population_guard_notices_a_wave_that_lost_a_pole(
+            self) -> None:
+        """The vacuity mutants, watched failing before the reds are read.
+
+        THE INPUTS ARE DAMAGED AND NOT THE FUNCTION. Three of the five
+        re-stage the wave through `apply_batch` with one op removed, so
+        the record under the guard is a record the product really
+        writes; the other two forge the READING, because no op can make
+        `apply_batch` emit a save whose arrow has no entry or no
+        bindings, and those are the two states an upstream change could
+        put the guard in without anybody noticing.
+
+        Each mutant is required to trip the clause it targets rather
+        than merely to trip something: a mutant that fails a later
+        clause has proved that clause twice and its own not at all.
+        """
+        intact = r8_correction_wave()
+        mutants: list[tuple[str, dict[str, Any], str]] = [
+            ("the authored structural pole removed",
+             r8_correction_wave(structural=False), "authored ADDITION"),
+            ("the derived pole removed",
+             r8_correction_wave(reroute=False), "no reroute landed"),
+            ("the arrow's endpoint left where it was",
+             r8_correction_wave(endpoint_moves=False),
+             "binds nothing this wave changed"),
+            ("the arrow's entry gone from the record",
+             dict(intact, entries={k: v
+                                   for k, v in intact["entries"].items()
+                                   if k != R8_ARROW}),
+             "no `by_element` entry"),
+            ("the arrow's bindings emptied",
+             dict(intact, binds=set()),
+             "binds nothing this wave changed")]
+        verdicts = [(name, expected, self._guard_says(damaged))
+                    for name, damaged, expected in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, expected, (said or "")[:200])
+                 for name, expected, said in verdicts
+                 if said is not None and expected not in said]
+        self.assertEqual(
+            (survived, [w[:2] for w in wrong]), ([], []),
+            "the population guard did not notice %s, and answered the "
+            "wrong clause for %s. A survivor is the finding: that "
+            "clause is decoration and the two reds above are one "
+            "builder edit away from passing over a wave with no "
+            "contest in it. Detail: %s"
+            % (survived, [w[0] for w in wrong], wrong))
+
+
+# ---------------------------------------------------------------------------
+# pin-removed-verb — A PIN SOMEBODY ANSWERED IS NARRATED AS A REMOVAL.
+# Filed by curator-r8-1 (2026-09-01) as the narrower half of r7-2 and
+# reproduced here on `f29c3f3` before a line of this was written. R8 revns
+# 96, 97 and 98 headline `removed pin pin-benchmark`, `removed pin
+# pin-rerun-unit` and `removed pin pin-deadline` — three saves that closed
+# pins a named person had ANSWERED, narrated with the verb the record keeps
+# for a deletion and naming each pin by its raw machine id. The same
+# session's revn 95 headlines `rewired SEC EDGAR->Fundamentals to Data
+# vendor->Fundamentals (+6 more)`, in human labels, so the surface is
+# capable of both and this producer is not.
+#
+# THE SCENE IS TWO ELEMENTS AND TWO SAVES, which is the fewest that can
+# hold the contrast: one node, one ❓ pinned on it, and then two histories
+# that differ in NOTHING a reader can see except what happened to the
+# question. Same pin id, same question, same target label, deliberately —
+# see `assert_the_pin_close_puts_the_case` on why identical spellings are
+# what make the inequality below a claim about the VERB.
+R8_PIN_ARTIFACT = "flow"
+R8_PIN = "p1"                       # raw machine id on purpose, as in R8
+R8_PIN_TARGET = "a1"
+R8_PIN_TARGET_LABEL = "Checkout"
+R8_PIN_QUESTION = "Does checkout retry on timeout?"
+R8_PIN_ANSWER = "Yes, three times."
+# Both surfaces a reader could recognise the pin by, because "names the
+# pin" is a claim about the SUBJECT and not about which one a repair
+# picks. The question is the product's own established name for a pin —
+# `headline_for` renders `pin_added` as `asked: %r` off exactly this
+# field — and the target's label is how the rail lists it. 33 characters,
+# so the 60-character truncation on that sibling arm is a no-op here and
+# a repair that reuses it still matches.
+R8_PIN_NAMES = (R8_PIN_QUESTION, R8_PIN_TARGET_LABEL)
+# The record's OWN deletion vocabulary, read off `headline_for` rather
+# than invented: `pin_deleted` renders "removed pin", `annotation_deleted`
+# renders "removed note", `tooltip_removed` renders "removed the tooltip",
+# and the `_deleted` suffix arm renders "deleted". Refusing these two
+# words prescribes no replacement — "answered", "resolved", "settled",
+# "closed" and "you answered" all pass.
+R8_REMOVAL_VERBS = ("removed", "deleted")
+# Every way this record has of saying nothing worth reading happened —
+# `mechanical_summary`'s own two literals and the empty-save sentinel.
+# The verb red refuses these as hard as it refuses the removal verbs,
+# because suppressing the fact is the cheapest thing that makes a
+# headline stop saying "removed" and it is doctrine §1's exact shape:
+# silence read as health. Two of the five refused shapes below reach
+# the verb red through here and through nothing else.
+R8_SILENCE_SURFACES = (canvas.EMPTY_SAVE_HEADLINE, "housekeeping only",
+                       "no changes")
+
+
+def r8_pin_close(answered: bool = True,
+                 resolved: bool = True) -> dict[str, Any]:
+    """Stage one pin's whole life and read back the save that closed it.
+
+    The first batch draws Checkout and pins a ❓ on it. The answer, when
+    there is one, goes through `ServerApp.handle_post` on
+    `/api/pins/answer` — THE USER'S DOOR, and the only door that writes
+    testimony — so `answer_source` is written by the product and not by
+    this builder. The second batch closes the ❓, and the headline this
+    function returns is the one a real save produced.
+
+    Args:
+        answered: Post the user's answer before closing. False leaves
+            the pin open, which is the pole where the record's deletion
+            vocabulary is CORRECT.
+        resolved: Close the pin with `resolve_pin` — settling it, which
+            the registry records as `resolved`. False closes it with a
+            front-door `del` on the ❓, which the registry records as
+            `dismissed`: somebody threw the question away.
+
+    Returns:
+        A reading of the closing save: `headline`, `verbs` (its
+        `verb_counts`), `facts`, `status` and `answer_source` from the
+        pin's registry record after the save, and `question` — carried
+        rather than assumed so the guard can compare the two poles'
+        spellings instead of trusting that they match.
+    """
+    root = Path(tempfile.mkdtemp(prefix="mutants-pin-close-"))
+    app = None
+    project = canvas.Project(root)
+    try:
+        project.ensure_tree()
+        # ONE STORE, the app's own: a second `Store` over the same
+        # project reads the registry off disk at construction and then
+        # never sees the answer, so a builder holding its own would
+        # report `status: open` on a pin the product had answered — and
+        # the guard below would refuse the case for the builder's fault.
+        app = canvas.ServerApp(project)
+        store = app.store
+        store.apply_batch({
+            "base_revn": 0, "artifact": R8_PIN_ARTIFACT,
+            "create": {"id": R8_PIN_ARTIFACT, "name": "Flow",
+                       "type": "flow", "concept": "pipe",
+                       "concept_name": "Pipe"},
+            "ops": [
+                {"op": "add", "element": {
+                    "type": "rectangle", "id": R8_PIN_TARGET,
+                    "label": R8_PIN_TARGET_LABEL, "x": 0, "y": 0,
+                    "width": 100, "height": 60, "role": "node"}},
+                {"op": "pin", "id": R8_PIN, "question": R8_PIN_QUESTION,
+                 "target": R8_PIN_TARGET}]})
+        if answered:
+            app.handle_post("/api/pins/answer",
+                            {"id": R8_PIN, "answer": R8_PIN_ANSWER})
+        closing = ({"op": "resolve_pin", "id": R8_PIN} if resolved
+                   else {"op": "del", "id": R8_PIN})
+        landed = store.apply_batch({"base_revn": store.head_revn(),
+                                    "artifact": R8_PIN_ARTIFACT,
+                                    "ops": [closing]})
+        record = landed[0] if isinstance(landed, tuple) else landed
+        pin = next((p for p in store.registry["pins"]
+                    if p["id"] == R8_PIN), {})
+        reading = {
+            "headline": (record.get("summary") or {}).get("headline") or "",
+            "verbs": (record.get("summary") or {}).get("verb_counts") or {},
+            "facts": list((((record.get("artifacts") or {})
+                            .get(R8_PIN_ARTIFACT)) or {}).get("facts") or []),
+            "status": pin.get("status"),
+            "answer_source": pin.get("answer_source"),
+            "question": pin.get("question") or ""}
+    finally:
+        if app is not None:
+            app.log_file.close()
+        # Runtime state lives OUTSIDE the project root — `Project` keys
+        # it by a hash of that root under the shared temp dir — so
+        # removing the tree alone would leak three files per call.
+        for stale in (project.state_path, project.events_path,
+                      project.log_path):
+            if stale.exists():
+                stale.unlink()
+        shutil.rmtree(root, ignore_errors=True)
+    return reading
+
+
+def assert_the_pin_close_puts_the_case(case: unittest.TestCase,
+                                       subject: dict[str, Any],
+                                       control: dict[str, Any]) -> None:
+    """Refuse a pair in which neither red below could fail.
+
+    Both reds are claims about a CONTRAST — a question somebody
+    answered and settled against a question somebody threw away — and a
+    pair that does not hold both poles satisfies them over nothing.
+    Five clauses, and the last two are the ones that are easy to lose:
+    a control whose headline never says "removed" would let the
+    subject's clause pass over a producer that has no deletion
+    vocabulary at all, and two pins spelled differently would let the
+    inequality flip for a repair that only humanised the id.
+
+    Asserts through `case` rather than raising on its own account, so a
+    refused pair is reported against the test that built it and reads
+    as the ordinary failure it is.
+
+    Args:
+        case: The test asserting, so a failure is reported against it.
+        subject: A reading of the answered-then-resolved close.
+        control: A reading of the open-then-deleted close.
+    """
+    case.assertEqual(
+        (subject["status"], subject["answer_source"]),
+        ("resolved", "user"),
+        "the subject pin closed as %r with answer_source %r, not as a "
+        "question a person ANSWERED and then settled — so a red "
+        "demanding the headline say it was answered would be demanding "
+        "an invention" % (subject["status"], subject["answer_source"]))
+    case.assertEqual(
+        (control["status"], control["answer_source"]), ("dismissed", None),
+        "the control pin closed as %r with answer_source %r, not as an "
+        "unanswered question somebody threw away — so the pole where "
+        "the record's removal verb is CORRECT is not in this pair and "
+        "the subject has nothing to be told apart from"
+        % (control["status"], control["answer_source"]))
+    for name, reading in (("subject", subject), ("control", control)):
+        # COUNTED AND ADDRESSED, never named: a repair is allowed to
+        # rename the fact kind — one of the four measured below mints
+        # `pin_answered` — and a clause spelling `pin_deleted` would
+        # refuse the pair for the repair having worked.
+        case.assertEqual(
+            (sum(reading["verbs"].values()),
+             {f.get("element") for f in reading["facts"]}),
+            (1, {R8_PIN}),
+            "the %s save narrates %s about %s, not one close of the pin "
+            "under test — the headline contest measured below is then "
+            "about some other change and the reds are reading a sentence "
+            "they were not written about"
+            % (name, reading["verbs"],
+               sorted({str(f.get("element")) for f in reading["facts"]})))
+    case.assertTrue(
+        any(v in control["headline"] for v in R8_REMOVAL_VERBS),
+        "the control headline is %r and uses none of the record's "
+        "removal verbs %s. The subject's clause below refuses exactly "
+        "those words, so a producer that had stopped saying them would "
+        "make it pass while narrating a settled question as anything at "
+        "all" % (control["headline"], list(R8_REMOVAL_VERBS)))
+    case.assertEqual(
+        subject["question"], control["question"],
+        "the two pins ask different questions (%r vs %r), so their "
+        "headlines can differ over their CONTENT. The inequality below "
+        "is a claim about the verb and it only is one while every "
+        "other spelling in the two sentences is identical"
+        % (subject["question"], control["question"]))
+
+
+class TestAnAnsweredPinIsNotNarratedAsARemoval(unittest.TestCase):
+    """pin-removed-verb: settling a question is narrated as deleting it.
+
+    THE FINDING, in one line: when a save closes a ❓ that a named
+    person ANSWERED, the headline calls it a removal and names the pin
+    by its raw machine id — the same sentence, byte for byte, that the
+    record produces when somebody throws an unanswered question away.
+
+    THE PARENT IS r7-2 ("a move can never be a CAUSE; headline names a
+    raw id"), and this is its narrower half: R8 revns 96, 97 and 98
+    headline `removed pin pin-benchmark`, `removed pin pin-rerun-unit`
+    and `removed pin pin-deadline`. r7-2's other half — a derived
+    re-route outranking authored work — lives in a different class over
+    a different producer (`mark_consequences` and SALIENCE, reached
+    through `apply_batch`); this one is `semantic_facts`' `pin_deleted`
+    arm reached through `/api/pins/answer` and `resolve_pin`. Filing
+    them together would make one red stand for two defects.
+
+    TWO REDS BECAUSE THE TWO HALVES FAIL APART, and the matrix below
+    measures it rather than guessing: the verb is decided by which fact
+    `headline_for` is handed, the name by what that branch renders out
+    of it, and four of the seven candidates move exactly one.
+
+    WHAT THE REDS DO NOT SAY. Neither asks for a particular word. The
+    verb red refuses the record's own two deletion verbs and accepts
+    every other spelling — "answered", "resolved", "settled", "closed",
+    "you answered" all pass, and three of the four measured repairs
+    below pick three different words. It additionally refuses SILENCE,
+    because `mechanical_summary` will happily narrate a suppressed
+    fact as "housekeeping only" and a question somebody answered being
+    settled is not housekeeping. The name red accepts the question text
+    or the target's label, so the two honest answers are both allowed
+    and neither is prescribed.
+
+    MEASURED ON `f29c3f3`, 2026-09-01, every candidate monkeypatched
+    from a throwaway plugin under `/tmp/curator-pin-removed-verb/` and
+    never by editing `canvas.py`:
+
+        repair                                    verb    name
+        (today's tree)                            red     red
+        fact carries the pin's status at close    GREEN   GREEN
+        a distinct `pin_answered` fact kind       GREEN   GREEN
+        verb from status, raw id kept             GREEN   red
+        `resolve_pin` marks its own fact          GREEN   red
+        the id humanised, "removed" kept          red     GREEN
+
+    FOUR SHAPES FLIP THE VERB AND THREE FLIP THE NAME, so neither red
+    prescribes a repair. The last row is the one the finding names
+    explicitly: humanising the id is the tempting cheap fix, it is a
+    real improvement to the name, and it leaves a settled question
+    narrated as a deletion — so the verb red must not move for it, and
+    does not.
+
+    FIVE SHAPES NOBODY HAD TRIED WERE RUN IN THE OTHER DIRECTION, and
+    all five are REFUSED:
+
+      * the `pin_deleted` fact marked `low_signal` — refused, and the
+        SILENCE clause is the only thing that refuses it: the save
+        narrates "housekeeping only (1 low-signal change)", which
+        carries no removal verb and differs from the control, so the
+        other two clauses both went green. Suppressing the fact is the
+        cheapest thing that stops a headline saying "removed", and
+        without that clause this no-repair would have read as the fix.
+        Doctrine §1 turned on our own record.
+      * the fact dropped entirely — refused twice over, which is the
+        healthier answer: the silence clause reads `saved without
+        changing anything` about a save that took an element off the
+        canvas, and the population guard refuses the pair outright
+        because the subject no longer narrates a close of this pin.
+      * the pin named by its TARGET's raw id (`a1`) — refused by the
+        NAME red while the verb red goes green, which is right: the
+        verb really was repaired and a different machine's id is still
+        not a name a reader has seen.
+      * the CONTROL's headline changed instead of the subject's, so
+        that a dismissal reads "deleted pin p1" while a settled
+        question still reads "removed pin p1" — refused, and this is
+        the shape the verb red's first clause exists for. Measured:
+        the inequality clause DID go green and `['removed']` alone
+        held the red. An inequality on its own would have blessed a
+        change that never touched the subject.
+      * "removed" kept with the answer's source appended — `removed
+        pin p1 (answered by user)` — refused. Naming the answerer is
+        not what the verb red wants; it wants the sentence to stop
+        saying the question was thrown away.
+
+    WHAT THIS CLASS DOES NOT REACH. It does not assert that the
+    headline names WHO answered, though `answer_source` is written and
+    available: every spelling of an attribution is a wording choice,
+    and a red demanding one would be prescribing prose. The guard below
+    asserts `answer_source` is populated so that a repair which wants
+    to say it can, and the verb red passes whether it does or not.
+    """
+
+    def test_the_pair_puts_the_case(self) -> None:
+        """Assert the premise before either red's colour is believed.
+
+        Both reds are claims over a contrast between two closes, and a
+        pair missing either pole satisfies them vacuously — invisibly
+        so, since `expectedFailure` swallows errors as readily as
+        failures.
+        """
+        assert_the_pin_close_puts_the_case(
+            self, r8_pin_close(), r8_pin_close(answered=False,
+                                               resolved=False))
+
+    def test_a_settled_question_is_not_narrated_as_a_deletion(self) -> None:
+        """The verb half: closing an answered pin is not a removal.
+
+        Three clauses, all relations. The subject may not use the
+        record's own deletion verbs; it may not fall back on one of the
+        record's ways of saying nothing happened; and it may not be the
+        same sentence the record produces for the opposite event.
+        """
+        subject = r8_pin_close()
+        control = r8_pin_close(answered=False, resolved=False)
+        said_removed = [v for v in R8_REMOVAL_VERBS
+                        if v in subject["headline"]]
+        went_quiet = [s for s in R8_SILENCE_SURFACES
+                      if s in subject["headline"]]
+        self.assertEqual(
+            (said_removed, went_quiet,
+             subject["headline"] == control["headline"]),
+            ([], [], False),
+            "this save settled a question %s answered (%r) and headlines "
+            "it %r. The record's own removal verbs are %s; a save that "
+            "threw the SAME question away unanswered headlines %r. The "
+            "two events are opposite and the sentence is identical."
+            % (subject["answer_source"], R8_PIN_ANSWER,
+               subject["headline"], list(R8_REMOVAL_VERBS),
+               control["headline"]))
+
+    def test_a_closed_pin_is_named_by_its_question_not_its_id(self) -> None:
+        """The name half: a ❓ has a question, and the headline has an id.
+
+        Satisfied by the question text or by the target's label, so
+        both surfaces a reader could recognise the pin by are accepted
+        and neither is prescribed.
+        """
+        subject = r8_pin_close()
+        self.assertTrue(
+            any(name in subject["headline"] for name in R8_PIN_NAMES),
+            "the headline of this save is %r. It names the pin by the id "
+            "the store minted for it and by nothing a reader has ever "
+            "seen: not the question it asked (%r), not the label of what "
+            "it was pinned to (%r). The record holds both — `pin_added` "
+            "already headlines this same pin as `asked: %r`."
+            % (subject["headline"], R8_PIN_QUESTION, R8_PIN_TARGET_LABEL,
+               R8_PIN_QUESTION))
+
+    def _guard_says(self, subject: dict[str, Any],
+                    control: dict[str, Any]) -> str | None:
+        """Report what the population guard says about one damaged pair.
+
+        Args:
+            subject: The answered-and-settled reading, possibly damaged.
+            control: The thrown-away reading, possibly damaged.
+
+        Returns:
+            The assertion message the guard raised, or None when it
+            raised nothing — which is a survivor and the finding.
+        """
+        try:
+            assert_the_pin_close_puts_the_case(self, subject, control)
+        except AssertionError as caught:
+            return str(caught)
+        return None
+
+    def test_the_population_guard_notices_a_pair_that_lost_a_pole(
+            self) -> None:
+        """The vacuity mutants, watched failing before the reds are read.
+
+        THE INPUTS ARE DAMAGED AND NOT THE FUNCTION. The first three
+        re-stage the pin's life through the product with one step
+        changed, so the pair under the guard is one the store really
+        writes; the last three forge the READING, because no sequence
+        of ops makes this producer emit a control with no removal verb,
+        a save narrating two pin closes, or two pins asking different
+        questions — and those are exactly the states an upstream change
+        could put the guard in without anybody noticing.
+
+        Each mutant is required to trip the clause it targets rather
+        than merely to trip something: a mutant that fails a later
+        clause has proved that clause twice and its own not at all.
+        """
+        subject = r8_pin_close()
+        control = r8_pin_close(answered=False, resolved=False)
+        mutants: list[tuple[str, dict[str, Any], dict[str, Any], str]] = [
+            ("the subject never answered",
+             r8_pin_close(answered=False), control, "ANSWERED"),
+            ("the subject thrown away rather than settled",
+             r8_pin_close(resolved=False), control, "ANSWERED"),
+            ("the control settled rather than thrown away",
+             subject, r8_pin_close(answered=False), "threw away"),
+            ("the control's removal verb gone",
+             subject, dict(control, headline="pin %s is gone" % R8_PIN),
+             "removal verbs"),
+            ("the subject narrating a second close as well",
+             dict(subject, verbs={"pin_deleted": 1, "deleted": 1}),
+             control, "not one close of the pin"),
+            ("the two pins asking different questions",
+             dict(subject, question="Something else entirely?"), control,
+             "different questions")]
+        verdicts = [(name, expected, self._guard_says(sub, ctl))
+                    for name, sub, ctl, expected in mutants]
+        survived = [name for name, _, said in verdicts if said is None]
+        wrong = [(name, expected, (said or "")[:200])
+                 for name, expected, said in verdicts
+                 if said is not None and expected not in said]
+        self.assertEqual(
+            (survived, [w[:2] for w in wrong]), ([], []),
+            "the population guard did not notice %s, and answered the "
+            "wrong clause for %s. A survivor is the finding: that clause "
+            "is decoration and the two reds above are one builder edit "
+            "away from passing over a pair with no contrast in it. "
+            "Detail: %s" % (survived, [w[0] for w in wrong], wrong))
+
+
 if __name__ == "__main__":
     if "--coverage" in sys.argv:
         for name, status, ev in coverage_table():
@@ -48854,6 +57828,18 @@ if __name__ == "__main__":
         # one who ran `--coverage` and did not open the file. Reported
         # rather than asserted — `RENDER_RUN_RECORD`'s comment has why.
         print("\nrender-tier evidence: %s — %s" % render_evidence_currency())
+        # AND THE TWO BROWSER CAPTURES, on the surface for the same
+        # reason and with one difference: these are read by the ORDINARY
+        # suite, so a stale one also makes its consumers SKIP with this
+        # same sentence. The line here is for the reader who wants to
+        # know BEFORE running anything whether the fact-for-fact
+        # comparisons are live.
+        for _spec, _cap in (("pin-untouched-captions.spec.ts",
+                             browser_caption_capture()),
+                            ("pin-rewrapped-caption-drag.spec.ts",
+                             browser_rewrap_capture())):
+            print("browser capture (%s): %s — %s"
+                  % (_spec, *browser_capture_currency(_cap, _spec)))
     elif "--sweep" in sys.argv:
         raise SystemExit(run_sweep())
     else:

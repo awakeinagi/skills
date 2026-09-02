@@ -12,6 +12,7 @@ import { DocReader } from "./components/DocReader";
 import { AnchoredPopover, AnchoredQuestion, anchorStyle } from "./components/AnchoredPopover";
 import { TooltipCard, TooltipEditor } from "./components/Tooltip";
 import { Inspector } from "./components/Inspector";
+import { BugHunter } from "./components/BugHunter";
 import { hostIdOf, isComposedPiece } from "./composed";
 import { libraryItems, TEMPLATES, templateElements } from "./library";
 
@@ -644,6 +645,10 @@ export default function App() {
   const [mermaidText, setMermaidText] = useState("");
   const [mermaidBusy, setMermaidBusy] = useState(false);
   const [walkIdx, setWalkIdx] = useState<number | null>(null);
+  // v0.9.1 — the 🐞 bug-hunter. Selection first: the button opens the
+  // description dialog straight away, already naming what is selected.
+  // See components/BugHunter.tsx for the ruling and its reasoning.
+  const [bugOpen, setBugOpen] = useState(false);
   // the onion skin: an old revision kept as a DOM overlay only. It never
   // enters the Excalidraw scene, so it can never reach a save buffer.
   const [ghost, setGhost] = useState<{ revn: number; scenes: Record<string, any[]> } | null>(null);
@@ -670,6 +675,8 @@ export default function App() {
   const suppressPinOpenRef = useRef<number>(0);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const cameraRef = useRef({ scrollX: 0, scrollY: 0, zoom: 1 });
+  // the served build this tab loaded against — see `refresh`
+  const webBundleRef = useRef<string | null>(null);
   const hoverTimerRef = useRef<any>(null);
   // the pinned set, mirrored for the pointer-move handler: without it,
   // tracking hover would run a full-scene hit test at pointer rate on
@@ -812,6 +819,13 @@ export default function App() {
         // "new question" banner — the rail shows them
         firstStateRef.current = false;
         setSeenPins((s.pins || []).filter((p: any) => p.status === "open").map((p: any) => p.id));
+        // The build being served when this tab BOOTED, pinned once and
+        // never refreshed. A bug report posts it back, so a report filed
+        // from a tab older than the server it is talking to says so —
+        // the 2026-08-13 spike lost a round to a stale build and had no
+        // way to tell. Refreshing it every poll would make it agree with
+        // the server by construction and answer nothing.
+        webBundleRef.current = typeof s.web_bundle === "string" ? s.web_bundle : null;
       }
       stateRef.current = s;
       setState(s);
@@ -1277,6 +1291,16 @@ export default function App() {
     return c ? c.name : null;
   }, [concepts, currentArtifact]);
 
+  /** Concept ID of the artifact on the canvas — the bug bundle's context.
+   *
+   * Recorded so a browser-level issue is distinguishable from an
+   * artifact-level one. The deleted spike's bundles could not tell the
+   * two apart, so every report read as "something is wrong somewhere". */
+  const currentConceptId = useMemo(() => {
+    const c = concepts.find((c: any) => (c.views || []).includes(currentArtifact));
+    return c ? c.id : null;
+  }, [concepts, currentArtifact]);
+
   const groupedArtifacts = useMemo(() => {
     const groups: { name: string; ids: string[] }[] = [];
     const claimed = new Set<string>();
@@ -1540,6 +1564,35 @@ export default function App() {
     api.updateScene({ elements: live });
     toast("Pin dismissed — Save to record it (reads as “not worth explaining”).");
   }, [showArtifact, toast]);
+
+  /**
+   * Accept an agent's draft as this pin's answer.
+   *
+   * THE USER'S HALF OF THE PROPOSAL DOOR, and the only half in the app:
+   * the agent posts `/api/pins/propose` and can go no further, so an
+   * answer only ever exists because somebody here pressed this. `answer`
+   * is their edit of the draft, or blank to take it as written.
+   */
+  const promotePin = useCallback((id: string, answer: string) => {
+    apiPost("/api/pins/promote", { id, answer })
+      .then(() => {
+        toast(answer
+          ? "Accepted with your wording — recorded as your answer."
+          : "Accepted the agent's draft — recorded as your answer.");
+        refresh();
+      })
+      .catch((e) => toast(e.message));
+  }, [refresh, toast]);
+
+  /** Throw away a waiting draft and leave the question open. */
+  const discardProposal = useCallback((p: { id: string }) => {
+    apiPost("/api/pins/proposal/discard", { id: p.id })
+      .then(() => {
+        toast("Draft discarded — the question is still open, and the agent is told you refused it.");
+        refresh();
+      })
+      .catch((e) => toast(e.message));
+  }, [refresh, toast]);
 
   /* ---------------- v0.3: tooltips, inspector, revert ---------------- */
 
@@ -2457,6 +2510,13 @@ export default function App() {
         <button className="icon-btn" title="snap to the grid, re-route arrows, normalize z-order — lands as an ordinary revision you can revert"
           disabled={viewingRevn != null} onClick={doTidy}>✨ tidy</button>
         <button className="icon-btn" title="copy a context update to paste to the agent" onClick={copyContextUpdate}>⧉ context</button>
+        {/* NOT disabled while viewing history, unlike every drawing verb
+            beside it: "the old revision renders wrong" is a report, and
+            a reporter you can only reach from the present cannot receive
+            it. The bundle records `viewing_revn`, so a reader can tell. */}
+        <button className="icon-btn" data-testid="bug-hunter-open"
+          title="report a problem with what you are looking at — captures the drawing, your selection and the session state for the agent"
+          onClick={() => setBugOpen(true)}>🐞 report</button>
         <button className="icon-btn" title="download this artifact as a PNG" onClick={exportPng}>⇓ png</button>
         <button className="icon-btn" title="zoom to fit everything on this artifact" onClick={zoomFit}>⤢ fit</button>
         <button className="icon-btn" title={hasFrames ? "walk the screens like a prototype — ←/→ to move, Esc to exit" : "no screen frames on this artifact yet — insert one first"}
@@ -2737,6 +2797,11 @@ export default function App() {
                           })
                           .catch((e) => toast(e.message));
                       }}
+                  onPromote={viewingRevn != null || anchored.kind !== "pin" ||
+                    !anchored.data?.proposed_answer ||
+                    anchored.data?.status !== "open"
+                    ? null
+                    : () => promotePin(anchored.data.id, "")}
                   onFullStory={() => {
                     setDetailItem({ kind: anchored.kind, data: anchored.data });
                     setAnchored(null);
@@ -2817,6 +2882,8 @@ export default function App() {
           onAnswerTripwire={answerTripwire}
           onGoto={gotoElement}
           onDismissPin={dismissPin}
+          onPromotePin={promotePin}
+          onDiscardProposal={discardProposal}
           onOpenDetail={(kind, data) => setDetailItem({ kind, data })}
           onLabelSave={labelSave}
           onSwitchBranch={(name) => {
@@ -3055,8 +3122,51 @@ export default function App() {
                   })
                   .catch((e) => toast(e.message));
               }}
+          onPromote={viewingRevn != null || detailItem.kind !== "pin" ||
+            !detailItem.data?.proposed_answer ||
+            detailItem.data?.status !== "open"
+            ? null
+            : (a: string) => {
+                promotePin(detailItem.data.id, a);
+                setDetailItem(null);
+              }}
+          onDiscardProposal={viewingRevn != null || detailItem.kind !== "pin" ||
+            !detailItem.data?.proposed_answer ||
+            detailItem.data?.status !== "open"
+            ? null
+            : () => {
+                discardProposal(detailItem.data);
+                setDetailItem(null);
+              }}
         />
       )}
+      {/* The 🐞 bug-hunter, mounted at the app root so its fixed overlay
+          is never inside the canvas's stacking context — the v0.3 hover
+          card lived there and its buttons never received a click. */}
+      <BugHunter
+        open={bugOpen}
+        onClose={() => setBugOpen(false)}
+        apiRef={apiRef}
+        appStateRef={appStateRef}
+        cameraRef={cameraRef}
+        wrapRef={wrapRef}
+        artifact={currentArtifact}
+        concept={currentConceptId}
+        webBundle={webBundleRef.current}
+        toast={toast}
+        panels={{
+          rail_open: true,
+          inspector_open: !!selElId,
+          filmstrip_open: true,
+          insert_menu_open: insertOpen,
+          mermaid_open: mermaidOpen,
+          walk_index: walkIdx,
+          viewing_revn: viewingRevn,
+          ghost_revn: ghost?.revn ?? null,
+          theme,
+          dirty: anyDirty,
+        }}
+      />
     </div>
   );
 }

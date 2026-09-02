@@ -7,10 +7,16 @@ import { TripwireCard, gotoRefOf } from "./QuestionUI";
 export function Rail({
   state, currentArtifact, viewingRevn, onAnswerPin, onAnswerTripwire,
   onGoto, onOpenDetail, onSwitchBranch, onArchive, onViewCommit,
-  onDismissPin, onLabelSave, inspector,
+  onDismissPin, onLabelSave, onPromotePin, onDiscardProposal, inspector,
 }: {
   state: any; currentArtifact: string | null; viewingRevn: number | null;
   onAnswerPin: (id: string, answer: string) => void;
+  /**
+   * Accept an agent's draft as the answer — blank `answer` takes it as
+   * written. The agent has no route to this: it may only propose.
+   */
+  onPromotePin: (id: string, answer: string) => void;
+  onDiscardProposal: (pin: { id: string }) => void;
   onAnswerTripwire: (id: string, answer: string) => void;
   onGoto: (ref: { aid: string; el: string }) => void;
   onOpenDetail: (kind: "pin" | "tripwire", data: any) => void;
@@ -27,6 +33,10 @@ export function Rail({
   const [showVocab, setShowVocab] = useState(false);
   const [allBranches, setAllBranches] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // Which waiting drafts the user has opened for editing. Absent means
+  // "accept as written"; present means the textarea below is showing and
+  // its content is what acceptance will store.
+  const [edits, setEdits] = useState<Record<string, string>>({});
 
   const concepts = state?.concepts || [];
   const mappings = state?.mappings || [];
@@ -355,9 +365,67 @@ export function Rail({
                   <> · target edited {debtById[p.id].target_edits}×</>}
               </div>
             )}
+            {/* A draft the agent wrote, waiting on the user. It is NOT
+                an answer and the card must not read like one: the agent
+                cannot answer a pin, so nothing here is testimony until
+                this person accepts it. Shown above the answer box so
+                accepting and answering are visibly two different acts. */}
+            {p.proposed_answer && (
+              <div className="proposal">
+                <div className="proposal-head">
+                  <span className="who-chip agent">agent draft</span>
+                  the agent wrote this for you — it is not your answer
+                  until you accept it
+                </div>
+                {p.id in edits ? (
+                  <textarea
+                    className="proposal-edit"
+                    autoFocus
+                    value={edits[p.id]}
+                    disabled={viewingRevn != null}
+                    onChange={(e) => setEdits({ ...edits, [p.id]: e.target.value })}
+                  />
+                ) : (
+                  <div className="proposal-text">“{p.proposed_answer}”</div>
+                )}
+                <div className="proposal-row">
+                  <button
+                    disabled={viewingRevn != null ||
+                      (p.id in edits && !edits[p.id].trim())}
+                    onClick={() => onPromotePin(p.id, p.id in edits
+                      ? edits[p.id].trim() : "")}>
+                    {p.id in edits ? "Accept my wording" : "Accept as written"}
+                  </button>
+                  {!(p.id in edits) && (
+                    <button className="linkish"
+                      disabled={viewingRevn != null}
+                      onClick={() => setEdits({ ...edits, [p.id]: p.proposed_answer })}>
+                      ✎ edit first
+                    </button>
+                  )}
+                  {p.id in edits && (
+                    <button className="linkish"
+                      onClick={() => {
+                        const next = { ...edits };
+                        delete next[p.id];
+                        setEdits(next);
+                      }}>
+                      cancel edit
+                    </button>
+                  )}
+                  <button className="linkish dismiss"
+                    disabled={viewingRevn != null}
+                    title="throw the draft away — the question stays open"
+                    onClick={() => onDiscardProposal(p)}>
+                    ✕ discard draft
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="answer-row">
               <input
-                placeholder="Answer here…"
+                placeholder={p.proposed_answer
+                  ? "…or answer in your own words…" : "Answer here…"}
                 value={answers[p.id] || ""}
                 disabled={viewingRevn != null}
                 onChange={(e) => setAnswers({ ...answers, [p.id]: e.target.value })}
@@ -397,6 +465,14 @@ export function Rail({
             {showPinArchive ? "hide" : "show"} archive ({resolvedPins.length})
           </button>
         )}
+        {/* THE ARCHIVE CARD CARRIES THE PROVENANCE, and until v0.9 it
+            carried none: the `yours`/`agent` chip renders inside
+            `openPins.map` above, so the moment a pin was answered it
+            moved here and its authorship mark vanished — authorship
+            rendered on the half that is almost always the agent, and
+            absent on the half that varies. `answer_source` is what says
+            it, and an accepted draft the user rewrote says both halves:
+            the ruling is theirs, the phrasing was the agent's. */}
         {showPinArchive && resolvedPins.map((p: any) => (
           <div key={p.id} className="pin-card resolved">
             <div className="q">{p.question}</div>
@@ -404,6 +480,30 @@ export function Rail({
               p.status === "dismissed" ? "(dismissed — not worth explaining)" :
               p.status === "pruned" ? "(elements deleted)" : "(resolved on canvas)"
             )}</div>
+            {/* GATED ON `answer_source` AND NOT ON `p.answer`, because a
+                record written before this field existed cannot say whose
+                words it holds — and back then the agent could answer a
+                pin outright. Rendering "you wrote this answer yourself"
+                over one of those would be a positive claim about a fact
+                nobody recorded, which is the same defect one direction
+                over. Silence for the unknowable, a mark for everything
+                written since. */}
+            {p.answer && p.answer_source && (
+              <div className="answer-source">
+                <span className={`who-chip ${p.answer_source === "agent-proposal" ? "agent" : "user"}`}>
+                  {p.answer_source === "agent-proposal" ? "agent draft" : "your words"}
+                </span>
+                {p.answer_source === "agent-proposal"
+                  ? (p.answer !== p.proposed_answer
+                    ? <>you accepted the agent's draft after rewriting it — it wrote
+                      “{p.proposed_answer}”</>
+                    : <>you accepted the agent's draft as written</>)
+                  : (p.proposed_answer
+                    ? <>you answered in your own words; the agent had offered
+                      “{p.proposed_answer}”</>
+                    : <>you wrote this answer yourself</>)}
+              </div>
+            )}
             {p.element && <div className="anchor">was anchored to {p.artifact} › {p.element}</div>}
           </div>
         ))}

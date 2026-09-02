@@ -190,6 +190,74 @@ body { background: var(--chrome); color: var(--text); font-size: 13px; }
 .pin-card.resolved { background: var(--chrome-3); border-color: var(--border); opacity: 0.8; }
 .pin-card.resolved .q { color: var(--muted); }
 .pin-card.resolved .a { font-size: 12px; color: var(--agent); margin-top: 5px; }
+/* An agent's draft waiting on an open pin. Read as the AGENT's block —
+   the green authorship colour, inset from the card's own pin gold — so
+   that nothing here can be skimmed as the user's own answer. */
+.pin-card .proposal {
+  margin-top: 8px; padding: 7px 8px; border-radius: 7px;
+  background: rgba(110, 190, 130, 0.07);
+  border: 1px solid rgba(110, 190, 130, 0.25);
+}
+.pin-card .proposal-head {
+  font-size: 10.5px; color: #8fb79a; line-height: 1.4;
+}
+.pin-card .proposal-head .who-chip { margin-left: 0; margin-right: 6px; }
+.pin-card .proposal-text {
+  font-size: 12px; color: #cfe6d5; line-height: 1.45; margin-top: 5px;
+}
+.pin-card .proposal-edit, .modal .proposal-edit {
+  width: 100%; box-sizing: border-box; margin-top: 5px; resize: vertical;
+  min-height: 52px; background: #16201a; border: 1px solid rgba(110, 190, 130, 0.35);
+  color: var(--text); border-radius: 6px; padding: 5px 8px; font-size: 12px;
+  font-family: inherit; line-height: 1.45;
+}
+.pin-card .proposal-row, .modal .proposal-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 7px;
+  flex-wrap: wrap;
+}
+.pin-card .proposal-row button:not(.linkish) {
+  background: #7fbf8d; color: #10200f;
+}
+.pin-card .proposal-row .linkish {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-size: 11px; color: var(--faint); font-weight: 400;
+}
+.pin-card .proposal-row .linkish:hover { color: var(--agent); }
+.pin-card .proposal-row .linkish.dismiss:hover { color: var(--tripwire); }
+/* Whose words a SETTLED answer is. The card that carries it is the
+   archive card, which drew no authorship mark at all until v0.9 — the
+   chip lived on open cards only, so the mark vanished at the moment the
+   answer arrived. */
+.pin-card.resolved .answer-source {
+  font-size: 10.5px; color: var(--faint); line-height: 1.45; margin-top: 5px;
+}
+.pin-card.resolved .answer-source .who-chip { margin-left: 0; margin-right: 6px; }
+/* The same draft on the canvas-anchored card. */
+.aq-proposal {
+  margin-bottom: 8px; padding: 7px 8px; border-radius: 7px;
+  background: rgba(110, 190, 130, 0.07);
+  border: 1px solid rgba(110, 190, 130, 0.25);
+}
+.aq-proposal-text { font-size: 12px; color: #cfe6d5; line-height: 1.45; margin: 5px 0; }
+.aq-proposal-foot {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 10.5px; color: var(--faint); line-height: 1.35;
+}
+.aq-proposal-foot button {
+  background: #7fbf8d; color: #10200f; border: 0; border-radius: 7px;
+  padding: 5px 10px; font-weight: 700; font-size: 11.5px; cursor: pointer;
+}
+.modal-section.proposal .proposal-text { color: #cfe6d5; }
+.modal-section.proposal .proposal-row button:not(.linkish) {
+  background: #7fbf8d; color: #10200f; border: 0; border-radius: 7px;
+  padding: 6px 12px; font-weight: 700; cursor: pointer;
+}
+.modal-section.proposal .proposal-row .linkish {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-size: 11.5px; color: var(--faint);
+}
+.modal-section.proposal .proposal-row .linkish:hover { color: var(--agent); }
+.modal-section.proposal .proposal-row .linkish.dismiss:hover { color: var(--tripwire); }
 
 .branch-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .branch-chip {

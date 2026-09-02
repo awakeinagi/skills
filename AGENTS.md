@@ -7,11 +7,11 @@ file; `CLAUDE.md` points here. Read it before writing code.
 
 | Path | What | Language |
 | --- | --- | --- |
-| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~31.8k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
+| `skills/wysiwyg-grilling/scripts/canvas.py` | The whole backend: HTTP server, op applier, scene differ, fact generator, CLI. <!-- live:canvas_py_lines -->~34.6k<!-- /live:canvas_py_lines --> lines. | Python 3.9+ |
 | `skills/wysiwyg-grilling/` | The shipped Claude Code skill (`SKILL.md` + `references/`). | Markdown |
-| `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. <!-- live:frontend_src_lines -->~5.0k<!-- /live:frontend_src_lines --> lines. | TypeScript / React 18 |
-| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->1081<!-- /live:test_backend_cases --> tests — the most of any module in a `tests/` tree that also holds the mutation harness and the render tier. (Most *tests*, not most lines: `test_mutants.py` is the bigger file.) | Python |
-| `tests/fixtures/` | The frozen corpus every check is measured against: real drawings from past sessions, byte-exact. Across <!-- live:corpus_projects -->5<!-- /live:corpus_projects --> projects it currently lints to <!-- live:corpus_census -->artifacts=24 scopes=28 errors=0 warnings=54 notes=88<!-- /live:corpus_census -->. | Excalidraw JSON |
+| `frontends/wysiwyg-grilling/src/` | Excalidraw canvas UI. <!-- live:frontend_src_lines -->~5.7k<!-- /live:frontend_src_lines --> lines. | TypeScript / React 18 |
+| `tests/test_backend.py` | `unittest` suite against `canvas.py`. <!-- live:test_backend_cases -->1190<!-- /live:test_backend_cases --> tests — the most of any module in a `tests/` tree that also holds the mutation harness and the render tier. (Most *tests*, not most lines: `test_mutants.py` is the bigger file.) | Python |
+| `tests/fixtures/` | The frozen corpus every check is measured against: real drawings from past sessions, byte-exact. Across <!-- live:corpus_projects -->5<!-- /live:corpus_projects --> projects it currently lints to <!-- live:corpus_census -->artifacts=24 scopes=28 errors=0 warnings=62 notes=99<!-- /live:corpus_census -->. | Excalidraw JSON |
 
 The frontend builds *into* the skill (`vite.config.ts` → `scripts/web/`), so a
 released skill is self-contained.
@@ -425,6 +425,55 @@ should not silently grow a second subject.
 Nothing here is a reason to fix a defect inline while you are near it. The
 temptation is strongest exactly when the fix looks obvious, and an obvious
 fix with no red is how a class comes back.
+
+### What a curator owns — two files, and the roster is one of them
+
+**A curator writes `tests/test_mutants.py` and `tests/RED-ROSTER.md`, and
+nothing else.** Not `SESSION-HANDOVER.md`, not `V0.9-PLAN.md`, not a file
+another agent is editing. If a red seems to require a third file, that is a
+finding to report to whoever dispatched you, not a scope to widen.
+
+**Landing a red means editing both halves of its census, in one change.**
+The roster file carries two labelled sections and every red belongs in one
+of them:
+
+| the red you landed | declare it in | transcribe it in |
+|---|---|---|
+| a hand-authored test class | `HAND_AUTHORED_RED_CLASSES` | the *Non-catalogue red classes* section, as `` - `TestName` (N) `` |
+| a catalogue mutant | `CATALOGUE_RED_IDS` | the *Catalogue red ids* section, as `` - `mutant_id` `` |
+
+Guards in `TestCoverage` compare each side against the live
+`@unittest.expectedFailure` decorators, in both directions, so a red that
+edits one and not the other fails the default suite. Flip a class's LAST red
+and its line leaves the roster entirely rather than dropping to `(0)`; a
+catalogue id carries no count at all. An empty section is written `- *none*`
+and never as a blank, because at zero a truncated file and an honest one
+enumerate the same nothing. The file's own header states the grammar and the
+readers' docstrings say why each rule exists; read the failure message before
+you edit, because it names the exact shape you have.
+
+**Both rosters are literals with guards over them, and never live values.**
+Do not put a `<!-- live: -->` marker in `tests/RED-ROSTER.md`. `tests/livedoc.py`
+rules that a marker may carry a TOTAL and never a ROSTER: `refresh` silently
+repairs, so a drift tool cannot hold a roster as a floor — truncate one and
+its prescribed repair is to agree with the truncation. A red arriving BY
+NAME is the event a human is meant to stop and read.
+
+**Why neither roster is in `SESSION-HANDOVER.md` any more** (ruled
+2026-09-01, both halves the same day for different reasons). The classes were
+that file's census paragraph for their whole life, and three curators in one
+session each landed a red, were stopped by the guard, and edited the handover
+under protest. The catalogue ids were the model row of its catalog-reds
+table, where a narrative cell and a machine-read roster shared one syntax:
+the guard harvested every backticked token in the row, so the prose could not
+use a backtick and escaped its own subjects' underscores to get past the
+reader. The constraint did not give in either case — the rosters moved.
+Concurrent curators now add distinct lines to a roster-only file instead of
+rewording one line of one shared prose document, and the anti-rot property
+survives untouched because both rosters are still typed by a hand and never
+generated. The handover keeps a pointer and no reds; a roster line left
+behind at either old address is itself a guard failure, since each fact has
+exactly one home.
 
 ## Known debt
 

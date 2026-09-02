@@ -305,7 +305,12 @@ answers arrive as `pin_answer` events carrying the text):
            "surprise-charge complaints — the answer decides which.",
  "examples": ["Amazon: 1-click skips review entirely",
               "Airline checkout: review is mandatory — prices move"]}
-{"op": "resolve_pin", "id": "pin-review"}   // after it's settled in chat
+{"op": "resolve_pin", "id": "pin-review",   // after it's settled in chat
+ // OPTIONAL. What you were told, when the question was settled somewhere
+ // the tool cannot see. Without it a close records an id and nothing
+ // else, and a pin the user answered at length reads exactly like one
+ // that merely stopped mattering.
+ "answer": "Postgres, with a read replica."}
 ```
 
 **Pin state machine** — `open → answered → resolved`, with one writer per
@@ -327,6 +332,33 @@ has closed — `pruned`, `resolved` or `dismissed` — whose ❓ is still drawn
 gets a NOTE on that artifact naming the `del` that clears it. The tool
 reports rather than sweeps, because removing an element in a revision
 nobody asked for is the drawing changing under the user.
+
+**A close records why it closed.** Every `resolve_pin` writes a plain-
+English `resolution` onto the registry pin and emits a `pin_resolved`
+event carrying it, plus whichever of these apply:
+
+* `closing_note` — the words your op's `answer` key carried, marked
+  `closing_note_source: agent-at-close`. They are kept under **your** name
+  and they never become the pin's `answer`: `/api/pins/propose` is still
+  your only door onto that, and a close that could write testimony would
+  be that door standing open one verb along. If the sentence is the
+  user's and worth keeping as theirs, have them answer the pin instead.
+* `dropped_proposal` — a draft that was still waiting for their ruling
+  when you closed the question. Nobody promoted it and nobody refused it,
+  so it died with the pin; the wording is kept and the slot is cleared.
+  Ask again if they still owe that decision.
+* `answer_reach` — of the things the pin's answer NAMES, how many the
+  artifact says out loud: `named`, `drawn`, and the `undrawn` terms. Read
+  from visible `text` only, never from `customData`, because a word that
+  reaches an artifact solely through a tooltip has not reached the
+  picture. It is a report and **not** a verdict — an answer may
+  legitimately name things that belong on another artifact or on none.
+  Read it as "is any of this worth drawing?" and answer out loud either
+  way rather than leaving it unasked.
+
+`pin_resolved` is classified as **yours**, not the user's, so it does not
+reach `wait --for user`: it is your close, and its `closing_note` is your
+own transcription. The same facts ride the apply response's `notes`.
 
 A pin id names **one** question. Reusing an id the registry has **ever**
 filed — whatever its status: open, answered, resolved or auto-pruned — is
@@ -458,13 +490,22 @@ it "agent asked a question" with no Apply action.
 // one-time-question waive (v0.4): the reason IS the recorded answer.
 // EVERY finding that can be waived prints the whole op, envelope and
 // all — `waive {op: registry, action: waive, key: '...', reason: ...}`
-// — so copy it out of the lint line and fill in the reason. Fourteen
-// checks offer one, keyed `<check>:<artifact>[:<element>...]`:
-// `ink` `font` `stroke` `color` `graze` `clear` `lane` `bidi` `ghost`
-// `var` `kpimap`, plus `q25:<artifact>` (progress indicator),
+// — so copy it out of the lint line and fill in the reason. Eighteen
+// checks offer one, keyed `<check>:<artifact>[:<element>...]`, and the
+// list below IS the count — if the two disagree, the list is the one to
+// trust and the number is the one to re-derive:
+// `ink` `font` `stroke` `color` `graze` `clear` `inkink` `lane` `bidi`
+// `attach` `ghost` `var` `widgetgroup` `pindrift` `kpimap`, plus
+// `q25:<artifact>` (progress indicator),
 // `q12:<artifact>:<label-slug>` (whose-word) and
 // `324:<artifact>:<step-slug>` (one function, one label).
-// `clear: true` un-waives.
+// `attach:<artifact>:<node>:<a>:<b>` (r8-4) is the newest and carries a
+// NODE as well as the pair: two arrows bound at both ends share a foot
+// in two places, and one key for both would silence a place you never
+// read. `clear: true` un-waives.
+// Re-derive the list rather than trusting it — the call sites are the
+// source and this sentence is a copy:
+//   grep -n 'waive_hint(' skills/wysiwyg-grilling/scripts/canvas.py
 {"op": "registry", "action": "waive", "key": "q25:pipeline-flow",
  "reason": "user ruled: regulated flow, steps must show"}
 ```
@@ -513,6 +554,34 @@ it "agent asked a question" with no Apply action.
   `SCOPES + QUARANTINED = the files on disk`.
 - `canvas.py pending [--discard <id>]` → what is queued behind the user's
   banner, with each entry's artifact, note and op count.
+- `canvas.py bugreports [--id <n>] [--no-quarantine]` → the 🐞 reports the
+  user filed from the canvas. **Reads the project directly — no server
+  needed**, because the reports worth reading are usually from a session
+  that has ended. Each line carries the id, the directory, the artifact
+  and the first line of the description; `--id` prints one in full with
+  its capture checks. The bundle is
+  `project_knowledge/.bugreports/<n>-<slug>/` holding `report.json`,
+  `scene.svg` (the drawing at capture, with the user's focus ring burned
+  in) and `scene.excalidraw`. **You get told about a filing in-session:**
+  a `bug_report` event lands on the log, and it is a USER event, so the
+  default `wait` sees it. Read the bundle before you ask the user
+  anything — it already carries what they had selected, where the camera
+  was, the standing findings and the last events.
+  - **`SNAPSHOT_SUSPECT=true` means the report's own evidence is
+    doubtful, not that the report is wrong.** The bundle names every
+    check it ran (`CHECK=` lines under `--id`), so a `false` is a check
+    that passed rather than a check nobody made. When it is `true`, lean
+    on the description and say so to the user rather than reasoning from
+    a picture the capture may have lost.
+  - **A bundle is evidence and is never deleted.** One that cannot be
+    read is renamed `.bad` and kept, and the listing says which one and
+    why rather than quietly getting shorter. Do not clean these up.
+  - The **capture is the drawing plus session state, not a screenshot of
+    the browser** — it is rendered server-side from the scene, because
+    every browser pixel path can be poisoned silently and one measured
+    browser poisons them all. So a report about a panel, a menu or the
+    chrome around the canvas carries its detail in the user's words
+    only; the images will not show it.
 - `canvas.py reroute [--artifact <id>] [--apply]` → arrows an OLDER router
   drew, and what today's would draw instead. Nothing re-routes on load, so
   a project laid out by an earlier version keeps that geometry forever:
