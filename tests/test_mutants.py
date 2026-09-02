@@ -29351,10 +29351,8 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestACorrectionWaveHeadlinesWhatSomebodyAuthored": 2,
     "TestAStoredCaptionAnchorTheClientDisagreesWithIsReported": 1,
     "TestOnePairGetsOneVerdictOnWhetherItMayStand": 2,
-    "TestAClosedPinSaysWhyItClosed": 2,
     "TestAShadedBoxKeepsTheLineWrittenOnIt": 1,
     "TestAnAnsweredPinIsNotNarratedAsARemoval": 2,
-    "TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing": 2,
     "TestAConfigChangeSaysWhoseHandTurnedIt": 2,
     "TestAStaleBrowserCaptureIsNotConsumedInSilence": 2}
 # `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` ARRIVED ON
@@ -29385,6 +29383,20 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # pin with a draft nobody ruled on closes over it in silence. Two reds
 # because the halves do not share a repair: of eleven shapes measured,
 # three flip the first, six flip the second, and not one flips both.
+#
+# AND IT LEFT ON 2026-09-02, both halves in one change, as a LINE rather
+# than as a number. The fixer took NEITHER of the two shapes the class
+# measured for its first half outright: (a) writes the closing words onto
+# the record as the pin's `answer`, which is `propose_pin_answer`'s own
+# door standing open one verb along, so the words land as `closing_note`
+# under `agent-at-close` and `answer` is never touched by a close. The
+# second half took a variant of (f) and (g) together — the draft is
+# cleared into `dropped_proposal`, a `pin_resolved` event carries it and
+# the apply's notes name it — over the refusals (d)/(e)/(h), because a
+# close that cannot shut a pin whose draft the user never ruled on has no
+# exit at all: `discard` is the user's act and there is no op for it.
+# `status` stays `resolved`, so (l)'s trap does not arise and
+# `Store.pin_debt` needed no widening.
 # `TestAShadedBoxKeepsTheLineWrittenOnIt` ARRIVED 2026-09-01 with the R8
 # close's fill-over-text finding (pipeline r8-close, leaf 1.3.1) — a
 # RECURRENCE at n=2 inside one run, and the first entry here whose subject
@@ -29408,6 +29420,15 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # a pin's answer at all. Two reds because the halves fail apart: eight
 # measured repair shapes flip the transient one and only three of them
 # flip the durable one. The catalogue's own comment carries the table.
+#
+# AND IT LEFT 2026-09-02 with the entry above it, in one change, because
+# the two share a site: `Store._record_pin_closure` is where a close
+# writes down why it happened, and `answer_reach` is one more fact it
+# writes there. RB2's shape — coverage stamped at resolve time — so both
+# halves move at once: the pin record carries `named`/`drawn`/`undrawn`
+# and `/api/state` serves it, which is the transient half too. Nothing is
+# stamped with a TIME, deliberately: a `resolved_at` would separate the
+# two controls the neighbour requires to stay identical.
 # `TestAConfigChangeSaysWhoseHandTurnedIt` ARRIVED ON 2026-09-01, both
 # halves in one change, and it arrived as a LINE rather than as a number.
 # Filed as r8-9 during the R8 optimizer assessment: `config_changed`
@@ -52750,7 +52771,6 @@ class TestAClosedPinSaysWhyItClosed(unittest.TestCase):
     fix.
     """
 
-    @unittest.expectedFailure
     def test_an_answered_close_and_a_lapsed_close_leave_one_record(
             self) -> None:
         """The record half: two reasons, one reading, on every surface.
@@ -52821,7 +52841,6 @@ class TestAClosedPinSaysWhyItClosed(unittest.TestCase):
                json.dumps(bench["posted"]["spoken"]),
                json.dumps(spoken["record"], sort_keys=True)))
 
-    @unittest.expectedFailure
     def test_a_draft_nobody_ruled_on_is_closed_in_silence(self) -> None:
         """The waiting-draft half: the user is never asked.
 
@@ -53511,7 +53530,6 @@ class TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing(
             % (drawn["answer"], reworded["answer"], drawn["coverage"][0],
                drawn["coverage"][1]))
 
-    @unittest.expectedFailure
     def test_the_closing_revision_says_the_answer_reached_nothing(
             self) -> None:
         """RED: the revision that closes a pin reports coverage nowhere.
@@ -53548,7 +53566,6 @@ class TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing(
                sorted(answer_words(undrawn["answer"])
                       - set(undrawn["scene_words"]))))
 
-    @unittest.expectedFailure
     def test_the_resolved_pin_records_that_its_answer_reached_nothing(
             self) -> None:
         """RED: and the durable record forgets it too, so nobody can ask later.

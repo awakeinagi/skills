@@ -324,6 +324,34 @@ sentence was yours. A `pin_proposal_discarded` is a real move too — they
 read your draft and refused it, the pin is open again, and the event
 carries the wording they turned down so you do not offer it twice.
 
+**A close says why it closed, and `pin_resolved` is where that survives.**
+Closing a question used to record one word, `resolved`, whatever had
+happened — so a pin the user answered at length read exactly like one
+that had merely stopped mattering, and a draft nobody had ruled on died
+without a sound. Now every `resolve_pin` leaves a `resolution` sentence
+on the pin and emits a `pin_resolved` event carrying it, plus whichever
+of these apply:
+
+* `closing_note` — words your `resolve_pin` carried in its `answer` key.
+  Put the user's spoken answer there when you close a question they
+  settled in chat; it is kept under your own name (`closing_note_source:
+  agent-at-close`) and it does **not** become the pin's `answer`. If the
+  sentence is theirs and worth keeping as theirs, have them answer the
+  pin instead — a close cannot write testimony, for the same reason you
+  propose rather than answer.
+* `dropped_proposal` — a draft that was still waiting for their ruling
+  when you closed the question. Nobody promoted it and nobody refused
+  it, so it died with the pin; ask again if they still owe that decision.
+* `answer_reach` — of the things the pin's answer NAMES, how many the
+  artifact says out loud (`named`, `drawn`, and the `undrawn` terms).
+  It is a report and not a verdict: an answer may legitimately name
+  things that belong on another artifact or on none. Read it as the
+  question "is any of this worth drawing?", and answer it out loud
+  either way rather than leaving it unasked.
+
+The event is yours, not theirs — it is your close, and its `closing_note`
+is your own transcription — so it does not reach `wait --for user`.
+
 **Four things the log is the only witness to:**
 
 | You see | It means | Do this |
@@ -333,12 +361,12 @@ carries the wording they turned down so you do not offer it twice.
 | `checkout` / `checkout_live` | the user is looking at, or working from, an **older revision** | do not apply onto their head until they save; a save on top of a checkout forks a branch |
 | `save` with `forked: true` | they just forked | say so, and say what is stranded on the old branch |
 
-**Event taxonomy** — all nineteen types, and who a type belongs to
+**Event taxonomy** — all twenty types, and who a type belongs to
 decides your reaction:
 
 | Theirs (a move — narrate it, take the round) | Yours (ignore) | System |
 |---|---|---|
-| `save`, `pin_answer`, `tripwire_answer`, `pin_proposal_discarded`, `bug_report`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop`, `pin_proposal` | `server_started`, `reconciliation` |
+| `save`, `pin_answer`, `tripwire_answer`, `pin_proposal_discarded`, `bug_report`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop`, `pin_proposal`, `pin_resolved` | `server_started`, `reconciliation` |
 
 `bug_report` is the loudest thing in that first cell. The user pressed 🐞
 and told you something is **wrong**, and a bundle is already on disk with
@@ -417,7 +445,8 @@ immediate), prep next-round questions, registry hygiene. But never a second
 canvas revision while one is unreviewed. If the user is silent for
 ~`nudge_after_minutes` (config, default <!-- live:nudge_after_minutes -->10<!-- /live:nudge_after_minutes -->): exactly **one** nudge, then
 indefinite patience. Chat is always a legitimate reply channel — a chat
-answer to a pinned question resolves the pin (`resolve_pin`, narrated).
+answer to a pinned question resolves the pin (`resolve_pin`, narrated) —
+put what they said in the op's `answer` key so the close records it.
 
 ## Drawing — the op batch (primer)
 

@@ -25298,6 +25298,18 @@ class Store:
                         o["attrs"])
             resolved_now = {o.get("id") for o in ops
                             if o.get("op") == "resolve_pin"}
+            # WHAT EACH CLOSING PIN LOOKED LIKE BEFORE THE COMMIT TOUCHED
+            # IT, and the op that is shutting it. `commit`'s own pin
+            # lifecycle marks a pin `resolved` the moment its ❓ shows up
+            # in the batch's deletions — which is EVERY ordinary resolve —
+            # so the write-through below can no longer ask "was this open?"
+            # of a record `commit` has already moved on. It asks this
+            # snapshot instead, and the draft the close is about to drop
+            # is read from here for the same reason.
+            closing_ops = {o.get("id"): o for o in ops
+                           if o.get("op") == "resolve_pin"}
+            closing_before = {p["id"]: dict(p) for p in self.registry["pins"]
+                              if p["id"] in resolved_now}
             # a pin is resolved where it LIVES. `apply_ops` is handed one
             # scene — the batch artifact's — so a resolve aimed at any
             # other artifact took its tolerant branch: the registry
@@ -25407,12 +25419,22 @@ class Store:
                     "detail": p.get("detail"),
                     "examples": p.get("examples") or []})
             # resolve_pin writes through to the registry — the canvas element
-            # and model.json must never disagree about a pin's status
-            resolved = {o.get("id") for o in ops if o.get("op") == "resolve_pin"}
+            # and model.json must never disagree about a pin's status —
+            # AND IT WRITES DOWN WHY (r8-8). A close used to set one word
+            # for three different endings, so a question the user had
+            # answered at length and one nobody cared about any more left
+            # the same record, and a draft waiting for a ruling died in
+            # silence. `_record_pin_closure` is the arm that says which of
+            # those happened; `closing_before` is its pre-commit reading.
+            closed_now = []
             for p in self.registry["pins"]:
-                if p["id"] in resolved and p.get("status") in ("open",
-                                                               "answered"):
-                    p["status"] = "resolved"
+                was = closing_before.get(p["id"])
+                if was is None or was.get("status") not in ("open",
+                                                            "answered"):
+                    continue
+                p["status"] = "resolved"
+                closed_now.append(self._record_pin_closure(
+                    p, closing_ops.get(p["id"]) or {}, was))
             # and deletion writes through too: a pin whose ❓ element no
             # longer exists in any scene is unanswerable — prune it NOW,
             # not at next session's load-heal (v0.1 acceptance finding:
@@ -25422,7 +25444,7 @@ class Store:
                         for e in els2}
             for p in self.registry["pins"]:
                 if p.get("status") in ("open", "answered") and \
-                        p["id"] not in resolved and \
+                        p["id"] not in resolved_now and \
                         p["id"] not in live_ids:
                     p["status"] = "pruned"
             self._save_registry()
@@ -25443,6 +25465,15 @@ class Store:
                 record["pin_held_idx"] = checked["pin_held_idx"]
             if checked["housekeeping"]:
                 record["housekeeping"] = checked["housekeeping"]
+            # THE CLOSURES RIDE THE RESPONSE, on `pin_held`'s precedent
+            # and for a different reason: the registry write above IS the
+            # durable half, and this list is what the two surfaces reading
+            # an apply — `applied_reading` and the CLI's own printer — turn
+            # into sentences, plus what the `pin_resolved` event is built
+            # from. Set after `commit` for the same reason as its
+            # neighbours: the save file records what the drawing became.
+            if closed_now:
+                record["pin_closures"] = closed_now
             return record, pin_only
 
     # -- pins -------------------------------------------------------------
@@ -25739,6 +25770,91 @@ class Store:
             self._mirror_pin_customdata(pin, {"proposed_answer": None})
             self._save_registry()
             return pin, draft
+
+    def _record_pin_closure(self, pin, op, before):
+        """Write down WHY a question stopped being asked. Caller holds the lock.
+
+        THE WORDS A CLOSE CARRIES ARE THE CLOSER'S, NEVER THE USER'S. An
+        agent that heard the answer out loud has somewhere to put it now —
+        `resolve_pin` used to take an `answer` key and drop it on the
+        floor, which is how thirteen answered questions and twenty-nine
+        lapsed ones came to leave one reading. But it lands as
+        `closing_note`, marked `agent-at-close`, and NOT as `answer`:
+        `propose_pin_answer` is still the only door the agent has onto a
+        pin's answer, and a close that could write testimony would be that
+        door standing wide open one verb along. Nothing here moves
+        `answer` or `answer_source`, so a promoted draft still reads as a
+        promoted draft and an unanswered pin never acquires an answer it
+        was not given.
+
+        A DRAFT DIES OUT LOUD. Closing a pin that carries a proposal
+        nobody promoted and nobody refused IS discarding that proposal, so
+        the wording is kept under `dropped_proposal` and the slot is
+        cleared rather than left as a residue an open pin carries
+        identically. It is not filed as `pin_proposal_discarded`: that
+        event means the USER ruled, and here nobody did.
+
+        AND THE CLOSE REPORTS WHETHER THE ANSWER REACHED THE PICTURE
+        (r8-10) — a count, the terms the drawing does not say out loud,
+        and no opinion about whether it should. An answer may legitimately
+        name things that belong on another artifact or on none; what was
+        missing was any way to ASK afterwards, because the revision that
+        closed a pin read the same whether its answer named twelve things
+        the scene held none of or three it held all of.
+
+        NOTHING IS STAMPED WITH A TIME. `answered_at` already dates the
+        answer and the revision dates the close, so a `resolved_at` here
+        would add a key that differs between two closures for the one
+        reason that is never why they closed.
+
+        Args:
+            pin: The registry record, already marked `resolved`.
+            op: The `resolve_pin` op that shut it, for the words it
+                carried. An empty mapping is fine — most closes carry an
+                id and nothing else.
+            before: The record as it stood BEFORE this batch committed,
+                for the draft `commit` may already have walked past.
+
+        Returns:
+            The closure as the response and the event report it: `id`,
+            `artifact`, `resolution`, and whichever of `closing_note`,
+            `dropped_proposal` and `answer_reach` apply.
+        """
+        note = op.get("answer") if isinstance(op.get("answer"), str) else None
+        note = (note or "").strip() or None
+        draft = before.get("proposed_answer") \
+            if not before.get("answer") else None
+        if note:
+            pin["closing_note"] = note
+            pin["closing_note_source"] = "agent-at-close"
+        if draft:
+            pin["dropped_proposal"] = draft
+            pin.pop("proposed_answer", None)
+            pin.pop("proposed_at", None)
+        reach = answer_reach(pin.get("answer") or "",
+                             self.scenes.get(pin.get("artifact")) or [])
+        if reach:
+            pin["answer_reach"] = reach
+        if pin.get("answer"):
+            why = "the user's answer is on the record"
+        elif note:
+            why = ("nobody answered it; the agent wrote down what it was "
+                   "told as it closed")
+        else:
+            why = "nobody ever answered it and it stopped mattering"
+        if draft:
+            why += "; a draft nobody had ruled on was dropped with it"
+        pin["resolution"] = why
+        # NO GLYPH MIRROR, and the absence is deliberate rather than an
+        # omission: every path that reaches here has already taken the ❓
+        # down — `apply_ops` on this artifact, the cross-artifact scan for
+        # a pin living elsewhere, and nothing at all when it was deleted
+        # sessions ago — so there is no `customData` left to keep in step,
+        # and writing the scene file back after `commit` has persisted it
+        # would be a second writer on a file the commit owns.
+        return {"id": pin["id"], "artifact": pin.get("artifact"),
+                "resolution": why, "closing_note": note,
+                "dropped_proposal": draft, "answer_reach": reach}
 
     # -- branches ---------------------------------------------------------
     def _stash_scope(self, name):
@@ -28109,6 +28225,7 @@ class ServerApp:
         # door further along, which is why the fix is the same shape:
         # say it on the surface the agent actually reads.
         notes = (pin_glyph_notes(record, batch.get("ops") or [])
+                 + pin_closure_notes(record.get("pin_closures"))
                  + (record.get("pin_held") or [])
                  + (record.get("housekeeping") or []))
         self.events.append("agent_revision", revn=record["revn"],
@@ -28116,6 +28233,7 @@ class ServerApp:
                            headline=record["summary"]["headline"],
                            from_pending=entry["id"],
                            **({"notes": notes} if notes else {}))
+        emit_pin_closures(self.events, record)
         return record
 
     def flush_deferred(self):
@@ -28235,6 +28353,7 @@ class ServerApp:
                 # partly landed must not be able to look identical to one
                 # that landed whole on any surface the agent reads.
                 "notes": pin_glyph_notes(record, ops) +
+                pin_closure_notes(record.get("pin_closures")) +
                 (record.get("pin_held") or []) +
                 (record.get("housekeeping") or []),
                 "layout_errors": lint["errors"],
@@ -28667,6 +28786,7 @@ class ServerApp:
                                short_id=record["short_id"],
                                pin_only=pin_only,
                                headline=record["summary"]["headline"])
+            emit_pin_closures(self.events, record)
             resp = {"ok": True, "revn": record["revn"],
                     "short_id": record["short_id"],
                     "summary": record["summary"],
@@ -29443,6 +29563,172 @@ def print_kv(**kw):
         if isinstance(v, (dict, list)):
             v = json.dumps(v, ensure_ascii=False)
         print("%s=%s" % (k.upper(), v))
+
+
+# ---------------------------------------------------------------------------
+# What a closure leaves behind (r8-8, r8-10).
+#
+# A `resolve_pin` used to carry an id and nothing else, so the three
+# reasons a question stops being asked — the user answered it, nobody ever
+# did, and a draft was sitting on it that nobody had ruled on — all left
+# one record. The helpers below are what a close writes instead, and every
+# one of them REPORTS rather than judges: what was said, what died with the
+# question, and how much of the answer the drawing already says out loud.
+# ---------------------------------------------------------------------------
+
+#: Function words a coverage report must not count as a thing the answer
+#: NAMES. Kept to grammar rather than to subject matter on purpose: a list
+#: that also dropped "value" or "table" would quietly decide which parts of
+#: an answer are worth drawing, which is the judgement `answer_reach` is
+#: built not to make.
+ANSWER_STOPWORDS = frozenset((
+    "the", "and", "are", "was", "were", "this", "that", "from", "with",
+    "into", "onto", "over", "under", "they", "them", "their", "there",
+    "here", "what", "which", "when", "where", "does", "done", "have",
+    "has", "had", "will", "would", "shall", "should", "must", "been",
+    "being", "your", "yours", "ours", "than", "then", "also", "just",
+    "only", "very", "much", "such", "about", "after", "before", "while",
+    "because", "nothing", "something", "anything"))
+
+
+def answer_terms(text):
+    """The things a sentence NAMES, as a set of words.
+
+    A tokenizer is a spelling and the relation being reported is "named
+    versus drawn", so this is deliberately crude and SYMMETRICAL: the same
+    function reads the answer and reads the drawing, so a word can only go
+    missing from a report by being absent from the picture rather than by
+    being spelled differently in one of them.
+
+    Args:
+        text: An answer, a caption, or any prose. None reads as empty.
+
+    Returns:
+        Lowercased words of more than three letters that are not
+        `ANSWER_STOPWORDS`.
+    """
+    return {w.lower() for w in re.findall(r"[A-Za-z][A-Za-z-]+", text or "")
+            if len(w) > 3 and w.lower() not in ANSWER_STOPWORDS}
+
+
+def visible_words(els):
+    """Every word a reader of the PICTURE can see.
+
+    `text` only, and never `customData`. A term that reaches an artifact
+    solely through a tooltip is exactly the case this reports on — an
+    answer whose content landed where only somebody who opens that element
+    ever meets it — so counting it here would make the report unable to say
+    the one thing it exists to say.
+
+    Args:
+        els: A scene's element list. None reads as empty.
+
+    Returns:
+        The union of `answer_terms` over every element's visible text.
+    """
+    out = set()
+    for e in els or ():
+        if isinstance(e.get("text"), str):
+            out |= answer_terms(e["text"])
+    return out
+
+
+def answer_reach(answer, els):
+    """How much of an answer the drawing already says out loud.
+
+    A REPORT AND NOT A VERDICT, and that distinction is the whole design.
+    An answer naming twelve things the artifact holds none of may be
+    perfectly correct conduct — a screen mock is not where data sources
+    belong — and nothing here says the agent should have drawn more. What
+    it says is what is TRUE: these were the words, the drawing does not
+    carry these ones, and a reader arriving next session can see it
+    without re-reading the answer and re-scanning every label themselves.
+
+    Args:
+        answer: The stored answer text.
+        els: The scene the pin lives on.
+
+    Returns:
+        `named` (how many things the answer names), `drawn` (how many of
+        those carry a visible label) and `undrawn` (the rest, sorted) — or
+        None when the answer names nothing a report could be about.
+    """
+    named = answer_terms(answer)
+    if not named:
+        return None
+    undrawn = named - visible_words(els)
+    return {"named": len(named), "drawn": len(named) - len(undrawn),
+            "undrawn": sorted(undrawn)}
+
+
+def pin_closure_notes(closures):
+    """Say, in plain English, what each closure took with it.
+
+    ONE LINE PER FACT rather than one per closure, because the facts are
+    independent: a question can close on a recorded answer, carry a note
+    the agent took at the door, drop a draft nobody ruled on, and name
+    things the drawing never says — and an agent handed one packed
+    sentence would have to take it back apart to act on any of it.
+
+    Args:
+        closures: `record["pin_closures"]` — what `Store` wrote when the
+            resolves in this batch landed. None reads as empty.
+
+    Returns:
+        One string per fact worth telling, in closure order.
+    """
+    out = []
+    for c in closures or ():
+        out.append("pin %s closed: %s" % (c["id"], c["resolution"]))
+        if c.get("closing_note"):
+            out.append(
+                "pin %s: the agent recorded this at the close, under its "
+                "own name and NOT as the user's answer — %r. If these are "
+                "the user's own words, have them answer the pin so the "
+                "record can say so." % (c["id"], c["closing_note"]))
+        if c.get("dropped_proposal"):
+            out.append(
+                "pin %s: a draft answer nobody had ruled on died with the "
+                "question — %r. Nobody promoted it and nobody refused it, "
+                "so ask again if the user still owes that decision."
+                % (c["id"], c["dropped_proposal"]))
+        reach = c.get("answer_reach")
+        if reach:
+            out.append(
+                "pin %s: its answer names %d thing(s) and %s says %d of "
+                "them out loud%s"
+                % (c["id"], reach["named"], c.get("artifact") or "the scene",
+                   reach["drawn"],
+                   ("" if not reach["undrawn"]
+                    else " — not drawn: " + ", ".join(reach["undrawn"]))))
+    return out
+
+
+def emit_pin_closures(events, record):
+    """Announce every question a revision shut, one event each.
+
+    THE LOG IS WHERE A CLOSURE OUTLIVES ITS RESPONSE. The apply response
+    says all of this too, but it is read once by whoever sent the batch —
+    and the reader who needs to know that a draft died unread, or that an
+    answer named things the drawing never says, is as often the next
+    session's catch-up as the agent holding the response. `pin_answer`
+    already carries an answer's text for exactly that reason; this is its
+    other end.
+
+    Filed as the AGENT's, not the user's — see `AGENT_EVENT_TYPES`.
+
+    Args:
+        events: The `EventLog` to append to.
+        record: The save record `Store.apply_batch` returned. A record
+            with no `pin_closures` appends nothing.
+    """
+    for c in record.get("pin_closures") or ():
+        events.append("pin_resolved", pin=c["id"],
+                      artifact=c.get("artifact"), revn=record["revn"],
+                      resolution=c["resolution"],
+                      **{k: c[k] for k in ("closing_note",
+                                           "dropped_proposal",
+                                           "answer_reach") if c.get(k)})
 
 
 def pin_debt_entry(p: dict) -> str:
@@ -30604,7 +30890,14 @@ USER_EVENT_TYPES = frozenset({
     "bug_report"})
 AGENT_EVENT_TYPES = frozenset({
     "agent_revision", "agent_pending", "agent_revision_discarded",
-    "agent_revision_failed", "agent_revision_noop", "pin_proposal"})
+    "agent_revision_failed", "agent_revision_noop", "pin_proposal",
+    # `pin_resolved` IS THE AGENT'S OWN, on `pin_proposal`'s reasoning.
+    # A close is composed by the agent through `/api/apply`, and its
+    # `closing_note` carries whatever the agent wrote down at the door —
+    # so filing it under the user's heading would let an agent watching
+    # `wait --for user` read its own closing note back as testimony,
+    # which is the channel the proposal route exists to keep shut.
+    "pin_resolved"})
 
 
 def cmd_wait(args):
@@ -30777,6 +31070,7 @@ def cmd_apply(args):
     events.append("agent_revision", revn=record["revn"],
                   short_id=record["short_id"], pin_only=pin_only,
                   headline=record["summary"]["headline"], offline=True)
+    emit_pin_closures(events, record)
     print_kv(revn=record["revn"], short_id=record["short_id"],
              pin_only=str(pin_only).lower(),
              headline=record["summary"]["headline"], offline="true")
@@ -30788,7 +31082,8 @@ def cmd_apply(args):
         {"errors": [], "warnings": [], "notes": []}
     _print_layout({"intent_echo": intent_echo(batch.get("ops") or [], scene),
                    "consequences": consequence_lines(record),
-                   "notes": pin_glyph_notes(record, batch.get("ops") or []),
+                   "notes": pin_glyph_notes(record, batch.get("ops") or [])
+                   + pin_closure_notes(record.get("pin_closures")),
                    "layout_errors": lint["errors"],
                    "layout_warnings": lint["warnings"],
                    "layout_notes": lint["notes"]})

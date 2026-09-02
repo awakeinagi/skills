@@ -69,10 +69,8 @@ Non-catalog red classes:
 - `TestACorrectionWaveHeadlinesWhatSomebodyAuthored` (2)
 - `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` (1)
 - `TestOnePairGetsOneVerdictOnWhetherItMayStand` (2)
-- `TestAClosedPinSaysWhyItClosed` (2)
 - `TestAShadedBoxKeepsTheLineWrittenOnIt` (1)
 - `TestAnAnsweredPinIsNotNarratedAsARemoval` (2)
-- `TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing` (2)
 - `TestAConfigChangeSaysWhoseHandTurnedIt` (2)
 - `TestAStaleBrowserCaptureIsNotConsumedInSilence` (2)
 

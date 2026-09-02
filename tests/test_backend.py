@@ -987,6 +987,197 @@ class TestPinLifecycle(Base):
                           if "is still drawn" in m], lines)
 
 
+class TestAClosedPinRecordsWhyItClosed(Base):
+    """r8-8/r8-10: three reasons to shut a question, three records.
+
+    A `resolve_pin` used to carry an id and nothing else, so a pin the
+    user had answered at length, a pin nobody cared about any more and a
+    pin carrying a draft nobody had ruled on all closed to the same
+    bytes. These pin the four facts a close writes now — the reason, the
+    words it carried, the draft it took with it, and how much of the
+    answer the drawing already says out loud — plus the one thing it
+    must NOT do, which is turn the closer's words into the user's answer.
+    """
+
+    def setUp(self):
+        """Seed a flow, a server in front of it, and two identical pins."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        self.app = canvas.ServerApp(self.project)
+        self.addCleanup(self.app.log_file.close)
+        self.app.store.apply_batch({
+            "base_revn": self.app.store.head_revn(),
+            "artifact": "checkout-flow", "ops": [
+                {"op": "pin", "target": "payment", "id": "pin-a",
+                 "question": "which store?"},
+                {"op": "pin", "target": "confirm", "id": "pin-b",
+                 "question": "which store?"}]})
+
+    def pin(self, pid):
+        """One pin out of the live registry.
+
+        Args:
+            pid: The pin id.
+
+        Returns:
+            The registry record.
+        """
+        return next(p for p in self.app.store.registry["pins"]
+                    if p["id"] == pid)
+
+    def close(self, pid, **extra):
+        """Shut a pin through the shipped route and keep what it said.
+
+        Driven through `handle_post` rather than `Store.apply_batch` so
+        the event and the response notes are the real ones: the store is
+        only half of what a closure leaves behind.
+
+        Args:
+            pid: The pin to close.
+            **extra: Further keys on the `resolve_pin` op — `answer` is
+                the one a caller has.
+
+        Returns:
+            The apply response.
+        """
+        before = self.app.events.seq
+        op = dict({"op": "resolve_pin", "id": pid}, **extra)
+        resp = self.app.handle_post("/api/apply", {
+            "base_revn": self.app.store.head_revn(),
+            "artifact": "checkout-flow", "ops": [op]})
+        self.assertTrue(resp.get("ok"), resp)
+        resp["_events"] = [e for e in self.app.events.since(before)
+                           if e.get("pin") == pid]
+        return resp
+
+    def test_a_lapsed_close_says_nobody_answered_it(self):
+        """The control: an id and nothing else still closes, and says so."""
+        resp = self.close("pin-a")
+        rec = self.pin("pin-a")
+        self.assertEqual(rec["status"], "resolved")
+        self.assertIn("nobody ever answered it", rec["resolution"])
+        self.assertNotIn("closing_note", rec)
+        self.assertNotIn("dropped_proposal", rec)
+        self.assertEqual([e["type"] for e in resp["_events"]],
+                         ["pin_resolved"])
+        self.assertIn("pin pin-a closed:", "\n".join(resp["notes"]))
+
+    def test_the_words_a_close_carries_are_kept_under_the_closers_name(self):
+        """r8-8 half 1: the sentence survives, and never as testimony.
+
+        The whole point of keeping it is that a pin the user settled in
+        chat stops reading like one that lapsed — and the whole point of
+        keeping it HERE is that `propose_pin_answer` stays the agent's
+        only door onto a pin's answer. Both halves are asserted, because
+        a repair that stored the words as `answer` would satisfy the
+        first and reopen the door the provenance work closed.
+        """
+        resp = self.close("pin-a", answer="Postgres, with a read replica.")
+        rec, lapsed = self.pin("pin-a"), None
+        self.close("pin-b")
+        lapsed = self.pin("pin-b")
+        self.assertEqual(rec["closing_note"], "Postgres, with a read replica.")
+        self.assertEqual(rec["closing_note_source"], "agent-at-close")
+        self.assertIsNone(rec.get("answer"))
+        self.assertIsNone(rec.get("answer_source"))
+        self.assertNotEqual(rec["resolution"], lapsed["resolution"])
+        said = "\n".join(resp["notes"])
+        self.assertIn("NOT as the user's answer", said)
+        self.assertIn("Postgres, with a read replica.", said)
+        self.assertIn("Postgres, with a read replica.",
+                      resp["_events"][0]["closing_note"])
+
+    def test_a_draft_nobody_ruled_on_dies_out_loud(self):
+        """r8-8 half 2: the wording is kept, cleared, and announced."""
+        self.app.store.propose_pin_answer("pin-a", "Probably Postgres.")
+        resp = self.close("pin-a")
+        rec = self.pin("pin-a")
+        self.assertEqual(rec["dropped_proposal"], "Probably Postgres.")
+        self.assertNotIn("proposed_answer", rec)
+        self.assertIn("a draft nobody had ruled on was dropped with it",
+                      rec["resolution"])
+        self.assertIn("Probably Postgres.",
+                      resp["_events"][0]["dropped_proposal"])
+        self.assertIn("died with the question", "\n".join(resp["notes"]))
+
+    def test_a_promoted_draft_is_an_answer_and_is_not_dropped(self):
+        """The pole: a draft the user accepted is not an unruled one.
+
+        `dropped_proposal` means nobody ruled. A promoted draft was
+        ruled on — it IS the answer — so a close that filed it as
+        dropped would report the user's own decision as a loss.
+        """
+        self.app.store.propose_pin_answer("pin-a", "Postgres.")
+        self.app.store.promote_pin_answer("pin-a")
+        self.close("pin-a")
+        rec = self.pin("pin-a")
+        self.assertNotIn("dropped_proposal", rec)
+        self.assertEqual(rec["answer_source"], "agent-proposal")
+        self.assertIn("the user's answer is on the record", rec["resolution"])
+
+    def test_the_close_reports_what_the_answer_reached(self):
+        """r8-10: named against drawn, as a count and as the missing terms."""
+        self.app.store.answer_pin(
+            "pin-a", "Cart, checkout, payment, confirmation.")
+        self.app.store.answer_pin(
+            "pin-b", "An overnight vendor benchmark reconciliation feed.")
+        drawn = self.close("pin-a")
+        undrawn = self.close("pin-b")
+        near, far = self.pin("pin-a")["answer_reach"], \
+            self.pin("pin-b")["answer_reach"]
+        self.assertEqual(near["undrawn"], [])
+        self.assertEqual((near["drawn"], near["named"]), (near["named"],
+                                                          near["named"]))
+        self.assertEqual(far["drawn"], 0)
+        self.assertGreaterEqual(far["named"], 4)
+        self.assertIn("benchmark", far["undrawn"])
+        self.assertIn("says 0 of them out loud", "\n".join(undrawn["notes"]))
+        self.assertNotEqual(
+            canvas.answer_reach("Cart, checkout, payment, confirmation.",
+                                self.app.store.scenes["checkout-flow"]),
+            far, "the two answers must not report the same reach")
+        self.assertEqual(drawn["_events"][0]["answer_reach"], near)
+
+    def test_reach_reads_the_drawing_and_never_a_tooltip(self):
+        """A word only a tooltip carries has not reached the picture.
+
+        The r8-10 session's four undrawn sources all landed in
+        `customData.tooltip`, where only a reader who opens that element
+        meets them — so a reach that counted `customData` would report
+        the finding as its own repair.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            e["customData"] = dict(e.get("customData") or {},
+                                   tooltip="benchmark vendor")
+        self.assertNotIn("benchmark", canvas.visible_words(els))
+        self.assertNotIn("vendor", canvas.visible_words(els))
+
+    def test_an_answer_of_only_function_words_reports_no_reach(self):
+        """Nothing is NAMED, so there is nothing a reach could be about."""
+        self.assertIsNone(canvas.answer_reach("It was the one that they had.",
+                                              self.store.scenes["checkout-"
+                                                                "flow"]))
+        self.assertIsNone(canvas.answer_reach("", []))
+
+    def test_the_close_event_is_the_agents_own(self):
+        """It carries the agent's transcription, so it is not the user's."""
+        self.assertIn("pin_resolved", canvas.AGENT_EVENT_TYPES)
+        self.assertNotIn("pin_resolved", canvas.USER_EVENT_TYPES)
+
+    def test_a_second_resolve_records_nothing_twice(self):
+        """A pin already resolved is not closed again, so nothing is rewritten."""
+        self.close("pin-a", answer="Postgres.")
+        first = dict(self.pin("pin-a"))
+        resp = self.app.handle_post("/api/apply", {
+            "base_revn": self.app.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "resolve_pin", "id": "pin-a",
+                     "answer": "Something else entirely."}]})
+        self.assertTrue(resp.get("ok"), resp)
+        self.assertEqual(self.pin("pin-a"), first)
+
+
 class TestZOrderReplay(Base):
     def test_a_recorded_index_is_read_the_way_the_client_reads_it(self):
         """Every `index` fault class, read off JSON TEXT (review MAJOR-1).
