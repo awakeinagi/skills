@@ -1127,6 +1127,112 @@ class TestDeletionConsequences(Base):
         self.assertNotIn("renamed", [f["fact"] for f in facts])
 
 
+class TestARerouteNamesTheEndpointThatDraggedIt(Base):
+    """A path that followed its endpoint is a consequence, not the news.
+
+    r8-1: a 26-change correction wave headlined `rerouted d12 (+25
+    more)` — one derived re-route, by raw machine id, ahead of the four
+    deletions and three additions the turn was about — and every
+    `by_element` entry recorded `consequence_of: None`. The cause is
+    now written in BOTH places a reader looks, which is what the two
+    halves of that finding were about: `mechanical_summary` ranks the
+    FACT list, so a cause that reached the entry alone changed nothing
+    a person read.
+    """
+
+    def _wave(self, ops):
+        """Seed the flow and land one correction batch over it.
+
+        Args:
+            ops: The correction batch's ops.
+
+        Returns:
+            The batch's save record.
+        """
+        self.store.apply_batch(seed_flow_batch())
+        landed = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow", "ops": ops})
+        return landed[0] if isinstance(landed, tuple) else landed
+
+    def _reroute_wave(self):
+        """Delete a node, drag an endpoint, and re-send the path it moved.
+
+        Returns:
+            The save record, whose arrow `t1` re-routed because
+            `checkout` — an element it binds — moved in the same batch.
+        """
+        return self._wave([{"op": "del", "id": "confirm"},
+                           {"op": "mod", "id": "checkout",
+                            "attrs": {"y": 600}},
+                           {"op": "mod", "id": "t1",
+                            "attrs": {"points": [[0, 0], [60, 600]]}}])
+
+    def test_the_moved_endpoint_is_the_cause_on_the_fact(self):
+        part = self._reroute_wave()["artifacts"]["checkout-flow"]
+        fact = next(f for f in part["facts"] if f["fact"] == "rerouted")
+        self.assertEqual(fact.get("consequence_of"), "checkout",
+                         "the re-route names %r as its cause, and the "
+                         "endpoint that moved under it was `checkout`"
+                         % fact.get("consequence_of"))
+
+    def test_the_moved_endpoint_is_the_cause_on_the_entry_too(self):
+        # THE TWO HALVES ARE ASSERTED APART because they are written
+        # apart: the entry reads the `mark_consequences` map and the
+        # fact is stamped from it where `extra_facts` merge, so one can
+        # regress with the other green.
+        part = self._reroute_wave()["artifacts"]["checkout-flow"]
+        entry = next(e for e in part["by_element"] if e["id"] == "t1")
+        self.assertEqual(entry.get("consequence_of"), "checkout", entry)
+
+    def test_the_authored_deletion_outranks_the_derived_reroute(self):
+        rec = self._reroute_wave()
+        head = rec["summary"]["headline"]
+        self.assertIn("Confirmation", head,
+                      "the headline is %r — it names the arrow the "
+                      "drawing dragged, not the node a person deleted"
+                      % head)
+        self.assertNotIn("rerouted", head, head)
+        # SUPPRESSED, NEVER DROPPED: the fact is still counted, so
+        # anything reading `verb_counts` still sees the re-route.
+        self.assertEqual(rec["summary"]["verb_counts"].get("rerouted"), 1,
+                         rec["summary"]["verb_counts"])
+
+    def test_the_record_still_says_why_the_arrow_moved(self):
+        # the reader that had to widen with the rollup: a suppressed
+        # re-route that nothing narrated would be silence, not a repair
+        lines = canvas.consequence_lines(self._reroute_wave())
+        self.assertTrue(any("t1" in ln and "checkout" in ln
+                            for ln in lines),
+                        "nothing in %s tells the agent why t1 moved"
+                        % lines)
+
+    def test_a_path_request_with_nothing_moving_under_it_is_not_derived(self):
+        """The pole the rollup must not reach: an authored re-shape."""
+        rec = self._wave([{"op": "mod", "id": "t1",
+                           "attrs": {"points": [[0, 0], [40, -70],
+                                                [80, 0]]}}])
+        part = rec["artifacts"]["checkout-flow"]
+        fact = next(f for f in part["facts"] if f["fact"] == "rerouted")
+        self.assertIsNone(fact.get("consequence_of"),
+                          "nothing this save touched binds t1, so the "
+                          "new path IS the request and calling it a "
+                          "consequence invents a cause")
+        self.assertIn("rerouted", rec["summary"]["headline"])
+
+    def test_a_save_of_nothing_but_connectors_still_narrates_them(self):
+        """Doctrine 1 on our own record: suppression is not a repair."""
+        rec = self._wave([{"op": "mod", "id": "t1",
+                           "attrs": {"points": [[0, 0], [40, -70],
+                                                [80, 0]]}},
+                          {"op": "mod", "id": "t2",
+                           "attrs": {"points": [[0, 0], [40, 70],
+                                                [80, 0]]}}])
+        head = rec["summary"]["headline"]
+        self.assertIn("rerouted", head, head)
+        self.assertNotIn("housekeeping", head, head)
+
+
 class TestRerouteOnMove(Base):
     """F1 (v0.1): moving a node re-routes its server-routed bound arrows;
     user-shaped multi-point paths are never silently flattened."""
@@ -27120,6 +27226,120 @@ class TestCompositeStateSurvivesTheCustomDataDoor(Base):
                 self.assertEqual((out[0].get("customData") or {}).get(field),
                                  default,
                                  "%s's default %s moved" % (kind, field))
+
+
+class TestAPinCloseSaysWhichCloseItWas(Base):
+    """A question has four ends and the record used to spell them one way.
+
+    pin-removed-verb: every close headlined `removed pin <raw id>` — the
+    same sentence, byte for byte, for a question a named person answered
+    and a question somebody threw away unread, naming it by an id no
+    reader has ever seen. The status is read off the REGISTRY and not
+    off the glyph, because `answer_pin` mirrors `status: answered` onto
+    the live element without committing a revision: the snapshot the
+    diff runs against still says `open`.
+    """
+
+    QUESTION = "Does the cart survive a logout?"
+
+    def _close(self, answer=None, resolve=True):
+        """Ask a question about the cart, maybe answer it, then close it.
+
+        Args:
+            answer: The sentence a person typed into the rail, or None
+                to leave the question standing unanswered.
+            resolve: Close it with `resolve_pin` — settling it — rather
+                than deleting the glyph, which is throwing it away.
+
+        Returns:
+            The closing save's record.
+        """
+        # ITS OWN STORE, so the four closes can be read side by side in
+        # one test: a ❓ is minted once per project and `seed_flow_batch`
+        # refuses a second `create` of the same artifact.
+        store = self._fresh_store()
+        store.apply_batch(seed_flow_batch())
+        store.apply_batch(
+            {"base_revn": store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "id": "q1", "target": "cart",
+                      "question": self.QUESTION}]})
+        if answer is not None:
+            store.answer_pin("q1", answer)
+        closing = ({"op": "resolve_pin", "id": "q1"} if resolve
+                   else {"op": "del", "id": "q1"})
+        landed = store.apply_batch(
+            {"base_revn": store.head_revn(), "artifact": "checkout-flow",
+             "ops": [closing]})
+        return landed[0] if isinstance(landed, tuple) else landed
+
+    def _fresh_store(self):
+        """Build a store over a project of its own, torn down with the test.
+
+        Returns:
+            The store. Its runtime state lives OUTSIDE the project root
+            — `Project` keys it by a hash of that root — so the three
+            side files are unlinked separately or every call leaks them.
+        """
+        root = Path(tempfile.mkdtemp(prefix="wysiwyg-pin-close-"))
+        project = canvas.Project(root)
+        project.ensure_tree()
+
+        def clean():
+            shutil.rmtree(root, ignore_errors=True)
+            for stale in (project.state_path, project.events_path,
+                          project.log_path):
+                if stale.exists():
+                    stale.unlink()
+        self.addCleanup(clean)
+        return canvas.Store(project)
+
+    def test_a_settled_answer_is_not_narrated_as_a_removal(self):
+        head = self._close(answer="Yes, for 30 days.")["summary"]["headline"]
+        self.assertIn("answered", head, head)
+        for verb in ("removed", "deleted"):
+            self.assertNotIn(verb, head,
+                             "a question somebody answered and settled "
+                             "headlines %r" % head)
+
+    def test_a_closed_pin_is_named_by_what_it_asked(self):
+        head = self._close(answer="Yes, for 30 days.")["summary"]["headline"]
+        self.assertIn(self.QUESTION, head,
+                      "the headline is %r and names the pin by nothing "
+                      "a reader has seen" % head)
+
+    def test_the_four_closes_are_four_sentences(self):
+        """The contrast is the point: opposite events, opposite prose."""
+        heads = {
+            (True, True): self._close(answer="Yes.")["summary"]["headline"],
+            (True, False): self._close(answer="Yes.",
+                                       resolve=False)["summary"]["headline"],
+            (False, True): self._close()["summary"]["headline"],
+            (False, False): self._close(
+                resolve=False)["summary"]["headline"]}
+        self.assertEqual(len(set(heads.values())), 4, heads)
+        # THE REMOVAL ARMS KEEP SAYING REMOVED, because that is what
+        # happened — this is not a euphemism pass, and a repair that
+        # made every close read gently would have lost the distinction
+        # it exists to draw.
+        for key in ((True, False), (False, False)):
+            self.assertIn("removed", heads[key], heads[key])
+
+    def test_the_fact_carries_what_the_headline_renders(self):
+        part = self._close(answer="Yes.")["artifacts"]["checkout-flow"]
+        fact = next(f for f in part["facts"] if f["fact"] == "pin_deleted")
+        self.assertEqual(
+            (fact.get("question"), fact.get("answered"),
+             fact.get("resolved"), fact.get("answer_source")),
+            (self.QUESTION, True, True, "user"), fact)
+
+    def test_a_pin_with_no_question_falls_back_to_what_it_was_pinned_to(self):
+        # the second surface a reader could recognise it by, asserted
+        # directly because no op in this store mints a question-less ❓
+        line = canvas.headline_for({"fact": "pin_deleted", "element": "q9",
+                                    "label": "Cart", "answered": True,
+                                    "resolved": True})
+        self.assertIn("Cart", line, line)
+        self.assertNotIn("q9", line, line)
 
 
 class TestPinnedAddSpec(Base):

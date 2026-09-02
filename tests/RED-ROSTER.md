@@ -66,12 +66,10 @@ is outside this section's reach, which the guard's own docstring says.
 Non-catalog red classes:
 
 - `TestALandedLabelPositionNarratesThroughEitherDoor` (2)
-- `TestACorrectionWaveHeadlinesWhatSomebodyAuthored` (2)
 - `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` (1)
 - `TestOnePairGetsOneVerdictOnWhetherItMayStand` (2)
 - `TestAClosedPinSaysWhyItClosed` (2)
 - `TestAShadedBoxKeepsTheLineWrittenOnIt` (1)
-- `TestAnAnsweredPinIsNotNarratedAsARemoval` (2)
 - `TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing` (2)
 - `TestAConfigChangeSaysWhoseHandTurnedIt` (2)
 - `TestAStaleBrowserCaptureIsNotConsumedInSilence` (2)

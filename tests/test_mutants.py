@@ -29348,12 +29348,10 @@ def coverage_table() -> list[tuple[str, str, str]]:
 # touch.
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
-    "TestACorrectionWaveHeadlinesWhatSomebodyAuthored": 2,
     "TestAStoredCaptionAnchorTheClientDisagreesWithIsReported": 1,
     "TestOnePairGetsOneVerdictOnWhetherItMayStand": 2,
     "TestAClosedPinSaysWhyItClosed": 2,
     "TestAShadedBoxKeepsTheLineWrittenOnIt": 1,
-    "TestAnAnsweredPinIsNotNarratedAsARemoval": 2,
     "TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing": 2,
     "TestAConfigChangeSaysWhoseHandTurnedIt": 2,
     "TestAStaleBrowserCaptureIsNotConsumedInSilence": 2}
@@ -57090,7 +57088,6 @@ class TestACorrectionWaveHeadlinesWhatSomebodyAuthored(unittest.TestCase):
         """
         assert_the_wave_puts_the_r8_case(self, r8_correction_wave())
 
-    @unittest.expectedFailure
     def test_the_headline_names_something_somebody_authored(self) -> None:
         """The rank half: a derived re-route may not open the sentence.
 
@@ -57109,7 +57106,6 @@ class TestACorrectionWaveHeadlinesWhatSomebodyAuthored(unittest.TestCase):
             % (reading["headline"], list(R8_AUTHORED_NAMES),
                reading["verbs"]))
 
-    @unittest.expectedFailure
     def test_the_derived_reroute_names_what_caused_it(self) -> None:
         """The cause half: the derived change says what derived it.
 
@@ -57502,7 +57498,6 @@ class TestAnAnsweredPinIsNotNarratedAsARemoval(unittest.TestCase):
             self, r8_pin_close(), r8_pin_close(answered=False,
                                                resolved=False))
 
-    @unittest.expectedFailure
     def test_a_settled_question_is_not_narrated_as_a_deletion(self) -> None:
         """The verb half: closing an answered pin is not a removal.
 
@@ -57529,7 +57524,6 @@ class TestAnAnsweredPinIsNotNarratedAsARemoval(unittest.TestCase):
                subject["headline"], list(R8_REMOVAL_VERBS),
                control["headline"]))
 
-    @unittest.expectedFailure
     def test_a_closed_pin_is_named_by_its_question_not_its_id(self) -> None:
         """The name half: a ❓ has a question, and the headline has an id.
 

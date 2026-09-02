@@ -12795,10 +12795,20 @@ def align_baseline_order(old_els: list[dict[str, Any]],
 # consequence suppression + spatial language
 # ---------------------------------------------------------------------------
 
-def mark_consequences(diff):
+CONNECTOR_TYPES = ("arrow", "line")
+
+
+def _layout_consequences(changes):
     """One structural insertion producing N layout moves collapses to the
-    insertion + 'layout adjusted' (spec §5.1)."""
-    changes = diff["changes"]
+    insertion + 'layout adjusted' (spec §5.1).
+
+    Args:
+        changes: `diff_scenes`' bucketed change list.
+
+    Returns:
+        `{moved_element_id: causing_element_id}` for the dominant shared
+        direction, empty when this save holds no such shift.
+    """
     structural = [c for c in changes if c["op"] in ("add", "del")
                   and (c["element"].get("customData") or {}).get("role")
                   not in ("label", "pin")]
@@ -12820,6 +12830,101 @@ def mark_consequences(diff):
         return {}
     cause = structural[0]["element"]["id"]
     return {m["id"]: cause for m in dominant}
+
+
+def _reroute_consequences(changes, old_els, new_els):
+    """Roll each connector the save dragged onto the neighbour that dragged it.
+
+    A bound connector's path is not something a person draws twice. When
+    an endpoint it binds moves or goes away the path follows, and this
+    save's re-send of `points` is the drawing catching up rather than
+    work anybody asked for — so the re-route is a CONSEQUENCE and the
+    thing that moved is its cause. Recording that is what lets
+    `mechanical_summary` rank the additions and deletions a person
+    authored above it, and what lets `consequence_lines` say why the
+    arrow moved (r8-1: a 26-change correction wave headlined `rerouted
+    d12 (+25 more)` and no entry said why).
+
+    A connector whose endpoints all sat still is LEFT ALONE, and that is
+    the whole of the gate: then the new path is itself the request, and
+    calling it a consequence would invent a cause the save does not
+    have. So is a save in which nothing but connectors changed — there
+    is no authored work for the re-route to stand behind, and
+    suppressing it would narrate a real re-route as housekeeping.
+
+    Args:
+        changes: `diff_scenes`' bucketed change list.
+        old_els: The baseline scene, or None when the caller has none —
+            bindings are read off the element, which the change entries
+            for `mod`/`move` do not carry.
+        new_els: The scene being saved, or None when the caller has none.
+
+    Returns:
+        `{connector_id: cause_element_id}`, empty when nothing this save
+        changed can have dragged a path.
+    """
+    index = {}
+    for el in list(old_els or []) + list(new_els or []):
+        if el.get("id"):
+            index[el["id"]] = el
+    if not index:
+        return {}
+    touched, gone = set(), set()
+    for c in changes:
+        cid = c.get("id") or (c.get("element") or {}).get("id")
+        el = index.get(cid) or c.get("element") or {}
+        if not cid or el.get("type") in CONNECTOR_TYPES:
+            continue
+        # a bound label riding its container is not a neighbour that
+        # dragged anything — the container it belongs to is, and it has
+        # its own change entry beside this one
+        if el.get("type") == "text" and el.get("containerId"):
+            continue
+        touched.add(cid)
+        if c["op"] == "del":
+            gone.add(cid)
+    if not touched:
+        return {}
+    out = {}
+    for c in changes:
+        if c["op"] not in ("mod", "move") or not c.get("id"):
+            continue
+        el = index.get(c["id"]) or {}
+        if el.get("type") not in CONNECTOR_TYPES:
+            continue
+        bound = [b for b in ((el.get(side) or {}).get("elementId")
+                             for side in ("startBinding", "endBinding"))
+                 if b and b in touched]
+        if bound:
+            # a deletion is the louder cause: it is why the endpoint is
+            # not there at all, where the other end has merely moved
+            out[c["id"]] = next((b for b in bound if b in gone), bound[0])
+    return out
+
+
+def mark_consequences(diff, old_els=None, new_els=None):
+    """Map every derived change in a save onto the change that caused it.
+
+    Two rollups, and they are separate rules over separate evidence: a
+    structural insertion that shoved a column of boxes aside, and a
+    bound connector whose path followed an endpoint. The second is read
+    off the elements rather than the change entries, so a caller with no
+    scenes to hand gets the first alone.
+
+    Args:
+        diff: `diff_scenes`' bucketed output.
+        old_els: The baseline scene, or None.
+        new_els: The scene being saved, or None.
+
+    Returns:
+        `{element_id: causing_element_id}` over both rules, the
+        connector rollup winning a collision because an endpoint that
+        moved is a nearer cause than a layout shift.
+    """
+    changes = diff["changes"]
+    rolled = _layout_consequences(changes)
+    rolled.update(_reroute_consequences(changes, old_els, new_els))
+    return rolled
 
 
 def spatial_phrase(dx, dy):
@@ -12846,7 +12951,7 @@ def kind_of(el):
 
 
 def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
-                   authored=None):
+                   authored=None, pins=None):
     """Derive typed facts from a bucketed diff. Extended-tier artifacts get
     universal facts only.
 
@@ -12861,12 +12966,21 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
             named, or None on the write paths that carry no ops. Read by
             the restyle arm ONLY — see it for why un-deriving in
             `diff_scenes` cannot reach that one.
+        pins: `{pin_id: {"answered": bool, "answer_source": str | None,
+            "resolved": bool}}` for the ❓ glyphs this save closes, or
+            None. Read by the `pin_deleted` arm ONLY, and it has to be
+            passed rather than read off the glyph: `answer_pin` mirrors
+            `status: answered` onto the live element WITHOUT committing
+            a revision, so the snapshot this diff runs against still
+            says `open` and a question somebody answered is invisible
+            here (pin-removed-verb).
 
     Returns:
         The fact list.
     """
     facts = []
     authored = authored or {}
+    pins = pins or {}
     old_ix = {e["id"]: e for e in old_els}
     new_ix = {e["id"]: e for e in new_els}
     old_labels = label_map(old_els)
@@ -12960,7 +13074,26 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
                 (el.get("type") == "text" and el.get("containerId")):
             continue
         if r == "pin":
-            F("pin_deleted", el["id"])
+            # A ❓ IS NAMED BY ITS QUESTION AND CLOSED BY WHAT HAPPENED
+            # TO IT. Both are on hand and neither used to be said: the
+            # glyph carries the question and its target from the moment
+            # it is drawn, and `pins` carries whether a person answered
+            # it and whether this save settled it. Without them every
+            # close narrated `removed pin p1` — the same sentence for a
+            # question somebody answered and a question somebody threw
+            # away (pin-removed-verb).
+            cd = el.get("customData") or {}
+            state = pins.get(el["id"]) or {}
+            target = cd.get("target")
+            tgt_el = new_ix.get(target) or old_ix.get(target)
+            F("pin_deleted", el["id"],
+              question=cd.get("question") or "",
+              label=(display_label(tgt_el, new_labels if target in new_ix
+                                   else old_labels) if tgt_el else None),
+              target=target,
+              answered=bool(state.get("answered")),
+              answer_source=state.get("answer_source"),
+              resolved=bool(state.get("resolved")))
             continue
         if r == "annotation":
             F("annotation_deleted", el["id"], text=_anno_text(el))
@@ -13865,7 +13998,26 @@ def headline_for(fact):
     if n == "pin_added":
         return "asked: %r" % (fact.get("question") or "")[:60]
     if n == "pin_deleted":
-        return "removed pin %s" % fact["element"]
+        # FOUR CLOSES, NOT ONE, and the record used to spell them all
+        # `removed pin p1`. Answering a question and settling it is the
+        # opposite event from throwing an unanswered one away, and a
+        # reader who saw `asked: 'Does checkout retry on timeout?'` go
+        # by should see the same words come back — so the settled arm
+        # mirrors `pin_added` above rather than inventing a vocabulary.
+        # The removal arms keep saying "removed", because that is what
+        # happened: this is not a euphemism pass (pin-removed-verb).
+        q = (fact.get("question") or "")[:60]
+        # by what it ASKED where the question survives, else by what it
+        # was pinned to: the two surfaces a reader has actually seen
+        named = "%r" % q if q else "on %s" % (fact.get("label")
+                                              or fact["element"])
+        if fact.get("answered") and fact.get("resolved"):
+            return "answered the question %s" % named
+        if fact.get("resolved"):
+            return "settled the question %s" % named
+        if fact.get("answered"):
+            return "removed the answered question %s" % named
+        return "removed the question %s" % named
     if n.endswith("_added") and n != "label_added":
         return "added %s" % (fact.get("label") or fact.get("name")
                              or (fact.get("between") and
@@ -13978,6 +14130,16 @@ def consequence_lines(record):
                     "re-target it or delete it"
                     % (f.get("noun") or "arrow", f.get("element"),
                        f.get("side"), f.get("target")))
+            # THE READER THAT HAD TO WIDEN WITH THE ROLLUP. A re-route
+            # with a cause is suppressed from the headline, which is
+            # right — and if nothing said it here, the save would have
+            # gone silent about an arrow whose path really did move.
+            if kind == "rerouted" and f.get("consequence_of"):
+                out.append(
+                    "%s re-routed itself — %s moved, and the path "
+                    "followed; nothing to do unless the new path is "
+                    "wrong" % (f.get("arrow") or f.get("element"),
+                               f.get("consequence_of")))
             if kind == "note_orphaned":
                 out.append(
                     "note %s annotates %s, which is gone — an orphaned "
@@ -23284,6 +23446,23 @@ class Store:
             new_norm_by_aid = {}
             sentinel_by_aid = {}
             sig = self.config.get("significant_attrs")
+            # READ BEFORE THE STATUSES BELOW ARE REWRITTEN, and read off
+            # the REGISTRY rather than the glyph. `answer_pin` mirrors
+            # `status: answered` onto the live element without
+            # committing, so the snapshot the diff runs against still
+            # says `open`; and the resolve/dismiss flip a few dozen
+            # lines down happens AFTER the facts are derived, so
+            # `resolved_pins` is the only thing here that knows which
+            # close this is. Without both, a question somebody answered
+            # and a question somebody threw away narrated identically
+            # (pin-removed-verb).
+            settling = set(resolved_pins or ())
+            pin_state = {
+                p["id"]: {"answered": bool(p.get("answer_source")
+                                           or p.get("status") == "answered"),
+                          "answer_source": p.get("answer_source"),
+                          "resolved": p["id"] in settling}
+                for p in (self.registry.get("pins") or []) if p.get("id")}
             for aid, els in sorted(new_scenes.items()):
                 old = (base_state.get(aid) or {}).get("elements", [])
                 # Measure the posted order against the order this client
@@ -23350,17 +23529,29 @@ class Store:
                 if not diff["changes"] and aid in base_state and not \
                         (new_meta or {}).get(aid):
                     continue
-                consequences = mark_consequences(diff)
+                consequences = mark_consequences(diff, old, new_norm)
                 atype = ((new_meta or {}).get(aid) or {}).get(
                     "artifact_type") or self.artifact_type(aid)
                 facts = semantic_facts(old, new_norm, diff, atype,
                                        self.tier_of(atype), consequences,
-                                       (authored or {}).get(aid))
+                                       (authored or {}).get(aid), pin_state)
                 # intent facts the differ cannot see (e.g. `rerouted` from
                 # an explicit points mod — its attr entries are derived,
                 # so without this the batch narrates as an empty save)
                 for f in (extra_facts or {}).get(aid, []):
-                    facts.append(dict(f))
+                    f = dict(f)
+                    # THE CAUSE HAS TO REACH THE FACT AND NOT ONLY THE
+                    # `by_element` ENTRY. `mechanical_summary` ranks the
+                    # FACT list, so a re-route whose cause was recorded
+                    # on its entry alone still opened the sentence ahead
+                    # of the deletions and additions the save was about
+                    # — r8-1, where the two halves of one defect looked
+                    # like two because the repair reached only one of
+                    # the two places the answer is written.
+                    if f.get("consequence_of") is None and \
+                            consequences.get(f.get("element")):
+                        f["consequence_of"] = consequences[f["element"]]
+                    facts.append(f)
                 for f in facts:
                     if f.get("consequence_of") is None and \
                             f["fact"] != "saved_no_changes" and f["element"] \
