@@ -305,7 +305,12 @@ answers arrive as `pin_answer` events carrying the text):
            "surprise-charge complaints — the answer decides which.",
  "examples": ["Amazon: 1-click skips review entirely",
               "Airline checkout: review is mandatory — prices move"]}
-{"op": "resolve_pin", "id": "pin-review"}   // after it's settled in chat
+{"op": "resolve_pin", "id": "pin-review",   // after it's settled in chat
+ // OPTIONAL. What you were told, when the question was settled somewhere
+ // the tool cannot see. Without it a close records an id and nothing
+ // else, and a pin the user answered at length reads exactly like one
+ // that merely stopped mattering.
+ "answer": "Postgres, with a read replica."}
 ```
 
 **Pin state machine** — `open → answered → resolved`, with one writer per
@@ -327,6 +332,33 @@ has closed — `pruned`, `resolved` or `dismissed` — whose ❓ is still drawn
 gets a NOTE on that artifact naming the `del` that clears it. The tool
 reports rather than sweeps, because removing an element in a revision
 nobody asked for is the drawing changing under the user.
+
+**A close records why it closed.** Every `resolve_pin` writes a plain-
+English `resolution` onto the registry pin and emits a `pin_resolved`
+event carrying it, plus whichever of these apply:
+
+* `closing_note` — the words your op's `answer` key carried, marked
+  `closing_note_source: agent-at-close`. They are kept under **your** name
+  and they never become the pin's `answer`: `/api/pins/propose` is still
+  your only door onto that, and a close that could write testimony would
+  be that door standing open one verb along. If the sentence is the
+  user's and worth keeping as theirs, have them answer the pin instead.
+* `dropped_proposal` — a draft that was still waiting for their ruling
+  when you closed the question. Nobody promoted it and nobody refused it,
+  so it died with the pin; the wording is kept and the slot is cleared.
+  Ask again if they still owe that decision.
+* `answer_reach` — of the things the pin's answer NAMES, how many the
+  artifact says out loud: `named`, `drawn`, and the `undrawn` terms. Read
+  from visible `text` only, never from `customData`, because a word that
+  reaches an artifact solely through a tooltip has not reached the
+  picture. It is a report and **not** a verdict — an answer may
+  legitimately name things that belong on another artifact or on none.
+  Read it as "is any of this worth drawing?" and answer out loud either
+  way rather than leaving it unasked.
+
+`pin_resolved` is classified as **yours**, not the user's, so it does not
+reach `wait --for user`: it is your close, and its `closing_note` is your
+own transcription. The same facts ride the apply response's `notes`.
 
 A pin id names **one** question. Reusing an id the registry has **ever**
 filed — whatever its status: open, answered, resolved or auto-pruned — is
