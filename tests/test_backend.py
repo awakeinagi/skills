@@ -20941,11 +20941,19 @@ class TestEventLoopAndRounds(Base):
                          "disagree")
         self.assertEqual(sysc, system, "the skill's SYSTEM cell drifted")
 
+        # HYPHENATED PAST TWENTY, and the pattern below has to allow it.
+        # `\w+` stopped at the hyphen, so "twenty-one" was read as
+        # "twenty" and this guard would have reported a correct sentence
+        # as stale — while the length clause under it fell off the end of
+        # a table that stopped one short of the set it measures.
         words = ("zero", "one", "two", "three", "four", "five", "six",
                  "seven", "eight", "nine", "ten", "eleven", "twelve",
                  "thirteen", "fourteen", "fifteen", "sixteen",
-                 "seventeen", "eighteen", "nineteen", "twenty")
-        said = re.search(r"\*\*Event taxonomy\*\* — all (\w+) types", skill)
+                 "seventeen", "eighteen", "nineteen", "twenty",
+                 "twenty-one", "twenty-two", "twenty-three",
+                 "twenty-four", "twenty-five", "twenty-six",
+                 "twenty-seven", "twenty-eight", "twenty-nine", "thirty")
+        said = re.search(r"\*\*Event taxonomy\*\* — all ([\w-]+) types", skill)
         self.assertIsNotNone(said, "the taxonomy sentence has been reworded "
                                    "away from its own numeral")
         self.assertLess(len(emitted), len(words),
@@ -21066,6 +21074,392 @@ class TestEventLoopAndRounds(Base):
         muted = rec.get("tripwires_muted") or []
         self.assertTrue(any("scopes naming out" in m for m in muted),
                         rec)
+
+
+class TestConfigProvenanceThroughBothDoors(Base):
+    """A setting says whose hand turned it — file, event and resume banner.
+
+    r8-9's repair, driven at BOTH doors over a live server rather than
+    asserted against the store. The finding was that the rail's POST and
+    `x-as-user config` left records nothing could tell apart, so a class
+    that drove one door would have passed over the defect exactly as the
+    product did.
+
+    THE SERVER IS REAL AND IN-PROCESS. `err(403, …)` has to arrive at the
+    CLI verb as an `HTTPError` and not as a raw `_Err`, and `cmd_status`
+    and `cmd_wait` reach the session over HTTP like everything else —
+    calling the app direct would skip the translation the refusal tests
+    below are about.
+    """
+
+    def setUp(self):
+        """Serve a fresh project on a loopback port and publish its state."""
+        super().setUp()
+        self.app = canvas.ServerApp(self.project)
+        self.httpd = canvas.ThreadingHTTPServer(
+            ("127.0.0.1", 0), canvas.make_handler(self.app))
+        port = self.httpd.server_address[1]
+        self.base = "http://127.0.0.1:%d/" % port
+        self.thread = threading.Thread(target=self.httpd.serve_forever,
+                                       daemon=True)
+        self.thread.start()
+        # WRITTEN BY HAND because `cmd_start` is not what is under test
+        # and spawning it would put a subprocess between every assertion
+        # and the thing it measures. The keys are the ones the CLI reads.
+        canvas.write_json(self.project.state_path, {
+            "pid": 0, "port": port, "url": self.base,
+            "source_hash": canvas.own_source_hash(),
+            "protocol_version": canvas.PROTOCOL_VERSION,
+            "project": str(self.project.root),
+            "events_log": str(self.project.events_path)})
+
+    def tearDown(self):
+        """Stop the server before the tree goes."""
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.thread.join(timeout=5)
+        self.app.log_file.close()
+        super().tearDown()
+
+    def post(self, path, body):
+        """POST a JSON body and read the status back.
+
+        Args:
+            path: The route, e.g. `api/config`.
+            body: The request body as a dict.
+
+        Returns:
+            `(status, payload)`. A refusal is returned rather than
+            raised, because every test here that expects one wants to
+            read the sentence as well as the code.
+        """
+        req = urllib.request.Request(
+            self.base + path, data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.status, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode("utf-8"))
+
+    def stored(self):
+        """The config as it survives a reboot.
+
+        Read off DISK and never off `Store.config`, because the whole
+        asymmetry this repair turns on is that the event log lives in a
+        tempdir and the config file does not.
+
+        Returns:
+            The parsed `config.json`.
+        """
+        return canvas.read_json(self.project.config_path)
+
+    def events(self, kind):
+        """Every emitted event of one type.
+
+        Args:
+            kind: The event `type` to collect.
+
+        Returns:
+            The matching event dicts, in emission order.
+        """
+        return [e for e in self.app.events.since(0) if e["type"] == kind]
+
+    def verb(self, text):
+        """Drive `x-as-user config` against the live server.
+
+        Args:
+            text: The verb's `key=value` operand.
+
+        Returns:
+            What the command printed.
+        """
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            canvas.cmd_x_as_user(argparse.Namespace(
+                project=str(self.project.root), verb="config",
+                artifact=None, target="", text=text, dx=0, dy=0, note=None))
+        return printed.getvalue()
+
+    def status(self):
+        """Run `status` for real and return what a reader would be shown.
+
+        Returns:
+            The printed block.
+        """
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed), \
+                contextlib.suppress(SystemExit):
+            canvas.cmd_status(argparse.Namespace(
+                project=str(self.project.root)))
+        return printed.getvalue()
+
+    def user_feed(self):
+        """What `wait --for user` serves, filters and all.
+
+        Driven rather than restated: the classification that let an agent
+        hear its own dial-turn come back under the user's heading lives
+        in that filter, and a transcription of it here would be a second
+        copy free to agree with a broken original.
+
+        Returns:
+            The events the default watch printed.
+        """
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed), \
+                contextlib.suppress(SystemExit):
+            canvas.cmd_wait(argparse.Namespace(
+                project=str(self.project.root), since=0, timeout=1,
+                types=None, for_whom="user"))
+        return [json.loads(ln) for ln in printed.getvalue().splitlines()
+                if ln.startswith("{")]
+
+    def test_the_rails_own_post_records_the_user_on_disk_and_on_the_event(self):
+        """Door one: an unmarked POST is the user's, and it says so."""
+        status, payload = self.post("api/config",
+                                    {"patch": {"canvas_updates": "pulled"}})
+        self.assertEqual(status, 200, payload)
+        cfg = self.stored()
+        self.assertEqual(cfg["canvas_updates"], "pulled")
+        mark = cfg["changed_by"]["canvas_updates"]
+        self.assertEqual(mark["source"], "user")
+        self.assertEqual(mark["from"], "per-round",
+                         "the mark says who but not what they changed it "
+                         "from, which is the half that settles the argument")
+        self.assertTrue(mark["at"])
+        emitted = self.events("config_changed")
+        self.assertEqual(len(emitted), 1, emitted)
+        self.assertEqual(emitted[0]["source"], "user")
+        self.assertEqual(emitted[0]["patch"], {"canvas_updates": "pulled"})
+
+    def test_the_agents_verb_proposes_and_the_dial_does_not_move(self):
+        """Door two: the agent asks, and nothing about the session changes."""
+        out = self.verb("canvas_updates=pulled")
+        self.assertIn("PROPOSED_CONFIG=canvas_updates", out)
+        self.assertIn("proposed, not set", out)
+        cfg = self.stored()
+        self.assertEqual(cfg["canvas_updates"], "per-round",
+                         "the agent's verb turned the dial")
+        self.assertEqual(canvas.cadence_of(cfg), "per-round")
+        self.assertNotIn("changed_by", cfg,
+                         "a proposal marked a setting nobody has changed")
+        self.assertEqual(cfg["config_proposal"]["patch"],
+                         {"canvas_updates": "pulled"})
+        self.assertEqual(cfg["config_proposal"]["from"],
+                         {"canvas_updates": "per-round"})
+        self.assertEqual(len(self.events("config_proposal")), 1)
+        self.assertEqual(self.events("config_changed"), [],
+                         "the proposal emitted the event a real change emits")
+
+    def test_the_two_doors_leave_records_a_reader_can_tell_apart(self):
+        """The relation r8-9 states, over one project rather than two.
+
+        The pin bench mints a second subject; a config is one slot, so
+        the two doors are driven in sequence here and the readings are
+        taken between them. What is asserted is the DIFFERENCE, never a
+        named key — an actor field, a split event type and a proposal are
+        all honest, and a test that greps for one fails the other two
+        while the behaviour is correct.
+        """
+        self.verb("canvas_updates=pulled")
+        agent_cfg, agent_status = self.stored(), self.status()
+        agent_events = [e["type"] for e in self.app.events.since(0)]
+        agent_feed = self.user_feed()
+        self.post("api/config", {"patch": {"canvas_updates": "pulled"}})
+        user_cfg, user_status = self.stored(), self.status()
+        user_events = [e["type"] for e in self.app.events.since(0)]
+        for name, agent, user in (
+                ("the config on disk", agent_cfg, user_cfg),
+                ("the emitted events", agent_events, user_events),
+                ("the `status` block", agent_status, user_status),
+                ("the `--for user` feed", agent_feed, self.user_feed())):
+            self.assertNotEqual(
+                agent, user,
+                "%s reads the same whichever hand turned the setting" % name)
+        self.assertEqual(agent_feed, [],
+                         "the agent's own dial-turn reached `wait --for "
+                         "user`, which is the channel it reads as theirs")
+
+    def test_promotion_is_the_users_act_and_keeps_the_agents_fingerprint(self):
+        """The user accepting a proposal: their change, the agent's idea."""
+        self.verb("canvas_updates=pulled")
+        status, payload = self.post("api/config/promote", {})
+        self.assertEqual(status, 200, payload)
+        cfg = self.stored()
+        self.assertEqual(cfg["canvas_updates"], "pulled")
+        self.assertEqual(cfg["changed_by"]["canvas_updates"]["source"],
+                         "agent-proposal")
+        self.assertNotIn("config_proposal", cfg, "the offer was not consumed")
+        emitted = self.events("config_changed")
+        self.assertEqual([e["source"] for e in emitted], ["agent-proposal"])
+        self.assertIn("config_changed", [e["type"] for e in self.user_feed()],
+                      "a promoted change is the USER's move and belongs on "
+                      "their feed whoever suggested it")
+
+    def test_the_user_may_edit_the_offer_before_accepting_it(self):
+        """What lands is what they agreed to, not what was asked for."""
+        self.verb("nudge_after_minutes=45")
+        status, _ = self.post("api/config/promote",
+                              {"patch": {"nudge_after_minutes": 20}})
+        self.assertEqual(status, 200)
+        cfg = self.stored()
+        self.assertEqual(cfg["nudge_after_minutes"], 20)
+        self.assertEqual(self.events("config_changed")[0]["patch"],
+                         {"nudge_after_minutes": 20},
+                         "the event reported the agent's ask instead of the "
+                         "user's edit of it")
+
+    def test_a_refused_proposal_leaves_the_setting_and_names_what_was_dropped(
+            self):
+        """Their third option, and the reason `status` can go quiet again."""
+        self.verb("canvas_updates=pulled")
+        status, payload = self.post("api/config/proposal/discard", {})
+        self.assertEqual(status, 200, payload)
+        cfg = self.stored()
+        self.assertEqual(cfg["canvas_updates"], "per-round")
+        self.assertNotIn("config_proposal", cfg)
+        dropped = self.events("config_proposal_discarded")
+        self.assertEqual([e["patch"] for e in dropped],
+                         [{"canvas_updates": "pulled"}],
+                         "an agent told only that its offer is gone would "
+                         "make the same offer again")
+
+    def test_a_numeric_setting_survives_the_verb_and_the_promotion(self):
+        """A promoted change must actually be the change that was offered.
+
+        The verb sent every `key=value` as a string, so `45` arrived as
+        `"45"` and CFG-006 reset it to 10 on the way in. Under the
+        proposal door that stops being a silent no-op and becomes a lie:
+        `changed_by` would file the user's acceptance of a dial that is
+        still exactly where it was.
+        """
+        self.verb("nudge_after_minutes=45")
+        self.assertEqual(self.stored()["config_proposal"]["patch"],
+                         {"nudge_after_minutes": 45})
+        self.post("api/config/promote", {})
+        cfg = self.stored()
+        self.assertEqual(cfg["nudge_after_minutes"], 45,
+                         "the promoted value was repaired away, and the "
+                         "mark beside it claims a change that did not "
+                         "happen")
+        self.assertEqual(cfg["changed_by"]["nudge_after_minutes"]["from"],
+                         10)
+
+    def test_a_boolean_setting_is_not_posted_as_the_word_true(self):
+        """CFG-005's twin: `deletion_conversation=false` meant nothing."""
+        self.verb("deletion_conversation=false")
+        self.post("api/config/promote", {})
+        self.assertIs(self.stored()["deletion_conversation"], False)
+
+    def test_a_hand_on_the_toggle_settles_an_offer_about_that_setting(self):
+        """The nag must be clearable by the obvious act, not only by a route.
+
+        The user answering "put it on pulled" by reaching for the toggle
+        themselves is a ruling. Without this the proposal outlives it and
+        `CONFIG_PROPOSAL=` goes on asking for a change that has already
+        happened — while the agent, whose own offer never reached its
+        `--for user` feed, has nothing telling it to stop re-offering.
+        """
+        self.verb("canvas_updates=pulled")
+        self.post("api/config", {"patch": {"canvas_updates": "pulled"}})
+        cfg = self.stored()
+        self.assertNotIn("config_proposal", cfg)
+        self.assertEqual(cfg["changed_by"]["canvas_updates"]["source"],
+                         "user", "the user's own hand was filed as the "
+                                 "agent's, because an offer happened to "
+                                 "name the same value")
+        self.assertNotIn("CONFIG_PROPOSAL=", self.status())
+        self.assertEqual(
+            self.events("config_changed")[0]["superseded_proposal"],
+            {"canvas_updates": "pulled"})
+
+    def test_an_offer_about_two_settings_survives_a_hand_on_one(self):
+        """Only what the write covered is settled."""
+        self.post("api/config/propose",
+                  {"patch": {"canvas_updates": "pulled",
+                             "nudge_after_minutes": 45}})
+        self.post("api/config", {"patch": {"canvas_updates": "pulled"}})
+        self.assertEqual(self.stored()["config_proposal"]["patch"],
+                         {"nudge_after_minutes": 45})
+
+    def test_promoting_or_discarding_nothing_is_refused_with_a_reason(self):
+        """409 and a sentence, not a silent success over an empty slot."""
+        for path in ("api/config/promote", "api/config/proposal/discard"):
+            with self.subTest(path=path):
+                status, payload = self.post(path, {})
+                self.assertEqual(status, 409, payload)
+                self.assertIn("no config proposal is waiting",
+                              payload["error"])
+
+    def test_a_key_that_is_not_settable_is_refused_at_both_doors(self):
+        """One vocabulary, or the agent's door is the wider one."""
+        before = self.stored()
+        for path in ("api/config", "api/config/propose"):
+            with self.subTest(path=path):
+                status, payload = self.post(path,
+                                            {"patch": {"migrations": []}})
+                self.assertEqual(status, 400, payload)
+                self.assertIn("not settable here", payload["error"])
+        self.assertEqual(self.stored(), before,
+                         "a refused key still reached the file")
+
+    def test_status_says_whose_hand_it_was_in_english(self):
+        """The rendering half: a marked store nobody renders says nothing."""
+        self.assertNotIn("CONFIG_CHANGED_BY=", self.status(),
+                         "a project where nothing has been turned claimed a "
+                         "hand anyway")
+        self.post("api/config", {"patch": {"canvas_updates": "pulled"}})
+        said = self.status()
+        line = next(ln for ln in said.splitlines()
+                    if ln.startswith("CONFIG_CHANGED_BY="))
+        self.assertIn("set by the user", line)
+        self.assertIn("was 'per-round'", line)
+        self.assertIn("CADENCE=pulled", said,
+                      "the provenance line displaced the cadence rather "
+                      "than sitting beside it")
+
+    def test_status_says_a_proposal_is_waiting_and_that_nothing_moved(self):
+        """The nag that makes an unpromoted offer reachable at all."""
+        self.verb("canvas_updates=pulled")
+        line = next(ln for ln in self.status().splitlines()
+                    if ln.startswith("CONFIG_PROPOSAL="))
+        self.assertIn("canvas_updates to 'pulled'", line)
+        self.assertIn("Nothing has changed yet", line)
+        self.assertIn("CADENCE=per-round", self.status())
+
+    def test_an_unreadable_mark_is_dropped_rather_than_guessed(self):
+        """CFG-010: silence means "not on record", never "the user did it"."""
+        # OVER A WHOLE CONFIG, so the codes read here are about the
+        # damage and not about the seven defaults a bare dict is missing.
+        damaged = dict(canvas.DEFAULT_CONFIG,
+                       canvas_updates="pulled",
+                       changed_by={"canvas_updates": "the agent, honest"})
+        cfg, issues = canvas.validate_config(damaged)
+        self.assertEqual(cfg["changed_by"], {})
+        self.assertEqual([i.code for i in issues], ["CFG-010"])
+        self.assertEqual(canvas.config_hand_lines(cfg), [],
+                         "a dropped mark still rendered a hand")
+
+    def test_a_malformed_proposal_is_discarded_and_reported(self):
+        """CFG-011: a proposal nobody can read must not sit unpromotable."""
+        cfg, issues = canvas.validate_config(dict(
+            canvas.DEFAULT_CONFIG,
+            config_proposal={"patch": {"migrations": []}}))
+        self.assertNotIn("config_proposal", cfg,
+                         "an unpromotable offer was left sitting in the "
+                         "file with no way for the user to clear it")
+        self.assertEqual([i.code for i in issues], ["CFG-011"])
+
+    def test_the_settings_a_session_may_turn_are_spelled_once(self):
+        """Three doors, one vocabulary — the drift this repair could grow."""
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        self.assertEqual(
+            src.count('allowed = {"canvas_updates"'), 0,
+            "a route has grown its own copy of the settable-key set")
+        self.assertEqual(canvas.SETTABLE_CONFIG_KEYS,
+                         frozenset(canvas.DEFAULT_CONFIG)
+                         - {"migrations", "artifact_types",
+                            "significant_attrs"})
 
 
 class TestXAsUserFidelity(unittest.TestCase):

@@ -29355,7 +29355,6 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestAShadedBoxKeepsTheLineWrittenOnIt": 1,
     "TestAnAnsweredPinIsNotNarratedAsARemoval": 2,
     "TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing": 2,
-    "TestAConfigChangeSaysWhoseHandTurnedIt": 2,
     "TestAStaleBrowserCaptureIsNotConsumedInSilence": 2}
 # `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` ARRIVED ON
 # 2026-09-01 as `r8-2`, the persisted-scene sibling of the caption-anchor
@@ -54168,7 +54167,6 @@ class TestAConfigChangeSaysWhoseHandTurnedIt(unittest.TestCase):
     block (what the rail draws the toggle from).
     """
 
-    @unittest.expectedFailure
     def test_two_hands_leave_one_indistinguishable_record(self) -> None:
         """The storage half: neither store can say which hand it was.
 
@@ -54224,7 +54222,6 @@ class TestAConfigChangeSaysWhoseHandTurnedIt(unittest.TestCase):
                json.dumps(typed["events"], sort_keys=True),
                json.dumps(composed["events"], sort_keys=True)))
 
-    @unittest.expectedFailure
     def test_no_reader_can_tell_which_hand_moved_the_dial(self) -> None:
         """The rendering half: the resume banner reports a cadence and no hand.
 

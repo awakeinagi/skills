@@ -300,7 +300,7 @@ own drawing back as the user's move:
 
 ```
 tail -n 0 -F "$EVENTS_LOG" | grep -E --line-buffered \
-  '"type": ?"(save|pin_answer|tripwire_answer|pin_proposal_discarded|checkout|checkout_live|branch_switch|branch_archive|suggest_view|config_changed|reconciliation)"'
+  '"type": ?"(save|pin_answer|tripwire_answer|pin_proposal_discarded|config_proposal_discarded|checkout|checkout_live|branch_switch|branch_archive|suggest_view|config_changed|reconciliation)"'
 ```
 
 That list is **every** type that belongs to the user, and it is exactly
@@ -324,21 +324,38 @@ sentence was yours. A `pin_proposal_discarded` is a real move too — they
 read your draft and refused it, the pin is open again, and the event
 carries the wording they turned down so you do not offer it twice.
 
+**A project setting works the same way, and for a sharper reason.**
+`config_changed` carries `source`: `user` when they moved the toggle
+themselves, `agent-proposal` when they accepted a change you asked for.
+`status` and the `start` banner print it in English on
+`CONFIG_CHANGED_BY=`, and the durable `config.json` keeps it under
+`changed_by` — so "who turned review off, and when?" is answerable
+tomorrow rather than only while the session is alive. **You cannot turn a
+setting yourself.** `canvas.py x-as-user config KEY=VALUE` posts a
+**proposal**: nothing changes, `CONFIG_PROPOSAL=` says one is waiting,
+and the setting moves only when the user accepts or refuses it in the
+rail. That is structural, and the reason is that one of these settings is
+their supervision of you — `canvas_updates: pulled` is what makes your
+revisions wait for them to look at — so a hand that can set it is a hand
+that can switch off its own review. When the user says "put it on pulled
+for me", propose it and tell them it is waiting; do not read the setting
+back as though it had changed.
+
 **Four things the log is the only witness to:**
 
 | You see | It means | Do this |
 |---|---|---|
-| `config_changed` with `canvas_updates` | the user changed the **cadence** mid-session | re-read `CADENCE=` in `status`; under `pulled` your next apply queues instead of landing, and the response says `QUEUED=true` |
+| `config_changed` with `canvas_updates` | the **cadence** moved mid-session — `source` says whether that was their own hand or your proposal accepted | re-read `CADENCE=` in `status`; under `pulled` your next apply queues instead of landing, and the response says `QUEUED=true` |
 | `reconciliation` | either a load-time repair or a real outside edit | read the record's `headline` — it names which ("load-time repair: … — no outside edits" against "out-of-session drift reconciled: N change(s) differ from history") |
 | `checkout` / `checkout_live` | the user is looking at, or working from, an **older revision** | do not apply onto their head until they save; a save on top of a checkout forks a branch |
 | `save` with `forked: true` | they just forked | say so, and say what is stranded on the old branch |
 
-**Event taxonomy** — all nineteen types, and who a type belongs to
+**Event taxonomy** — all twenty-one types, and who a type belongs to
 decides your reaction:
 
 | Theirs (a move — narrate it, take the round) | Yours (ignore) | System |
 |---|---|---|
-| `save`, `pin_answer`, `tripwire_answer`, `pin_proposal_discarded`, `bug_report`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop`, `pin_proposal` | `server_started`, `reconciliation` |
+| `save`, `pin_answer`, `tripwire_answer`, `pin_proposal_discarded`, `config_proposal_discarded`, `bug_report`, `checkout`, `checkout_live`, `branch_switch`, `branch_archive`, `suggest_view`, `config_changed` | `agent_revision`, `agent_pending`, `agent_revision_discarded`, `agent_revision_failed`, `agent_revision_noop`, `pin_proposal`, `config_proposal` | `server_started`, `reconciliation` |
 
 `bug_report` is the loudest thing in that first cell. The user pressed 🐞
 and told you something is **wrong**, and a bundle is already on disk with

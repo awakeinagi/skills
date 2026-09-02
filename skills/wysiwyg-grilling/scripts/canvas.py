@@ -292,6 +292,22 @@ DEFAULT_CONFIG = {
     "significant_attrs": DEFAULT_SIGNIFICANT_ATTRS,
 }
 
+# The keys a running session may turn, spelled ONCE. Three routes now
+# consult it — the user's own door, the agent's proposal door and the
+# promotion that lands one — and three hand-copies of a set literal are
+# three chances for the agent's door to accept a key the user's refuses.
+# `migrations`, `artifact_types` and `significant_attrs` are deliberately
+# absent: they are the project's shape rather than its preferences, and a
+# toggle that rewrites them is a migration nobody recorded.
+SETTABLE_CONFIG_KEYS = frozenset({
+    "canvas_updates", "narration_altitude", "deletion_conversation",
+    "nudge_after_minutes"})
+#: Where a config value's last change came from. `user` is their own
+#: hand on the rail's toggle; `agent-proposal` is wording the agent
+#: drafted and the user promoted. Spelled the same way as a pin answer's
+#: `answer_source`, because it is the same ruling one write along.
+CONFIG_SOURCES = ("user", "agent-proposal")
+
 DEFAULT_REGISTRY = {
     "migrations": ["0001-baseline"],
     "revn": 0,
@@ -558,6 +574,52 @@ def validate_config(cfg):
         cfg["narration_altitude"] = "clusters"
         issues.append(Issue("CFG-009", "config.narration_altitude reset to clusters",
                             "Allowed: clusters | exhaustive | headline.", True))
+    # THE PROVENANCE SIDECARS, repaired here for the reason CFG-008
+    # exists at all: everything downstream trusts what this function
+    # hands back, and a `changed_by` that arrived as a list would take
+    # `status` down on the one command an agent runs first on resume.
+    #
+    # NEITHER KEY IS CREATED HERE. A fresh project has never had a
+    # setting turned, so it has no provenance to hold, and minting an
+    # empty map would put this function's silence into the record as if
+    # it were a reading. Only a key that IS present is normalised.
+    #
+    # AND AN UNREADABLE MARK IS DROPPED, NEVER GUESSED. "We no longer
+    # know whose hand this was" is the honest answer; defaulting a
+    # damaged entry to `user` would be the validator testifying about a
+    # change it never witnessed, which is the defect this whole repair
+    # is about, rebuilt inside its own fix.
+    marks = cfg.get("changed_by")
+    if marks is not None:
+        kept = ({k: v for k, v in marks.items()
+                 if isinstance(v, dict) and v.get("source") in CONFIG_SOURCES}
+                if isinstance(marks, dict) else {})
+        if kept != marks:
+            cfg["changed_by"] = kept
+            # TWO WORDINGS, because the damage comes in two shapes and one
+            # sentence for both misnames whichever it is not: a
+            # `changed_by` that is not a map at all lost every mark, and a
+            # map with bad members lost the ones it names.
+            lost = (len(marks) - len(kept) if isinstance(marks, dict)
+                    else None)
+            issues.append(Issue(
+                "CFG-010",
+                "config.changed_by is not an object — every change mark "
+                "dropped" if lost is None else
+                "config.changed_by held %d unreadable entr%s — dropped"
+                % (lost, "y" if lost == 1 else "ies"),
+                "The settings themselves are untouched; what is lost is "
+                "the record of who last turned them.", True))
+    prop = cfg.get("config_proposal")
+    if prop is not None and not (
+            isinstance(prop, dict) and isinstance(prop.get("patch"), dict)
+            and prop["patch"]
+            and not set(prop["patch"]) - SETTABLE_CONFIG_KEYS):
+        cfg.pop("config_proposal", None)
+        issues.append(Issue(
+            "CFG-011", "config.config_proposal is malformed — discarded",
+            "A waiting agent proposal could not be read, so nothing is "
+            "pending now; ask the agent to propose the change again.", True))
     return cfg, issues
 
 
@@ -25740,6 +25802,198 @@ class Store:
             self._save_registry()
             return pin, draft
 
+    # -- config -----------------------------------------------------------
+    def set_config(self, patch: dict,
+                   source: str = "user") -> tuple[dict, dict]:
+        """Turn one or more settings and record whose hand turned them.
+
+        THE ONLY WRITER OF `config.json` DURING A SESSION, so the mark
+        cannot be forgotten at one door and remembered at another. It
+        used to be three lines inline in `/api/config`, which is exactly
+        how a second door came to write the same file with nothing on it.
+
+        THE MARK IS DURABLE ON PURPOSE. The event log lives in a tempdir
+        keyed by a hash of the project path, so a hand recorded only
+        there is gone on the next reboot and gone again if the project
+        moves — and the question this repair answers ("who turned review
+        off?") was asked the day after. `project_knowledge/config.json`
+        is what survives that, so the mark lives beside the value.
+
+        THE PREVIOUS VALUE RIDES ALONG because "who" without "from what"
+        cannot settle the argument that produces the question: a control
+        somebody thought was on, and a record that says only who last
+        touched it, leaves both readings alive.
+
+        Args:
+            patch: The settings to merge. Callers validate the key names
+                — the routes refuse anything outside
+                `SETTABLE_CONFIG_KEYS` with a sentence naming what is
+                settable, and repeating that judgement here would put
+                two spellings of one refusal in the tree.
+            source: Which hand — `"user"` for the rail's own toggle,
+                `"agent-proposal"` for a draft the user promoted. Not a
+                free label an agent may pick: `promote_config` is the
+                only caller that passes the second, and the agent has no
+                door onto this method at all.
+
+        Returns:
+            `(the stored config, the proposal keys this write settled)`.
+            The second is empty unless a hand on the toggle overtook a
+            proposal about the same setting — see below.
+        """
+        with self.lock:
+            before = {k: self.config.get(k) for k in patch}
+            self.config.update(patch)
+            marks = dict(self.config.get("changed_by") or {})
+            at = now_iso()
+            for key in patch:
+                marks[key] = {"source": source, "at": at,
+                              "from": before[key]}
+            self.config["changed_by"] = marks
+            # A HAND ON THE DIAL SETTLES ANY OFFER ABOUT IT. The user
+            # answering "put it on pulled" by reaching for the toggle
+            # themselves is a ruling on that setting, and without this the
+            # proposal outlives it — `CONFIG_PROPOSAL=` would go on asking
+            # for a change that has already happened, and the obvious act
+            # would be the one act that could not clear the nag.
+            #
+            # NEITHER ACCEPTED NOR REFUSED, and it is not recorded as
+            # either: `changed_by` says the user's own hand did this,
+            # which is true whichever way they were leaning. Only the
+            # keys the write actually covers are settled — a proposal
+            # asking for two settings survives a hand on one of them.
+            prop = self.config.get("config_proposal") or {}
+            waiting = prop.get("patch") or {}
+            settled = {k: v for k, v in waiting.items() if k in patch}
+            if settled:
+                left = {k: v for k, v in waiting.items() if k not in patch}
+                if left:
+                    prop["patch"] = left
+                else:
+                    self.config.pop("config_proposal", None)
+            cfg, _ = validate_config(self.config)
+            self.config = cfg
+            write_json(self.p.config_path, cfg)
+            return cfg, settled
+
+    def propose_config(self, patch: dict) -> dict:
+        """Park a config change the AGENT wants WITHOUT turning the dial.
+
+        THE AGENT'S ONLY DOOR ONTO A SETTING, and the same ruling
+        `propose_pin_answer` carries one write along. A labelled agent
+        write is still a write: the dial is turned, and the label only
+        says who to blame afterwards. That is tolerable for testimony and
+        it is not tolerable here, because one of these settings IS the
+        user's supervision of the agent — `canvas_updates: pulled` is
+        what makes a revision wait for them to look at it. An agent able
+        to set that key can switch off the review it is subject to and
+        leave a tidy note saying it did.
+
+        So it asks instead. The value is kept where the user can see it,
+        nothing about the running session changes, and the setting moves
+        only when a hand on the rail moves it.
+
+        THE PROPOSAL IS DURABLE, in `config.json` beside the settings it
+        is about. An offer that evaporates on restart is one the user is
+        never asked about again, and the agent that made it has already
+        told them it is waiting.
+
+        ONE PROPOSAL AT A TIME, REPLACED RATHER THAN QUEUED. The subject
+        is a fixed set of slots rather than a growing list of pins, so a
+        second offer about the same session supersedes the first — a
+        queue would let an agent bury a proposal the user has not read
+        under a dozen more.
+
+        Args:
+            patch: The settings the agent is asking for.
+
+        Returns:
+            The waiting proposal record.
+
+        Raises:
+            BatchError: If the patch is empty. An agent that proposes
+                nothing has told the user there is a decision waiting
+                for them and left them nothing to decide.
+        """
+        with self.lock:
+            if not patch:
+                raise BatchError(["a proposal needs a setting: the patch "
+                                  "was empty"])
+            self.config["config_proposal"] = {
+                "patch": dict(patch), "proposed_at": now_iso(),
+                "from": {k: self.config.get(k) for k in patch}}
+            cfg, _ = validate_config(self.config)
+            self.config = cfg
+            write_json(self.p.config_path, cfg)
+            return cfg["config_proposal"]
+
+    def promote_config(self, patch: dict | None = None) -> tuple[dict, dict]:
+        """Turn the dial a proposal asked for — the user's own act.
+
+        The second half of the proposal door, and `promote_pin_answer`'s
+        shape: `patch` is what the user actually accepted, which may be
+        their edit of the offer rather than the offer itself. Blank or
+        absent means they took it as it stood.
+
+        THE SOURCE STAYS `agent-proposal` EITHER WAY. The change is the
+        user's — nothing moved until they said so — but it started as
+        the agent's idea, and a record that forgets that cannot answer
+        "did the agent talk you into turning this off?".
+
+        Args:
+            patch: The accepted settings, or None to accept the offer
+                unchanged.
+
+        Returns:
+            `(the stored config, the patch that actually landed)`. The
+            second is handed back rather than re-derived by the caller
+            because the user's edit is the only place it exists — the
+            offer has been consumed by then, and an event rebuilt from
+            the proposal would report what the agent asked for instead
+            of what the user agreed to.
+
+        Raises:
+            BatchError: If nothing is waiting to be promoted.
+        """
+        with self.lock:
+            waiting = (self.config.get("config_proposal") or {}).get("patch")
+            if not waiting:
+                raise BatchError(["no config proposal is waiting, so there "
+                                  "is nothing to accept"])
+            accepted = dict(patch) if isinstance(patch, dict) and patch \
+                else dict(waiting)
+            self.config.pop("config_proposal", None)
+            # The offer is already gone, so `set_config` has nothing left
+            # to settle and its second value is always empty here.
+            cfg, _ = self.set_config(accepted, "agent-proposal")
+            return cfg, accepted
+
+    def discard_config_proposal(self) -> dict:
+        """Throw a waiting proposal away and leave the setting alone.
+
+        The user's third option beside accepting and editing, and the
+        reason a proposal is not simply a nag that never clears: "I do
+        not want this" has to be sayable, or the only way to make
+        `status` quiet again is to give the agent what it asked for.
+
+        Returns:
+            The proposal that was dropped. Returned rather than
+            forgotten because the event below is the only place it
+            survives, and an agent told merely that its offer is gone
+            would make the same offer again.
+
+        Raises:
+            BatchError: If nothing is waiting.
+        """
+        with self.lock:
+            dropped = self.config.get("config_proposal")
+            if not dropped:
+                raise BatchError(["no config proposal is waiting, so there "
+                                  "is nothing to discard"])
+            self.config.pop("config_proposal", None)
+            write_json(self.p.config_path, self.config)
+            return dropped
+
     # -- branches ---------------------------------------------------------
     def _stash_scope(self, name):
         """Record the live branch-scoped sections against a branch.
@@ -28291,6 +28545,42 @@ class ServerApp:
         return err(404 if self.store.pin_record(pin_id) is None else 409,
                    "\n".join(exc.errors))
 
+    def config_patch(self, body: dict) -> tuple[dict, dict | None]:
+        """Read a settable patch off a request body, or the refusal to send.
+
+        ONE READER FOR THREE DOORS — the user's own, the agent's
+        proposal and the promotion that lands one. The three used to be
+        one, and the whole finding this repair answers is that a second
+        way in existed with nothing on it; shipping the second and third
+        with their own copies of this validation would be the same
+        mistake in the same file, this time about which keys are
+        settable rather than about who turned them.
+
+        Args:
+            body: The decoded request body.
+
+        Returns:
+            `(patch, None)` when the body names settable keys, or
+            `({}, err(...))` when it does not. A returned refusal is the
+            route's response and is returned rather than raised, because
+            every neighbour on this path answers that way and an
+            exception here would need a handler at each of the three.
+        """
+        patch = body.get("patch") or {}
+        if not isinstance(patch, dict) or not patch:
+            # an unwrapped body used to no-op silently AND log a
+            # config_changed event with an empty patch, so the agent
+            # could read a cadence change that never happened
+            return {}, err(400, "config needs a non-empty `patch` object, "
+                                "e.g. {\"patch\": {\"canvas_updates\": "
+                                "\"pulled\"}} — settable keys: %s"
+                           % ", ".join(sorted(SETTABLE_CONFIG_KEYS)))
+        bad = set(patch.keys()) - SETTABLE_CONFIG_KEYS
+        if bad:
+            return {}, err(400, "config keys not settable here: %s"
+                           % ", ".join(sorted(bad)))
+        return patch, None
+
     def file_bugreport(self, body: dict[str, Any]) -> dict[str, Any]:
         """Write a 🐞 bug-report bundle and tell the session it happened.
 
@@ -29007,27 +29297,82 @@ class ServerApp:
                                concept=body.get("concept"))
             return {"ok": True}
         if path == "/api/config":
-            patch = body.get("patch") or {}
-            allowed = {"canvas_updates", "narration_altitude",
-                       "deletion_conversation", "nudge_after_minutes"}
-            if not isinstance(patch, dict) or not patch:
-                # an unwrapped body used to no-op silently AND log a
-                # config_changed event with an empty patch, so the agent
-                # could read a cadence change that never happened
-                return err(400, "config needs a non-empty `patch` object, "
-                                "e.g. {\"patch\": {\"canvas_updates\": "
-                                "\"pulled\"}} — settable keys: %s"
-                           % ", ".join(sorted(allowed)))
-            bad = set(patch.keys()) - allowed
-            if bad:
-                return err(400, "config keys not settable here: %s"
-                           % ", ".join(sorted(bad)))
-            self.store.config.update(patch)
-            cfg, _ = validate_config(self.store.config)
-            self.store.config = cfg
-            write_json(self.project.config_path, cfg)
-            self.events.append("config_changed", patch=patch)
+            # THE USER'S DOOR, and after the provenance repair it is only
+            # ever theirs: the rail posts here and the agent's CLI verb
+            # does not. An unmarked POST is the user's because the BROWSER
+            # is the user — there is no other caller this route is served
+            # to — which is why `source` is decided here rather than read
+            # off a body a caller could have written anything into.
+            patch, refusal = self.config_patch(body)
+            if refusal is not None:
+                return refusal
+            cfg, settled = self.store.set_config(patch, "user")
+            # WHOSE HAND, ON THE EVENT AS WELL AS IN THE FILE. The event
+            # is what a watching agent sees while the change is
+            # happening, and an unmarked payload here is provenance
+            # stored once and read nowhere in the moment it matters.
+            #
+            # `superseded_proposal` rides only when there was one, and it
+            # is the only way an agent learns its offer is moot: it is
+            # watching `--for user`, where its own proposal never
+            # appeared, so a `config_changed` on the same key is all it
+            # gets — and re-offering a setting the user has just turned
+            # by hand is the failure this saves it from.
+            self.events.append(
+                "config_changed", patch=patch, source="user",
+                **({"superseded_proposal": settled} if settled else {}))
             return {"ok": True, "config": cfg}
+        if path == "/api/config/propose":
+            # THE AGENT'S DOOR ONTO A SETTING, and the only one it has.
+            # Posting the rail's own body to the route above left a
+            # change no surface could tell from the user's — so an agent
+            # could turn off the review its own work is subject to and
+            # then read the move back off `wait --for user` as theirs.
+            patch, refusal = self.config_patch(body)
+            if refusal is not None:
+                return refusal
+            try:
+                prop = self.store.propose_config(patch)
+            except BatchError as e:
+                return err(400, "\n".join(e.errors))
+            # AN AGENT EVENT, classified in `AGENT_EVENT_TYPES`. Putting
+            # a proposal on the `--for user` feed rebuilds the exact
+            # channel this route closes. What the user does with it —
+            # promote or discard — is theirs and is on their feed.
+            self.events.append("config_proposal", patch=prop["patch"],
+                               previous=prop["from"])
+            return {"ok": True, "proposal": prop,
+                    "config": self.store.config}
+        if path == "/api/config/promote":
+            # The user accepting a proposal, as offered or after editing
+            # it. This is a `config_changed` like any other: the user
+            # turned the dial, and `source` says the idea was the
+            # agent's.
+            patch = None
+            if body.get("patch") is not None:
+                patch, refusal = self.config_patch(body)
+                if refusal is not None:
+                    return refusal
+            try:
+                cfg, landed = self.store.promote_config(patch)
+            except BatchError as e:
+                return err(409, "\n".join(e.errors))
+            self.events.append("config_changed", patch=landed,
+                               source="agent-proposal")
+            return {"ok": True, "config": cfg}
+        if path == "/api/config/proposal/discard":
+            try:
+                dropped = self.store.discard_config_proposal()
+            except BatchError as e:
+                return err(409, "\n".join(e.errors))
+            # THE REFUSED PATCH RIDES THE EVENT because this is the only
+            # place it survives — the config no longer holds it. An agent
+            # told merely that its offer is gone would make the same
+            # offer again.
+            self.events.append("config_proposal_discarded",
+                               patch=dropped.get("patch"))
+            return {"ok": True, "discarded": dropped,
+                    "config": self.store.config}
         if path == "/api/screenshot/request":
             with self.lock:
                 self.shot_seq += 1
@@ -29524,6 +29869,72 @@ def cadence_of(cfg):
     return got if got in ("per-round", "pulled") else "per-round"
 
 
+def config_hand_lines(cfg):
+    """What a resume surface says about who last turned each setting.
+
+    THE READING HALF OF THE PROVENANCE REPAIR, and it is a separate
+    function because it is printed in two places — `status` on resume and
+    the `start` banner — and because the storage half is worth nothing
+    without it. A product can mark a change in the durable config AND on
+    the emitted event and still tell a returning human nothing: `CADENCE=`
+    renders one word and that word is identical whoever turned the dial.
+
+    BESIDE `CADENCE=` RATHER THAN INSIDE IT. That key is read by
+    machinery as well as by people, and folding a hand into its value
+    would make every reader of the cadence parse a sentence to get at the
+    word. The provenance is its own line, in English, because the reader
+    who needs it is a person deciding whether a control they asked for is
+    still the one in force.
+
+    ONLY WHAT IS ON RECORD IS PRINTED. A project where nobody has turned
+    anything says nothing here, and a setting whose mark was lost says
+    nothing about that setting — silence means "not on record", never
+    "the user did it".
+
+    Args:
+        cfg: A config mapping, from `/api/state` or off disk. Anything
+            that is not a mapping reads as a project with nothing on
+            record, because that is what a caller holding a broken
+            config can honestly say.
+
+    Returns:
+        Zero to two `KEY=sentence` lines: what is known about who last
+        turned each marked setting, and any agent proposal still waiting
+        on the user.
+    """
+    if not isinstance(cfg, dict):
+        return []
+    out = []
+    said = {"user": "the user", "agent-proposal":
+            "the user, accepting a proposal the agent made"}
+    marks = cfg.get("changed_by")
+    turned = []
+    for key in sorted(marks or {}):
+        m = marks[key] if isinstance(marks.get(key), dict) else {}
+        who = said.get(m.get("source"))
+        if not who:
+            continue
+        turned.append("%s is %r, set by %s%s%s"
+                      % (key, cfg.get(key), who,
+                         "" if m.get("from") is None
+                         else " (was %r)" % (m["from"],),
+                         "" if not m.get("at") else " at %s" % m["at"]))
+    if turned:
+        out.append("CONFIG_CHANGED_BY=" + "; ".join(turned))
+    prop = cfg.get("config_proposal") or {}
+    patch = prop.get("patch") if isinstance(prop, dict) else None
+    if patch:
+        out.append(
+            "CONFIG_PROPOSAL=the agent is asking to set %s. Nothing has "
+            "changed yet — this waits until the user accepts or refuses "
+            "it in the rail%s"
+            % ("; ".join("%s to %r (it is %r now)"
+                         % (k, patch[k], cfg.get(k)) for k in sorted(patch)),
+               "" if not prop.get("proposed_at")
+               else ", proposed at %s" % prop["proposed_at"]))
+    return out
+
+
 def frontend_stamp_warning(project):
     """Maintainer convenience: if frontends/wysiwyg-grilling/ source exists
     beside the skill, compare its hash against the committed build stamp."""
@@ -29624,6 +30035,12 @@ def cmd_start(args):
              catchup_revn=state.get("catchup_revn"),
              rollback=state.get("rollback"),
              stamp_warning=warning)
+    # Beside the cadence, for the cadence's own reason: this banner says
+    # which setting a session resumes under, and a session that resumes
+    # under a control somebody flipped yesterday should be told who
+    # flipped it here rather than on a later command nobody runs.
+    for line in config_hand_lines(cfg):
+        print(line)
     # What the load found, on the surface an agent runs FIRST. `start`
     # printed its URL block and stopped, so a quarantined artifact was
     # reachable only from a later `status` — which an agent that just got
@@ -29725,6 +30142,14 @@ def cmd_status(args):
              rollback=st.get("rollback"),
              events_seq=st.get("events_seq"),
              events_log=st.get("events_log"))
+    # WHOSE HAND TURNED THE DIAL, on the first command an agent runs on
+    # resume. `CADENCE=` above renders the setting and is identical
+    # whoever moved it, so a returning session could read the cadence and
+    # not that the agent had asked for it — or that a control the user
+    # set is still theirs. Printed only when there is something on
+    # record, on the same default-is-silent rule the lines below follow.
+    for line in config_hand_lines(st.get("config")):
+        print(line)
     # WP2 (report-and-repair): load-time repairs used to reach exactly
     # one surface — /api/state, which nothing in the loop reads. Silent
     # repair is how the r4-7 lint became unreachable.
@@ -30593,10 +31018,15 @@ def cmd_bugreports(args):
 # with the agent reading its own words back under the user's heading.
 # `pin_proposal_discarded` is the user's, for the mirror reason — they
 # refused the draft, which is a move the agent has to take the round on.
+# `config_proposal` and `config_proposal_discarded` split the same way and
+# for the same argument one write along. `config_changed` STAYS the
+# user's whatever its `source` says: after the proposal repair only their
+# hand reaches that route, and a promoted proposal is still them saying
+# yes. The classification is by WHOSE MOVE IT WAS, never by whose idea.
 USER_EVENT_TYPES = frozenset({
     "save", "pin_answer", "tripwire_answer", "checkout", "checkout_live",
     "branch_switch", "branch_archive", "suggest_view", "config_changed",
-    "pin_proposal_discarded",
+    "pin_proposal_discarded", "config_proposal_discarded",
     # a filed bug report is the most urgent thing a user does — the whole
     # point of the event is that a watching agent reacts IN SESSION, and
     # `wait` defaults to `--for user`, so leaving it out of this set would
@@ -30604,7 +31034,8 @@ USER_EVENT_TYPES = frozenset({
     "bug_report"})
 AGENT_EVENT_TYPES = frozenset({
     "agent_revision", "agent_pending", "agent_revision_discarded",
-    "agent_revision_failed", "agent_revision_noop", "pin_proposal"})
+    "agent_revision_failed", "agent_revision_noop", "pin_proposal",
+    "config_proposal"})
 
 
 def cmd_wait(args):
@@ -32747,6 +33178,45 @@ def _x_reason(exc: urllib.error.HTTPError) -> str:
     return " — %s" % reason if reason else ""
 
 
+def _config_value(text: str):
+    """Read a `key=value` operand as the JSON type the config stores.
+
+    `key=value` ARRIVES AS TEXT AND THE CONFIG IS TYPED. The verb sent
+    every value as a string, so `nudge_after_minutes=45` posted `"45"`
+    and CFG-006 reset it to 10 on the way in — the setting silently did
+    not move, and the only report was a REPAIR line on a later `status`.
+
+    It became worth repairing with the proposal door. A promotion that
+    landed `"45"` would file a change under the user's own acceptance
+    that the validator had already undone: a provenance record saying
+    somebody turned a dial which is still exactly where it was, which is
+    a worse failure than the one this whole repair is about.
+
+    THE TYPE IS READ OFF THE TEXT AND NOT OFF THE KEY. A per-key table
+    would be a fifth place the settable vocabulary is spelled, and it
+    would have to be edited by anyone adding a setting; `pulled` is not a
+    number in any table, and `45` is not a string in any of them either.
+
+    Args:
+        text: The operand's right-hand side, exactly as typed.
+
+    Returns:
+        A bool for `true`/`false`, an int or float for a numeric literal,
+        and the string itself otherwise. The route still refuses a value
+        the config cannot hold — this only stops the CLI from mistyping
+        one the user spelled correctly.
+    """
+    low = text.strip().lower()
+    if low in ("true", "false"):
+        return low == "true"
+    for as_number in (int, float):
+        try:
+            return as_number(text)
+        except ValueError:
+            pass
+    return text
+
+
 def _x_user_carry_feet(els, moved, dx, dy):
     """Keep each bound foot with the element it binds, as a drag does.
 
@@ -32886,11 +33356,28 @@ def cmd_x_as_user(args):
               % args.target)
         return 0
     if verb == "config":
+        # THIS VERB PROPOSES; IT DOES NOT SET. It used to post the rail's
+        # own body to `api/config`, so a setting the agent turned landed
+        # as the user's on every surface — the file on disk, the
+        # `config_changed` event, the `CADENCE=` line every resume reads,
+        # and the `--for user` feed the agent then watches. One of these
+        # settings is the user's supervision of the agent, so a door that
+        # cannot say whose hand it was is a door the agent can use to
+        # lower its own bar. The ask is kept; the dial waits.
+        #
+        # AND THERE IS DELIBERATELY NO `promote` VERB HERE, for
+        # `answer`'s reason exactly: `x-as-user` is the CLI standing in
+        # for the user's hand and the agent is what runs it, so a promote
+        # verb would hand the agent both doors and undo this in one line.
         key, _, val = (args.text or "").partition("=")
         if not key or not val:
             die("ERROR=config wants key=value", 2)
-        _x_post(url + "api/config", {"patch": {key: val}}, "config")
-        print_kv(config=key, value=val)
+        _x_post(url + "api/config/propose",
+                {"patch": {key: _config_value(val)}}, "config")
+        print_kv(proposed_config=key, value=val)
+        print("NOTE=proposed, not set — %s stays as it is until the user "
+              "accepts or refuses this in the rail. Do not read the "
+              "setting back as though it had changed." % key)
         return 0
     if verb == "checkout":
         # Guarded like its three siblings above, and for the same reason:
