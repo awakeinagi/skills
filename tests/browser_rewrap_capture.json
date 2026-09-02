@@ -1,8 +1,8 @@
 {
- "recorded": "2026-09-01",
+ "recorded": "2026-09-02",
  "spec": "pin-rewrapped-caption-drag.spec.ts",
  "app_build": "c466cac6a4a38f87a0a10e6af1b9ef17792a6280",
- "canvas_sha256": "753e42febbb52efc6c49b8d3cbd9ee9efb38f4febfeff985d51344f684c1e382",
+ "canvas_sha256": "8b3fa4b800513cbfa397adefd32c6300ae82672392af062f6f5862d82d997bc5",
  "artifact": "text-clip",
  "population": {
   "captions": [

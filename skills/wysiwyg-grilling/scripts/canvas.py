@@ -22731,6 +22731,93 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
     return out
 
 
+def stale_caption_notes(els):
+    """Bound captions stored away from the anchor the canvas draws them at.
+
+    THE FILE AND THE SCREEN, NOT THE WRITER AND THE CLIENT. v0.9.1
+    corrected `recenter_label`'s vertical anchor from a literal `6` to
+    the client's own `BOUND_TEXT_PADDING`, and that repair is MINT-TIME
+    ONLY: every caption written before it is still on disk a pixel from
+    where the tab puts one, and until 2026-09-01 no reader in this file
+    said a word about it. `lint` is the surface an agent reads to answer
+    "is this drawing clean?", and over 43 of the frozen corpus's own
+    rectangle-bound captions it answered yes.
+
+    REPORT-ONLY, DELIBERATELY. The other four measured repairs all move
+    the picture — widening `_label_detached` so the loader re-glues,
+    re-anchoring in `validate_scene` or in `Store.commit` — and every
+    one of them also erases a caption the USER dragged, because the
+    loader cannot tell a stale anchor from an 8px nudge somebody meant.
+    `TestAModThatReachesDiskIsNamedByItsOwnRecord`'s grid pins it as
+    durable and narrated at `+8` and at `(+60, -40)`; a repair that
+    re-anchors on sight takes bound-caption dragging away from the user
+    to close a one-pixel bookkeeping gap. So this says the sentence and
+    leaves the drawing alone.
+
+    THE VERTICAL ANCHOR ONLY, AND ONLY UNDER A RECTANGLE, because that
+    is the whole of what can be PROVEN from inside this file. The writer
+    and the client agree on a rectangle's `y` at every `verticalAlign`
+    — that agreement is what v0.9.1 bought and what
+    `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` asserts
+    out loud, printing the two anchors side by side. They do NOT agree
+    elsewhere and a note is a claim about the PICTURE, so:
+
+      * AN ELLIPSE OR A DIAMOND is excluded. `recenter_label` models
+        neither the client's shape inset nor its shape-aware height
+        budget, so the writer's answer is not the drawn one and a note
+        there would report the server's own open defect as the user's
+        drawing. That divergence is a larger, still-open class.
+      * A LINEAR CONTAINER is excluded, for ART-007's reason: the client
+        re-derives an arrow label's position from the arrow and writes it
+        back, so no stored coordinate there is ever the drawn one and the
+        server must not fight it.
+      * THE HORIZONTAL ANCHOR is excluded, on measurement and not on
+        principle. 13 rectangle-bound captions in the frozen corpus sit
+        up to 96px off the writer's centre with their containers plainly
+        drawn right, so `recenter_label`'s x is not known to be the
+        client's and a note over those 13 would be 13 false reports. The
+        y arm is 43 and every one of them is real.
+
+    Args:
+        els: The artifact's elements.
+
+    Returns:
+        `[str]` — one aggregate line, or empty when every bound caption
+        is on its anchor, which has to stay the silent case: a lint that
+        says something about every drawing teaches an agent to skip it.
+    """
+    by_id = {e.get("id"): e for e in els if isinstance(e, dict)}
+    stale = []
+    for el in els:
+        if not isinstance(el, dict) or el.get("type") != "text":
+            continue
+        cont = by_id.get(el.get("containerId"))
+        if cont is None or cont.get("type") != "rectangle":
+            continue
+        # THE PRODUCT'S OWN WRITER ANSWERS, never a copy of its formula:
+        # `_recentred_to` runs `recenter_label` on a throwaway copy, so a
+        # rebuild that moves the anchor moves this note with it and a
+        # pinned caption — which the writer declines to place — is None
+        # here and correctly never reported.
+        want = _recentred_to(el, cont)
+        if want is None:
+            continue
+        gap = _round_geom(el.get("y")) - want[1]
+        if gap:
+            stale.append((el.get("id"), gap))
+    if not stale:
+        return []
+    return ["%d bound caption(s) are stored away from the anchor the "
+            "canvas draws them at (%s%s) — written before the caption "
+            "anchor was corrected. The picture is fine and nothing needs "
+            "doing; the next edit that moves or resizes one of those "
+            "containers re-anchors its caption, and that save will name a "
+            "caption nobody touched."
+            % (len(stale),
+               ", ".join("%s %+gpx" % row for row in stale[:3]),
+               "\u2026" if len(stale) > 3 else "")]
+
+
 def project_lint(project, els, registry=None, artifact_type=None,
                  aid=None):
     """lint_layout + lint_glossary (+ registry discipline when the caller
@@ -22773,6 +22860,14 @@ def project_lint(project, els, registry=None, artifact_type=None,
     has_map = (project.root / "CONTEXT-MAP.md").exists()
     extra = lint_glossary(els, avoid, has_map)
     out = {k: lint[k] + extra[k] for k in ("errors", "warnings", "notes")}
+    # A caption on disk the canvas will redraw somewhere else. Sited HERE
+    # and not in `lint_layout` because it is not a layout budget the
+    # author can spend differently — it is a fact about what the file
+    # says versus what the tab does, which is the same register as the
+    # glossary arm above. The registry-scope call passes `els=[]` and so
+    # reaches this with nothing to say, which is right: it is a
+    # per-artifact finding and lands in a per-artifact bucket.
+    out["notes"] = out["notes"] + stale_caption_notes(els)
     # registry findings are project-scope: lint_registry never sees `els`
     # or `aid`, so appending them to every per-artifact call copied the
     # same note into every bucket AND the registry bucket — one finding

@@ -29349,7 +29349,6 @@ def coverage_table() -> list[tuple[str, str, str]]:
 HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestALandedLabelPositionNarratesThroughEitherDoor": 2,
     "TestACorrectionWaveHeadlinesWhatSomebodyAuthored": 2,
-    "TestAStoredCaptionAnchorTheClientDisagreesWithIsReported": 1,
     "TestOnePairGetsOneVerdictOnWhetherItMayStand": 2,
     "TestAClosedPinSaysWhyItClosed": 2,
     "TestAShadedBoxKeepsTheLineWrittenOnIt": 1,
@@ -29367,6 +29366,21 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
 # because the relation is one thing (reported OR repaired) measured over
 # twelve cells; the two alignments, the two signs and the two routes are a
 # population and not four defects.
+# LEFT 2026-09-02, flipped by repair (b) of the five its docstring measured
+# and by a different hand than the one that curated it: `project_lint` gains
+# `stale_caption_notes`, an aggregate note naming the captions an artifact
+# stores off the anchor the canvas draws them at. REPORT-ONLY WAS THE
+# CHOICE and the other four are why — (a), (c) and (e) all re-anchor a
+# stored caption on sight, and none of them can tell a pre-fix pixel from
+# an 8px nudge somebody meant, so each buys this class by taking bound-
+# caption dragging away from the user and re-reding
+# `TestAModThatReachesDiskIsNamedByItsOwnRecord`'s durability grid. (d)
+# repairs nothing either but files the sentence on the ROUTING fossil
+# surface, whose own docstring is about connectors. The note is the y
+# anchor under a RECTANGLE only, which is the whole of what the writer can
+# prove about the picture; the arm's docstring holds the three exclusions
+# and the measurement behind each. Corpus effect: +43 captions named, in
+# 11 aggregate notes across 11 of the 24 artifacts.
 # `TestOnePairGetsOneVerdictOnWhetherItMayStand` ARRIVED 2026-09-01 carrying
 # R8's finding r8-4 (P2, half-waivable-warning-pair). Two warnings fire on one
 # arrow pair; the lane one offers a waive key and cleared 4W -> 3W, the
@@ -42601,7 +42615,6 @@ class TestAStoredCaptionAnchorTheClientDisagreesWithIsReported(
             "be satisfied by a battery that reads nothing, which is the "
             "one way it must never be satisfied" % (mute, misplaced))
 
-    @unittest.expectedFailure
     def test_a_stored_caption_the_client_disagrees_with_is_read(
             self) -> None:
         """`r8-2`, RED: nothing reads a caption already on disk.

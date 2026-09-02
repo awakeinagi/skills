@@ -1593,6 +1593,179 @@ class TestLintTiers(Base):
                             for e in lint["errors"]))
 
 
+class TestAStoredCaptionOffItsAnchorIsNoted(Base):
+    """`project_lint`'s arm over a caption the canvas will redraw elsewhere.
+
+    THE SUBJECT IS THE FILE AND NOT THE WRITER. v0.9.1 moved
+    `recenter_label` onto the client's `BOUND_TEXT_PADDING` and every
+    caption written before it is still on disk a pixel away, so the arm
+    exists to say so out loud on a surface an agent reads. The silences
+    below are the load-bearing half: three kinds of caption look stale to
+    a naive comparison and are not, and a note over any of them would be
+    a false report about a real drawing.
+    """
+
+    def _bound(self, container_type="rectangle", align="top"):
+        """A container and its caption, placed by the product itself.
+
+        THE PRODUCT PLACES IT, never a coordinate typed here, so a
+        rebuild that moves the anchor moves this fixture with it and
+        these tests keep asking about staleness rather than about a
+        literal somebody transcribed.
+
+        Args:
+            container_type: The container's `type`.
+            align: The caption's `verticalAlign`.
+
+        Returns:
+            `(container, caption)`, the caption on the anchor the writer
+            would give it.
+        """
+        box = {"id": "b", "type": container_type, "x": 200, "y": 100,
+               "width": 160, "height": 120,
+               "boundElements": [{"id": "b-label", "type": "text"}]}
+        if container_type in ("arrow", "line"):
+            box["points"] = [[0, 0], [160, 120]]
+        cap = {"id": "b-label", "type": "text", "containerId": "b",
+               "width": 90, "height": 22, "verticalAlign": align,
+               "textAlign": "center", "text": "Term",
+               "originalText": "Term", "x": 0, "y": 0}
+        canvas.recenter_label([box, cap], box)
+        return box, cap
+
+    def test_a_caption_stored_off_its_anchor_is_named(self):
+        """One note, naming the caption and the direction it is out by."""
+        for align in ("top", "middle", "bottom"):
+            box, cap = self._bound(align=align)
+            cap["y"] += 1
+            notes = canvas.stale_caption_notes([box, cap])
+            self.assertEqual(len(notes), 1, align)
+            self.assertIn("b-label +1px", notes[0])
+            self.assertIn("1 bound caption(s)", notes[0])
+
+    def test_the_other_sign_is_named_too(self):
+        """A caption stored ABOVE its anchor is as stale as one below."""
+        box, cap = self._bound()
+        cap["y"] -= 3
+        notes = canvas.stale_caption_notes([box, cap])
+        self.assertEqual(len(notes), 1)
+        self.assertIn("b-label -3px", notes[0])
+
+    def test_a_caption_on_its_anchor_says_nothing(self):
+        """The everyday case stays silent, which is what makes it read."""
+        box, cap = self._bound()
+        self.assertEqual(canvas.stale_caption_notes([box, cap]), [])
+
+    def test_a_pinned_caption_is_never_named(self):
+        """A pin is the user's promise and the writer declines to move it.
+
+        `recenter_label` honours `locked`, so there is no anchor this
+        caption is away FROM — reporting one would nag the user about
+        the one position the product guarantees to keep.
+        """
+        box, cap = self._bound()
+        cap["y"] += 40
+        cap["locked"] = True
+        self.assertEqual(canvas.stale_caption_notes([box, cap]), [])
+
+    def test_an_arrow_label_is_never_named(self):
+        """ART-007's exclusion, for ART-007's reason.
+
+        The client re-derives an arrow label's drawn position from the
+        arrow and writes it back at the midpoint, so no coordinate
+        stored there is ever the drawn one and the server must not fight
+        it.
+        """
+        box, cap = self._bound(container_type="arrow")
+        cap["y"] += 40
+        self.assertEqual(canvas.stale_caption_notes([box, cap]), [])
+
+    def test_an_ellipse_caption_is_never_named(self):
+        """The writer's own open divergence is not the user's drawing.
+
+        `recenter_label` models neither the client's shape inset nor its
+        shape-aware height budget, so under an ellipse its answer is not
+        the drawn one. A note there would report a server defect as a
+        file defect, and the corpus holds one such caption.
+        """
+        box, cap = self._bound(container_type="ellipse")
+        cap["y"] += 40
+        self.assertEqual(canvas.stale_caption_notes([box, cap]), [])
+
+    def test_many_stale_captions_are_one_note_with_a_sample(self):
+        """Four stale captions aggregate into one line, three named."""
+        els = []
+        for i in range(4):
+            box, cap = self._bound()
+            box["id"] = "b%d" % i
+            box["y"] = 100 + i * 200
+            cap["id"] = "b%d-label" % i
+            cap["containerId"] = box["id"]
+            box["boundElements"] = [{"id": cap["id"], "type": "text"}]
+            canvas.recenter_label([box, cap], box)
+            cap["y"] += 2
+            els.extend([box, cap])
+        notes = canvas.stale_caption_notes(els)
+        self.assertEqual(len(notes), 1)
+        self.assertIn("4 bound caption(s)", notes[0])
+        self.assertIn("b2-label +2px", notes[0])
+        self.assertNotIn("b3-label", notes[0])
+        self.assertIn("\u2026", notes[0])
+
+    def _offline_store(self, delta):
+        """Write a stale artifact to disk and reload it with no server.
+
+        THE DOOR IS THE FILE. A pre-fix scene was left by a session that
+        has ended, so the only honest way to reach it is to write the
+        artifact and construct a new `Store` — eleven of the twelve
+        `Store(...)` sites in the product are CLI commands that never
+        reconcile, and they must read the note too.
+
+        Args:
+            delta: Signed pixels to store the caption away from its
+                anchor.
+
+        Returns:
+            A `Store` freshly loaded from the written artifact.
+        """
+        if "d" not in self.store.scenes:
+            self.store.apply_batch({"base_revn": 0, "artifact": "d",
+                                    "create": {"id": "d", "name": "D",
+                                               "type": "domain"},
+                                    "ops": []})
+        path = self.project.artifacts_dir / "d.excalidraw"
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        box, cap = self._bound()
+        cap["y"] += delta
+        doc["elements"] = [box, cap]
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        return canvas.Store(canvas.Project(self.tmp))
+
+    def test_the_note_reaches_the_offline_reader(self):
+        """`lint_lines` carries it on a store that never reconciled."""
+        lines = self._offline_store(1).lint_lines().get("d") or {}
+        self.assertTrue([n for n in lines.get("notes") or []
+                         if "b-label +1px" in n])
+
+    def test_the_agreeing_scene_is_silent_through_the_same_reader(self):
+        """The differential: the note distinguishes the defect, not the door."""
+        lines = self._offline_store(0).lint_lines().get("d") or {}
+        self.assertEqual([n for n in lines.get("notes") or []
+                          if "bound caption(s)" in n], [])
+
+    def test_the_note_counts_in_the_standing_debt(self):
+        """A stale caption raises the note count an agent reads by one.
+
+        THE RELATION AND NOT THE TOTAL. This scene draws other findings
+        of its own, and a literal here would pin those too — it would go
+        red on an honest change to a lint that has nothing to do with
+        captions, and the next hand would relax it.
+        """
+        stale = (self._offline_store(1).lint_debt().get("d") or {})
+        clean = (self._offline_store(0).lint_debt().get("d") or {})
+        self.assertEqual(stale.get("notes", 0) - clean.get("notes", 0), 1)
+
+
 class TestHygiene(Base):
     def test_round_stamped_on_save_records(self):
         rec, _ = self.store.apply_batch(seed_flow_batch())
