@@ -93,5 +93,4 @@ roster is a roster, and the row is prose again.
 
 Catalog red ids:
 
-- `forked_feet_read_through_node`
-- `joined_feet_read_through_node`
+- *none*

@@ -22636,7 +22636,11 @@ class TestPhantomPassThrough(Base):
     underneath it, which is the whole content of the check: the broad
     reading — any collinear in/out pair on opposite borders — is the
     normal correct flowchart, 70 findings over the 24 frozen artifacts,
-    and does not ship. What ships is the half where ink crosses the box.
+    and does not ship. What ships is the half where ink crosses the box,
+    plus the half where NOTHING TERMINATES at the node — the arm added
+    2026-08-16, whose whole justification is that an arrowhead ends the
+    reading before the eye completes a stroke across the box, and which
+    r8-5 extended on 2026-09-02 to feet the model gives the same role.
     """
 
     def _rank(self, foot, node_w=80):
@@ -22735,6 +22739,117 @@ class TestPhantomPassThrough(Base):
         els[4]["x"], els[4]["y"] = 240, 140
         els[4]["points"] = [[0, 0], [0, 200]]
         self.assertEqual(self._hits(els), [])
+
+    def _forked(self, headless=False, foot=280):
+        """`_rank`'s geometry with both of N's feet LEAVING it.
+
+        The r8-5 shape, and the artifact's own: `onboarding-data`'s `d7`
+        and `d10` both leave `st-application` at x=860 on opposite
+        borders, each carrying its head at the FAR end, and drawn that
+        is one unbroken stroke through the box. Reversing e1 here does
+        the same thing to the rank chain — the segment set does not
+        move, because reversing a stroke whose head is elsewhere
+        repaints nothing.
+
+        Args:
+            headless: True to strip the far-end heads too, as a
+                one-to-one ER relation does.
+            foot: Absolute x of e2's start point, so a caller can put
+                the two feet on opposite borders (280) or on one (200).
+
+        Returns:
+            The five-element scene.
+        """
+        els = self._rank(foot)
+        els[3]["x"], els[3]["points"] = 200, [[0, 0], [-120, 0]]
+        els[3]["startBinding"] = {"elementId": "N", "focus": 0, "gap": 1}
+        els[3]["endBinding"] = {"elementId": "A", "focus": 0, "gap": 1}
+        if headless:
+            els[3]["endArrowhead"] = els[4]["endArrowhead"] = None
+        return els
+
+    def _joined(self, headless=True):
+        """`_rank(280)`'s geometry with both of N's feet ARRIVING at it.
+
+        The other pole of the same gate, and it is cued through the
+        other key: the client paints `endArrowhead` at `points[-1]`, so
+        an arriving foot is terminated by the head a LEAVING one takes
+        from `startArrowhead`. Two arriving strokes therefore carry
+        heads at N by default, and only `headless` makes this the
+        configuration amodal completion is about — which is reachable,
+        since `_er_seed_ops` mints a headless line for every one-to-one
+        relation.
+
+        Args:
+            headless: True to strip both heads, leaving nothing
+                terminated at N.
+
+        Returns:
+            The five-element scene.
+        """
+        els = self._rank(280)
+        els[4]["x"], els[4]["points"] = 528, [[0, 0], [-248, 0]]
+        els[4]["startBinding"] = {"elementId": "Z", "focus": 0, "gap": 1}
+        els[4]["endBinding"] = {"elementId": "N", "focus": 0, "gap": 1}
+        if headless:
+            els[3]["endArrowhead"] = els[4]["endArrowhead"] = None
+        return els
+
+    def test_two_feet_leaving_one_node_read_as_one_stroke(self):
+        """r8-5: the model's roles are not something a reader can see.
+
+        Nothing about this drawing differs from the chained scene the
+        check already reported — same segments, same heads, same 80px of
+        bare N between two collinear opposed feet — except which end of
+        one point string the model calls the start. The check answered
+        differently across that edit until the pair gate stopped asking.
+        """
+        hits = self._hits(self._forked(headless=True))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("80px of it is completed across by eye", hits[0])
+        self.assertIn("between the two nodes at the far ends", hits[0],
+                      "a fork has no predecessor, and sending the agent "
+                      "to look for one is how a true finding gets read "
+                      "as noise: " + hits[0])
+
+    def test_two_feet_arriving_at_one_node_read_as_one_stroke(self):
+        """The join, which fails the old gate on the OTHER foot.
+
+        `not f_arr` rejected the fork and `g_arr` rejected this, so a
+        repair keyed on either role alone would flip one of the two and
+        leave the other exactly where it was.
+        """
+        hits = self._hits(self._joined())
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("80px of it is completed across by eye", hits[0])
+
+    def test_a_same_role_pair_terminated_at_the_node_is_silent(self):
+        """The cue, and it is the whole of what keeps this narrow.
+
+        Both scenes differ from the two above in the terminator alone.
+        A head at N ends the reading before the eye completes anything
+        across the box — the argument the 70 chained findings rest on —
+        so a widening that earns the reds by dropping the cue fires
+        here, on both poles, and on three ordinary chained nodes of the
+        r8 artifact.
+        """
+        fork = self._forked(headless=True)
+        fork[3]["startArrowhead"] = fork[4]["startArrowhead"] = "arrow"
+        self.assertEqual(self._hits(fork), [])
+        self.assertEqual(self._hits(self._joined(headless=False)), [])
+
+    def test_ink_across_a_node_is_reported_whoever_the_feet_belong_to(self):
+        """A fork can draw over the box too, and then the ink arm owns it.
+
+        Both feet at N's left border with one stroke running right: the
+        span between the feet is 0 and e2 covers the node end to end, so
+        this is the shared-attach picture with one edge reversed and the
+        magnitude is the COVERED span rather than the bare one.
+        """
+        hits = self._hits(self._forked(headless=True, foot=200))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("leave 0px of the node's 80px bare", hits[0])
+        self.assertIn("80px of it has arrow drawn over it", hits[0])
 
     def test_a_self_loop_is_not_a_pass_through(self):
         """One node at both ends is a loop, not a stroke passing by."""
@@ -22843,6 +22958,39 @@ class TestPhantomPassThrough(Base):
         self.assertEqual(len(hits), 1, hits)
         self.assertIn("40px of it has arrow drawn over it", hits[0])
 
+    def _pair_at_node(self, els, hit):
+        """The feet a pass-through finding names, re-read off the scene.
+
+        The message names its two connectors, so the roles and the
+        terminators can be DERIVED from the elements rather than parsed
+        out of prose — which is what lets the corpus walk below assert a
+        class of drawing instead of a count of sentences.
+
+        Args:
+            els: The scene the finding came from.
+            hit: One `read as one stroke through` message.
+
+        Returns:
+            A `(node_id, feet)` pair, where `feet` holds one
+            `(connector_id, arriving, terminated_here)` triple per foot.
+        """
+        ix = {e.get("id"): e for e in els}
+        m = re.match(r"\w+s ([\w-]+) and ([\w-]+) read as one stroke ",
+                     hit)
+        self.assertIsNotNone(m, hit)
+        pair = [ix[m.group(1)], ix[m.group(2)]]
+        bound = [{(e.get(k) or {}).get("elementId")
+                  for k in ("startBinding", "endBinding")} for e in pair]
+        shared = sorted((bound[0] & bound[1]) - {None})
+        self.assertEqual(len(shared), 1, hit)
+        feet = []
+        for e in pair:
+            arriving = ((e.get("endBinding") or {}).get("elementId")
+                        == shared[0])
+            feet.append((e.get("id"), arriving,
+                         canvas.arrowhead_of(e, arriving) is not None))
+        return shared[0], feet
+
     def test_the_frozen_fixtures_have_no_phantom_pass_throughs(self):
         """The corpus pole, and the number the scope decision rests on.
 
@@ -22850,6 +22998,39 @@ class TestPhantomPassThrough(Base):
         argument for the narrowing: those 70 were every chained node of
         every correct flow, and the finding's own remedy would have
         degraded each of those drawings.
+
+        ZERO BECAME SEVEN ON 2026-09-02 AND THE ARGUMENT DID NOT MOVE,
+        which is why this reads as a class now rather than as a count.
+        r8-5 widened the pair gate to feet the model gives the SAME role
+        — two connectors leaving one node, or two arriving — after a
+        cold observer read one of them on a shipped drawing as a
+        relation straight through the box. What the corpus turns out to
+        hold is seven of those, every one a fork with nothing
+        terminating at the node, and NOT ONE chained node. The 70 are
+        chained, all of them, so the assertion that carries the scope
+        decision is the one below: no finding here names a pair with one
+        foot arriving and one leaving. A regression to the broad reading
+        fails it on the first artifact, where a count would only wobble.
+
+        THE SEVEN ARE CENSUSED AND NOT BOUNDED, because a widening that
+        starts reporting a different shape has to surface as a diff
+        rather than as a number that still says seven. Each was read off
+        the drawing: two connectors leaving the node on one line,
+        opposite borders, heads at the far ends, the box's full span
+        bare between them — `which-source` and `wait-cutoff` are
+        decision diamonds branching left and right on their centre line,
+        `run-trigger` an ellipse with its two loads leaving top and
+        bottom, and the four `tearsheet-domain` entities are ER-style
+        relations leaving on one vertical. The method name is pinned by
+        `test_instrument_mortality.CORPUS_WALKS` and cannot move here.
+
+        SEVEN HERE AND EIGHT IN `AGENTS.md`, and the two do not need
+        reconciling: this walks the artifact FILES, while the corpus
+        census walks what `Store` lints, which is the scene after the
+        load-time repair. `argus-r5/daily-run` is the difference —
+        `t-trigger-news` leaves `run-trigger` 24 degrees off axis as
+        stored, which `NEAR_AXIS` rejects, and the reroute straightens
+        it onto the fork the census then reports.
 
         THE SYNTHETIC SCENE RIDES THE SAME LOOP, and that is the point of
         it rather than a convenience. Curator batch 24 (2026-08-16) added
@@ -22888,12 +23069,47 @@ class TestPhantomPassThrough(Base):
                         "test reports is a fact about an empty list and "
                         "not about the corpus" % root)
         spoke: list[str] = []
+        census: list[tuple[str, str]] = []
         for name, els in [*scenes, (None, self._rank(200))]:
             hits = self._hits(els)
             if name is None:
                 spoke = hits
-            else:
-                self.assertEqual(hits, [], name)
+                continue
+            for hit in hits:
+                node, feet = self._pair_at_node(els, hit)
+                self.assertEqual(len({arr for _, arr, _ in feet}), 1,
+                                 "%s reports a CHAINED node — one foot "
+                                 "arriving and one leaving is the class "
+                                 "the 70-finding narrowing retired, and "
+                                 "this corpus holds none of it: %s"
+                                 % (name, hit))
+                self.assertEqual([t for _, _, t in feet], [False, False],
+                                 "%s reports a same-role pair with a "
+                                 "head at the node, where the reading "
+                                 "ends and nothing is completed across: "
+                                 "%s" % (name, hit))
+                census.append((name, node))
+        # RECORDED AGAINST THE ARTIFACTS ACTUALLY WALKED, not against
+        # the 24 — `test_instrument_mortality` runs this same method
+        # over a corpus of ONE to prove its floor fires on emptiness and
+        # nothing else, and a flat seven would fail there for a reason
+        # having nothing to do with the drawings. Filtered, the
+        # assertion is exact either way: seven rows over the full
+        # corpus, none over a one-artifact copy that holds no fork.
+        recorded = [("daily-run-flow.excalidraw", "run-trigger"),
+                    ("edgar-late.excalidraw", "wait-cutoff"),
+                    ("tearsheet-domain.excalidraw", "earnings-event"),
+                    ("tearsheet-domain.excalidraw", "news-item"),
+                    ("tearsheet-domain.excalidraw", "position"),
+                    ("tearsheet-domain.excalidraw", "price"),
+                    ("tuesday-triage.excalidraw", "which-source")]
+        walked = {name for name, _ in scenes}
+        self.assertEqual(
+            sorted(census), [r for r in recorded if r[0] in walked],
+            "the corpus's forked pass-throughs moved. Re-read the "
+            "drawings before re-recording this list: a new row is a "
+            "shape the check started reporting, and a missing row is "
+            "one it stopped")
         self.assertEqual(len(spoke), 1,
                          "the shared-attach chain fed through this same "
                          "loop must fire, or the zero above is a "

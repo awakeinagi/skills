@@ -27283,7 +27283,6 @@ class TestMutantCatalogue(unittest.TestCase):
             "the silence asserted just above is about the instrument and "
             "not about the picture" % spoke)
 
-    @unittest.expectedFailure
     def test_mutant_forked_feet_read_through_node(self) -> None:
         """r8-5: two feet LEAVING N draw one stroke and nothing says so.
 
@@ -27349,7 +27348,6 @@ class TestMutantCatalogue(unittest.TestCase):
             "the silence asserted above is about the instrument and not "
             "about the picture" % spoke)
 
-    @unittest.expectedFailure
     def test_mutant_joined_feet_read_through_node(self) -> None:
         """r8-5's other pole: two feet ARRIVING at N, same silence.
 
@@ -30046,13 +30044,25 @@ CATALOGUE_RED_CLASS = "TestMutantCatalogue"
 # third instance of the thing this rule is about. What is buildable is what
 # already exists: a derivation beside each table that has one.
 # ---------------------------------------------------------------------------
-CATALOGUE_RED_IDS: set[str] = {"forked_feet_read_through_node",
-                               "joined_feet_read_through_node"}
+CATALOGUE_RED_IDS: set[str] = set()
+# DRAINED 2026-09-02 by the pair-gate widening, and the PAIR emptied in one
+# change because the repair was not keyed on a role at all: the pair loop
+# now walks every unordered pair of feet by INDEX and asks the geometry,
+# so the conjunction that rejected the fork on `not f_arr` and the join on
+# `g_arr` has no halves left to fail on. Of the entries' four measured
+# repairs this is (1), taken because the role test was never a criterion —
+# every reader past it is geometry plus the terminator cue — and the
+# reversal it hinged on is a null edit on the page.
+# MEASURED OVER THE FROZEN CORPUS against this fix rather than carried over
+# from the entry: `phantom_passthrough` goes 0 -> 7 over the 24 fixtures
+# and 0 -> 5 over the 13 r8 artifacts, and every one of the 12 is a FORK or
+# a JOIN drawing one line through a node with nothing terminating at it —
+# no ordinary chained node among them, which is the over-fire the entry
+# named and the neighbours buy. `onboarding-data` gains exactly the one
+# 80px finding on `st-application` the entry predicted.
 # REFILLED 2026-09-01 by curator finding r8-5, hours after the drain
-# below, and with a PAIR rather than a single id — see the entries'
-# own comment for why the gate they indict is a conjunction whose
-# halves fail on different feet, and why a repair keyed on one role
-# flips one of them and leaves the other exactly where it is.
+# below, and with a PAIR rather than a single id — the gate they indicted
+# was a conjunction whose halves failed on different feet.
 # DRAINED on 2026-09-01, hours after it refilled, by repair (A) of the four
 # its own entry had measured: `_rect_gap_signed` continues the box gap
 # through zero and returns the negated MINIMUM TRANSLATION DISTANCE, and
@@ -31281,29 +31291,7 @@ def red_bearing_classes() -> dict[str, int]:
 # row stood four days past its flip because nobody did this; the sixth did
 # not last an afternoon, and the difference is that its reason string named
 # the moment to delete it.
-RULE8_EXEMPT: dict[str, str] = {
-    # REFILLED 2026-09-01 (curator, r8-5) with the fifth row's exact
-    # shape arriving a third time: a RED mutant's `FindingSpec`
-    # cannot pair its neighbour's `Silence`, so while these two are
-    # red nothing in the catalogue makes `phantom_passthrough` fire
-    # beside them. Both neighbour TESTS carry the live half by hand
-    # — the same `_attach_chain(shared=True)` firing assertion
-    # `test_neighbour_headless_chain_reads_through_node` added for
-    # this reason in 2026-08-16 — so the pole is asserted in every
-    # green run; what is missing is only the CATALOGUE-shaped
-    # pairing this gate can compute. DELETE BOTH ROWS in the change
-    # that drops the `@unittest.expectedFailure` decorators: the
-    # `expect` becomes evidence the moment it does, `rule_eight_rot`
-    # starts naming these rows obsolete, and the guard beside this
-    # table fails until they are gone.
-    "forked_feet_read_through_node:neighbour":
-        "red mutant: its FindingSpec is not evidence until r8-5 is "
-        "fixed; the live firing is asserted by hand in the neighbour "
-        "test. Delete this row with that mutant's decorator.",
-    "joined_feet_read_through_node:neighbour":
-        "red mutant: its FindingSpec is not evidence until r8-5 is "
-        "fixed; the live firing is asserted by hand in the neighbour "
-        "test. Delete this row with that mutant's decorator."}
+RULE8_EXEMPT: dict[str, str] = {}
 
 
 def rule_eight_paired(mutant: Mutant, slot: str, red: bool) -> bool:

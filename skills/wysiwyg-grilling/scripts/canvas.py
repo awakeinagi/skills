@@ -21102,16 +21102,17 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                            + "; ".join(why) if why else
                            "the auto-fan ran and left them together"))
     # ---- WARNING: phantom pass-through (WP4b e1) ---------------------
-    # One arrow arrives at N and another leaves it on the same line, and
-    # their feet are closer together than N is wide — so between them
-    # there is ARROW drawn over the node rather than a border on each
-    # side, and the pair reads as one unbroken stroke passing through the
-    # box. The reader takes the direct relation and N stops being a step
-    # in the flow: in a flowchart that SILENTLY DELETES A STEP, the
-    # failure mode nobody reviews for, because you cannot notice a box
-    # you have stopped reading as a box. Rank-based layout manufactures
-    # it — the 2026-08-12 ELK spike shipped one unbroken 448px stroke
-    # through `auth-succeeded`, both feet on the same border.
+    # Two connectors touch N on one line with their bodies on opposite
+    # sides of it, and their feet are closer together than N is wide —
+    # so between them there is ARROW drawn over the node rather than a
+    # border on each side, and the pair reads as one unbroken stroke
+    # passing through the box. The reader takes the direct relation and
+    # N stops being a step in the flow: in a flowchart that SILENTLY
+    # DELETES A STEP, this is the failure mode nobody reviews for,
+    # because you cannot notice a box you have stopped reading as a
+    # box. Rank-based layout manufactures it — the 2026-08-12 ELK spike
+    # shipped one unbroken 448px stroke through `auth-succeeded`, both
+    # feet on the same border.
     #
     # THE BROAD READING WAS BUILT AND REJECTED, and the number is worth
     # keeping so nobody re-derives it. The literature scan's criterion is
@@ -21129,6 +21130,42 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # premise, so what ships is the half with ink behind it. No study
     # measures either configuration directly; the ink half at least does
     # not require the reader to complete anything.
+    #
+    # OVER EVERY UNORDERED PAIR OF FEET, and the model's idea of which
+    # one arrives is never consulted (r8-5: curated 2026-09-01,
+    # closed 2026-09-02). The pair loop
+    # used to demand exactly one arriving foot and one leaving one, which
+    # reads like a criterion and was only a way of visiting each pair
+    # once: everything past that gate is geometry — the two bodies'
+    # signs, the feet's off-axis distance, the span `shape_clip` returns,
+    # the ink between them — plus the terminator cue, and not one of
+    # those can tell a fork from a chain. A cold observer read
+    # `onboarding-data`'s `st-application` as a pass-through where `d7`
+    # and `d10` BOTH LEAVE it at x=860 on opposite borders, drawn as one
+    # unbroken vertical through the box's centre, and this block said
+    # nothing because the model happened to call both of them leaving.
+    # Reversing a headless stroke is a NULL EDIT ON THE PAGE — the
+    # catalogue's `_drawn_ink` asserts the mark sets are equal — so a
+    # check that answers differently either side of it is answering
+    # about the model and not about the picture. The pair INDEX now does
+    # the de-duplication the role test was doing, since visiting each
+    # pair once was all that test was ever achieving.
+    #
+    # THE CUE IS WHAT KEEPS THIS NARROW, and it always was: the 70
+    # findings the broad criterion produced over 24 shipped artifacts are
+    # chained nodes with a head AT the node, and nothing here reports
+    # one. Widening the pair gate AND dropping the cue was measured at
+    # four findings on the r8 artifact, three of them ordinary chains;
+    # the cue is what buys the difference, and the roles never were.
+    #
+    # SAME-ROLE PAIRS COME IN UNTERMINATED ONLY, which is the narrower
+    # of the four repairs the catalogue measured and the only one that
+    # leaves `test_two_arrows_arriving_head_on_are_not_a_pass_through`
+    # standing: two heads landing on N from opposite sides is a
+    # convergence a reader completes nothing across, and a gate widened
+    # on identity alone reports it. Mixed pairs are untouched in every
+    # term, so the whole of today's behaviour is preserved and the
+    # widening is exactly the configuration the reds name.
     #
     # O(deg^2) per node, over FEET rather than arrows, so a node whose
     # two edges both bind it at their far ends is judged on the segments
@@ -21193,10 +21230,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                  bool(head)))
     for tgt_id, fs in feet.items():
         tgt = ix[tgt_id]
-        for fid, f_arr, f_ax, f_sgn, f_pt, f_head in fs:
-            for gid, g_arr, g_ax, g_sgn, g_pt, g_head in fs:
-                if fid == gid or not f_arr or g_arr:
-                    continue    # exactly one arriving, one leaving
+        for i, (fid, f_arr, f_ax, f_sgn, f_pt, f_head) in enumerate(fs):
+            for gid, g_arr, g_ax, g_sgn, g_pt, g_head in fs[i + 1:]:
+                # A FORK OR A JOIN IS ADMITTED ONLY UNTERMINATED, which
+                # is this block's own no-ink argument applied one level
+                # up rather than a second rule: where a head sits at the
+                # node the reading ends there, and nothing is completed
+                # across. Mixed pairs keep exactly today's terms — the
+                # ink arm below still reports a chain whose feet carry
+                # heads at N, because ink drawn over the box is a fact
+                # about the drawing and not about what the eye finishes.
+                if f_arr == g_arr and (f_head or g_head):
+                    continue    # the head ends the reading at the node
                 if f_ax != g_ax or f_sgn == g_sgn:
                     continue    # one line, and each stroke on its own end
                 if abs(f_pt[1 - f_ax] - g_pt[1 - f_ax]) > SAME_LINE:
@@ -21294,17 +21339,32 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     # foot is enough to end the reading, and the arrow of
                     # the two can take it.
                     pair = (ix.get(fid) or {}, ix.get(gid) or {})
+                    # WHAT THE READER TAKES INSTEAD is the one thing the
+                    # roles are still worth naming, and it is a clause
+                    # and not a gate. A chain merges into one relation
+                    # from N's predecessor to its successor; a fork or a
+                    # join has neither, and the stroke completed there
+                    # runs between the two nodes at the FAR ends —
+                    # exactly how the cold observer read `d7`/`d10`
+                    # ("connects straight through to the Rejection
+                    # log"). Sending a fork to look for a predecessor it
+                    # does not have is how a true finding gets read as
+                    # noise and closed.
+                    reads = ("straight from %s's predecessor to its "
+                             "successor" % name(tgt_id) if f_arr != g_arr
+                             else "between the two nodes at the far "
+                                  "ends, with %s not a step on it"
+                                  % name(tgt_id))
                     warnings.append(
                         "%ss %s and %s read as one stroke through %s — "
                         "they share a line and neither is terminated at "
                         "the node, so %dpx of it is completed across by "
                         "eye: nothing tells the reader the path ends "
-                        "here, and the pair reads as one relation "
-                        "straight from %s's predecessor to its successor. "
+                        "here, and the pair reads as one relation %s. "
                         "%s, fan the feet onto opposite borders, or "
                         "offset one line"
                         % (connector_noun(*pair), fid, gid, name(tgt_id),
-                           round(bare), name(tgt_id),
+                           round(bare), reads,
                            "A line never carries an arrowhead, so re-add "
                            "the pair as arrows bound with `from`/`to`"
                            if connector_noun(*pair) == "line" else
