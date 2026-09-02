@@ -74,7 +74,6 @@ Non-catalog red classes:
 - `TestAnAnsweredPinIsNotNarratedAsARemoval` (2)
 - `TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing` (2)
 - `TestAConfigChangeSaysWhoseHandTurnedIt` (2)
-- `TestAStaleBrowserCaptureIsNotConsumedInSilence` (2)
 
 ## Catalogue red ids
 

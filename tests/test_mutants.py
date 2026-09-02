@@ -31,6 +31,7 @@ import tempfile
 import textwrap
 import unittest
 import urllib.error
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -27880,6 +27881,98 @@ def render_evidence_currency() -> tuple[str, str]:
                        "canvas.py" % rec.get("recorded", "undated"))
 
 
+def browser_capture_currency(cap: dict[str, Any], spec: str
+                             ) -> tuple[str, str]:
+    """Report whether a recorded browser capture still describes this tree.
+
+    THE SECOND READER OF `canvas_digest`, deliberately shaped like the
+    first. The comment above `RENDER_RUN_RECORD` records this repo's
+    ruling on evidence a browser had to produce: currency is REPORTED
+    and not enforced, because binding a commit to it makes every
+    `canvas.py` edit demand a browser. The browser CAPTURES are the same
+    kind of evidence, so they get the same answer — with one difference
+    that decides everything about how their consumers use this. The
+    render-tier run is read only by `--coverage`; the two captures are
+    read by the ORDINARY suite, which replays them through `canvas.py`
+    with no browser anywhere. So a stale capture has to be answered
+    INSIDE a test run, and a consumer that merely weakens its comparison
+    and says nothing is the gate going dark.
+
+    Args:
+        cap: A capture as its spec wrote it, or `{}` when no run has
+            ever written one.
+        spec: The playwright spec that records it, so the remedy in the
+            message names the command rather than describing it.
+
+    Returns:
+        `(state, detail)` where `state` is "missing" (no capture
+        recorded), "stale" (recorded against a different `canvas.py`) or
+        "current". `detail` is a sentence a reader can act on. The stale
+        one names BOTH digests, because a message about a mismatch that
+        names one of the two has not told anybody which of the record
+        and the tree moved — and `DIGEST_NAMED_BY` is the floor a skip
+        has to clear before it counts as an answer rather than silence.
+    """
+    if not cap:
+        return ("missing",
+                "no browser has ever spoken about %s, so the tests that "
+                "read its capture have no subject. Record one: npm "
+                "--prefix frontends/wysiwyg-grilling exec -- playwright "
+                "test %s" % (spec, spec.split(".")[0]))
+    recorded = str(cap.get("canvas_sha256") or "undated")
+    tree = canvas_digest()
+    if recorded != tree:
+        return ("stale",
+                "THE BROWSER CAPTURE IS OLDER THAN THE CODE IT IS ABOUT. "
+                "It was recorded against a canvas.py hashing %s and this "
+                "tree's hashes %s, so the fact-for-fact comparison "
+                "against what the browser itself narrated is OFF in the "
+                "two tests that read it, and only the halves that "
+                "survive a canvas.py change still assert anything. This "
+                "is what editing canvas.py costs and it is not a fault "
+                "in your change: drive a real tab again and the "
+                "comparison comes back. Run: npm --prefix "
+                "frontends/wysiwyg-grilling exec -- playwright test %s"
+                % (recorded[:12], tree[:12], spec.split(".")[0]))
+    return ("current",
+            "recorded against the canvas.py this tree ships (%s)"
+            % tree[:12])
+
+
+def answer_a_stale_capture(case: unittest.TestCase, detail: str) -> None:
+    """Skip a case over a stale capture, audibly on both of this repo's runners.
+
+    A SKIP IS AN ANSWER ONLY IF SOMEBODY IS TOLD, and `skipTest` alone
+    is not that. Measured, both ways: `python3 -m unittest test_mutants`
+    prints `s` and `skipped=2`, and the reason only under `-v`;
+    `pre-commit`'s own runner, `pytest -n auto tests -q`, prints two
+    dots' worth of `s` and `2 skipped` and needs `-rs` before it will
+    say why. So the reader who edits `canvas.py` and commits meets a
+    green either way — which is the very shape this repair exists to
+    remove, one rung quieter than the fallback it replaced.
+
+    THE WARNING IS THE CHANNEL THAT SURVIVES BOTH. `unittest` lets it
+    through to stderr; pytest collects it into the warnings summary it
+    prints by default, without `-r` and without turning capture off. It
+    fires only over a stale capture, so an ordinary run stays silent.
+
+    NOT A FAILURE, and the ruling is not this function's to make: see
+    `RENDER_RUN_RECORD`'s comment. Failing would make every `canvas.py`
+    edit demand a browser, and the e2e tier is a manual-stage hook
+    precisely so an ordinary commit does not need one. This never
+    returns: `skipTest` ends the calling test on every path.
+
+    Args:
+        case: The test case to skip.
+        detail: `browser_capture_currency`'s sentence, which names both
+            digests and the command that re-records. It goes to the
+            warning as well as to the skip, because the warning is the
+            only copy of it a default run prints.
+    """
+    warnings.warn(detail, stacklevel=2)
+    case.skipTest(detail)
+
+
 # Check names a catalogue entry may name with no `DETECTORS` detector
 # behind them, mapped to why that is legitimate. Red-by-absence is a real
 # tactic — `phantom_passthrough_shared_attach` pinned a defect the lint
@@ -29355,8 +29448,7 @@ HAND_AUTHORED_RED_CLASSES: dict[str, int] = {
     "TestAShadedBoxKeepsTheLineWrittenOnIt": 1,
     "TestAnAnsweredPinIsNotNarratedAsARemoval": 2,
     "TestAResolvedPinSaysWhetherItsAnswerReachedTheDrawing": 2,
-    "TestAConfigChangeSaysWhoseHandTurnedIt": 2,
-    "TestAStaleBrowserCaptureIsNotConsumedInSilence": 2}
+    "TestAConfigChangeSaysWhoseHandTurnedIt": 2}
 # `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` ARRIVED ON
 # 2026-09-01 as `r8-2`, the persisted-scene sibling of the caption-anchor
 # class this dict emptied a day earlier — and it is the reason a drained
@@ -40088,6 +40180,18 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
         another head. That is correct and it is not free — re-record the
         capture once the repair lands, so the comparison comes back and a
         browser has confirmed the head that ships.
+
+        AND THE TEST NOW SAYS SO OUT LOUD, which is the 2026-09-01
+        repair. Off the capture's head this used to fall to
+        `assertNotEqual(facts, [])` and PASS, so the paragraph above was
+        the only place the loss was written down and nothing but a
+        reader could notice it. Every head-stable half still runs
+        first — the geometry comparison, the non-empty record, the
+        phantom list — and THEN the test skips, naming both digests and
+        the command that re-records. A skip and not a failure for the
+        reason `RENDER_RUN_RECORD`'s comment gives: an ordinary commit
+        must not need a browser. A skip that names the pair is not
+        silence; a green is.
         """
         cap = self._capture()
         out = replay_browser_capture(canvas, self.root / "same")
@@ -40105,7 +40209,9 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
             "repair may change what is narrated and may not change what "
             "is stored, so this is the replay measuring some other "
             "scene: %s" % drifted)
-        if cap.get("canvas_sha256") == canvas_digest():
+        state, detail = browser_capture_currency(
+            cap, "pin-untouched-captions.spec.ts")
+        if state == "current":
             self.assertEqual(
                 out["facts"], [list(f) for f in cap["observed"]["facts"]],
                 "the replay disagrees with the browser about the record "
@@ -40128,6 +40234,8 @@ class TestNoCaptionOfAnUntouchedBoxIsNarratedAsHavingMoved(unittest.TestCase):
             "the replay narrates %s as having moved, and those captions "
             "did not move on disk in the browser's own save — so this "
             "replay is not measuring the captured scene" % invented)
+        if state != "current":
+            answer_a_stale_capture(self, detail)
 
     def test_the_record_still_names_the_box_the_user_dragged(self) -> None:
         """The neighbour, ungated: the check still speaks, in the same save.
@@ -40743,6 +40851,16 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
         THE GEOMETRY THE BROWSER'S OWN SAVE LANDED. A repair to the
         record layer may change what is NARRATED and may not change what
         is STORED.
+
+        OFF THAT HEAD IT NOW SAYS SO, repaired 2026-09-01 in the same
+        change as its sibling above and for the same reason: this fell
+        to `assertNotEqual(facts, [])` and PASSED, so the strongest
+        browser testimony in this file degraded to "something was said"
+        with nothing printed. The head-stable halves still run and then
+        the test skips, naming both digests and the re-record command. A
+        skip rather than a failure because an ordinary commit must not
+        need a browser — see `RENDER_RUN_RECORD`'s comment for the
+        ruling and `browser_capture_currency` for the message.
         """
         cap = self._capture()
         out = self._replay("same")
@@ -40759,7 +40877,9 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
             "the replay's save landed different geometry than the "
             "browser's did, from the very same request body — so this is "
             "the replay measuring some other scene: %s" % drifted)
-        if cap.get("canvas_sha256") == canvas_digest():
+        state, detail = browser_capture_currency(
+            cap, "pin-rewrapped-caption-drag.spec.ts")
+        if state == "current":
             self.assertEqual(
                 out["facts"], [list(f) for f in cap["observed"]["facts"]],
                 "the replay disagrees with the browser about the record "
@@ -40775,6 +40895,7 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
                 "save that narrates nothing about a %spx drag is not a "
                 "repair" % ((cap.get("canvas_sha256") or "undated")[:12],
                             cap["population"]["drag_dx"]))
+            answer_a_stale_capture(self, detail)
 
     def test_the_record_still_names_the_box_the_user_dragged(self) -> None:
         """The neighbour that refuses silence bought by breaking narration.
@@ -41065,6 +41186,92 @@ class TestTheHeightAClientRemeasuresIsNotAVerticalDisplacement(
             "as a vertical move. Facts: %s"
             % (len(out["phantoms"]), len(pop["untouched"]), pop["drag_dx"],
                pop["rewrapped"], out["facts"]))
+
+
+class TestTheCaptureCurrencyReportCanSayStale(unittest.TestCase):
+    """The channel that carries "this capture is older than the code".
+
+    A REPORTED-ONLY CHANNEL THAT CANNOT SAY THE BAD WORD IS A CAVEAT AND
+    NOT AN INSTRUMENT, which is the lesson `--coverage`'s render-tier
+    line already carries in `test_mutants_render.py`. The difference
+    worth pinning here is that this reporter is not only printed: the
+    two browser-capture consumers SKIP on what it returns, so a
+    "current" it gets wrong is the gate going dark again by another
+    route, and a "stale" it gets wrong stops the fact-for-fact
+    comparison ever running.
+
+    FABRICATED CAPTURES AND NOT THE RECORDED ONES, deliberately. Reading
+    the real capture files here would make this class a consumer of them
+    by `consumer_classes_naming`'s reckoning — it counts any name bound
+    in a class body — and the gate-darkening probe below would then run
+    this class as if it were a gate. It is not one; it watches the
+    reporter the gates read.
+    """
+
+    def test_all_three_states_are_reachable_and_named(self) -> None:
+        """Exercise missing, stale and current, and read the stale message.
+
+        THE MESSAGE IS ASSERTED AND NOT ONLY THE STATE, because the
+        state is what the consumers branch on and the message is the
+        whole of what a reader gets. Both digests have to be in it at
+        `DIGEST_NAMED_BY` or a skip carrying it is silence with extra
+        steps, and the re-record command has to be in it or the reader
+        who meets this after a `canvas.py` edit is told a thing is wrong
+        and not what to do about it.
+        """
+        spec = "pin-untouched-captions.spec.ts"
+        self.assertEqual(browser_capture_currency({}, spec)[0], "missing")
+        tree = canvas_digest()
+        stale = "0" * len(tree)
+        state, detail = browser_capture_currency(
+            {"canvas_sha256": stale, "observed": {}}, spec)
+        self.assertEqual(state, "stale")
+        self.assertEqual(
+            [stale[:DIGEST_NAMED_BY] in detail, tree[:DIGEST_NAMED_BY] in
+             detail, "playwright test pin-untouched-captions" in detail],
+            [True, True, True],
+            "the stale report does not name both digests and the command "
+            "that re-records, so a consumer skipping with it has told "
+            "the reader nothing they can act on: %s" % detail)
+        self.assertEqual(
+            browser_capture_currency(
+                {"canvas_sha256": tree, "observed": {}}, spec)[0], "current")
+
+    def test_a_capture_with_no_digest_at_all_reads_stale(self) -> None:
+        """An undated capture is stale, never current.
+
+        THE UNSAFE DEFAULT IS THE ONE WORTH PINNING. A capture written
+        before the digest field existed, or by anything other than the
+        spec's own gate, carries no `canvas_sha256`; a reporter that
+        read absence as agreement would hand the consumers a "current"
+        and turn the exact comparison back on over testimony about a
+        tree nobody can name.
+        """
+        state, detail = browser_capture_currency(
+            {"observed": {}}, "pin-rewrapped-caption-drag.spec.ts")
+        self.assertEqual(state, "stale")
+        self.assertIn("undated", detail)
+
+    def test_the_skip_is_audible_and_not_only_recorded(self) -> None:
+        """A skip nobody is told about is the old fallback, one rung quieter.
+
+        `answer_a_stale_capture`'s docstring has the measurement: under
+        BOTH runners this repo uses, a bare `skipTest` reason is invisible
+        without a flag nobody passes. So the warning is not decoration and
+        deleting it would restore the silence this whole section is about —
+        which is what this pins. The sentence must reach the warning intact,
+        because the warning is the only copy of it a default run shows.
+        """
+        with warnings.catch_warnings(record=True) as heard:
+            warnings.simplefilter("always")
+            with self.assertRaises(unittest.SkipTest):
+                answer_a_stale_capture(self, "capture 0000abcd, tree beef1234")
+        self.assertEqual(
+            [str(w.message) for w in heard], ["capture 0000abcd, tree beef1234"],
+            "the stale-capture skip reaches no channel a default run "
+            "prints, so the two consumers answer with an `s` and nothing "
+            "else — the fallback this repaired, one rung quieter. Heard: "
+            "%s" % [str(w.message) for w in heard])
 
 
 # ---------------------------------------------------------------------------
@@ -41439,7 +41646,6 @@ class TestAStaleBrowserCaptureIsNotConsumedInSilence(unittest.TestCase):
                 "testimony it exists to protect. current %s, stale %s"
                 % (only_current, current, stale))
 
-    @unittest.expectedFailure
     def test_a_stale_caption_capture_is_not_consumed_in_silence(self) -> None:
         """Answer a caption capture from another head, or re-record it.
 
@@ -41450,7 +41656,6 @@ class TestAStaleBrowserCaptureIsNotConsumedInSilence(unittest.TestCase):
             "BROWSER_CAPTION_CAPTURE", browser_caption_capture(),
             "caption-stale.json")
 
-    @unittest.expectedFailure
     def test_a_stale_rewrap_capture_is_not_consumed_in_silence(self) -> None:
         """Answer a rewrap capture from another head, or re-record it.
 
@@ -57635,6 +57840,18 @@ if __name__ == "__main__":
         # one who ran `--coverage` and did not open the file. Reported
         # rather than asserted — `RENDER_RUN_RECORD`'s comment has why.
         print("\nrender-tier evidence: %s — %s" % render_evidence_currency())
+        # AND THE TWO BROWSER CAPTURES, on the surface for the same
+        # reason and with one difference: these are read by the ORDINARY
+        # suite, so a stale one also makes its consumers SKIP with this
+        # same sentence. The line here is for the reader who wants to
+        # know BEFORE running anything whether the fact-for-fact
+        # comparisons are live.
+        for _spec, _cap in (("pin-untouched-captions.spec.ts",
+                             browser_caption_capture()),
+                            ("pin-rewrapped-caption-drag.spec.ts",
+                             browser_rewrap_capture())):
+            print("browser capture (%s): %s — %s"
+                  % (_spec, *browser_capture_currency(_cap, _spec)))
     elif "--sweep" in sys.argv:
         raise SystemExit(run_sweep())
     else:
