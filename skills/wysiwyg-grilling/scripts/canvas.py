@@ -17660,16 +17660,28 @@ def revert_hint(revn, what):
 def waive_hint(key):
     """The copyable op a finding offers so its question can be answered.
 
-    ONE FORMATTER FOR FOURTEEN MESSAGES, and the reason is the defect it
-    closes rather than tidiness (v0.9 whole-branch review, I-1). Eleven
-    of the fourteen printed `waive {action: waive, key: ..., reason:
-    ...}` — no `op` field — and the batch validator rejects exactly that
+    ONE FORMATTER FOR EVERY MESSAGE THAT OFFERS A WAIVE, and the reason
+    is the defect it closes rather than tidiness (v0.9 whole-branch
+    review, I-1). NO COUNT HERE, deliberately, and for this section's
+    own reason (AGENTS.md § Known debt): this sentence said FOURTEEN and
+    was wrong by five before anybody noticed, because nothing in the
+    repo reads it and so nothing ever failed to say so. Measure when you
+    need it — `grep -c 'waive_hint[(]' canvas.py`, less one for this
+    definition — and `test_no_message_spells_the_envelope_by_hand` holds
+    the live count in the one place a change to it must pass through.
+    THE BRACKETS IN THAT PATTERN ARE LOAD-BEARING: that pin counts the
+    substring over this whole file, docstrings included, so spelling the
+    call form here literally would make this sentence one of the things
+    it counts. Measured — it went to 21 and the pin failed.
+    At the time of the review MOST of the
+    messages printed `waive {action: waive, key: ..., reason: ...}` —
+    no `op` field — and the batch validator rejects exactly that
     verbatim::
 
         op 0: unknown op None
         (allowed: add, del, mod, pin, registry, reorder, resolve_pin)
 
-    Three said "waive with registry op" in prose beside the same
+    A minority said "waive with registry op" in prose beside the same
     envelope-less literal, so the branch was internally inconsistent and
     the MAJORITY spelling was the broken one. The keys were all correct
     end to end — no case, hyphen or plural drift, each message printing
@@ -17677,8 +17689,8 @@ def waive_hint(key):
     failure was purely the envelope, which is the most galling kind: the
     advice named the right thing and could not be followed.
 
-    A SHARED FORMATTER RATHER THAN FOURTEEN EDITED STRINGS so the
-    fifteenth message cannot be born wrong. The round-trip is pinned in
+    A SHARED FORMATTER RATHER THAN A STRING PER MESSAGE, so the NEXT
+    message cannot be born wrong. The round-trip is pinned in
     `TestEveryWaiveSuggestionCanBeApplied`, which parses the key back out
     of a finding this function wrote, feeds the op through the real
     apply path and watches the finding go quiet — the loop, not the

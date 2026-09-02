@@ -458,13 +458,22 @@ it "agent asked a question" with no Apply action.
 // one-time-question waive (v0.4): the reason IS the recorded answer.
 // EVERY finding that can be waived prints the whole op, envelope and
 // all — `waive {op: registry, action: waive, key: '...', reason: ...}`
-// — so copy it out of the lint line and fill in the reason. Fourteen
-// checks offer one, keyed `<check>:<artifact>[:<element>...]`:
-// `ink` `font` `stroke` `color` `graze` `clear` `lane` `bidi` `ghost`
-// `var` `kpimap`, plus `q25:<artifact>` (progress indicator),
+// — so copy it out of the lint line and fill in the reason. Eighteen
+// checks offer one, keyed `<check>:<artifact>[:<element>...]`, and the
+// list below IS the count — if the two disagree, the list is the one to
+// trust and the number is the one to re-derive:
+// `ink` `font` `stroke` `color` `graze` `clear` `inkink` `lane` `bidi`
+// `attach` `ghost` `var` `widgetgroup` `pindrift` `kpimap`, plus
+// `q25:<artifact>` (progress indicator),
 // `q12:<artifact>:<label-slug>` (whose-word) and
 // `324:<artifact>:<step-slug>` (one function, one label).
-// `clear: true` un-waives.
+// `attach:<artifact>:<node>:<a>:<b>` (r8-4) is the newest and carries a
+// NODE as well as the pair: two arrows bound at both ends share a foot
+// in two places, and one key for both would silence a place you never
+// read. `clear: true` un-waives.
+// Re-derive the list rather than trusting it — the call sites are the
+// source and this sentence is a copy:
+//   grep -n 'waive_hint(' skills/wysiwyg-grilling/scripts/canvas.py
 {"op": "registry", "action": "waive", "key": "q25:pipeline-flow",
  "reason": "user ruled: regulated flow, steps must show"}
 ```

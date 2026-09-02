@@ -8454,7 +8454,7 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         self.assertIn("unknown op None", "\n".join(cm.exception.errors))
 
     def test_no_message_spells_the_envelope_by_hand(self):
-        """One formatter, so the fifteenth message cannot be born wrong.
+        """One formatter, so the NEXT message cannot be born wrong.
 
         This is what carries the four families the round trips above
         cannot reach. A new finding that writes its own waive literal
