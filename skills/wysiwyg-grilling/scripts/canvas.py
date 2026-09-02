@@ -292,6 +292,22 @@ DEFAULT_CONFIG = {
     "significant_attrs": DEFAULT_SIGNIFICANT_ATTRS,
 }
 
+# The keys a running session may turn, spelled ONCE. Three routes now
+# consult it — the user's own door, the agent's proposal door and the
+# promotion that lands one — and three hand-copies of a set literal are
+# three chances for the agent's door to accept a key the user's refuses.
+# `migrations`, `artifact_types` and `significant_attrs` are deliberately
+# absent: they are the project's shape rather than its preferences, and a
+# toggle that rewrites them is a migration nobody recorded.
+SETTABLE_CONFIG_KEYS = frozenset({
+    "canvas_updates", "narration_altitude", "deletion_conversation",
+    "nudge_after_minutes"})
+#: Where a config value's last change came from. `user` is their own
+#: hand on the rail's toggle; `agent-proposal` is wording the agent
+#: drafted and the user promoted. Spelled the same way as a pin answer's
+#: `answer_source`, because it is the same ruling one write along.
+CONFIG_SOURCES = ("user", "agent-proposal")
+
 DEFAULT_REGISTRY = {
     "migrations": ["0001-baseline"],
     "revn": 0,
@@ -558,6 +574,52 @@ def validate_config(cfg):
         cfg["narration_altitude"] = "clusters"
         issues.append(Issue("CFG-009", "config.narration_altitude reset to clusters",
                             "Allowed: clusters | exhaustive | headline.", True))
+    # THE PROVENANCE SIDECARS, repaired here for the reason CFG-008
+    # exists at all: everything downstream trusts what this function
+    # hands back, and a `changed_by` that arrived as a list would take
+    # `status` down on the one command an agent runs first on resume.
+    #
+    # NEITHER KEY IS CREATED HERE. A fresh project has never had a
+    # setting turned, so it has no provenance to hold, and minting an
+    # empty map would put this function's silence into the record as if
+    # it were a reading. Only a key that IS present is normalised.
+    #
+    # AND AN UNREADABLE MARK IS DROPPED, NEVER GUESSED. "We no longer
+    # know whose hand this was" is the honest answer; defaulting a
+    # damaged entry to `user` would be the validator testifying about a
+    # change it never witnessed, which is the defect this whole repair
+    # is about, rebuilt inside its own fix.
+    marks = cfg.get("changed_by")
+    if marks is not None:
+        kept = ({k: v for k, v in marks.items()
+                 if isinstance(v, dict) and v.get("source") in CONFIG_SOURCES}
+                if isinstance(marks, dict) else {})
+        if kept != marks:
+            cfg["changed_by"] = kept
+            # TWO WORDINGS, because the damage comes in two shapes and one
+            # sentence for both misnames whichever it is not: a
+            # `changed_by` that is not a map at all lost every mark, and a
+            # map with bad members lost the ones it names.
+            lost = (len(marks) - len(kept) if isinstance(marks, dict)
+                    else None)
+            issues.append(Issue(
+                "CFG-010",
+                "config.changed_by is not an object — every change mark "
+                "dropped" if lost is None else
+                "config.changed_by held %d unreadable entr%s — dropped"
+                % (lost, "y" if lost == 1 else "ies"),
+                "The settings themselves are untouched; what is lost is "
+                "the record of who last turned them.", True))
+    prop = cfg.get("config_proposal")
+    if prop is not None and not (
+            isinstance(prop, dict) and isinstance(prop.get("patch"), dict)
+            and prop["patch"]
+            and not set(prop["patch"]) - SETTABLE_CONFIG_KEYS):
+        cfg.pop("config_proposal", None)
+        issues.append(Issue(
+            "CFG-011", "config.config_proposal is malformed — discarded",
+            "A waiting agent proposal could not be read, so nothing is "
+            "pending now; ask the agent to propose the change again.", True))
     return cfg, issues
 
 
@@ -11674,6 +11736,97 @@ def composed_host_gaps(els: list[dict[str, Any]]) -> list[tuple]:
     return sorted(out)
 
 
+# The three types whose `backgroundColor` this renderer actually paints,
+# measured against `render_svg` on 2026-09-02 with one solid-filled
+# element of each of the nine kinds it draws: `rectangle`, `ellipse` and
+# `diamond` emit `fill='<backgroundColor>'`; `text`, `line`, `arrow`,
+# `freedraw`, `image` and `frame` emit stroke and glyphs only. So this is
+# the whole of what can hide something beneath it, and it is a MEASURED
+# list rather than an intuited one — `image` reads as opaque and is not.
+#
+# The bound worth saying out loud: the shipped client also fills a CLOSED
+# path, which this renderer never does. Nothing in this file mints one,
+# so the two agree on every scene the product composes; a closed polygon
+# hand-drawn in the app is outside what the predicate below can see.
+_FILL_PAINTING_TYPES = ("rectangle", "ellipse", "diamond")
+
+
+def _paints_a_fill(el: dict) -> bool:
+    """Whether this element covers what is beneath it with opaque paint.
+
+    Args:
+        el: Any element dict.
+
+    Returns:
+        True when it is one of `_FILL_PAINTING_TYPES` carrying a `solid`
+        fill in a colour that is neither absent nor `transparent`.
+    """
+    return (el.get("type") in _FILL_PAINTING_TYPES
+            and el.get("fillStyle") == "solid"
+            and el.get("backgroundColor") not in (None, "", "transparent"))
+
+
+def _backdrop_text_under_a_fill(ordered: list[dict]) -> set[str]:
+    """Untagged decoration TEXT that the backdrop band paints out.
+
+    A TEXT IS INK, NOT FURNITURE, and that is the whole of the rule.
+    Band 1 exists for the standalone backdrop `layout.md` instructs the
+    agent to author — a shape drawn BEHIND a drawing, whose job is to be
+    covered. A sentence is the opposite kind of thing. The R8 agent
+    wrote pre-computed blast radii onto three boxes, shaded the boxes to
+    group them, and the shade swallowed the sentences it had just argued
+    were the payload of the diagram; it found out by looking. Both
+    renderers were faithful — the order they were handed was wrong.
+
+    ASKED PER PAIR AND NOT BY TYPE, which is what keeps a backdrop a
+    backdrop and is the whole reason this is a function rather than one
+    more row in the band table. Lifting every decoration text
+    unconditionally also moves the ones nothing covers, and those are
+    the annotations an agent placed low on purpose — band 1 is where an
+    explicit `reorder` beneath the drawing survives, and re-banding by
+    type discards it. So this reports the texts whose beneath-position
+    ACTUALLY buries them, and the caller lifts only those.
+
+    OVERLAP AND NOT CONTAINMENT, and that is a correction rather than a
+    preference. The red this closes reads CONTAINMENT because a wholly
+    covered sentence is the only claim it makes; a repair keyed the same
+    way was measured going SILENT on the same line one step down the
+    product's own path. Re-added through `apply_batch` the line arrives
+    carrying its own stored width, wraps to a second line, and its box
+    grows 4px past the bottom of the host that shades it — not contained,
+    no lift, and the shipped client painted the yellow box and nothing
+    else. Half a sentence under paint is half a sentence gone, so the
+    question here is whether the fill touches the ink at all.
+
+    Args:
+        ordered: A scene in paint order — the caller's own first-pass
+            output, so "emitted after" is read off the real array
+            instead of re-derived from bands a pinned element may not
+            obey.
+
+    Returns:
+        The ids of live untagged `role: "decoration"` text elements
+        whose drawn box meets that of some fill-painting element emitted
+        after them.
+    """
+    out: set[str] = set()
+    for i, e in enumerate(ordered):
+        cd = e.get("customData") or {}
+        oid = e.get("id")
+        if (oid is None or e.get("isDeleted") or e.get("type") != "text"
+                or cd.get("role") != "decoration" or _composed_part(cd)):
+            continue
+        x0, y0, x1, y1 = _drawn_box(e)
+        for over in ordered[i + 1:]:
+            if over.get("isDeleted") or not _paints_a_fill(over):
+                continue
+            ox0, oy0, ox1, oy1 = _drawn_box(over)
+            if ox0 <= x1 and x0 <= ox1 and oy0 <= y1 and y0 <= oy1:
+                out.add(oid)
+                break
+    return out
+
+
 def normalize_z_order(els):
     """Paint order (layout.md): frames → backdrops → arrows/lines →
     nodes → composed parts → bound labels & pins. Excalidraw renders
@@ -11683,11 +11836,26 @@ def normalize_z_order(els):
     value, an entity's attribute rows, a checkbox's box and check
     stroke, a slider's track and thumb) bands ABOVE the owner it is
     drawn on, so an opaque owner cannot paint out its own content or its
-    own state glyph. Only the UNTAGGED `role: decoration` — the
-    standalone backdrop — still bands beneath. The sort is stable:
-    explicit `reorder` ops survive within their band, which is also what
-    keeps a check stroke over the box it was declared after; cross-band
+    own state glyph. The UNTAGGED `role: decoration` — the standalone
+    backdrop — still bands beneath, EXCEPT where it is TEXT that band 1
+    would bury: a sentence an agent wrote for a reader is ink, not
+    furniture, so it joins the part band rather than going under the
+    fill. That exception is asked PER PAIR by
+    `_backdrop_text_under_a_fill` and never by type, so a backdrop shape
+    stays a backdrop and an annotation nothing covers keeps the low slot
+    an explicit `reorder` gave it. The sort is stable: explicit
+    `reorder` ops survive within their band, which is also what keeps a
+    check stroke over the box it was declared after; cross-band
     placement rides `role: decoration`.
+
+    TWO PASSES, and the second only when the first buried something.
+    "Emitted after" is a fact about the ARRAY, so it is read off the
+    first pass's own output rather than predicted from bands — a pinned
+    element holds a slot no band anticipates, and a predicate that
+    guessed would be wrong on exactly the scenes this function is most
+    careful about. The lift only ever moves ink UP out of band 1, so it
+    cannot create a burial the first pass did not have and a third pass
+    would find nothing.
 
     A PINNED ELEMENT HOLDS ITS SLOT. Excalidraw renders array order, so
     the array index IS a position — the one in z — and re-banding a
@@ -11704,13 +11872,17 @@ def normalize_z_order(els):
         A new list in paint order, pinned elements at their original
         indices.
     """
+    lifted: set[str] = set()
+
     def band(e):
         cd = e.get("customData") or {}
         role = cd.get("role")
         if e.get("type") == "frame":
             return 0
         if role == "decoration":
-            return 4 if _composed_part(cd) else 1
+            if _composed_part(cd) or e.get("id") in lifted:
+                return 4
+            return 1
         if e.get("type") in ("arrow", "line"):
             return 2
         if role == "pin":
@@ -11718,13 +11890,25 @@ def normalize_z_order(els):
         if e.get("type") == "text" and e.get("containerId"):
             return 5
         return 3
-    slots = [i for i, e in enumerate(els) if not pinned_to_canvas(e)]
-    if len(slots) == len(els):
-        return sorted(els, key=band)
-    out = list(els)
-    for slot, e in zip(slots, sorted((els[i] for i in slots), key=band)):
-        out[slot] = e
-    return out
+
+    def place():
+        """Sort the unpinned elements over the slots they already hold.
+
+        Returns:
+            A new list, every pinned element still at the index it
+            arrived at and the rest in band order around them.
+        """
+        slots = [i for i, e in enumerate(els) if not pinned_to_canvas(e)]
+        if len(slots) == len(els):
+            return sorted(els, key=band)
+        out = list(els)
+        for slot, e in zip(slots, sorted((els[i] for i in slots), key=band)):
+            out[slot] = e
+        return out
+
+    ordered = place()
+    lifted = _backdrop_text_under_a_fill(ordered)
+    return place() if lifted else ordered
 
 
 # ---------------------------------------------------------------------------
@@ -12795,10 +12979,20 @@ def align_baseline_order(old_els: list[dict[str, Any]],
 # consequence suppression + spatial language
 # ---------------------------------------------------------------------------
 
-def mark_consequences(diff):
+CONNECTOR_TYPES = ("arrow", "line")
+
+
+def _layout_consequences(changes):
     """One structural insertion producing N layout moves collapses to the
-    insertion + 'layout adjusted' (spec §5.1)."""
-    changes = diff["changes"]
+    insertion + 'layout adjusted' (spec §5.1).
+
+    Args:
+        changes: `diff_scenes`' bucketed change list.
+
+    Returns:
+        `{moved_element_id: causing_element_id}` for the dominant shared
+        direction, empty when this save holds no such shift.
+    """
     structural = [c for c in changes if c["op"] in ("add", "del")
                   and (c["element"].get("customData") or {}).get("role")
                   not in ("label", "pin")]
@@ -12820,6 +13014,101 @@ def mark_consequences(diff):
         return {}
     cause = structural[0]["element"]["id"]
     return {m["id"]: cause for m in dominant}
+
+
+def _reroute_consequences(changes, old_els, new_els):
+    """Roll each connector the save dragged onto the neighbour that dragged it.
+
+    A bound connector's path is not something a person draws twice. When
+    an endpoint it binds moves or goes away the path follows, and this
+    save's re-send of `points` is the drawing catching up rather than
+    work anybody asked for — so the re-route is a CONSEQUENCE and the
+    thing that moved is its cause. Recording that is what lets
+    `mechanical_summary` rank the additions and deletions a person
+    authored above it, and what lets `consequence_lines` say why the
+    arrow moved (r8-1: a 26-change correction wave headlined `rerouted
+    d12 (+25 more)` and no entry said why).
+
+    A connector whose endpoints all sat still is LEFT ALONE, and that is
+    the whole of the gate: then the new path is itself the request, and
+    calling it a consequence would invent a cause the save does not
+    have. So is a save in which nothing but connectors changed — there
+    is no authored work for the re-route to stand behind, and
+    suppressing it would narrate a real re-route as housekeeping.
+
+    Args:
+        changes: `diff_scenes`' bucketed change list.
+        old_els: The baseline scene, or None when the caller has none —
+            bindings are read off the element, which the change entries
+            for `mod`/`move` do not carry.
+        new_els: The scene being saved, or None when the caller has none.
+
+    Returns:
+        `{connector_id: cause_element_id}`, empty when nothing this save
+        changed can have dragged a path.
+    """
+    index = {}
+    for el in list(old_els or []) + list(new_els or []):
+        if el.get("id"):
+            index[el["id"]] = el
+    if not index:
+        return {}
+    touched, gone = set(), set()
+    for c in changes:
+        cid = c.get("id") or (c.get("element") or {}).get("id")
+        el = index.get(cid) or c.get("element") or {}
+        if not cid or el.get("type") in CONNECTOR_TYPES:
+            continue
+        # a bound label riding its container is not a neighbour that
+        # dragged anything — the container it belongs to is, and it has
+        # its own change entry beside this one
+        if el.get("type") == "text" and el.get("containerId"):
+            continue
+        touched.add(cid)
+        if c["op"] == "del":
+            gone.add(cid)
+    if not touched:
+        return {}
+    out = {}
+    for c in changes:
+        if c["op"] not in ("mod", "move") or not c.get("id"):
+            continue
+        el = index.get(c["id"]) or {}
+        if el.get("type") not in CONNECTOR_TYPES:
+            continue
+        bound = [b for b in ((el.get(side) or {}).get("elementId")
+                             for side in ("startBinding", "endBinding"))
+                 if b and b in touched]
+        if bound:
+            # a deletion is the louder cause: it is why the endpoint is
+            # not there at all, where the other end has merely moved
+            out[c["id"]] = next((b for b in bound if b in gone), bound[0])
+    return out
+
+
+def mark_consequences(diff, old_els=None, new_els=None):
+    """Map every derived change in a save onto the change that caused it.
+
+    Two rollups, and they are separate rules over separate evidence: a
+    structural insertion that shoved a column of boxes aside, and a
+    bound connector whose path followed an endpoint. The second is read
+    off the elements rather than the change entries, so a caller with no
+    scenes to hand gets the first alone.
+
+    Args:
+        diff: `diff_scenes`' bucketed output.
+        old_els: The baseline scene, or None.
+        new_els: The scene being saved, or None.
+
+    Returns:
+        `{element_id: causing_element_id}` over both rules, the
+        connector rollup winning a collision because an endpoint that
+        moved is a nearer cause than a layout shift.
+    """
+    changes = diff["changes"]
+    rolled = _layout_consequences(changes)
+    rolled.update(_reroute_consequences(changes, old_els, new_els))
+    return rolled
 
 
 def spatial_phrase(dx, dy):
@@ -12846,7 +13135,7 @@ def kind_of(el):
 
 
 def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
-                   authored=None):
+                   authored=None, pins=None):
     """Derive typed facts from a bucketed diff. Extended-tier artifacts get
     universal facts only.
 
@@ -12861,12 +13150,21 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
             named, or None on the write paths that carry no ops. Read by
             the restyle arm ONLY — see it for why un-deriving in
             `diff_scenes` cannot reach that one.
+        pins: `{pin_id: {"answered": bool, "answer_source": str | None,
+            "resolved": bool}}` for the ❓ glyphs this save closes, or
+            None. Read by the `pin_deleted` arm ONLY, and it has to be
+            passed rather than read off the glyph: `answer_pin` mirrors
+            `status: answered` onto the live element WITHOUT committing
+            a revision, so the snapshot this diff runs against still
+            says `open` and a question somebody answered is invisible
+            here (pin-removed-verb).
 
     Returns:
         The fact list.
     """
     facts = []
     authored = authored or {}
+    pins = pins or {}
     old_ix = {e["id"]: e for e in old_els}
     new_ix = {e["id"]: e for e in new_els}
     old_labels = label_map(old_els)
@@ -12960,7 +13258,26 @@ def semantic_facts(old_els, new_els, diff, artifact_type, tier, consequences,
                 (el.get("type") == "text" and el.get("containerId")):
             continue
         if r == "pin":
-            F("pin_deleted", el["id"])
+            # A ❓ IS NAMED BY ITS QUESTION AND CLOSED BY WHAT HAPPENED
+            # TO IT. Both are on hand and neither used to be said: the
+            # glyph carries the question and its target from the moment
+            # it is drawn, and `pins` carries whether a person answered
+            # it and whether this save settled it. Without them every
+            # close narrated `removed pin p1` — the same sentence for a
+            # question somebody answered and a question somebody threw
+            # away (pin-removed-verb).
+            cd = el.get("customData") or {}
+            state = pins.get(el["id"]) or {}
+            target = cd.get("target")
+            tgt_el = new_ix.get(target) or old_ix.get(target)
+            F("pin_deleted", el["id"],
+              question=cd.get("question") or "",
+              label=(display_label(tgt_el, new_labels if target in new_ix
+                                   else old_labels) if tgt_el else None),
+              target=target,
+              answered=bool(state.get("answered")),
+              answer_source=state.get("answer_source"),
+              resolved=bool(state.get("resolved")))
             continue
         if r == "annotation":
             F("annotation_deleted", el["id"], text=_anno_text(el))
@@ -13865,7 +14182,26 @@ def headline_for(fact):
     if n == "pin_added":
         return "asked: %r" % (fact.get("question") or "")[:60]
     if n == "pin_deleted":
-        return "removed pin %s" % fact["element"]
+        # FOUR CLOSES, NOT ONE, and the record used to spell them all
+        # `removed pin p1`. Answering a question and settling it is the
+        # opposite event from throwing an unanswered one away, and a
+        # reader who saw `asked: 'Does checkout retry on timeout?'` go
+        # by should see the same words come back — so the settled arm
+        # mirrors `pin_added` above rather than inventing a vocabulary.
+        # The removal arms keep saying "removed", because that is what
+        # happened: this is not a euphemism pass (pin-removed-verb).
+        q = (fact.get("question") or "")[:60]
+        # by what it ASKED where the question survives, else by what it
+        # was pinned to: the two surfaces a reader has actually seen
+        named = "%r" % q if q else "on %s" % (fact.get("label")
+                                              or fact["element"])
+        if fact.get("answered") and fact.get("resolved"):
+            return "answered the question %s" % named
+        if fact.get("resolved"):
+            return "settled the question %s" % named
+        if fact.get("answered"):
+            return "removed the answered question %s" % named
+        return "removed the question %s" % named
     if n.endswith("_added") and n != "label_added":
         return "added %s" % (fact.get("label") or fact.get("name")
                              or (fact.get("between") and
@@ -13978,6 +14314,16 @@ def consequence_lines(record):
                     "re-target it or delete it"
                     % (f.get("noun") or "arrow", f.get("element"),
                        f.get("side"), f.get("target")))
+            # THE READER THAT HAD TO WIDEN WITH THE ROLLUP. A re-route
+            # with a cause is suppressed from the headline, which is
+            # right — and if nothing said it here, the save would have
+            # gone silent about an arrow whose path really did move.
+            if kind == "rerouted" and f.get("consequence_of"):
+                out.append(
+                    "%s re-routed itself — %s moved, and the path "
+                    "followed; nothing to do unless the new path is "
+                    "wrong" % (f.get("arrow") or f.get("element"),
+                               f.get("consequence_of")))
             if kind == "note_orphaned":
                 out.append(
                     "note %s annotates %s, which is gone — an orphaned "
@@ -17660,16 +18006,28 @@ def revert_hint(revn, what):
 def waive_hint(key):
     """The copyable op a finding offers so its question can be answered.
 
-    ONE FORMATTER FOR FOURTEEN MESSAGES, and the reason is the defect it
-    closes rather than tidiness (v0.9 whole-branch review, I-1). Eleven
-    of the fourteen printed `waive {action: waive, key: ..., reason:
-    ...}` — no `op` field — and the batch validator rejects exactly that
+    ONE FORMATTER FOR EVERY MESSAGE THAT OFFERS A WAIVE, and the reason
+    is the defect it closes rather than tidiness (v0.9 whole-branch
+    review, I-1). NO COUNT HERE, deliberately, and for this section's
+    own reason (AGENTS.md § Known debt): this sentence said FOURTEEN and
+    was wrong by five before anybody noticed, because nothing in the
+    repo reads it and so nothing ever failed to say so. Measure when you
+    need it — `grep -c 'waive_hint[(]' canvas.py`, less one for this
+    definition — and `test_no_message_spells_the_envelope_by_hand` holds
+    the live count in the one place a change to it must pass through.
+    THE BRACKETS IN THAT PATTERN ARE LOAD-BEARING: that pin counts the
+    substring over this whole file, docstrings included, so spelling the
+    call form here literally would make this sentence one of the things
+    it counts. Measured — it went to 21 and the pin failed.
+    At the time of the review MOST of the
+    messages printed `waive {action: waive, key: ..., reason: ...}` —
+    no `op` field — and the batch validator rejects exactly that
     verbatim::
 
         op 0: unknown op None
         (allowed: add, del, mod, pin, registry, reorder, resolve_pin)
 
-    Three said "waive with registry op" in prose beside the same
+    A minority said "waive with registry op" in prose beside the same
     envelope-less literal, so the branch was internally inconsistent and
     the MAJORITY spelling was the broken one. The keys were all correct
     end to end — no case, hyphen or plural drift, each message printing
@@ -17677,8 +18035,8 @@ def waive_hint(key):
     failure was purely the envelope, which is the most galling kind: the
     advice named the right thing and could not be followed.
 
-    A SHARED FORMATTER RATHER THAN FOURTEEN EDITED STRINGS so the
-    fifteenth message cannot be born wrong. The round-trip is pinned in
+    A SHARED FORMATTER RATHER THAN A STRING PER MESSAGE, so the NEXT
+    message cannot be born wrong. The round-trip is pinned in
     `TestEveryWaiveSuggestionCanBeApplied`, which parses the key back out
     of a finding this function wrote, feeds the op through the real
     apply path and watches the finding go quiet — the loop, not the
@@ -21091,27 +21449,65 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                             why.append("%s has %d waypoints (the fan only "
                                        "moves 2- and 3-point paths)"
                                        % (who, npts))
+                    # A DOOR OF ITS OWN (r8-4). Every remedy above is a
+                    # GEOMETRY change, and this warning used to offer
+                    # nothing else — so a user who has ruled the shape
+                    # fixed ("it is not going to change and I don't need
+                    # to be told again — but don't redraw it") could
+                    # answer the lane warning about this same pair and
+                    # not this one. Two sentences about one pair
+                    # disagreeing about whether it may stand is the
+                    # defect; the detector is right and it was the DOOR
+                    # that was missing, so nothing about the geometry
+                    # test above moved.
+                    #
+                    # PER PAIR AND PER NODE, not per pair alone: the
+                    # sentence's own subject is "these two share a foot
+                    # ON THIS NODE", and a pair bound at both ends emits
+                    # two of them about two different places. One key
+                    # for both would silence a place the user never
+                    # read. `slugify` and the leading `aid` follow
+                    # `lane:`'s spelling exactly — one convention for
+                    # keys naming an unordered arrow pair, and
+                    # `test_the_waive_keys_name_the_artifact_and_not_an_arrow`
+                    # holds both to carrying the artifact rather than an
+                    # arrow id.
+                    #
+                    # `attach_key` AND NOT `key`: the binding-side loop
+                    # above already binds `key` at function scope, and
+                    # overwriting a name this pass reads later is the
+                    # exact shape of the `aid` bug the comment above
+                    # records. Cheap to avoid, expensive to find.
+                    attach_key = "attach:%s:%s:%s:%s" % (
+                        aid or "<artifact>", slugify(tgt), slugify(id1),
+                        slugify(id2))
+                    if waives and attach_key in waives:
+                        continue
                     warnings.append(
                         "%ss %s and %s share an attach point on %s — "
                         "%s. Author waypoints via `mod points`, simplify "
-                        "the path, or move the nodes apart"
+                        "the path, or move the nodes apart. If the two "
+                        "feet are meant to land together, say so once "
+                        "and this stops asking: %s"
                         % (connector_noun(ix.get(id1) or {},
                                           ix.get(id2) or {}),
                            id1, id2, name(tgt),
                            "the auto-fan could not move them: "
                            + "; ".join(why) if why else
-                           "the auto-fan ran and left them together"))
+                           "the auto-fan ran and left them together",
+                           waive_hint(attach_key)))
     # ---- WARNING: phantom pass-through (WP4b e1) ---------------------
-    # One arrow arrives at N and another leaves it on the same line, and
-    # their feet are closer together than N is wide — so between them
-    # there is ARROW drawn over the node rather than a border on each
-    # side, and the pair reads as one unbroken stroke passing through the
-    # box. The reader takes the direct relation and N stops being a step
-    # in the flow: in a flowchart that SILENTLY DELETES A STEP, the
-    # failure mode nobody reviews for, because you cannot notice a box
-    # you have stopped reading as a box. Rank-based layout manufactures
-    # it — the 2026-08-12 ELK spike shipped one unbroken 448px stroke
-    # through `auth-succeeded`, both feet on the same border.
+    # Two connectors touch N on one line with their bodies on opposite
+    # sides of it, and their feet are closer together than N is wide —
+    # so between them there is ARROW drawn over the node rather than a
+    # border on each side, and the pair reads as one unbroken stroke
+    # passing through the box. The reader takes the direct relation and
+    # N stops being a step in the flow: in a flowchart that SILENTLY
+    # DELETES A STEP, this is the failure mode nobody reviews for,
+    # because you cannot notice a box you have stopped reading as a
+    # box. Rank-based layout manufactures it — the 2026-08-12 ELK spike
+    # shipped one unbroken 448px stroke through `auth-succeeded`, both
+    # feet on the same border.
     #
     # THE BROAD READING WAS BUILT AND REJECTED, and the number is worth
     # keeping so nobody re-derives it. The literature scan's criterion is
@@ -21129,6 +21525,42 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
     # premise, so what ships is the half with ink behind it. No study
     # measures either configuration directly; the ink half at least does
     # not require the reader to complete anything.
+    #
+    # OVER EVERY UNORDERED PAIR OF FEET, and the model's idea of which
+    # one arrives is never consulted (r8-5: curated 2026-09-01,
+    # closed 2026-09-02). The pair loop
+    # used to demand exactly one arriving foot and one leaving one, which
+    # reads like a criterion and was only a way of visiting each pair
+    # once: everything past that gate is geometry — the two bodies'
+    # signs, the feet's off-axis distance, the span `shape_clip` returns,
+    # the ink between them — plus the terminator cue, and not one of
+    # those can tell a fork from a chain. A cold observer read
+    # `onboarding-data`'s `st-application` as a pass-through where `d7`
+    # and `d10` BOTH LEAVE it at x=860 on opposite borders, drawn as one
+    # unbroken vertical through the box's centre, and this block said
+    # nothing because the model happened to call both of them leaving.
+    # Reversing a headless stroke is a NULL EDIT ON THE PAGE — the
+    # catalogue's `_drawn_ink` asserts the mark sets are equal — so a
+    # check that answers differently either side of it is answering
+    # about the model and not about the picture. The pair INDEX now does
+    # the de-duplication the role test was doing, since visiting each
+    # pair once was all that test was ever achieving.
+    #
+    # THE CUE IS WHAT KEEPS THIS NARROW, and it always was: the 70
+    # findings the broad criterion produced over 24 shipped artifacts are
+    # chained nodes with a head AT the node, and nothing here reports
+    # one. Widening the pair gate AND dropping the cue was measured at
+    # four findings on the r8 artifact, three of them ordinary chains;
+    # the cue is what buys the difference, and the roles never were.
+    #
+    # SAME-ROLE PAIRS COME IN UNTERMINATED ONLY, which is the narrower
+    # of the four repairs the catalogue measured and the only one that
+    # leaves `test_two_arrows_arriving_head_on_are_not_a_pass_through`
+    # standing: two heads landing on N from opposite sides is a
+    # convergence a reader completes nothing across, and a gate widened
+    # on identity alone reports it. Mixed pairs are untouched in every
+    # term, so the whole of today's behaviour is preserved and the
+    # widening is exactly the configuration the reds name.
     #
     # O(deg^2) per node, over FEET rather than arrows, so a node whose
     # two edges both bind it at their far ends is judged on the segments
@@ -21193,10 +21625,18 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                  bool(head)))
     for tgt_id, fs in feet.items():
         tgt = ix[tgt_id]
-        for fid, f_arr, f_ax, f_sgn, f_pt, f_head in fs:
-            for gid, g_arr, g_ax, g_sgn, g_pt, g_head in fs:
-                if fid == gid or not f_arr or g_arr:
-                    continue    # exactly one arriving, one leaving
+        for i, (fid, f_arr, f_ax, f_sgn, f_pt, f_head) in enumerate(fs):
+            for gid, g_arr, g_ax, g_sgn, g_pt, g_head in fs[i + 1:]:
+                # A FORK OR A JOIN IS ADMITTED ONLY UNTERMINATED, which
+                # is this block's own no-ink argument applied one level
+                # up rather than a second rule: where a head sits at the
+                # node the reading ends there, and nothing is completed
+                # across. Mixed pairs keep exactly today's terms — the
+                # ink arm below still reports a chain whose feet carry
+                # heads at N, because ink drawn over the box is a fact
+                # about the drawing and not about what the eye finishes.
+                if f_arr == g_arr and (f_head or g_head):
+                    continue    # the head ends the reading at the node
                 if f_ax != g_ax or f_sgn == g_sgn:
                     continue    # one line, and each stroke on its own end
                 if abs(f_pt[1 - f_ax] - g_pt[1 - f_ax]) > SAME_LINE:
@@ -21294,17 +21734,32 @@ def lint_layout(els, artifact_type=None, budget=None, waives=None,
                     # foot is enough to end the reading, and the arrow of
                     # the two can take it.
                     pair = (ix.get(fid) or {}, ix.get(gid) or {})
+                    # WHAT THE READER TAKES INSTEAD is the one thing the
+                    # roles are still worth naming, and it is a clause
+                    # and not a gate. A chain merges into one relation
+                    # from N's predecessor to its successor; a fork or a
+                    # join has neither, and the stroke completed there
+                    # runs between the two nodes at the FAR ends —
+                    # exactly how the cold observer read `d7`/`d10`
+                    # ("connects straight through to the Rejection
+                    # log"). Sending a fork to look for a predecessor it
+                    # does not have is how a true finding gets read as
+                    # noise and closed.
+                    reads = ("straight from %s's predecessor to its "
+                             "successor" % name(tgt_id) if f_arr != g_arr
+                             else "between the two nodes at the far "
+                                  "ends, with %s not a step on it"
+                                  % name(tgt_id))
                     warnings.append(
                         "%ss %s and %s read as one stroke through %s — "
                         "they share a line and neither is terminated at "
                         "the node, so %dpx of it is completed across by "
                         "eye: nothing tells the reader the path ends "
-                        "here, and the pair reads as one relation "
-                        "straight from %s's predecessor to its successor. "
+                        "here, and the pair reads as one relation %s. "
                         "%s, fan the feet onto opposite borders, or "
                         "offset one line"
                         % (connector_noun(*pair), fid, gid, name(tgt_id),
-                           round(bare), name(tgt_id),
+                           round(bare), reads,
                            "A line never carries an arrowhead, so re-add "
                            "the pair as arrows bound with `from`/`to`"
                            if connector_noun(*pair) == "line" else
@@ -22731,6 +23186,93 @@ def cross_lint(scenes, artifact_types, registry, glossary_terms=None):
     return out
 
 
+def stale_caption_notes(els):
+    """Bound captions stored away from the anchor the canvas draws them at.
+
+    THE FILE AND THE SCREEN, NOT THE WRITER AND THE CLIENT. v0.9.1
+    corrected `recenter_label`'s vertical anchor from a literal `6` to
+    the client's own `BOUND_TEXT_PADDING`, and that repair is MINT-TIME
+    ONLY: every caption written before it is still on disk a pixel from
+    where the tab puts one, and until 2026-09-01 no reader in this file
+    said a word about it. `lint` is the surface an agent reads to answer
+    "is this drawing clean?", and over 43 of the frozen corpus's own
+    rectangle-bound captions it answered yes.
+
+    REPORT-ONLY, DELIBERATELY. The other four measured repairs all move
+    the picture — widening `_label_detached` so the loader re-glues,
+    re-anchoring in `validate_scene` or in `Store.commit` — and every
+    one of them also erases a caption the USER dragged, because the
+    loader cannot tell a stale anchor from an 8px nudge somebody meant.
+    `TestAModThatReachesDiskIsNamedByItsOwnRecord`'s grid pins it as
+    durable and narrated at `+8` and at `(+60, -40)`; a repair that
+    re-anchors on sight takes bound-caption dragging away from the user
+    to close a one-pixel bookkeeping gap. So this says the sentence and
+    leaves the drawing alone.
+
+    THE VERTICAL ANCHOR ONLY, AND ONLY UNDER A RECTANGLE, because that
+    is the whole of what can be PROVEN from inside this file. The writer
+    and the client agree on a rectangle's `y` at every `verticalAlign`
+    — that agreement is what v0.9.1 bought and what
+    `TestAStoredCaptionAnchorTheClientDisagreesWithIsReported` asserts
+    out loud, printing the two anchors side by side. They do NOT agree
+    elsewhere and a note is a claim about the PICTURE, so:
+
+      * AN ELLIPSE OR A DIAMOND is excluded. `recenter_label` models
+        neither the client's shape inset nor its shape-aware height
+        budget, so the writer's answer is not the drawn one and a note
+        there would report the server's own open defect as the user's
+        drawing. That divergence is a larger, still-open class.
+      * A LINEAR CONTAINER is excluded, for ART-007's reason: the client
+        re-derives an arrow label's position from the arrow and writes it
+        back, so no stored coordinate there is ever the drawn one and the
+        server must not fight it.
+      * THE HORIZONTAL ANCHOR is excluded, on measurement and not on
+        principle. 13 rectangle-bound captions in the frozen corpus sit
+        up to 96px off the writer's centre with their containers plainly
+        drawn right, so `recenter_label`'s x is not known to be the
+        client's and a note over those 13 would be 13 false reports. The
+        y arm is 43 and every one of them is real.
+
+    Args:
+        els: The artifact's elements.
+
+    Returns:
+        `[str]` — one aggregate line, or empty when every bound caption
+        is on its anchor, which has to stay the silent case: a lint that
+        says something about every drawing teaches an agent to skip it.
+    """
+    by_id = {e.get("id"): e for e in els if isinstance(e, dict)}
+    stale = []
+    for el in els:
+        if not isinstance(el, dict) or el.get("type") != "text":
+            continue
+        cont = by_id.get(el.get("containerId"))
+        if cont is None or cont.get("type") != "rectangle":
+            continue
+        # THE PRODUCT'S OWN WRITER ANSWERS, never a copy of its formula:
+        # `_recentred_to` runs `recenter_label` on a throwaway copy, so a
+        # rebuild that moves the anchor moves this note with it and a
+        # pinned caption — which the writer declines to place — is None
+        # here and correctly never reported.
+        want = _recentred_to(el, cont)
+        if want is None:
+            continue
+        gap = _round_geom(el.get("y")) - want[1]
+        if gap:
+            stale.append((el.get("id"), gap))
+    if not stale:
+        return []
+    return ["%d bound caption(s) are stored away from the anchor the "
+            "canvas draws them at (%s%s) — written before the caption "
+            "anchor was corrected. The picture is fine and nothing needs "
+            "doing; the next edit that moves or resizes one of those "
+            "containers re-anchors its caption, and that save will name a "
+            "caption nobody touched."
+            % (len(stale),
+               ", ".join("%s %+gpx" % row for row in stale[:3]),
+               "\u2026" if len(stale) > 3 else "")]
+
+
 def project_lint(project, els, registry=None, artifact_type=None,
                  aid=None):
     """lint_layout + lint_glossary (+ registry discipline when the caller
@@ -22773,6 +23315,14 @@ def project_lint(project, els, registry=None, artifact_type=None,
     has_map = (project.root / "CONTEXT-MAP.md").exists()
     extra = lint_glossary(els, avoid, has_map)
     out = {k: lint[k] + extra[k] for k in ("errors", "warnings", "notes")}
+    # A caption on disk the canvas will redraw somewhere else. Sited HERE
+    # and not in `lint_layout` because it is not a layout budget the
+    # author can spend differently — it is a fact about what the file
+    # says versus what the tab does, which is the same register as the
+    # glossary arm above. The registry-scope call passes `els=[]` and so
+    # reaches this with nothing to say, which is right: it is a
+    # per-artifact finding and lands in a per-artifact bucket.
+    out["notes"] = out["notes"] + stale_caption_notes(els)
     # registry findings are project-scope: lint_registry never sees `els`
     # or `aid`, so appending them to every per-artifact call copied the
     # same note into every bucket AND the registry bucket — one finding
@@ -23284,6 +23834,23 @@ class Store:
             new_norm_by_aid = {}
             sentinel_by_aid = {}
             sig = self.config.get("significant_attrs")
+            # READ BEFORE THE STATUSES BELOW ARE REWRITTEN, and read off
+            # the REGISTRY rather than the glyph. `answer_pin` mirrors
+            # `status: answered` onto the live element without
+            # committing, so the snapshot the diff runs against still
+            # says `open`; and the resolve/dismiss flip a few dozen
+            # lines down happens AFTER the facts are derived, so
+            # `resolved_pins` is the only thing here that knows which
+            # close this is. Without both, a question somebody answered
+            # and a question somebody threw away narrated identically
+            # (pin-removed-verb).
+            settling = set(resolved_pins or ())
+            pin_state = {
+                p["id"]: {"answered": bool(p.get("answer_source")
+                                           or p.get("status") == "answered"),
+                          "answer_source": p.get("answer_source"),
+                          "resolved": p["id"] in settling}
+                for p in (self.registry.get("pins") or []) if p.get("id")}
             for aid, els in sorted(new_scenes.items()):
                 old = (base_state.get(aid) or {}).get("elements", [])
                 # Measure the posted order against the order this client
@@ -23350,17 +23917,29 @@ class Store:
                 if not diff["changes"] and aid in base_state and not \
                         (new_meta or {}).get(aid):
                     continue
-                consequences = mark_consequences(diff)
+                consequences = mark_consequences(diff, old, new_norm)
                 atype = ((new_meta or {}).get(aid) or {}).get(
                     "artifact_type") or self.artifact_type(aid)
                 facts = semantic_facts(old, new_norm, diff, atype,
                                        self.tier_of(atype), consequences,
-                                       (authored or {}).get(aid))
+                                       (authored or {}).get(aid), pin_state)
                 # intent facts the differ cannot see (e.g. `rerouted` from
                 # an explicit points mod — its attr entries are derived,
                 # so without this the batch narrates as an empty save)
                 for f in (extra_facts or {}).get(aid, []):
-                    facts.append(dict(f))
+                    f = dict(f)
+                    # THE CAUSE HAS TO REACH THE FACT AND NOT ONLY THE
+                    # `by_element` ENTRY. `mechanical_summary` ranks the
+                    # FACT list, so a re-route whose cause was recorded
+                    # on its entry alone still opened the sentence ahead
+                    # of the deletions and additions the save was about
+                    # — r8-1, where the two halves of one defect looked
+                    # like two because the repair reached only one of
+                    # the two places the answer is written.
+                    if f.get("consequence_of") is None and \
+                            consequences.get(f.get("element")):
+                        f["consequence_of"] = consequences[f["element"]]
+                    facts.append(f)
                 for f in facts:
                     if f.get("consequence_of") is None and \
                             f["fact"] != "saved_no_changes" and f["element"] \
@@ -25298,6 +25877,18 @@ class Store:
                         o["attrs"])
             resolved_now = {o.get("id") for o in ops
                             if o.get("op") == "resolve_pin"}
+            # WHAT EACH CLOSING PIN LOOKED LIKE BEFORE THE COMMIT TOUCHED
+            # IT, and the op that is shutting it. `commit`'s own pin
+            # lifecycle marks a pin `resolved` the moment its ❓ shows up
+            # in the batch's deletions — which is EVERY ordinary resolve —
+            # so the write-through below can no longer ask "was this open?"
+            # of a record `commit` has already moved on. It asks this
+            # snapshot instead, and the draft the close is about to drop
+            # is read from here for the same reason.
+            closing_ops = {o.get("id"): o for o in ops
+                           if o.get("op") == "resolve_pin"}
+            closing_before = {p["id"]: dict(p) for p in self.registry["pins"]
+                              if p["id"] in resolved_now}
             # a pin is resolved where it LIVES. `apply_ops` is handed one
             # scene — the batch artifact's — so a resolve aimed at any
             # other artifact took its tolerant branch: the registry
@@ -25407,12 +25998,22 @@ class Store:
                     "detail": p.get("detail"),
                     "examples": p.get("examples") or []})
             # resolve_pin writes through to the registry — the canvas element
-            # and model.json must never disagree about a pin's status
-            resolved = {o.get("id") for o in ops if o.get("op") == "resolve_pin"}
+            # and model.json must never disagree about a pin's status —
+            # AND IT WRITES DOWN WHY (r8-8). A close used to set one word
+            # for three different endings, so a question the user had
+            # answered at length and one nobody cared about any more left
+            # the same record, and a draft waiting for a ruling died in
+            # silence. `_record_pin_closure` is the arm that says which of
+            # those happened; `closing_before` is its pre-commit reading.
+            closed_now = []
             for p in self.registry["pins"]:
-                if p["id"] in resolved and p.get("status") in ("open",
-                                                               "answered"):
-                    p["status"] = "resolved"
+                was = closing_before.get(p["id"])
+                if was is None or was.get("status") not in ("open",
+                                                            "answered"):
+                    continue
+                p["status"] = "resolved"
+                closed_now.append(self._record_pin_closure(
+                    p, closing_ops.get(p["id"]) or {}, was))
             # and deletion writes through too: a pin whose ❓ element no
             # longer exists in any scene is unanswerable — prune it NOW,
             # not at next session's load-heal (v0.1 acceptance finding:
@@ -25422,7 +26023,7 @@ class Store:
                         for e in els2}
             for p in self.registry["pins"]:
                 if p.get("status") in ("open", "answered") and \
-                        p["id"] not in resolved and \
+                        p["id"] not in resolved_now and \
                         p["id"] not in live_ids:
                     p["status"] = "pruned"
             self._save_registry()
@@ -25443,6 +26044,15 @@ class Store:
                 record["pin_held_idx"] = checked["pin_held_idx"]
             if checked["housekeeping"]:
                 record["housekeeping"] = checked["housekeeping"]
+            # THE CLOSURES RIDE THE RESPONSE, on `pin_held`'s precedent
+            # and for a different reason: the registry write above IS the
+            # durable half, and this list is what the two surfaces reading
+            # an apply — `applied_reading` and the CLI's own printer — turn
+            # into sentences, plus what the `pin_resolved` event is built
+            # from. Set after `commit` for the same reason as its
+            # neighbours: the save file records what the drawing became.
+            if closed_now:
+                record["pin_closures"] = closed_now
             return record, pin_only
 
     # -- pins -------------------------------------------------------------
@@ -25739,6 +26349,283 @@ class Store:
             self._mirror_pin_customdata(pin, {"proposed_answer": None})
             self._save_registry()
             return pin, draft
+
+    def _record_pin_closure(self, pin, op, before):
+        """Write down WHY a question stopped being asked. Caller holds the lock.
+
+        THE WORDS A CLOSE CARRIES ARE THE CLOSER'S, NEVER THE USER'S. An
+        agent that heard the answer out loud has somewhere to put it now —
+        `resolve_pin` used to take an `answer` key and drop it on the
+        floor, which is how thirteen answered questions and twenty-nine
+        lapsed ones came to leave one reading. But it lands as
+        `closing_note`, marked `agent-at-close`, and NOT as `answer`:
+        `propose_pin_answer` is still the only door the agent has onto a
+        pin's answer, and a close that could write testimony would be that
+        door standing wide open one verb along. Nothing here moves
+        `answer` or `answer_source`, so a promoted draft still reads as a
+        promoted draft and an unanswered pin never acquires an answer it
+        was not given.
+
+        A DRAFT DIES OUT LOUD. Closing a pin that carries a proposal
+        nobody promoted and nobody refused IS discarding that proposal, so
+        the wording is kept under `dropped_proposal` and the slot is
+        cleared rather than left as a residue an open pin carries
+        identically. It is not filed as `pin_proposal_discarded`: that
+        event means the USER ruled, and here nobody did.
+
+        AND THE CLOSE REPORTS WHETHER THE ANSWER REACHED THE PICTURE
+        (r8-10) — a count, the terms the drawing does not say out loud,
+        and no opinion about whether it should. An answer may legitimately
+        name things that belong on another artifact or on none; what was
+        missing was any way to ASK afterwards, because the revision that
+        closed a pin read the same whether its answer named twelve things
+        the scene held none of or three it held all of.
+
+        NOTHING IS STAMPED WITH A TIME. `answered_at` already dates the
+        answer and the revision dates the close, so a `resolved_at` here
+        would add a key that differs between two closures for the one
+        reason that is never why they closed.
+
+        Args:
+            pin: The registry record, already marked `resolved`.
+            op: The `resolve_pin` op that shut it, for the words it
+                carried. An empty mapping is fine — most closes carry an
+                id and nothing else.
+            before: The record as it stood BEFORE this batch committed,
+                for the draft `commit` may already have walked past.
+
+        Returns:
+            The closure as the response and the event report it: `id`,
+            `artifact`, `resolution`, and whichever of `closing_note`,
+            `dropped_proposal` and `answer_reach` apply.
+        """
+        note = op.get("answer") if isinstance(op.get("answer"), str) else None
+        note = (note or "").strip() or None
+        draft = before.get("proposed_answer") \
+            if not before.get("answer") else None
+        if note:
+            pin["closing_note"] = note
+            pin["closing_note_source"] = "agent-at-close"
+        if draft:
+            pin["dropped_proposal"] = draft
+            pin.pop("proposed_answer", None)
+            pin.pop("proposed_at", None)
+        reach = answer_reach(pin.get("answer") or "",
+                             self.scenes.get(pin.get("artifact")) or [])
+        if reach:
+            pin["answer_reach"] = reach
+        if pin.get("answer"):
+            why = "the user's answer is on the record"
+        elif note:
+            why = ("nobody answered it; the agent wrote down what it was "
+                   "told as it closed")
+        else:
+            why = "nobody ever answered it and it stopped mattering"
+        if draft:
+            why += "; a draft nobody had ruled on was dropped with it"
+        pin["resolution"] = why
+        # NO GLYPH MIRROR, and the absence is deliberate rather than an
+        # omission: every path that reaches here has already taken the ❓
+        # down — `apply_ops` on this artifact, the cross-artifact scan for
+        # a pin living elsewhere, and nothing at all when it was deleted
+        # sessions ago — so there is no `customData` left to keep in step,
+        # and writing the scene file back after `commit` has persisted it
+        # would be a second writer on a file the commit owns.
+        return {"id": pin["id"], "artifact": pin.get("artifact"),
+                "resolution": why, "closing_note": note,
+                "dropped_proposal": draft, "answer_reach": reach}
+
+    # -- config -----------------------------------------------------------
+    def set_config(self, patch: dict,
+                   source: str = "user") -> tuple[dict, dict]:
+        """Turn one or more settings and record whose hand turned them.
+
+        THE ONLY WRITER OF `config.json` DURING A SESSION, so the mark
+        cannot be forgotten at one door and remembered at another. It
+        used to be three lines inline in `/api/config`, which is exactly
+        how a second door came to write the same file with nothing on it.
+
+        THE MARK IS DURABLE ON PURPOSE. The event log lives in a tempdir
+        keyed by a hash of the project path, so a hand recorded only
+        there is gone on the next reboot and gone again if the project
+        moves — and the question this repair answers ("who turned review
+        off?") was asked the day after. `project_knowledge/config.json`
+        is what survives that, so the mark lives beside the value.
+
+        THE PREVIOUS VALUE RIDES ALONG because "who" without "from what"
+        cannot settle the argument that produces the question: a control
+        somebody thought was on, and a record that says only who last
+        touched it, leaves both readings alive.
+
+        Args:
+            patch: The settings to merge. Callers validate the key names
+                — the routes refuse anything outside
+                `SETTABLE_CONFIG_KEYS` with a sentence naming what is
+                settable, and repeating that judgement here would put
+                two spellings of one refusal in the tree.
+            source: Which hand — `"user"` for the rail's own toggle,
+                `"agent-proposal"` for a draft the user promoted. Not a
+                free label an agent may pick: `promote_config` is the
+                only caller that passes the second, and the agent has no
+                door onto this method at all.
+
+        Returns:
+            `(the stored config, the proposal keys this write settled)`.
+            The second is empty unless a hand on the toggle overtook a
+            proposal about the same setting — see below.
+        """
+        with self.lock:
+            before = {k: self.config.get(k) for k in patch}
+            self.config.update(patch)
+            marks = dict(self.config.get("changed_by") or {})
+            at = now_iso()
+            for key in patch:
+                marks[key] = {"source": source, "at": at,
+                              "from": before[key]}
+            self.config["changed_by"] = marks
+            # A HAND ON THE DIAL SETTLES ANY OFFER ABOUT IT. The user
+            # answering "put it on pulled" by reaching for the toggle
+            # themselves is a ruling on that setting, and without this the
+            # proposal outlives it — `CONFIG_PROPOSAL=` would go on asking
+            # for a change that has already happened, and the obvious act
+            # would be the one act that could not clear the nag.
+            #
+            # NEITHER ACCEPTED NOR REFUSED, and it is not recorded as
+            # either: `changed_by` says the user's own hand did this,
+            # which is true whichever way they were leaning. Only the
+            # keys the write actually covers are settled — a proposal
+            # asking for two settings survives a hand on one of them.
+            prop = self.config.get("config_proposal") or {}
+            waiting = prop.get("patch") or {}
+            settled = {k: v for k, v in waiting.items() if k in patch}
+            if settled:
+                left = {k: v for k, v in waiting.items() if k not in patch}
+                if left:
+                    prop["patch"] = left
+                else:
+                    self.config.pop("config_proposal", None)
+            cfg, _ = validate_config(self.config)
+            self.config = cfg
+            write_json(self.p.config_path, cfg)
+            return cfg, settled
+
+    def propose_config(self, patch: dict) -> dict:
+        """Park a config change the AGENT wants WITHOUT turning the dial.
+
+        THE AGENT'S ONLY DOOR ONTO A SETTING, and the same ruling
+        `propose_pin_answer` carries one write along. A labelled agent
+        write is still a write: the dial is turned, and the label only
+        says who to blame afterwards. That is tolerable for testimony and
+        it is not tolerable here, because one of these settings IS the
+        user's supervision of the agent — `canvas_updates: pulled` is
+        what makes a revision wait for them to look at it. An agent able
+        to set that key can switch off the review it is subject to and
+        leave a tidy note saying it did.
+
+        So it asks instead. The value is kept where the user can see it,
+        nothing about the running session changes, and the setting moves
+        only when a hand on the rail moves it.
+
+        THE PROPOSAL IS DURABLE, in `config.json` beside the settings it
+        is about. An offer that evaporates on restart is one the user is
+        never asked about again, and the agent that made it has already
+        told them it is waiting.
+
+        ONE PROPOSAL AT A TIME, REPLACED RATHER THAN QUEUED. The subject
+        is a fixed set of slots rather than a growing list of pins, so a
+        second offer about the same session supersedes the first — a
+        queue would let an agent bury a proposal the user has not read
+        under a dozen more.
+
+        Args:
+            patch: The settings the agent is asking for.
+
+        Returns:
+            The waiting proposal record.
+
+        Raises:
+            BatchError: If the patch is empty. An agent that proposes
+                nothing has told the user there is a decision waiting
+                for them and left them nothing to decide.
+        """
+        with self.lock:
+            if not patch:
+                raise BatchError(["a proposal needs a setting: the patch "
+                                  "was empty"])
+            self.config["config_proposal"] = {
+                "patch": dict(patch), "proposed_at": now_iso(),
+                "from": {k: self.config.get(k) for k in patch}}
+            cfg, _ = validate_config(self.config)
+            self.config = cfg
+            write_json(self.p.config_path, cfg)
+            return cfg["config_proposal"]
+
+    def promote_config(self, patch: dict | None = None) -> tuple[dict, dict]:
+        """Turn the dial a proposal asked for — the user's own act.
+
+        The second half of the proposal door, and `promote_pin_answer`'s
+        shape: `patch` is what the user actually accepted, which may be
+        their edit of the offer rather than the offer itself. Blank or
+        absent means they took it as it stood.
+
+        THE SOURCE STAYS `agent-proposal` EITHER WAY. The change is the
+        user's — nothing moved until they said so — but it started as
+        the agent's idea, and a record that forgets that cannot answer
+        "did the agent talk you into turning this off?".
+
+        Args:
+            patch: The accepted settings, or None to accept the offer
+                unchanged.
+
+        Returns:
+            `(the stored config, the patch that actually landed)`. The
+            second is handed back rather than re-derived by the caller
+            because the user's edit is the only place it exists — the
+            offer has been consumed by then, and an event rebuilt from
+            the proposal would report what the agent asked for instead
+            of what the user agreed to.
+
+        Raises:
+            BatchError: If nothing is waiting to be promoted.
+        """
+        with self.lock:
+            waiting = (self.config.get("config_proposal") or {}).get("patch")
+            if not waiting:
+                raise BatchError(["no config proposal is waiting, so there "
+                                  "is nothing to accept"])
+            accepted = dict(patch) if isinstance(patch, dict) and patch \
+                else dict(waiting)
+            self.config.pop("config_proposal", None)
+            # The offer is already gone, so `set_config` has nothing left
+            # to settle and its second value is always empty here.
+            cfg, _ = self.set_config(accepted, "agent-proposal")
+            return cfg, accepted
+
+    def discard_config_proposal(self) -> dict:
+        """Throw a waiting proposal away and leave the setting alone.
+
+        The user's third option beside accepting and editing, and the
+        reason a proposal is not simply a nag that never clears: "I do
+        not want this" has to be sayable, or the only way to make
+        `status` quiet again is to give the agent what it asked for.
+
+        Returns:
+            The proposal that was dropped. Returned rather than
+            forgotten because the event below is the only place it
+            survives, and an agent told merely that its offer is gone
+            would make the same offer again.
+
+        Raises:
+            BatchError: If nothing is waiting.
+        """
+        with self.lock:
+            dropped = self.config.get("config_proposal")
+            if not dropped:
+                raise BatchError(["no config proposal is waiting, so there "
+                                  "is nothing to discard"])
+            self.config.pop("config_proposal", None)
+            write_json(self.p.config_path, self.config)
+            return dropped
 
     # -- branches ---------------------------------------------------------
     def _stash_scope(self, name):
@@ -28109,6 +28996,7 @@ class ServerApp:
         # door further along, which is why the fix is the same shape:
         # say it on the surface the agent actually reads.
         notes = (pin_glyph_notes(record, batch.get("ops") or [])
+                 + pin_closure_notes(record.get("pin_closures"))
                  + (record.get("pin_held") or [])
                  + (record.get("housekeeping") or []))
         self.events.append("agent_revision", revn=record["revn"],
@@ -28116,6 +29004,7 @@ class ServerApp:
                            headline=record["summary"]["headline"],
                            from_pending=entry["id"],
                            **({"notes": notes} if notes else {}))
+        emit_pin_closures(self.events, record)
         return record
 
     def flush_deferred(self):
@@ -28235,6 +29124,7 @@ class ServerApp:
                 # partly landed must not be able to look identical to one
                 # that landed whole on any surface the agent reads.
                 "notes": pin_glyph_notes(record, ops) +
+                pin_closure_notes(record.get("pin_closures")) +
                 (record.get("pin_held") or []) +
                 (record.get("housekeeping") or []),
                 "layout_errors": lint["errors"],
@@ -28290,6 +29180,42 @@ class ServerApp:
         """
         return err(404 if self.store.pin_record(pin_id) is None else 409,
                    "\n".join(exc.errors))
+
+    def config_patch(self, body: dict) -> tuple[dict, dict | None]:
+        """Read a settable patch off a request body, or the refusal to send.
+
+        ONE READER FOR THREE DOORS — the user's own, the agent's
+        proposal and the promotion that lands one. The three used to be
+        one, and the whole finding this repair answers is that a second
+        way in existed with nothing on it; shipping the second and third
+        with their own copies of this validation would be the same
+        mistake in the same file, this time about which keys are
+        settable rather than about who turned them.
+
+        Args:
+            body: The decoded request body.
+
+        Returns:
+            `(patch, None)` when the body names settable keys, or
+            `({}, err(...))` when it does not. A returned refusal is the
+            route's response and is returned rather than raised, because
+            every neighbour on this path answers that way and an
+            exception here would need a handler at each of the three.
+        """
+        patch = body.get("patch") or {}
+        if not isinstance(patch, dict) or not patch:
+            # an unwrapped body used to no-op silently AND log a
+            # config_changed event with an empty patch, so the agent
+            # could read a cadence change that never happened
+            return {}, err(400, "config needs a non-empty `patch` object, "
+                                "e.g. {\"patch\": {\"canvas_updates\": "
+                                "\"pulled\"}} — settable keys: %s"
+                           % ", ".join(sorted(SETTABLE_CONFIG_KEYS)))
+        bad = set(patch.keys()) - SETTABLE_CONFIG_KEYS
+        if bad:
+            return {}, err(400, "config keys not settable here: %s"
+                           % ", ".join(sorted(bad)))
+        return patch, None
 
     def file_bugreport(self, body: dict[str, Any]) -> dict[str, Any]:
         """Write a 🐞 bug-report bundle and tell the session it happened.
@@ -28667,6 +29593,7 @@ class ServerApp:
                                short_id=record["short_id"],
                                pin_only=pin_only,
                                headline=record["summary"]["headline"])
+            emit_pin_closures(self.events, record)
             resp = {"ok": True, "revn": record["revn"],
                     "short_id": record["short_id"],
                     "summary": record["summary"],
@@ -29007,27 +29934,82 @@ class ServerApp:
                                concept=body.get("concept"))
             return {"ok": True}
         if path == "/api/config":
-            patch = body.get("patch") or {}
-            allowed = {"canvas_updates", "narration_altitude",
-                       "deletion_conversation", "nudge_after_minutes"}
-            if not isinstance(patch, dict) or not patch:
-                # an unwrapped body used to no-op silently AND log a
-                # config_changed event with an empty patch, so the agent
-                # could read a cadence change that never happened
-                return err(400, "config needs a non-empty `patch` object, "
-                                "e.g. {\"patch\": {\"canvas_updates\": "
-                                "\"pulled\"}} — settable keys: %s"
-                           % ", ".join(sorted(allowed)))
-            bad = set(patch.keys()) - allowed
-            if bad:
-                return err(400, "config keys not settable here: %s"
-                           % ", ".join(sorted(bad)))
-            self.store.config.update(patch)
-            cfg, _ = validate_config(self.store.config)
-            self.store.config = cfg
-            write_json(self.project.config_path, cfg)
-            self.events.append("config_changed", patch=patch)
+            # THE USER'S DOOR, and after the provenance repair it is only
+            # ever theirs: the rail posts here and the agent's CLI verb
+            # does not. An unmarked POST is the user's because the BROWSER
+            # is the user — there is no other caller this route is served
+            # to — which is why `source` is decided here rather than read
+            # off a body a caller could have written anything into.
+            patch, refusal = self.config_patch(body)
+            if refusal is not None:
+                return refusal
+            cfg, settled = self.store.set_config(patch, "user")
+            # WHOSE HAND, ON THE EVENT AS WELL AS IN THE FILE. The event
+            # is what a watching agent sees while the change is
+            # happening, and an unmarked payload here is provenance
+            # stored once and read nowhere in the moment it matters.
+            #
+            # `superseded_proposal` rides only when there was one, and it
+            # is the only way an agent learns its offer is moot: it is
+            # watching `--for user`, where its own proposal never
+            # appeared, so a `config_changed` on the same key is all it
+            # gets — and re-offering a setting the user has just turned
+            # by hand is the failure this saves it from.
+            self.events.append(
+                "config_changed", patch=patch, source="user",
+                **({"superseded_proposal": settled} if settled else {}))
             return {"ok": True, "config": cfg}
+        if path == "/api/config/propose":
+            # THE AGENT'S DOOR ONTO A SETTING, and the only one it has.
+            # Posting the rail's own body to the route above left a
+            # change no surface could tell from the user's — so an agent
+            # could turn off the review its own work is subject to and
+            # then read the move back off `wait --for user` as theirs.
+            patch, refusal = self.config_patch(body)
+            if refusal is not None:
+                return refusal
+            try:
+                prop = self.store.propose_config(patch)
+            except BatchError as e:
+                return err(400, "\n".join(e.errors))
+            # AN AGENT EVENT, classified in `AGENT_EVENT_TYPES`. Putting
+            # a proposal on the `--for user` feed rebuilds the exact
+            # channel this route closes. What the user does with it —
+            # promote or discard — is theirs and is on their feed.
+            self.events.append("config_proposal", patch=prop["patch"],
+                               previous=prop["from"])
+            return {"ok": True, "proposal": prop,
+                    "config": self.store.config}
+        if path == "/api/config/promote":
+            # The user accepting a proposal, as offered or after editing
+            # it. This is a `config_changed` like any other: the user
+            # turned the dial, and `source` says the idea was the
+            # agent's.
+            patch = None
+            if body.get("patch") is not None:
+                patch, refusal = self.config_patch(body)
+                if refusal is not None:
+                    return refusal
+            try:
+                cfg, landed = self.store.promote_config(patch)
+            except BatchError as e:
+                return err(409, "\n".join(e.errors))
+            self.events.append("config_changed", patch=landed,
+                               source="agent-proposal")
+            return {"ok": True, "config": cfg}
+        if path == "/api/config/proposal/discard":
+            try:
+                dropped = self.store.discard_config_proposal()
+            except BatchError as e:
+                return err(409, "\n".join(e.errors))
+            # THE REFUSED PATCH RIDES THE EVENT because this is the only
+            # place it survives — the config no longer holds it. An agent
+            # told merely that its offer is gone would make the same
+            # offer again.
+            self.events.append("config_proposal_discarded",
+                               patch=dropped.get("patch"))
+            return {"ok": True, "discarded": dropped,
+                    "config": self.store.config}
         if path == "/api/screenshot/request":
             with self.lock:
                 self.shot_seq += 1
@@ -29445,6 +30427,172 @@ def print_kv(**kw):
         print("%s=%s" % (k.upper(), v))
 
 
+# ---------------------------------------------------------------------------
+# What a closure leaves behind (r8-8, r8-10).
+#
+# A `resolve_pin` used to carry an id and nothing else, so the three
+# reasons a question stops being asked — the user answered it, nobody ever
+# did, and a draft was sitting on it that nobody had ruled on — all left
+# one record. The helpers below are what a close writes instead, and every
+# one of them REPORTS rather than judges: what was said, what died with the
+# question, and how much of the answer the drawing already says out loud.
+# ---------------------------------------------------------------------------
+
+#: Function words a coverage report must not count as a thing the answer
+#: NAMES. Kept to grammar rather than to subject matter on purpose: a list
+#: that also dropped "value" or "table" would quietly decide which parts of
+#: an answer are worth drawing, which is the judgement `answer_reach` is
+#: built not to make.
+ANSWER_STOPWORDS = frozenset((
+    "the", "and", "are", "was", "were", "this", "that", "from", "with",
+    "into", "onto", "over", "under", "they", "them", "their", "there",
+    "here", "what", "which", "when", "where", "does", "done", "have",
+    "has", "had", "will", "would", "shall", "should", "must", "been",
+    "being", "your", "yours", "ours", "than", "then", "also", "just",
+    "only", "very", "much", "such", "about", "after", "before", "while",
+    "because", "nothing", "something", "anything"))
+
+
+def answer_terms(text):
+    """The things a sentence NAMES, as a set of words.
+
+    A tokenizer is a spelling and the relation being reported is "named
+    versus drawn", so this is deliberately crude and SYMMETRICAL: the same
+    function reads the answer and reads the drawing, so a word can only go
+    missing from a report by being absent from the picture rather than by
+    being spelled differently in one of them.
+
+    Args:
+        text: An answer, a caption, or any prose. None reads as empty.
+
+    Returns:
+        Lowercased words of more than three letters that are not
+        `ANSWER_STOPWORDS`.
+    """
+    return {w.lower() for w in re.findall(r"[A-Za-z][A-Za-z-]+", text or "")
+            if len(w) > 3 and w.lower() not in ANSWER_STOPWORDS}
+
+
+def visible_words(els):
+    """Every word a reader of the PICTURE can see.
+
+    `text` only, and never `customData`. A term that reaches an artifact
+    solely through a tooltip is exactly the case this reports on — an
+    answer whose content landed where only somebody who opens that element
+    ever meets it — so counting it here would make the report unable to say
+    the one thing it exists to say.
+
+    Args:
+        els: A scene's element list. None reads as empty.
+
+    Returns:
+        The union of `answer_terms` over every element's visible text.
+    """
+    out = set()
+    for e in els or ():
+        if isinstance(e.get("text"), str):
+            out |= answer_terms(e["text"])
+    return out
+
+
+def answer_reach(answer, els):
+    """How much of an answer the drawing already says out loud.
+
+    A REPORT AND NOT A VERDICT, and that distinction is the whole design.
+    An answer naming twelve things the artifact holds none of may be
+    perfectly correct conduct — a screen mock is not where data sources
+    belong — and nothing here says the agent should have drawn more. What
+    it says is what is TRUE: these were the words, the drawing does not
+    carry these ones, and a reader arriving next session can see it
+    without re-reading the answer and re-scanning every label themselves.
+
+    Args:
+        answer: The stored answer text.
+        els: The scene the pin lives on.
+
+    Returns:
+        `named` (how many things the answer names), `drawn` (how many of
+        those carry a visible label) and `undrawn` (the rest, sorted) — or
+        None when the answer names nothing a report could be about.
+    """
+    named = answer_terms(answer)
+    if not named:
+        return None
+    undrawn = named - visible_words(els)
+    return {"named": len(named), "drawn": len(named) - len(undrawn),
+            "undrawn": sorted(undrawn)}
+
+
+def pin_closure_notes(closures):
+    """Say, in plain English, what each closure took with it.
+
+    ONE LINE PER FACT rather than one per closure, because the facts are
+    independent: a question can close on a recorded answer, carry a note
+    the agent took at the door, drop a draft nobody ruled on, and name
+    things the drawing never says — and an agent handed one packed
+    sentence would have to take it back apart to act on any of it.
+
+    Args:
+        closures: `record["pin_closures"]` — what `Store` wrote when the
+            resolves in this batch landed. None reads as empty.
+
+    Returns:
+        One string per fact worth telling, in closure order.
+    """
+    out = []
+    for c in closures or ():
+        out.append("pin %s closed: %s" % (c["id"], c["resolution"]))
+        if c.get("closing_note"):
+            out.append(
+                "pin %s: the agent recorded this at the close, under its "
+                "own name and NOT as the user's answer — %r. If these are "
+                "the user's own words, have them answer the pin so the "
+                "record can say so." % (c["id"], c["closing_note"]))
+        if c.get("dropped_proposal"):
+            out.append(
+                "pin %s: a draft answer nobody had ruled on died with the "
+                "question — %r. Nobody promoted it and nobody refused it, "
+                "so ask again if the user still owes that decision."
+                % (c["id"], c["dropped_proposal"]))
+        reach = c.get("answer_reach")
+        if reach:
+            out.append(
+                "pin %s: its answer names %d thing(s) and %s says %d of "
+                "them out loud%s"
+                % (c["id"], reach["named"], c.get("artifact") or "the scene",
+                   reach["drawn"],
+                   ("" if not reach["undrawn"]
+                    else " — not drawn: " + ", ".join(reach["undrawn"]))))
+    return out
+
+
+def emit_pin_closures(events, record):
+    """Announce every question a revision shut, one event each.
+
+    THE LOG IS WHERE A CLOSURE OUTLIVES ITS RESPONSE. The apply response
+    says all of this too, but it is read once by whoever sent the batch —
+    and the reader who needs to know that a draft died unread, or that an
+    answer named things the drawing never says, is as often the next
+    session's catch-up as the agent holding the response. `pin_answer`
+    already carries an answer's text for exactly that reason; this is its
+    other end.
+
+    Filed as the AGENT's, not the user's — see `AGENT_EVENT_TYPES`.
+
+    Args:
+        events: The `EventLog` to append to.
+        record: The save record `Store.apply_batch` returned. A record
+            with no `pin_closures` appends nothing.
+    """
+    for c in record.get("pin_closures") or ():
+        events.append("pin_resolved", pin=c["id"],
+                      artifact=c.get("artifact"), revn=record["revn"],
+                      resolution=c["resolution"],
+                      **{k: c[k] for k in ("closing_note",
+                                           "dropped_proposal",
+                                           "answer_reach") if c.get(k)})
+
+
 def pin_debt_entry(p: dict) -> str:
     """Render one `PIN_DEBT=` member — the standing nag's unit.
 
@@ -29522,6 +30670,72 @@ def cadence_of(cfg):
     """
     got = cfg.get("canvas_updates") if isinstance(cfg, dict) else None
     return got if got in ("per-round", "pulled") else "per-round"
+
+
+def config_hand_lines(cfg):
+    """What a resume surface says about who last turned each setting.
+
+    THE READING HALF OF THE PROVENANCE REPAIR, and it is a separate
+    function because it is printed in two places — `status` on resume and
+    the `start` banner — and because the storage half is worth nothing
+    without it. A product can mark a change in the durable config AND on
+    the emitted event and still tell a returning human nothing: `CADENCE=`
+    renders one word and that word is identical whoever turned the dial.
+
+    BESIDE `CADENCE=` RATHER THAN INSIDE IT. That key is read by
+    machinery as well as by people, and folding a hand into its value
+    would make every reader of the cadence parse a sentence to get at the
+    word. The provenance is its own line, in English, because the reader
+    who needs it is a person deciding whether a control they asked for is
+    still the one in force.
+
+    ONLY WHAT IS ON RECORD IS PRINTED. A project where nobody has turned
+    anything says nothing here, and a setting whose mark was lost says
+    nothing about that setting — silence means "not on record", never
+    "the user did it".
+
+    Args:
+        cfg: A config mapping, from `/api/state` or off disk. Anything
+            that is not a mapping reads as a project with nothing on
+            record, because that is what a caller holding a broken
+            config can honestly say.
+
+    Returns:
+        Zero to two `KEY=sentence` lines: what is known about who last
+        turned each marked setting, and any agent proposal still waiting
+        on the user.
+    """
+    if not isinstance(cfg, dict):
+        return []
+    out = []
+    said = {"user": "the user", "agent-proposal":
+            "the user, accepting a proposal the agent made"}
+    marks = cfg.get("changed_by")
+    turned = []
+    for key in sorted(marks or {}):
+        m = marks[key] if isinstance(marks.get(key), dict) else {}
+        who = said.get(m.get("source"))
+        if not who:
+            continue
+        turned.append("%s is %r, set by %s%s%s"
+                      % (key, cfg.get(key), who,
+                         "" if m.get("from") is None
+                         else " (was %r)" % (m["from"],),
+                         "" if not m.get("at") else " at %s" % m["at"]))
+    if turned:
+        out.append("CONFIG_CHANGED_BY=" + "; ".join(turned))
+    prop = cfg.get("config_proposal") or {}
+    patch = prop.get("patch") if isinstance(prop, dict) else None
+    if patch:
+        out.append(
+            "CONFIG_PROPOSAL=the agent is asking to set %s. Nothing has "
+            "changed yet — this waits until the user accepts or refuses "
+            "it in the rail%s"
+            % ("; ".join("%s to %r (it is %r now)"
+                         % (k, patch[k], cfg.get(k)) for k in sorted(patch)),
+               "" if not prop.get("proposed_at")
+               else ", proposed at %s" % prop["proposed_at"]))
+    return out
 
 
 def frontend_stamp_warning(project):
@@ -29624,6 +30838,12 @@ def cmd_start(args):
              catchup_revn=state.get("catchup_revn"),
              rollback=state.get("rollback"),
              stamp_warning=warning)
+    # Beside the cadence, for the cadence's own reason: this banner says
+    # which setting a session resumes under, and a session that resumes
+    # under a control somebody flipped yesterday should be told who
+    # flipped it here rather than on a later command nobody runs.
+    for line in config_hand_lines(cfg):
+        print(line)
     # What the load found, on the surface an agent runs FIRST. `start`
     # printed its URL block and stopped, so a quarantined artifact was
     # reachable only from a later `status` — which an agent that just got
@@ -29725,6 +30945,14 @@ def cmd_status(args):
              rollback=st.get("rollback"),
              events_seq=st.get("events_seq"),
              events_log=st.get("events_log"))
+    # WHOSE HAND TURNED THE DIAL, on the first command an agent runs on
+    # resume. `CADENCE=` above renders the setting and is identical
+    # whoever moved it, so a returning session could read the cadence and
+    # not that the agent had asked for it — or that a control the user
+    # set is still theirs. Printed only when there is something on
+    # record, on the same default-is-silent rule the lines below follow.
+    for line in config_hand_lines(st.get("config")):
+        print(line)
     # WP2 (report-and-repair): load-time repairs used to reach exactly
     # one surface — /api/state, which nothing in the loop reads. Silent
     # repair is how the r4-7 lint became unreachable.
@@ -30593,10 +31821,15 @@ def cmd_bugreports(args):
 # with the agent reading its own words back under the user's heading.
 # `pin_proposal_discarded` is the user's, for the mirror reason — they
 # refused the draft, which is a move the agent has to take the round on.
+# `config_proposal` and `config_proposal_discarded` split the same way and
+# for the same argument one write along. `config_changed` STAYS the
+# user's whatever its `source` says: after the proposal repair only their
+# hand reaches that route, and a promoted proposal is still them saying
+# yes. The classification is by WHOSE MOVE IT WAS, never by whose idea.
 USER_EVENT_TYPES = frozenset({
     "save", "pin_answer", "tripwire_answer", "checkout", "checkout_live",
     "branch_switch", "branch_archive", "suggest_view", "config_changed",
-    "pin_proposal_discarded",
+    "pin_proposal_discarded", "config_proposal_discarded",
     # a filed bug report is the most urgent thing a user does — the whole
     # point of the event is that a watching agent reacts IN SESSION, and
     # `wait` defaults to `--for user`, so leaving it out of this set would
@@ -30604,7 +31837,14 @@ USER_EVENT_TYPES = frozenset({
     "bug_report"})
 AGENT_EVENT_TYPES = frozenset({
     "agent_revision", "agent_pending", "agent_revision_discarded",
-    "agent_revision_failed", "agent_revision_noop", "pin_proposal"})
+    "agent_revision_failed", "agent_revision_noop", "pin_proposal",
+    # `pin_resolved` IS THE AGENT'S OWN, on `pin_proposal`'s reasoning.
+    # A close is composed by the agent through `/api/apply`, and its
+    # `closing_note` carries whatever the agent wrote down at the door —
+    # so filing it under the user's heading would let an agent watching
+    # `wait --for user` read its own closing note back as testimony,
+    # which is the channel the proposal route exists to keep shut.
+    "pin_resolved", "config_proposal"})
 
 
 def cmd_wait(args):
@@ -30777,6 +32017,7 @@ def cmd_apply(args):
     events.append("agent_revision", revn=record["revn"],
                   short_id=record["short_id"], pin_only=pin_only,
                   headline=record["summary"]["headline"], offline=True)
+    emit_pin_closures(events, record)
     print_kv(revn=record["revn"], short_id=record["short_id"],
              pin_only=str(pin_only).lower(),
              headline=record["summary"]["headline"], offline="true")
@@ -30788,7 +32029,8 @@ def cmd_apply(args):
         {"errors": [], "warnings": [], "notes": []}
     _print_layout({"intent_echo": intent_echo(batch.get("ops") or [], scene),
                    "consequences": consequence_lines(record),
-                   "notes": pin_glyph_notes(record, batch.get("ops") or []),
+                   "notes": pin_glyph_notes(record, batch.get("ops") or [])
+                   + pin_closure_notes(record.get("pin_closures")),
                    "layout_errors": lint["errors"],
                    "layout_warnings": lint["warnings"],
                    "layout_notes": lint["notes"]})
@@ -32747,6 +33989,45 @@ def _x_reason(exc: urllib.error.HTTPError) -> str:
     return " — %s" % reason if reason else ""
 
 
+def _config_value(text: str):
+    """Read a `key=value` operand as the JSON type the config stores.
+
+    `key=value` ARRIVES AS TEXT AND THE CONFIG IS TYPED. The verb sent
+    every value as a string, so `nudge_after_minutes=45` posted `"45"`
+    and CFG-006 reset it to 10 on the way in — the setting silently did
+    not move, and the only report was a REPAIR line on a later `status`.
+
+    It became worth repairing with the proposal door. A promotion that
+    landed `"45"` would file a change under the user's own acceptance
+    that the validator had already undone: a provenance record saying
+    somebody turned a dial which is still exactly where it was, which is
+    a worse failure than the one this whole repair is about.
+
+    THE TYPE IS READ OFF THE TEXT AND NOT OFF THE KEY. A per-key table
+    would be a fifth place the settable vocabulary is spelled, and it
+    would have to be edited by anyone adding a setting; `pulled` is not a
+    number in any table, and `45` is not a string in any of them either.
+
+    Args:
+        text: The operand's right-hand side, exactly as typed.
+
+    Returns:
+        A bool for `true`/`false`, an int or float for a numeric literal,
+        and the string itself otherwise. The route still refuses a value
+        the config cannot hold — this only stops the CLI from mistyping
+        one the user spelled correctly.
+    """
+    low = text.strip().lower()
+    if low in ("true", "false"):
+        return low == "true"
+    for as_number in (int, float):
+        try:
+            return as_number(text)
+        except ValueError:
+            pass
+    return text
+
+
 def _x_user_carry_feet(els, moved, dx, dy):
     """Keep each bound foot with the element it binds, as a drag does.
 
@@ -32886,11 +34167,28 @@ def cmd_x_as_user(args):
               % args.target)
         return 0
     if verb == "config":
+        # THIS VERB PROPOSES; IT DOES NOT SET. It used to post the rail's
+        # own body to `api/config`, so a setting the agent turned landed
+        # as the user's on every surface — the file on disk, the
+        # `config_changed` event, the `CADENCE=` line every resume reads,
+        # and the `--for user` feed the agent then watches. One of these
+        # settings is the user's supervision of the agent, so a door that
+        # cannot say whose hand it was is a door the agent can use to
+        # lower its own bar. The ask is kept; the dial waits.
+        #
+        # AND THERE IS DELIBERATELY NO `promote` VERB HERE, for
+        # `answer`'s reason exactly: `x-as-user` is the CLI standing in
+        # for the user's hand and the agent is what runs it, so a promote
+        # verb would hand the agent both doors and undo this in one line.
         key, _, val = (args.text or "").partition("=")
         if not key or not val:
             die("ERROR=config wants key=value", 2)
-        _x_post(url + "api/config", {"patch": {key: val}}, "config")
-        print_kv(config=key, value=val)
+        _x_post(url + "api/config/propose",
+                {"patch": {key: _config_value(val)}}, "config")
+        print_kv(proposed_config=key, value=val)
+        print("NOTE=proposed, not set — %s stays as it is until the user "
+              "accepts or refuses this in the rail. Do not read the "
+              "setting back as though it had changed." % key)
         return 0
     if verb == "checkout":
         # Guarded like its three siblings above, and for the same reason:

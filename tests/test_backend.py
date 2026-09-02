@@ -987,6 +987,197 @@ class TestPinLifecycle(Base):
                           if "is still drawn" in m], lines)
 
 
+class TestAClosedPinRecordsWhyItClosed(Base):
+    """r8-8/r8-10: three reasons to shut a question, three records.
+
+    A `resolve_pin` used to carry an id and nothing else, so a pin the
+    user had answered at length, a pin nobody cared about any more and a
+    pin carrying a draft nobody had ruled on all closed to the same
+    bytes. These pin the four facts a close writes now — the reason, the
+    words it carried, the draft it took with it, and how much of the
+    answer the drawing already says out loud — plus the one thing it
+    must NOT do, which is turn the closer's words into the user's answer.
+    """
+
+    def setUp(self):
+        """Seed a flow, a server in front of it, and two identical pins."""
+        super().setUp()
+        self.store.apply_batch(seed_flow_batch())
+        self.app = canvas.ServerApp(self.project)
+        self.addCleanup(self.app.log_file.close)
+        self.app.store.apply_batch({
+            "base_revn": self.app.store.head_revn(),
+            "artifact": "checkout-flow", "ops": [
+                {"op": "pin", "target": "payment", "id": "pin-a",
+                 "question": "which store?"},
+                {"op": "pin", "target": "confirm", "id": "pin-b",
+                 "question": "which store?"}]})
+
+    def pin(self, pid):
+        """One pin out of the live registry.
+
+        Args:
+            pid: The pin id.
+
+        Returns:
+            The registry record.
+        """
+        return next(p for p in self.app.store.registry["pins"]
+                    if p["id"] == pid)
+
+    def close(self, pid, **extra):
+        """Shut a pin through the shipped route and keep what it said.
+
+        Driven through `handle_post` rather than `Store.apply_batch` so
+        the event and the response notes are the real ones: the store is
+        only half of what a closure leaves behind.
+
+        Args:
+            pid: The pin to close.
+            **extra: Further keys on the `resolve_pin` op — `answer` is
+                the one a caller has.
+
+        Returns:
+            The apply response.
+        """
+        before = self.app.events.seq
+        op = dict({"op": "resolve_pin", "id": pid}, **extra)
+        resp = self.app.handle_post("/api/apply", {
+            "base_revn": self.app.store.head_revn(),
+            "artifact": "checkout-flow", "ops": [op]})
+        self.assertTrue(resp.get("ok"), resp)
+        resp["_events"] = [e for e in self.app.events.since(before)
+                           if e.get("pin") == pid]
+        return resp
+
+    def test_a_lapsed_close_says_nobody_answered_it(self):
+        """The control: an id and nothing else still closes, and says so."""
+        resp = self.close("pin-a")
+        rec = self.pin("pin-a")
+        self.assertEqual(rec["status"], "resolved")
+        self.assertIn("nobody ever answered it", rec["resolution"])
+        self.assertNotIn("closing_note", rec)
+        self.assertNotIn("dropped_proposal", rec)
+        self.assertEqual([e["type"] for e in resp["_events"]],
+                         ["pin_resolved"])
+        self.assertIn("pin pin-a closed:", "\n".join(resp["notes"]))
+
+    def test_the_words_a_close_carries_are_kept_under_the_closers_name(self):
+        """r8-8 half 1: the sentence survives, and never as testimony.
+
+        The whole point of keeping it is that a pin the user settled in
+        chat stops reading like one that lapsed — and the whole point of
+        keeping it HERE is that `propose_pin_answer` stays the agent's
+        only door onto a pin's answer. Both halves are asserted, because
+        a repair that stored the words as `answer` would satisfy the
+        first and reopen the door the provenance work closed.
+        """
+        resp = self.close("pin-a", answer="Postgres, with a read replica.")
+        rec, lapsed = self.pin("pin-a"), None
+        self.close("pin-b")
+        lapsed = self.pin("pin-b")
+        self.assertEqual(rec["closing_note"], "Postgres, with a read replica.")
+        self.assertEqual(rec["closing_note_source"], "agent-at-close")
+        self.assertIsNone(rec.get("answer"))
+        self.assertIsNone(rec.get("answer_source"))
+        self.assertNotEqual(rec["resolution"], lapsed["resolution"])
+        said = "\n".join(resp["notes"])
+        self.assertIn("NOT as the user's answer", said)
+        self.assertIn("Postgres, with a read replica.", said)
+        self.assertIn("Postgres, with a read replica.",
+                      resp["_events"][0]["closing_note"])
+
+    def test_a_draft_nobody_ruled_on_dies_out_loud(self):
+        """r8-8 half 2: the wording is kept, cleared, and announced."""
+        self.app.store.propose_pin_answer("pin-a", "Probably Postgres.")
+        resp = self.close("pin-a")
+        rec = self.pin("pin-a")
+        self.assertEqual(rec["dropped_proposal"], "Probably Postgres.")
+        self.assertNotIn("proposed_answer", rec)
+        self.assertIn("a draft nobody had ruled on was dropped with it",
+                      rec["resolution"])
+        self.assertIn("Probably Postgres.",
+                      resp["_events"][0]["dropped_proposal"])
+        self.assertIn("died with the question", "\n".join(resp["notes"]))
+
+    def test_a_promoted_draft_is_an_answer_and_is_not_dropped(self):
+        """The pole: a draft the user accepted is not an unruled one.
+
+        `dropped_proposal` means nobody ruled. A promoted draft was
+        ruled on — it IS the answer — so a close that filed it as
+        dropped would report the user's own decision as a loss.
+        """
+        self.app.store.propose_pin_answer("pin-a", "Postgres.")
+        self.app.store.promote_pin_answer("pin-a")
+        self.close("pin-a")
+        rec = self.pin("pin-a")
+        self.assertNotIn("dropped_proposal", rec)
+        self.assertEqual(rec["answer_source"], "agent-proposal")
+        self.assertIn("the user's answer is on the record", rec["resolution"])
+
+    def test_the_close_reports_what_the_answer_reached(self):
+        """r8-10: named against drawn, as a count and as the missing terms."""
+        self.app.store.answer_pin(
+            "pin-a", "Cart, checkout, payment, confirmation.")
+        self.app.store.answer_pin(
+            "pin-b", "An overnight vendor benchmark reconciliation feed.")
+        drawn = self.close("pin-a")
+        undrawn = self.close("pin-b")
+        near, far = self.pin("pin-a")["answer_reach"], \
+            self.pin("pin-b")["answer_reach"]
+        self.assertEqual(near["undrawn"], [])
+        self.assertEqual((near["drawn"], near["named"]), (near["named"],
+                                                          near["named"]))
+        self.assertEqual(far["drawn"], 0)
+        self.assertGreaterEqual(far["named"], 4)
+        self.assertIn("benchmark", far["undrawn"])
+        self.assertIn("says 0 of them out loud", "\n".join(undrawn["notes"]))
+        self.assertNotEqual(
+            canvas.answer_reach("Cart, checkout, payment, confirmation.",
+                                self.app.store.scenes["checkout-flow"]),
+            far, "the two answers must not report the same reach")
+        self.assertEqual(drawn["_events"][0]["answer_reach"], near)
+
+    def test_reach_reads_the_drawing_and_never_a_tooltip(self):
+        """A word only a tooltip carries has not reached the picture.
+
+        The r8-10 session's four undrawn sources all landed in
+        `customData.tooltip`, where only a reader who opens that element
+        meets them — so a reach that counted `customData` would report
+        the finding as its own repair.
+        """
+        els = [dict(e) for e in self.store.scenes["checkout-flow"]]
+        for e in els:
+            e["customData"] = dict(e.get("customData") or {},
+                                   tooltip="benchmark vendor")
+        self.assertNotIn("benchmark", canvas.visible_words(els))
+        self.assertNotIn("vendor", canvas.visible_words(els))
+
+    def test_an_answer_of_only_function_words_reports_no_reach(self):
+        """Nothing is NAMED, so there is nothing a reach could be about."""
+        self.assertIsNone(canvas.answer_reach("It was the one that they had.",
+                                              self.store.scenes["checkout-"
+                                                                "flow"]))
+        self.assertIsNone(canvas.answer_reach("", []))
+
+    def test_the_close_event_is_the_agents_own(self):
+        """It carries the agent's transcription, so it is not the user's."""
+        self.assertIn("pin_resolved", canvas.AGENT_EVENT_TYPES)
+        self.assertNotIn("pin_resolved", canvas.USER_EVENT_TYPES)
+
+    def test_a_second_resolve_records_nothing_twice(self):
+        """A pin already resolved is not closed again, so nothing is rewritten."""
+        self.close("pin-a", answer="Postgres.")
+        first = dict(self.pin("pin-a"))
+        resp = self.app.handle_post("/api/apply", {
+            "base_revn": self.app.store.head_revn(),
+            "artifact": "checkout-flow",
+            "ops": [{"op": "resolve_pin", "id": "pin-a",
+                     "answer": "Something else entirely."}]})
+        self.assertTrue(resp.get("ok"), resp)
+        self.assertEqual(self.pin("pin-a"), first)
+
+
 class TestZOrderReplay(Base):
     def test_a_recorded_index_is_read_the_way_the_client_reads_it(self):
         """Every `index` fault class, read off JSON TEXT (review MAJOR-1).
@@ -1125,6 +1316,112 @@ class TestDeletionConsequences(Base):
                                 base_revn=2)
         facts = rec["artifacts"].get("checkout-flow", {}).get("facts", [])
         self.assertNotIn("renamed", [f["fact"] for f in facts])
+
+
+class TestARerouteNamesTheEndpointThatDraggedIt(Base):
+    """A path that followed its endpoint is a consequence, not the news.
+
+    r8-1: a 26-change correction wave headlined `rerouted d12 (+25
+    more)` — one derived re-route, by raw machine id, ahead of the four
+    deletions and three additions the turn was about — and every
+    `by_element` entry recorded `consequence_of: None`. The cause is
+    now written in BOTH places a reader looks, which is what the two
+    halves of that finding were about: `mechanical_summary` ranks the
+    FACT list, so a cause that reached the entry alone changed nothing
+    a person read.
+    """
+
+    def _wave(self, ops):
+        """Seed the flow and land one correction batch over it.
+
+        Args:
+            ops: The correction batch's ops.
+
+        Returns:
+            The batch's save record.
+        """
+        self.store.apply_batch(seed_flow_batch())
+        landed = self.store.apply_batch(
+            {"base_revn": self.store.head_revn(),
+             "artifact": "checkout-flow", "ops": ops})
+        return landed[0] if isinstance(landed, tuple) else landed
+
+    def _reroute_wave(self):
+        """Delete a node, drag an endpoint, and re-send the path it moved.
+
+        Returns:
+            The save record, whose arrow `t1` re-routed because
+            `checkout` — an element it binds — moved in the same batch.
+        """
+        return self._wave([{"op": "del", "id": "confirm"},
+                           {"op": "mod", "id": "checkout",
+                            "attrs": {"y": 600}},
+                           {"op": "mod", "id": "t1",
+                            "attrs": {"points": [[0, 0], [60, 600]]}}])
+
+    def test_the_moved_endpoint_is_the_cause_on_the_fact(self):
+        part = self._reroute_wave()["artifacts"]["checkout-flow"]
+        fact = next(f for f in part["facts"] if f["fact"] == "rerouted")
+        self.assertEqual(fact.get("consequence_of"), "checkout",
+                         "the re-route names %r as its cause, and the "
+                         "endpoint that moved under it was `checkout`"
+                         % fact.get("consequence_of"))
+
+    def test_the_moved_endpoint_is_the_cause_on_the_entry_too(self):
+        # THE TWO HALVES ARE ASSERTED APART because they are written
+        # apart: the entry reads the `mark_consequences` map and the
+        # fact is stamped from it where `extra_facts` merge, so one can
+        # regress with the other green.
+        part = self._reroute_wave()["artifacts"]["checkout-flow"]
+        entry = next(e for e in part["by_element"] if e["id"] == "t1")
+        self.assertEqual(entry.get("consequence_of"), "checkout", entry)
+
+    def test_the_authored_deletion_outranks_the_derived_reroute(self):
+        rec = self._reroute_wave()
+        head = rec["summary"]["headline"]
+        self.assertIn("Confirmation", head,
+                      "the headline is %r — it names the arrow the "
+                      "drawing dragged, not the node a person deleted"
+                      % head)
+        self.assertNotIn("rerouted", head, head)
+        # SUPPRESSED, NEVER DROPPED: the fact is still counted, so
+        # anything reading `verb_counts` still sees the re-route.
+        self.assertEqual(rec["summary"]["verb_counts"].get("rerouted"), 1,
+                         rec["summary"]["verb_counts"])
+
+    def test_the_record_still_says_why_the_arrow_moved(self):
+        # the reader that had to widen with the rollup: a suppressed
+        # re-route that nothing narrated would be silence, not a repair
+        lines = canvas.consequence_lines(self._reroute_wave())
+        self.assertTrue(any("t1" in ln and "checkout" in ln
+                            for ln in lines),
+                        "nothing in %s tells the agent why t1 moved"
+                        % lines)
+
+    def test_a_path_request_with_nothing_moving_under_it_is_not_derived(self):
+        """The pole the rollup must not reach: an authored re-shape."""
+        rec = self._wave([{"op": "mod", "id": "t1",
+                           "attrs": {"points": [[0, 0], [40, -70],
+                                                [80, 0]]}}])
+        part = rec["artifacts"]["checkout-flow"]
+        fact = next(f for f in part["facts"] if f["fact"] == "rerouted")
+        self.assertIsNone(fact.get("consequence_of"),
+                          "nothing this save touched binds t1, so the "
+                          "new path IS the request and calling it a "
+                          "consequence invents a cause")
+        self.assertIn("rerouted", rec["summary"]["headline"])
+
+    def test_a_save_of_nothing_but_connectors_still_narrates_them(self):
+        """Doctrine 1 on our own record: suppression is not a repair."""
+        rec = self._wave([{"op": "mod", "id": "t1",
+                           "attrs": {"points": [[0, 0], [40, -70],
+                                                [80, 0]]}},
+                          {"op": "mod", "id": "t2",
+                           "attrs": {"points": [[0, 0], [40, 70],
+                                                [80, 0]]}}])
+        head = rec["summary"]["headline"]
+        self.assertIn("rerouted", head, head)
+        self.assertNotIn("housekeeping", head, head)
 
 
 class TestRerouteOnMove(Base):
@@ -1591,6 +1888,179 @@ class TestLintTiers(Base):
         lint = canvas.lint_layout(self.store.scenes["k"])
         self.assertTrue(any("source directly to a sink" in e
                             for e in lint["errors"]))
+
+
+class TestAStoredCaptionOffItsAnchorIsNoted(Base):
+    """`project_lint`'s arm over a caption the canvas will redraw elsewhere.
+
+    THE SUBJECT IS THE FILE AND NOT THE WRITER. v0.9.1 moved
+    `recenter_label` onto the client's `BOUND_TEXT_PADDING` and every
+    caption written before it is still on disk a pixel away, so the arm
+    exists to say so out loud on a surface an agent reads. The silences
+    below are the load-bearing half: three kinds of caption look stale to
+    a naive comparison and are not, and a note over any of them would be
+    a false report about a real drawing.
+    """
+
+    def _bound(self, container_type="rectangle", align="top"):
+        """A container and its caption, placed by the product itself.
+
+        THE PRODUCT PLACES IT, never a coordinate typed here, so a
+        rebuild that moves the anchor moves this fixture with it and
+        these tests keep asking about staleness rather than about a
+        literal somebody transcribed.
+
+        Args:
+            container_type: The container's `type`.
+            align: The caption's `verticalAlign`.
+
+        Returns:
+            `(container, caption)`, the caption on the anchor the writer
+            would give it.
+        """
+        box = {"id": "b", "type": container_type, "x": 200, "y": 100,
+               "width": 160, "height": 120,
+               "boundElements": [{"id": "b-label", "type": "text"}]}
+        if container_type in ("arrow", "line"):
+            box["points"] = [[0, 0], [160, 120]]
+        cap = {"id": "b-label", "type": "text", "containerId": "b",
+               "width": 90, "height": 22, "verticalAlign": align,
+               "textAlign": "center", "text": "Term",
+               "originalText": "Term", "x": 0, "y": 0}
+        canvas.recenter_label([box, cap], box)
+        return box, cap
+
+    def test_a_caption_stored_off_its_anchor_is_named(self):
+        """One note, naming the caption and the direction it is out by."""
+        for align in ("top", "middle", "bottom"):
+            box, cap = self._bound(align=align)
+            cap["y"] += 1
+            notes = canvas.stale_caption_notes([box, cap])
+            self.assertEqual(len(notes), 1, align)
+            self.assertIn("b-label +1px", notes[0])
+            self.assertIn("1 bound caption(s)", notes[0])
+
+    def test_the_other_sign_is_named_too(self):
+        """A caption stored ABOVE its anchor is as stale as one below."""
+        box, cap = self._bound()
+        cap["y"] -= 3
+        notes = canvas.stale_caption_notes([box, cap])
+        self.assertEqual(len(notes), 1)
+        self.assertIn("b-label -3px", notes[0])
+
+    def test_a_caption_on_its_anchor_says_nothing(self):
+        """The everyday case stays silent, which is what makes it read."""
+        box, cap = self._bound()
+        self.assertEqual(canvas.stale_caption_notes([box, cap]), [])
+
+    def test_a_pinned_caption_is_never_named(self):
+        """A pin is the user's promise and the writer declines to move it.
+
+        `recenter_label` honours `locked`, so there is no anchor this
+        caption is away FROM — reporting one would nag the user about
+        the one position the product guarantees to keep.
+        """
+        box, cap = self._bound()
+        cap["y"] += 40
+        cap["locked"] = True
+        self.assertEqual(canvas.stale_caption_notes([box, cap]), [])
+
+    def test_an_arrow_label_is_never_named(self):
+        """ART-007's exclusion, for ART-007's reason.
+
+        The client re-derives an arrow label's drawn position from the
+        arrow and writes it back at the midpoint, so no coordinate
+        stored there is ever the drawn one and the server must not fight
+        it.
+        """
+        box, cap = self._bound(container_type="arrow")
+        cap["y"] += 40
+        self.assertEqual(canvas.stale_caption_notes([box, cap]), [])
+
+    def test_an_ellipse_caption_is_never_named(self):
+        """The writer's own open divergence is not the user's drawing.
+
+        `recenter_label` models neither the client's shape inset nor its
+        shape-aware height budget, so under an ellipse its answer is not
+        the drawn one. A note there would report a server defect as a
+        file defect, and the corpus holds one such caption.
+        """
+        box, cap = self._bound(container_type="ellipse")
+        cap["y"] += 40
+        self.assertEqual(canvas.stale_caption_notes([box, cap]), [])
+
+    def test_many_stale_captions_are_one_note_with_a_sample(self):
+        """Four stale captions aggregate into one line, three named."""
+        els = []
+        for i in range(4):
+            box, cap = self._bound()
+            box["id"] = "b%d" % i
+            box["y"] = 100 + i * 200
+            cap["id"] = "b%d-label" % i
+            cap["containerId"] = box["id"]
+            box["boundElements"] = [{"id": cap["id"], "type": "text"}]
+            canvas.recenter_label([box, cap], box)
+            cap["y"] += 2
+            els.extend([box, cap])
+        notes = canvas.stale_caption_notes(els)
+        self.assertEqual(len(notes), 1)
+        self.assertIn("4 bound caption(s)", notes[0])
+        self.assertIn("b2-label +2px", notes[0])
+        self.assertNotIn("b3-label", notes[0])
+        self.assertIn("\u2026", notes[0])
+
+    def _offline_store(self, delta):
+        """Write a stale artifact to disk and reload it with no server.
+
+        THE DOOR IS THE FILE. A pre-fix scene was left by a session that
+        has ended, so the only honest way to reach it is to write the
+        artifact and construct a new `Store` — eleven of the twelve
+        `Store(...)` sites in the product are CLI commands that never
+        reconcile, and they must read the note too.
+
+        Args:
+            delta: Signed pixels to store the caption away from its
+                anchor.
+
+        Returns:
+            A `Store` freshly loaded from the written artifact.
+        """
+        if "d" not in self.store.scenes:
+            self.store.apply_batch({"base_revn": 0, "artifact": "d",
+                                    "create": {"id": "d", "name": "D",
+                                               "type": "domain"},
+                                    "ops": []})
+        path = self.project.artifacts_dir / "d.excalidraw"
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        box, cap = self._bound()
+        cap["y"] += delta
+        doc["elements"] = [box, cap]
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        return canvas.Store(canvas.Project(self.tmp))
+
+    def test_the_note_reaches_the_offline_reader(self):
+        """`lint_lines` carries it on a store that never reconciled."""
+        lines = self._offline_store(1).lint_lines().get("d") or {}
+        self.assertTrue([n for n in lines.get("notes") or []
+                         if "b-label +1px" in n])
+
+    def test_the_agreeing_scene_is_silent_through_the_same_reader(self):
+        """The differential: the note distinguishes the defect, not the door."""
+        lines = self._offline_store(0).lint_lines().get("d") or {}
+        self.assertEqual([n for n in lines.get("notes") or []
+                          if "bound caption(s)" in n], [])
+
+    def test_the_note_counts_in_the_standing_debt(self):
+        """A stale caption raises the note count an agent reads by one.
+
+        THE RELATION AND NOT THE TOTAL. This scene draws other findings
+        of its own, and a literal here would pin those too — it would go
+        red on an honest change to a lint that has nothing to do with
+        captions, and the next hand would relax it.
+        """
+        stale = (self._offline_store(1).lint_debt().get("d") or {})
+        clean = (self._offline_store(0).lint_debt().get("d") or {})
+        self.assertEqual(stale.get("notes", 0) - clean.get("notes", 0), 1)
 
 
 class TestHygiene(Base):
@@ -5824,6 +6294,92 @@ class TestZOrderNormalization(Base):
         # `FixtureReplayBase`.
         self.assertIsNone(store.catch_up())
 
+    def _shaded(self, fill):
+        """Apply one shaded box carrying a `role: decoration` line on it.
+
+        Args:
+            fill: The box's `backgroundColor`. An opaque colour is the
+                scene the R8 agent drew; `"transparent"` is the control
+                one variable away from it.
+
+        Returns:
+            The stored scene, in the order the op path left it.
+        """
+        self.store.apply_batch(
+            {"base_revn": 0, "artifact": "shade",
+             "create": {"id": "shade", "name": "Shade", "type": "flow"},
+             "ops": [
+                {"op": "add", "element": {
+                    "id": "host", "type": "rectangle", "x": 100, "y": 100,
+                    "width": 240, "height": 100, "label": "Work queue",
+                    "backgroundColor": fill}},
+                {"op": "add", "element": {
+                    "id": "radius", "type": "text", "x": 120, "y": 160,
+                    "text": "the 2-day sweep stops",
+                    "role": "decoration"}}]})
+        return self.store.scenes["shade"]
+
+    def test_a_shaded_box_emits_the_line_written_on_it_last(self):
+        """The fill-over-text repair, through the op path that reaches it.
+
+        R8 turn 10: the agent wrote pre-computed blast radii onto three
+        boxes and then shaded the boxes to group them, and band 1 put
+        each sentence UNDER the fill that swallowed it. Asserted in the
+        stored array and in the markup both, because the array IS the
+        paint order — `render_svg` honours it and so does the shipped
+        client, so a claim about only one of the two would not be a
+        claim about the picture.
+        """
+        els = self._shaded("#ffec99")
+        order = [e["id"] for e in els]
+        self.assertLess(order.index("host"), order.index("radius"),
+                        "the shaded box is still emitted over the line "
+                        "written on it: %s" % order)
+        svg = canvas.render_svg(els)[0]
+        self.assertLess(svg.find("fill='#ffec99'"),
+                        svg.find("the 2-day sweep stops"),
+                        "the fill is painted after the line's glyphs")
+
+    def test_an_uncovered_decoration_line_keeps_its_backdrop_slot(self):
+        """The pole that refuses a repair banding decoration by TYPE.
+
+        Band 1 is where an annotation an agent deliberately placed
+        beneath a drawing survives, and lifting every decoration text
+        would move those too. One variable from the test above — the
+        host's fill — and nothing covers the line, so it must not move.
+        """
+        order = [e["id"] for e in self._shaded("transparent")]
+        self.assertLess(order.index("radius"), order.index("host"),
+                        "an uncovered decoration line lost its low slot, "
+                        "so the lift is firing on type rather than on "
+                        "burial: %s" % order)
+
+    def test_a_covered_backdrop_shape_still_bands_beneath_what_backs_it(self):
+        """A backdrop stays a backdrop: the lift reaches TEXT only.
+
+        `layout.md` instructs the agent to author a solid decoration
+        panel, and its whole job is to be covered — it carries no
+        sentence, so nothing leaves the drawing when it goes under. This
+        one is WHOLLY INSIDE a shaded node, which is the same input the
+        rule above keys on with the ink taken away, so a repair that
+        lifted by coverage alone rather than by ink drags the panel up
+        over the very drawing it backs. Measured: dropping the `text`
+        clause from `_backdrop_text_under_a_fill` reorders this to
+        `a1, n1, d1`.
+        """
+        scene = canvas.normalize_z_order([
+            mk_el(id="n1", type="rectangle", x=0, y=0, width=400,
+                  height=200, backgroundColor="#ffec99", fillStyle="solid",
+                  customData={"role": "node"}),
+            mk_el(id="d1", type="rectangle", x=20, y=20, width=200,
+                  height=100, backgroundColor="#e9e5da", fillStyle="solid",
+                  customData={"role": "decoration"}),
+            mk_el(id="a1", type="arrow", x=0, y=0, width=100, height=0,
+                  points=[[0, 0], [100, 0]],
+                  customData={"role": "edge"})])
+        self.assertEqual([e["id"] for e in scene], ["d1", "a1", "n1"],
+                         "the backdrop panel came up out of band 1")
+
 
 class TestModPathFixes(Base):
     """The mod-dispatch asymmetry family (capability assessment +
@@ -8454,7 +9010,7 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         self.assertIn("unknown op None", "\n".join(cm.exception.errors))
 
     def test_no_message_spells_the_envelope_by_hand(self):
-        """One formatter, so the fifteenth message cannot be born wrong.
+        """One formatter, so the NEXT message cannot be born wrong.
 
         This is what carries the four families the round trips above
         cannot reach. A new finding that writes its own waive literal
@@ -8467,6 +9023,15 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         trip — key parsed back out of the emitted finding, fed to
         `lint_layout` as a waive, finding silent — is in
         `TestTextDrawnOnText`.
+
+        THE NINETEENTH ARRIVED on 2026-09-02 and was also born right:
+        `shared_attach_point` grew the `attach:` door it had never had
+        (r8-4), and its round trip is in
+        `TestASharedAttachPointCanBeRecordedAsDeliberate`. That one
+        matters more than the count it moves — it is the first finding
+        added here BECAUSE it had no door rather than in spite of it, so
+        the number below is now also a census of the findings that ask
+        the user for something and let them answer.
         """
         src = Path(canvas.__file__).read_text(encoding="utf-8")
         spellings = [ln for ln in src.splitlines() if "action: waive" in ln]
@@ -8477,9 +9042,316 @@ class TestEveryWaiveSuggestionCanBeApplied(Base):
         self.assertTrue(spellings[-1].strip().startswith('return "waive {'),
                         spellings)
         self.assertEqual(
-            src.count("waive_hint("), 19,
-            "the waive call sites moved — 18 findings plus the "
+            src.count("waive_hint("), 20,
+            "the waive call sites moved — 19 findings plus the "
             "definition. Re-derive this count; do not relax it")
+
+
+class TestASharedAttachPointCanBeRecordedAsDeliberate(Base):
+    """r8-4: the shared-attach finding has a door, and it is its own.
+
+    THE DEFECT, from the R8 capability assessment. Two warnings fired on
+    one arrow pair and disagreed about whether the pair could stand: the
+    lane warning printed `waive {op: registry, ...}` and cleared, while
+    `shared_attach_point` printed no key at all and offered three
+    remedies that are all GEOMETRY — including "move the nodes apart",
+    which is precisely what the user had just ruled out. A user could
+    answer one sentence about the pair and never the other.
+
+    THE DETECTOR WAS RIGHT AND STAYS UNTOUCHED. The feet really are 10px
+    apart, inside `FAN_LANE_PITCH`, and the strokes really do merge —
+    what was missing was the DOOR, so nothing here asserts a radius or a
+    remedy's prose. `test_the_radius_did_not_move` is the pin for that:
+    a repair that bought the waive by making the check quieter would
+    satisfy every other method in this class.
+
+    WHY A ROUND TRIP AND NOT A SUBSTRING. `waives=` passed straight to
+    `lint_layout` proves the lookup and nothing about the op an agent is
+    told to copy — the v0.9 I-1 defect was an envelope the validator
+    rejected while every key was correct end to end. Each case here
+    parses the key out of the finding the lint ACTUALLY EMITTED, sends
+    it through `Store.apply_batch`, and re-lints through `project_lint`,
+    which is the reader the loop calls and the surface the assessment
+    persona met.
+    """
+
+    WAIVE = re.compile(r"waive \{op: registry, action: waive, "
+                       r"key: '([^']+)', reason: \.\.\.\}")
+
+    def _node(self, nid, x, y):
+        """One 120x60 flow node.
+
+        Args:
+            nid: Element id, which is also the name the warnings print.
+            x: Left edge.
+            y: Top edge.
+
+        Returns:
+            A `role: node` rectangle.
+        """
+        return mk_el(id=nid, type="rectangle", x=float(x), y=float(y),
+                     width=120.0, height=60.0,
+                     customData={"role": "node", "label": nid})
+
+    def _arrow(self, eid, pts, src, dst):
+        """One authored elbow arrow, BOUND BY ITS `points`.
+
+        The stored extent is derived from the point list rather than
+        given, because the check under test reads `canvas.bbox_pts`,
+        which walks `points` — an extent set by hand could put the feet
+        somewhere the lint never looks and this class would measure a
+        scene that is not the one drawn.
+
+        Args:
+            eid: Element id.
+            pts: Absolute (x, y) waypoints, first to last.
+            src: `startBinding` target id.
+            dst: `endBinding` target id.
+
+        Returns:
+            A `role: edge` arrow whose extent agrees with its points.
+        """
+        x0, y0 = pts[0]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        return mk_el(id=eid, type="arrow", x=float(x0), y=float(y0),
+                     width=max(xs) - min(xs), height=max(ys) - min(ys),
+                     points=[[float(px - x0), float(py - y0)]
+                             for px, py in pts],
+                     startBinding={"elementId": src, "focus": 0, "gap": 1},
+                     endBinding={"elementId": dst, "focus": 0, "gap": 1},
+                     customData={"role": "edge", "routed": "authored"})
+
+    def converging(self, sep=10.0):
+        """Two authored edges arriving at `n-t` with their feet `sep` apart.
+
+        `routed: "authored"` is the sharpest form of the subject rather
+        than a convenience: `server_owns_geometry` answers False on it,
+        so the product knows this path is the user's own and warns about
+        it anyway. The elbows exist so each arrow leaves its source at a
+        real border and the endpoint lint stays out of the reading.
+
+        Args:
+            sep: Vertical separation between the two feet, in px.
+
+        Returns:
+            The element list, in wire order.
+        """
+        return [
+            self._node("n-a", 280, 60), self._node("n-b", 280, 300),
+            self._node("n-t", 500, 200),
+            self._arrow("e-a-t", [(340, 120), (340, 220), (500, 220)],
+                        "n-a", "n-t"),
+            self._arrow("e-b-t", [(340, 300), (340, 220 + sep),
+                                  (500, 220 + sep)], "n-b", "n-t")]
+
+    def seed(self, aid, els):
+        """Put a scene on disk and reload the store around it.
+
+        Args:
+            aid: Artifact id.
+            els: The elements.
+        """
+        canvas.write_json(
+            self.project.artifacts_dir / (aid + ".excalidraw"),
+            {"type": "excalidraw", "version": 2, "source": canvas.SOURCE_NAME,
+             "elements": els,
+             "appState": {"viewBackgroundColor": canvas.PAPER_GROUND},
+             "wysiwyg": {"artifact": aid, "name": aid, "migrations":
+                         ["0001-baseline"], "artifact_type": "flow"}})
+        self.store = canvas.Store(self.project)
+
+    def about_the_pair(self, aid):
+        """The warnings naming BOTH arrows of the converging pair.
+
+        Selected by ELEMENT ID and not by any phrase either emitter
+        prints, so a reworded remedy does not move this class and a
+        repair that folded the two sentences into one would.
+
+        Args:
+            aid: Artifact id.
+
+        Returns:
+            The matching warnings, registry waives applied.
+        """
+        out = canvas.project_lint(self.project, self.store.scenes[aid],
+                                  registry=self.store.registry,
+                                  artifact_type="flow", aid=aid)
+        return [w for w in out["warnings"]
+                if "e-a-t" in w and "e-b-t" in w]
+
+    def keys_offered(self, aid):
+        """Every waive key the pair's warnings print, by warning.
+
+        Args:
+            aid: Artifact id.
+
+        Returns:
+            A dict of warning text to the key it offered, omitting any
+            warning that offered none.
+        """
+        got = {}
+        for w in self.about_the_pair(aid):
+            m = self.WAIVE.search(w)
+            if m:
+                got[w] = m.group(1)
+        return got
+
+    def record(self, aid, key):
+        """Waive one key through the real apply path.
+
+        `apply_batch` and not `registry["waives"]` directly, because
+        `apply_batch` is what rejected the envelope-less spelling and is
+        the only place the op an agent copies is actually validated.
+
+        Args:
+            aid: Artifact id the batch is posted against.
+            key: The waive key, as the finding printed it.
+        """
+        self.store.apply_batch({
+            "base_revn": self.store.head_revn(), "artifact": aid,
+            "ops": [{"op": "registry", "action": "waive", "key": key,
+                     "reason": "the user ruled this shape fixed"}]})
+
+    def test_both_sentences_about_the_pair_offer_a_door(self):
+        """The affordance, at the surface an agent actually reads.
+
+        The COUNT is asserted beside the doorlessness so that a repair
+        which folded the two warnings into one is caught here rather
+        than passing on a comprehension over a shorter list.
+        """
+        self.seed("conv", self.converging())
+        mine = self.about_the_pair("conv")
+        self.assertEqual(len(mine), 2, mine)
+        doorless = [w for w in mine if not self.WAIVE.search(w)]
+        self.assertEqual(
+            doorless, [],
+            "a warning about this pair offers no way to record a "
+            "decision, so the pair gets two verdicts on whether it may "
+            "stand: %r" % (doorless,))
+        self.assertEqual(
+            sorted(self.keys_offered("conv").values()),
+            ["attach:conv:n-t:e-a-t:e-b-t", "lane:conv:e-a-t:e-b-t"], mine)
+
+    def test_the_attach_key_goes_through_apply_batch_and_silences_it(self):
+        """The round trip: the op the message prints is one the validator
+        takes and the lint then reads.
+
+        The key is parsed back out of the emitted finding rather than
+        written here, because a literal in this file would pass over the
+        next spelling drift — which is the exact shape of the v0.9 I-1
+        defect, where every key was right and every envelope was wrong.
+        """
+        self.seed("conv", self.converging())
+        attach = [w for w in self.about_the_pair("conv")
+                  if "share an attach point" in w]
+        self.assertEqual(len(attach), 1, attach)
+        key = self.WAIVE.search(attach[0]).group(1)
+        self.record("conv", key)
+        after = self.about_the_pair("conv")
+        self.assertEqual(
+            [w for w in after if "share an attach point" in w], [],
+            "%s was waived and the drawing still argues about the shared "
+            "foot: %r" % (key, after))
+
+    def test_taking_every_door_the_pair_offers_settles_it(self):
+        """Both doors taken, nothing left — the incident, end to end.
+
+        The user's sentence was "it is not going to change and I don't
+        need to be told again — but don't redraw it", and this is that
+        sentence spelled as ops: two waives, no `mod`, and the pair goes
+        quiet with its geometry exactly as authored. The second
+        assertion is what makes the first mean anything — a pair
+        silenced by being redrawn would satisfy it otherwise.
+        """
+        els = self.converging()
+        self.seed("conv", els)
+        for key in sorted(self.keys_offered("conv").values()):
+            self.record("conv", key)
+        self.assertEqual(self.about_the_pair("conv"), [])
+        self.assertEqual(
+            [e["points"] for e in self.store.scenes["conv"]
+             if e["id"] in ("e-a-t", "e-b-t")],
+            [e["points"] for e in els if e["id"] in ("e-a-t", "e-b-t")],
+            "the pair went quiet by being REDRAWN, which is the one "
+            "remedy the user forbade")
+
+    def test_neither_door_answers_the_other_sentence(self):
+        """The two findings are independent, asserted in both directions.
+
+        A repair that made the lane key silence the shared-attach
+        warning would pass the round trip above while taking a decision
+        the user never made: "these two run as one stroke and I accept
+        it" is not "these two feet land on one point and I accept that
+        too". Both directions, because an inheritance in either one is
+        the same conflation seen from the other end.
+        """
+        self.seed("conv", self.converging())
+        offered = set(self.keys_offered("conv").values())
+        lane = next(k for k in offered if k.startswith("lane:"))
+        attach = next(k for k in offered if k.startswith("attach:"))
+        self.record("conv", lane)
+        self.assertTrue(
+            [w for w in self.about_the_pair("conv")
+             if "share an attach point" in w],
+            "waiving %s silently answered the shared-attach sentence, "
+            "which the user never read" % lane)
+        self.seed("conv2", self.converging())
+        self.record("conv2", attach.replace(":conv:", ":conv2:"))
+        self.assertTrue(
+            [w for w in self.about_the_pair("conv2")
+             if "run together for" in w],
+            "waiving the shared foot silently answered the lane sentence")
+
+    def test_the_key_is_scoped_to_its_artifact_and_its_node(self):
+        """One decision does not silence a place the user never read.
+
+        TWO SCOPES IN ONE METHOD because they are one claim about the
+        key's shape: `attach:<artifact>:<node>:<a>:<b>` names WHERE the
+        finding is, so a waive recorded on one drawing leaves the other
+        alone and — the half that is this leaf's own choice rather than
+        the house convention — a pair bound at both ends is two
+        sentences about two places and needs two answers.
+        """
+        self.seed("conv", self.converging())
+        attach = next(k for k in self.keys_offered("conv").values()
+                      if k.startswith("attach:"))
+        self.seed("other", self.converging())
+        self.record("other", attach)
+        self.assertTrue(
+            [w for w in self.about_the_pair("other")
+             if "share an attach point" in w],
+            "a waive keyed to `conv` silenced `other`: %r" % attach)
+        both = canvas.lint_layout(
+            [self._node("A", 100, 100), self._node("B", 600, 100),
+             self._arrow("e1", [(220, 130), (600, 130)], "A", "B"),
+             self._arrow("e2", [(220, 136), (600, 136)], "A", "B")],
+            aid="ends", waives={"attach:ends:a:e1:e2": {}})["warnings"]
+        said = [w for w in both if "share an attach point" in w]
+        self.assertEqual(
+            len(said), 1,
+            "these two arrows share a foot on A AND on B — two sentences "
+            "about two places — and one waive answered %d of them: %r"
+            % (2 - len(said), both))
+        self.assertIn("attach:ends:b:e1:e2", said[0])
+
+    def test_the_radius_did_not_move(self):
+        """The door was what was missing, so the check must not have
+        moved to pay for it.
+
+        `FAN_LANE_PITCH` is the radius and `<` is strict, measured
+        across the 120-row cramped-side sweep: every row the lane lint
+        is silent on leaves its feet exactly 18.00px apart. BOTH POLES
+        are driven — 10px still warns with no waive recorded, 18px says
+        nothing — because a repair that widened the door by narrowing
+        the check would pass every other method above and leave the user
+        with a lint that had quietly stopped noticing.
+        """
+        self.seed("tight", self.converging(10.0))
+        self.assertTrue([w for w in self.about_the_pair("tight")
+                         if "share an attach point" in w])
+        self.seed("loose", self.converging(canvas.FAN_LANE_PITCH))
+        self.assertEqual([w for w in self.about_the_pair("loose")
+                          if "share an attach point" in w], [])
 
 
 class TestNoPostBodyReachesAHandlerUnshaped(Base):
@@ -10569,6 +11441,20 @@ class TestPairKindAndTheSentencesItProduces(unittest.TestCase):
         happened to share an attach point earlier in the same drawing.
         Asserted for all three lints from one scene, because one shared
         cause would break them all and one fix repairs them all.
+
+        FOUR LINTS SINCE 2026-09-02, and the fourth is the sharpest of
+        them: `shared_attach_point` is the block that CAUSED this bug,
+        and until r8-4 it minted no key at all, so it was the one lint
+        the regression could not be asserted on. Now that it has an
+        `attach:` door of its own, the loop that used to overwrite `aid`
+        reads `aid` itself, one line below the comment recording why.
+
+        TWO ATTACH KEYS AND ONE OF EVERYTHING ELSE, which is the key
+        granularity stated rather than incidental: these arrows share a
+        foot at BOTH ends, and that is two sentences about two different
+        places on the page. A pair-only key would let a user who
+        answered the one about `A` silence the one about `B` unread, so
+        the node is in the key.
         """
         els = self._swapped_scene()
         els.append({"id": "A-label", "type": "text", "x": 110, "y": 110,
@@ -10581,7 +11467,9 @@ class TestPairKindAndTheSentencesItProduces(unittest.TestCase):
         keys = re.findall(r"key: '([^']+)'", " ".join(li["warnings"]))
         self.assertEqual(
             sorted(keys),
-            ["bidi:myflow:e1:e2", "ghost:myflow:a-label", "lane:myflow:e1:e2"],
+            ["attach:myflow:a:e1:e2", "attach:myflow:b:e1:e2",
+             "bidi:myflow:e1:e2", "ghost:myflow:a-label",
+             "lane:myflow:e1:e2"],
             li["warnings"])
         # the shared-attach block DID run — otherwise this proves nothing
         self.assertTrue([w for w in li["warnings"]
@@ -20941,11 +21829,19 @@ class TestEventLoopAndRounds(Base):
                          "disagree")
         self.assertEqual(sysc, system, "the skill's SYSTEM cell drifted")
 
+        # HYPHENATED PAST TWENTY, and the pattern below has to allow it.
+        # `\w+` stopped at the hyphen, so "twenty-one" was read as
+        # "twenty" and this guard would have reported a correct sentence
+        # as stale — while the length clause under it fell off the end of
+        # a table that stopped one short of the set it measures.
         words = ("zero", "one", "two", "three", "four", "five", "six",
                  "seven", "eight", "nine", "ten", "eleven", "twelve",
                  "thirteen", "fourteen", "fifteen", "sixteen",
-                 "seventeen", "eighteen", "nineteen", "twenty")
-        said = re.search(r"\*\*Event taxonomy\*\* — all (\w+) types", skill)
+                 "seventeen", "eighteen", "nineteen", "twenty",
+                 "twenty-one", "twenty-two", "twenty-three",
+                 "twenty-four", "twenty-five", "twenty-six",
+                 "twenty-seven", "twenty-eight", "twenty-nine", "thirty")
+        said = re.search(r"\*\*Event taxonomy\*\* — all ([\w-]+) types", skill)
         self.assertIsNotNone(said, "the taxonomy sentence has been reworded "
                                    "away from its own numeral")
         self.assertLess(len(emitted), len(words),
@@ -21066,6 +21962,392 @@ class TestEventLoopAndRounds(Base):
         muted = rec.get("tripwires_muted") or []
         self.assertTrue(any("scopes naming out" in m for m in muted),
                         rec)
+
+
+class TestConfigProvenanceThroughBothDoors(Base):
+    """A setting says whose hand turned it — file, event and resume banner.
+
+    r8-9's repair, driven at BOTH doors over a live server rather than
+    asserted against the store. The finding was that the rail's POST and
+    `x-as-user config` left records nothing could tell apart, so a class
+    that drove one door would have passed over the defect exactly as the
+    product did.
+
+    THE SERVER IS REAL AND IN-PROCESS. `err(403, …)` has to arrive at the
+    CLI verb as an `HTTPError` and not as a raw `_Err`, and `cmd_status`
+    and `cmd_wait` reach the session over HTTP like everything else —
+    calling the app direct would skip the translation the refusal tests
+    below are about.
+    """
+
+    def setUp(self):
+        """Serve a fresh project on a loopback port and publish its state."""
+        super().setUp()
+        self.app = canvas.ServerApp(self.project)
+        self.httpd = canvas.ThreadingHTTPServer(
+            ("127.0.0.1", 0), canvas.make_handler(self.app))
+        port = self.httpd.server_address[1]
+        self.base = "http://127.0.0.1:%d/" % port
+        self.thread = threading.Thread(target=self.httpd.serve_forever,
+                                       daemon=True)
+        self.thread.start()
+        # WRITTEN BY HAND because `cmd_start` is not what is under test
+        # and spawning it would put a subprocess between every assertion
+        # and the thing it measures. The keys are the ones the CLI reads.
+        canvas.write_json(self.project.state_path, {
+            "pid": 0, "port": port, "url": self.base,
+            "source_hash": canvas.own_source_hash(),
+            "protocol_version": canvas.PROTOCOL_VERSION,
+            "project": str(self.project.root),
+            "events_log": str(self.project.events_path)})
+
+    def tearDown(self):
+        """Stop the server before the tree goes."""
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.thread.join(timeout=5)
+        self.app.log_file.close()
+        super().tearDown()
+
+    def post(self, path, body):
+        """POST a JSON body and read the status back.
+
+        Args:
+            path: The route, e.g. `api/config`.
+            body: The request body as a dict.
+
+        Returns:
+            `(status, payload)`. A refusal is returned rather than
+            raised, because every test here that expects one wants to
+            read the sentence as well as the code.
+        """
+        req = urllib.request.Request(
+            self.base + path, data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.status, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode("utf-8"))
+
+    def stored(self):
+        """The config as it survives a reboot.
+
+        Read off DISK and never off `Store.config`, because the whole
+        asymmetry this repair turns on is that the event log lives in a
+        tempdir and the config file does not.
+
+        Returns:
+            The parsed `config.json`.
+        """
+        return canvas.read_json(self.project.config_path)
+
+    def events(self, kind):
+        """Every emitted event of one type.
+
+        Args:
+            kind: The event `type` to collect.
+
+        Returns:
+            The matching event dicts, in emission order.
+        """
+        return [e for e in self.app.events.since(0) if e["type"] == kind]
+
+    def verb(self, text):
+        """Drive `x-as-user config` against the live server.
+
+        Args:
+            text: The verb's `key=value` operand.
+
+        Returns:
+            What the command printed.
+        """
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            canvas.cmd_x_as_user(argparse.Namespace(
+                project=str(self.project.root), verb="config",
+                artifact=None, target="", text=text, dx=0, dy=0, note=None))
+        return printed.getvalue()
+
+    def status(self):
+        """Run `status` for real and return what a reader would be shown.
+
+        Returns:
+            The printed block.
+        """
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed), \
+                contextlib.suppress(SystemExit):
+            canvas.cmd_status(argparse.Namespace(
+                project=str(self.project.root)))
+        return printed.getvalue()
+
+    def user_feed(self):
+        """What `wait --for user` serves, filters and all.
+
+        Driven rather than restated: the classification that let an agent
+        hear its own dial-turn come back under the user's heading lives
+        in that filter, and a transcription of it here would be a second
+        copy free to agree with a broken original.
+
+        Returns:
+            The events the default watch printed.
+        """
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed), \
+                contextlib.suppress(SystemExit):
+            canvas.cmd_wait(argparse.Namespace(
+                project=str(self.project.root), since=0, timeout=1,
+                types=None, for_whom="user"))
+        return [json.loads(ln) for ln in printed.getvalue().splitlines()
+                if ln.startswith("{")]
+
+    def test_the_rails_own_post_records_the_user_on_disk_and_on_the_event(self):
+        """Door one: an unmarked POST is the user's, and it says so."""
+        status, payload = self.post("api/config",
+                                    {"patch": {"canvas_updates": "pulled"}})
+        self.assertEqual(status, 200, payload)
+        cfg = self.stored()
+        self.assertEqual(cfg["canvas_updates"], "pulled")
+        mark = cfg["changed_by"]["canvas_updates"]
+        self.assertEqual(mark["source"], "user")
+        self.assertEqual(mark["from"], "per-round",
+                         "the mark says who but not what they changed it "
+                         "from, which is the half that settles the argument")
+        self.assertTrue(mark["at"])
+        emitted = self.events("config_changed")
+        self.assertEqual(len(emitted), 1, emitted)
+        self.assertEqual(emitted[0]["source"], "user")
+        self.assertEqual(emitted[0]["patch"], {"canvas_updates": "pulled"})
+
+    def test_the_agents_verb_proposes_and_the_dial_does_not_move(self):
+        """Door two: the agent asks, and nothing about the session changes."""
+        out = self.verb("canvas_updates=pulled")
+        self.assertIn("PROPOSED_CONFIG=canvas_updates", out)
+        self.assertIn("proposed, not set", out)
+        cfg = self.stored()
+        self.assertEqual(cfg["canvas_updates"], "per-round",
+                         "the agent's verb turned the dial")
+        self.assertEqual(canvas.cadence_of(cfg), "per-round")
+        self.assertNotIn("changed_by", cfg,
+                         "a proposal marked a setting nobody has changed")
+        self.assertEqual(cfg["config_proposal"]["patch"],
+                         {"canvas_updates": "pulled"})
+        self.assertEqual(cfg["config_proposal"]["from"],
+                         {"canvas_updates": "per-round"})
+        self.assertEqual(len(self.events("config_proposal")), 1)
+        self.assertEqual(self.events("config_changed"), [],
+                         "the proposal emitted the event a real change emits")
+
+    def test_the_two_doors_leave_records_a_reader_can_tell_apart(self):
+        """The relation r8-9 states, over one project rather than two.
+
+        The pin bench mints a second subject; a config is one slot, so
+        the two doors are driven in sequence here and the readings are
+        taken between them. What is asserted is the DIFFERENCE, never a
+        named key — an actor field, a split event type and a proposal are
+        all honest, and a test that greps for one fails the other two
+        while the behaviour is correct.
+        """
+        self.verb("canvas_updates=pulled")
+        agent_cfg, agent_status = self.stored(), self.status()
+        agent_events = [e["type"] for e in self.app.events.since(0)]
+        agent_feed = self.user_feed()
+        self.post("api/config", {"patch": {"canvas_updates": "pulled"}})
+        user_cfg, user_status = self.stored(), self.status()
+        user_events = [e["type"] for e in self.app.events.since(0)]
+        for name, agent, user in (
+                ("the config on disk", agent_cfg, user_cfg),
+                ("the emitted events", agent_events, user_events),
+                ("the `status` block", agent_status, user_status),
+                ("the `--for user` feed", agent_feed, self.user_feed())):
+            self.assertNotEqual(
+                agent, user,
+                "%s reads the same whichever hand turned the setting" % name)
+        self.assertEqual(agent_feed, [],
+                         "the agent's own dial-turn reached `wait --for "
+                         "user`, which is the channel it reads as theirs")
+
+    def test_promotion_is_the_users_act_and_keeps_the_agents_fingerprint(self):
+        """The user accepting a proposal: their change, the agent's idea."""
+        self.verb("canvas_updates=pulled")
+        status, payload = self.post("api/config/promote", {})
+        self.assertEqual(status, 200, payload)
+        cfg = self.stored()
+        self.assertEqual(cfg["canvas_updates"], "pulled")
+        self.assertEqual(cfg["changed_by"]["canvas_updates"]["source"],
+                         "agent-proposal")
+        self.assertNotIn("config_proposal", cfg, "the offer was not consumed")
+        emitted = self.events("config_changed")
+        self.assertEqual([e["source"] for e in emitted], ["agent-proposal"])
+        self.assertIn("config_changed", [e["type"] for e in self.user_feed()],
+                      "a promoted change is the USER's move and belongs on "
+                      "their feed whoever suggested it")
+
+    def test_the_user_may_edit_the_offer_before_accepting_it(self):
+        """What lands is what they agreed to, not what was asked for."""
+        self.verb("nudge_after_minutes=45")
+        status, _ = self.post("api/config/promote",
+                              {"patch": {"nudge_after_minutes": 20}})
+        self.assertEqual(status, 200)
+        cfg = self.stored()
+        self.assertEqual(cfg["nudge_after_minutes"], 20)
+        self.assertEqual(self.events("config_changed")[0]["patch"],
+                         {"nudge_after_minutes": 20},
+                         "the event reported the agent's ask instead of the "
+                         "user's edit of it")
+
+    def test_a_refused_proposal_leaves_the_setting_and_names_what_was_dropped(
+            self):
+        """Their third option, and the reason `status` can go quiet again."""
+        self.verb("canvas_updates=pulled")
+        status, payload = self.post("api/config/proposal/discard", {})
+        self.assertEqual(status, 200, payload)
+        cfg = self.stored()
+        self.assertEqual(cfg["canvas_updates"], "per-round")
+        self.assertNotIn("config_proposal", cfg)
+        dropped = self.events("config_proposal_discarded")
+        self.assertEqual([e["patch"] for e in dropped],
+                         [{"canvas_updates": "pulled"}],
+                         "an agent told only that its offer is gone would "
+                         "make the same offer again")
+
+    def test_a_numeric_setting_survives_the_verb_and_the_promotion(self):
+        """A promoted change must actually be the change that was offered.
+
+        The verb sent every `key=value` as a string, so `45` arrived as
+        `"45"` and CFG-006 reset it to 10 on the way in. Under the
+        proposal door that stops being a silent no-op and becomes a lie:
+        `changed_by` would file the user's acceptance of a dial that is
+        still exactly where it was.
+        """
+        self.verb("nudge_after_minutes=45")
+        self.assertEqual(self.stored()["config_proposal"]["patch"],
+                         {"nudge_after_minutes": 45})
+        self.post("api/config/promote", {})
+        cfg = self.stored()
+        self.assertEqual(cfg["nudge_after_minutes"], 45,
+                         "the promoted value was repaired away, and the "
+                         "mark beside it claims a change that did not "
+                         "happen")
+        self.assertEqual(cfg["changed_by"]["nudge_after_minutes"]["from"],
+                         10)
+
+    def test_a_boolean_setting_is_not_posted_as_the_word_true(self):
+        """CFG-005's twin: `deletion_conversation=false` meant nothing."""
+        self.verb("deletion_conversation=false")
+        self.post("api/config/promote", {})
+        self.assertIs(self.stored()["deletion_conversation"], False)
+
+    def test_a_hand_on_the_toggle_settles_an_offer_about_that_setting(self):
+        """The nag must be clearable by the obvious act, not only by a route.
+
+        The user answering "put it on pulled" by reaching for the toggle
+        themselves is a ruling. Without this the proposal outlives it and
+        `CONFIG_PROPOSAL=` goes on asking for a change that has already
+        happened — while the agent, whose own offer never reached its
+        `--for user` feed, has nothing telling it to stop re-offering.
+        """
+        self.verb("canvas_updates=pulled")
+        self.post("api/config", {"patch": {"canvas_updates": "pulled"}})
+        cfg = self.stored()
+        self.assertNotIn("config_proposal", cfg)
+        self.assertEqual(cfg["changed_by"]["canvas_updates"]["source"],
+                         "user", "the user's own hand was filed as the "
+                                 "agent's, because an offer happened to "
+                                 "name the same value")
+        self.assertNotIn("CONFIG_PROPOSAL=", self.status())
+        self.assertEqual(
+            self.events("config_changed")[0]["superseded_proposal"],
+            {"canvas_updates": "pulled"})
+
+    def test_an_offer_about_two_settings_survives_a_hand_on_one(self):
+        """Only what the write covered is settled."""
+        self.post("api/config/propose",
+                  {"patch": {"canvas_updates": "pulled",
+                             "nudge_after_minutes": 45}})
+        self.post("api/config", {"patch": {"canvas_updates": "pulled"}})
+        self.assertEqual(self.stored()["config_proposal"]["patch"],
+                         {"nudge_after_minutes": 45})
+
+    def test_promoting_or_discarding_nothing_is_refused_with_a_reason(self):
+        """409 and a sentence, not a silent success over an empty slot."""
+        for path in ("api/config/promote", "api/config/proposal/discard"):
+            with self.subTest(path=path):
+                status, payload = self.post(path, {})
+                self.assertEqual(status, 409, payload)
+                self.assertIn("no config proposal is waiting",
+                              payload["error"])
+
+    def test_a_key_that_is_not_settable_is_refused_at_both_doors(self):
+        """One vocabulary, or the agent's door is the wider one."""
+        before = self.stored()
+        for path in ("api/config", "api/config/propose"):
+            with self.subTest(path=path):
+                status, payload = self.post(path,
+                                            {"patch": {"migrations": []}})
+                self.assertEqual(status, 400, payload)
+                self.assertIn("not settable here", payload["error"])
+        self.assertEqual(self.stored(), before,
+                         "a refused key still reached the file")
+
+    def test_status_says_whose_hand_it_was_in_english(self):
+        """The rendering half: a marked store nobody renders says nothing."""
+        self.assertNotIn("CONFIG_CHANGED_BY=", self.status(),
+                         "a project where nothing has been turned claimed a "
+                         "hand anyway")
+        self.post("api/config", {"patch": {"canvas_updates": "pulled"}})
+        said = self.status()
+        line = next(ln for ln in said.splitlines()
+                    if ln.startswith("CONFIG_CHANGED_BY="))
+        self.assertIn("set by the user", line)
+        self.assertIn("was 'per-round'", line)
+        self.assertIn("CADENCE=pulled", said,
+                      "the provenance line displaced the cadence rather "
+                      "than sitting beside it")
+
+    def test_status_says_a_proposal_is_waiting_and_that_nothing_moved(self):
+        """The nag that makes an unpromoted offer reachable at all."""
+        self.verb("canvas_updates=pulled")
+        line = next(ln for ln in self.status().splitlines()
+                    if ln.startswith("CONFIG_PROPOSAL="))
+        self.assertIn("canvas_updates to 'pulled'", line)
+        self.assertIn("Nothing has changed yet", line)
+        self.assertIn("CADENCE=per-round", self.status())
+
+    def test_an_unreadable_mark_is_dropped_rather_than_guessed(self):
+        """CFG-010: silence means "not on record", never "the user did it"."""
+        # OVER A WHOLE CONFIG, so the codes read here are about the
+        # damage and not about the seven defaults a bare dict is missing.
+        damaged = dict(canvas.DEFAULT_CONFIG,
+                       canvas_updates="pulled",
+                       changed_by={"canvas_updates": "the agent, honest"})
+        cfg, issues = canvas.validate_config(damaged)
+        self.assertEqual(cfg["changed_by"], {})
+        self.assertEqual([i.code for i in issues], ["CFG-010"])
+        self.assertEqual(canvas.config_hand_lines(cfg), [],
+                         "a dropped mark still rendered a hand")
+
+    def test_a_malformed_proposal_is_discarded_and_reported(self):
+        """CFG-011: a proposal nobody can read must not sit unpromotable."""
+        cfg, issues = canvas.validate_config(dict(
+            canvas.DEFAULT_CONFIG,
+            config_proposal={"patch": {"migrations": []}}))
+        self.assertNotIn("config_proposal", cfg,
+                         "an unpromotable offer was left sitting in the "
+                         "file with no way for the user to clear it")
+        self.assertEqual([i.code for i in issues], ["CFG-011"])
+
+    def test_the_settings_a_session_may_turn_are_spelled_once(self):
+        """Three doors, one vocabulary — the drift this repair could grow."""
+        src = Path(canvas.__file__).read_text(encoding="utf-8")
+        self.assertEqual(
+            src.count('allowed = {"canvas_updates"'), 0,
+            "a route has grown its own copy of the settable-key set")
+        self.assertEqual(canvas.SETTABLE_CONFIG_KEYS,
+                         frozenset(canvas.DEFAULT_CONFIG)
+                         - {"migrations", "artifact_types",
+                            "significant_attrs"})
 
 
 class TestXAsUserFidelity(unittest.TestCase):
@@ -22636,7 +23918,11 @@ class TestPhantomPassThrough(Base):
     underneath it, which is the whole content of the check: the broad
     reading — any collinear in/out pair on opposite borders — is the
     normal correct flowchart, 70 findings over the 24 frozen artifacts,
-    and does not ship. What ships is the half where ink crosses the box.
+    and does not ship. What ships is the half where ink crosses the box,
+    plus the half where NOTHING TERMINATES at the node — the arm added
+    2026-08-16, whose whole justification is that an arrowhead ends the
+    reading before the eye completes a stroke across the box, and which
+    r8-5 extended on 2026-09-02 to feet the model gives the same role.
     """
 
     def _rank(self, foot, node_w=80):
@@ -22735,6 +24021,117 @@ class TestPhantomPassThrough(Base):
         els[4]["x"], els[4]["y"] = 240, 140
         els[4]["points"] = [[0, 0], [0, 200]]
         self.assertEqual(self._hits(els), [])
+
+    def _forked(self, headless=False, foot=280):
+        """`_rank`'s geometry with both of N's feet LEAVING it.
+
+        The r8-5 shape, and the artifact's own: `onboarding-data`'s `d7`
+        and `d10` both leave `st-application` at x=860 on opposite
+        borders, each carrying its head at the FAR end, and drawn that
+        is one unbroken stroke through the box. Reversing e1 here does
+        the same thing to the rank chain — the segment set does not
+        move, because reversing a stroke whose head is elsewhere
+        repaints nothing.
+
+        Args:
+            headless: True to strip the far-end heads too, as a
+                one-to-one ER relation does.
+            foot: Absolute x of e2's start point, so a caller can put
+                the two feet on opposite borders (280) or on one (200).
+
+        Returns:
+            The five-element scene.
+        """
+        els = self._rank(foot)
+        els[3]["x"], els[3]["points"] = 200, [[0, 0], [-120, 0]]
+        els[3]["startBinding"] = {"elementId": "N", "focus": 0, "gap": 1}
+        els[3]["endBinding"] = {"elementId": "A", "focus": 0, "gap": 1}
+        if headless:
+            els[3]["endArrowhead"] = els[4]["endArrowhead"] = None
+        return els
+
+    def _joined(self, headless=True):
+        """`_rank(280)`'s geometry with both of N's feet ARRIVING at it.
+
+        The other pole of the same gate, and it is cued through the
+        other key: the client paints `endArrowhead` at `points[-1]`, so
+        an arriving foot is terminated by the head a LEAVING one takes
+        from `startArrowhead`. Two arriving strokes therefore carry
+        heads at N by default, and only `headless` makes this the
+        configuration amodal completion is about — which is reachable,
+        since `_er_seed_ops` mints a headless line for every one-to-one
+        relation.
+
+        Args:
+            headless: True to strip both heads, leaving nothing
+                terminated at N.
+
+        Returns:
+            The five-element scene.
+        """
+        els = self._rank(280)
+        els[4]["x"], els[4]["points"] = 528, [[0, 0], [-248, 0]]
+        els[4]["startBinding"] = {"elementId": "Z", "focus": 0, "gap": 1}
+        els[4]["endBinding"] = {"elementId": "N", "focus": 0, "gap": 1}
+        if headless:
+            els[3]["endArrowhead"] = els[4]["endArrowhead"] = None
+        return els
+
+    def test_two_feet_leaving_one_node_read_as_one_stroke(self):
+        """r8-5: the model's roles are not something a reader can see.
+
+        Nothing about this drawing differs from the chained scene the
+        check already reported — same segments, same heads, same 80px of
+        bare N between two collinear opposed feet — except which end of
+        one point string the model calls the start. The check answered
+        differently across that edit until the pair gate stopped asking.
+        """
+        hits = self._hits(self._forked(headless=True))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("80px of it is completed across by eye", hits[0])
+        self.assertIn("between the two nodes at the far ends", hits[0],
+                      "a fork has no predecessor, and sending the agent "
+                      "to look for one is how a true finding gets read "
+                      "as noise: " + hits[0])
+
+    def test_two_feet_arriving_at_one_node_read_as_one_stroke(self):
+        """The join, which fails the old gate on the OTHER foot.
+
+        `not f_arr` rejected the fork and `g_arr` rejected this, so a
+        repair keyed on either role alone would flip one of the two and
+        leave the other exactly where it was.
+        """
+        hits = self._hits(self._joined())
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("80px of it is completed across by eye", hits[0])
+
+    def test_a_same_role_pair_terminated_at_the_node_is_silent(self):
+        """The cue, and it is the whole of what keeps this narrow.
+
+        Both scenes differ from the two above in the terminator alone.
+        A head at N ends the reading before the eye completes anything
+        across the box — the argument the 70 chained findings rest on —
+        so a widening that earns the reds by dropping the cue fires
+        here, on both poles, and on three ordinary chained nodes of the
+        r8 artifact.
+        """
+        fork = self._forked(headless=True)
+        fork[3]["startArrowhead"] = fork[4]["startArrowhead"] = "arrow"
+        self.assertEqual(self._hits(fork), [])
+        self.assertEqual(self._hits(self._joined(headless=False)), [])
+
+    def test_ink_across_a_node_is_reported_whoever_the_feet_belong_to(self):
+        """A fork can draw over the box too, and then the ink arm owns it.
+
+        Both feet at N's left border with one stroke running right: the
+        span between the feet is 0 and e2 covers the node end to end, so
+        this is the shared-attach picture with one edge reversed and the
+        magnitude is the COVERED span rather than the bare one.
+        """
+        hits = self._hits(self._forked(headless=True, foot=200))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertIn("leave 0px of the node's 80px bare", hits[0])
+        self.assertIn("80px of it has arrow drawn over it", hits[0])
 
     def test_a_self_loop_is_not_a_pass_through(self):
         """One node at both ends is a loop, not a stroke passing by."""
@@ -22843,6 +24240,39 @@ class TestPhantomPassThrough(Base):
         self.assertEqual(len(hits), 1, hits)
         self.assertIn("40px of it has arrow drawn over it", hits[0])
 
+    def _pair_at_node(self, els, hit):
+        """The feet a pass-through finding names, re-read off the scene.
+
+        The message names its two connectors, so the roles and the
+        terminators can be DERIVED from the elements rather than parsed
+        out of prose — which is what lets the corpus walk below assert a
+        class of drawing instead of a count of sentences.
+
+        Args:
+            els: The scene the finding came from.
+            hit: One `read as one stroke through` message.
+
+        Returns:
+            A `(node_id, feet)` pair, where `feet` holds one
+            `(connector_id, arriving, terminated_here)` triple per foot.
+        """
+        ix = {e.get("id"): e for e in els}
+        m = re.match(r"\w+s ([\w-]+) and ([\w-]+) read as one stroke ",
+                     hit)
+        self.assertIsNotNone(m, hit)
+        pair = [ix[m.group(1)], ix[m.group(2)]]
+        bound = [{(e.get(k) or {}).get("elementId")
+                  for k in ("startBinding", "endBinding")} for e in pair]
+        shared = sorted((bound[0] & bound[1]) - {None})
+        self.assertEqual(len(shared), 1, hit)
+        feet = []
+        for e in pair:
+            arriving = ((e.get("endBinding") or {}).get("elementId")
+                        == shared[0])
+            feet.append((e.get("id"), arriving,
+                         canvas.arrowhead_of(e, arriving) is not None))
+        return shared[0], feet
+
     def test_the_frozen_fixtures_have_no_phantom_pass_throughs(self):
         """The corpus pole, and the number the scope decision rests on.
 
@@ -22850,6 +24280,39 @@ class TestPhantomPassThrough(Base):
         argument for the narrowing: those 70 were every chained node of
         every correct flow, and the finding's own remedy would have
         degraded each of those drawings.
+
+        ZERO BECAME SEVEN ON 2026-09-02 AND THE ARGUMENT DID NOT MOVE,
+        which is why this reads as a class now rather than as a count.
+        r8-5 widened the pair gate to feet the model gives the SAME role
+        — two connectors leaving one node, or two arriving — after a
+        cold observer read one of them on a shipped drawing as a
+        relation straight through the box. What the corpus turns out to
+        hold is seven of those, every one a fork with nothing
+        terminating at the node, and NOT ONE chained node. The 70 are
+        chained, all of them, so the assertion that carries the scope
+        decision is the one below: no finding here names a pair with one
+        foot arriving and one leaving. A regression to the broad reading
+        fails it on the first artifact, where a count would only wobble.
+
+        THE SEVEN ARE CENSUSED AND NOT BOUNDED, because a widening that
+        starts reporting a different shape has to surface as a diff
+        rather than as a number that still says seven. Each was read off
+        the drawing: two connectors leaving the node on one line,
+        opposite borders, heads at the far ends, the box's full span
+        bare between them — `which-source` and `wait-cutoff` are
+        decision diamonds branching left and right on their centre line,
+        `run-trigger` an ellipse with its two loads leaving top and
+        bottom, and the four `tearsheet-domain` entities are ER-style
+        relations leaving on one vertical. The method name is pinned by
+        `test_instrument_mortality.CORPUS_WALKS` and cannot move here.
+
+        SEVEN HERE AND EIGHT IN `AGENTS.md`, and the two do not need
+        reconciling: this walks the artifact FILES, while the corpus
+        census walks what `Store` lints, which is the scene after the
+        load-time repair. `argus-r5/daily-run` is the difference —
+        `t-trigger-news` leaves `run-trigger` 24 degrees off axis as
+        stored, which `NEAR_AXIS` rejects, and the reroute straightens
+        it onto the fork the census then reports.
 
         THE SYNTHETIC SCENE RIDES THE SAME LOOP, and that is the point of
         it rather than a convenience. Curator batch 24 (2026-08-16) added
@@ -22888,12 +24351,47 @@ class TestPhantomPassThrough(Base):
                         "test reports is a fact about an empty list and "
                         "not about the corpus" % root)
         spoke: list[str] = []
+        census: list[tuple[str, str]] = []
         for name, els in [*scenes, (None, self._rank(200))]:
             hits = self._hits(els)
             if name is None:
                 spoke = hits
-            else:
-                self.assertEqual(hits, [], name)
+                continue
+            for hit in hits:
+                node, feet = self._pair_at_node(els, hit)
+                self.assertEqual(len({arr for _, arr, _ in feet}), 1,
+                                 "%s reports a CHAINED node — one foot "
+                                 "arriving and one leaving is the class "
+                                 "the 70-finding narrowing retired, and "
+                                 "this corpus holds none of it: %s"
+                                 % (name, hit))
+                self.assertEqual([t for _, _, t in feet], [False, False],
+                                 "%s reports a same-role pair with a "
+                                 "head at the node, where the reading "
+                                 "ends and nothing is completed across: "
+                                 "%s" % (name, hit))
+                census.append((name, node))
+        # RECORDED AGAINST THE ARTIFACTS ACTUALLY WALKED, not against
+        # the 24 — `test_instrument_mortality` runs this same method
+        # over a corpus of ONE to prove its floor fires on emptiness and
+        # nothing else, and a flat seven would fail there for a reason
+        # having nothing to do with the drawings. Filtered, the
+        # assertion is exact either way: seven rows over the full
+        # corpus, none over a one-artifact copy that holds no fork.
+        recorded = [("daily-run-flow.excalidraw", "run-trigger"),
+                    ("edgar-late.excalidraw", "wait-cutoff"),
+                    ("tearsheet-domain.excalidraw", "earnings-event"),
+                    ("tearsheet-domain.excalidraw", "news-item"),
+                    ("tearsheet-domain.excalidraw", "position"),
+                    ("tearsheet-domain.excalidraw", "price"),
+                    ("tuesday-triage.excalidraw", "which-source")]
+        walked = {name for name, _ in scenes}
+        self.assertEqual(
+            sorted(census), [r for r in recorded if r[0] in walked],
+            "the corpus's forked pass-throughs moved. Re-read the "
+            "drawings before re-recording this list: a new row is a "
+            "shape the check started reporting, and a missing row is "
+            "one it stopped")
         self.assertEqual(len(spoke), 1,
                          "the shared-attach chain fed through this same "
                          "loop must fire, or the zero above is a "
@@ -27120,6 +28618,120 @@ class TestCompositeStateSurvivesTheCustomDataDoor(Base):
                 self.assertEqual((out[0].get("customData") or {}).get(field),
                                  default,
                                  "%s's default %s moved" % (kind, field))
+
+
+class TestAPinCloseSaysWhichCloseItWas(Base):
+    """A question has four ends and the record used to spell them one way.
+
+    pin-removed-verb: every close headlined `removed pin <raw id>` — the
+    same sentence, byte for byte, for a question a named person answered
+    and a question somebody threw away unread, naming it by an id no
+    reader has ever seen. The status is read off the REGISTRY and not
+    off the glyph, because `answer_pin` mirrors `status: answered` onto
+    the live element without committing a revision: the snapshot the
+    diff runs against still says `open`.
+    """
+
+    QUESTION = "Does the cart survive a logout?"
+
+    def _close(self, answer=None, resolve=True):
+        """Ask a question about the cart, maybe answer it, then close it.
+
+        Args:
+            answer: The sentence a person typed into the rail, or None
+                to leave the question standing unanswered.
+            resolve: Close it with `resolve_pin` — settling it — rather
+                than deleting the glyph, which is throwing it away.
+
+        Returns:
+            The closing save's record.
+        """
+        # ITS OWN STORE, so the four closes can be read side by side in
+        # one test: a ❓ is minted once per project and `seed_flow_batch`
+        # refuses a second `create` of the same artifact.
+        store = self._fresh_store()
+        store.apply_batch(seed_flow_batch())
+        store.apply_batch(
+            {"base_revn": store.head_revn(), "artifact": "checkout-flow",
+             "ops": [{"op": "pin", "id": "q1", "target": "cart",
+                      "question": self.QUESTION}]})
+        if answer is not None:
+            store.answer_pin("q1", answer)
+        closing = ({"op": "resolve_pin", "id": "q1"} if resolve
+                   else {"op": "del", "id": "q1"})
+        landed = store.apply_batch(
+            {"base_revn": store.head_revn(), "artifact": "checkout-flow",
+             "ops": [closing]})
+        return landed[0] if isinstance(landed, tuple) else landed
+
+    def _fresh_store(self):
+        """Build a store over a project of its own, torn down with the test.
+
+        Returns:
+            The store. Its runtime state lives OUTSIDE the project root
+            — `Project` keys it by a hash of that root — so the three
+            side files are unlinked separately or every call leaks them.
+        """
+        root = Path(tempfile.mkdtemp(prefix="wysiwyg-pin-close-"))
+        project = canvas.Project(root)
+        project.ensure_tree()
+
+        def clean():
+            shutil.rmtree(root, ignore_errors=True)
+            for stale in (project.state_path, project.events_path,
+                          project.log_path):
+                if stale.exists():
+                    stale.unlink()
+        self.addCleanup(clean)
+        return canvas.Store(project)
+
+    def test_a_settled_answer_is_not_narrated_as_a_removal(self):
+        head = self._close(answer="Yes, for 30 days.")["summary"]["headline"]
+        self.assertIn("answered", head, head)
+        for verb in ("removed", "deleted"):
+            self.assertNotIn(verb, head,
+                             "a question somebody answered and settled "
+                             "headlines %r" % head)
+
+    def test_a_closed_pin_is_named_by_what_it_asked(self):
+        head = self._close(answer="Yes, for 30 days.")["summary"]["headline"]
+        self.assertIn(self.QUESTION, head,
+                      "the headline is %r and names the pin by nothing "
+                      "a reader has seen" % head)
+
+    def test_the_four_closes_are_four_sentences(self):
+        """The contrast is the point: opposite events, opposite prose."""
+        heads = {
+            (True, True): self._close(answer="Yes.")["summary"]["headline"],
+            (True, False): self._close(answer="Yes.",
+                                       resolve=False)["summary"]["headline"],
+            (False, True): self._close()["summary"]["headline"],
+            (False, False): self._close(
+                resolve=False)["summary"]["headline"]}
+        self.assertEqual(len(set(heads.values())), 4, heads)
+        # THE REMOVAL ARMS KEEP SAYING REMOVED, because that is what
+        # happened — this is not a euphemism pass, and a repair that
+        # made every close read gently would have lost the distinction
+        # it exists to draw.
+        for key in ((True, False), (False, False)):
+            self.assertIn("removed", heads[key], heads[key])
+
+    def test_the_fact_carries_what_the_headline_renders(self):
+        part = self._close(answer="Yes.")["artifacts"]["checkout-flow"]
+        fact = next(f for f in part["facts"] if f["fact"] == "pin_deleted")
+        self.assertEqual(
+            (fact.get("question"), fact.get("answered"),
+             fact.get("resolved"), fact.get("answer_source")),
+            (self.QUESTION, True, True, "user"), fact)
+
+    def test_a_pin_with_no_question_falls_back_to_what_it_was_pinned_to(self):
+        # the second surface a reader could recognise it by, asserted
+        # directly because no op in this store mints a question-less ❓
+        line = canvas.headline_for({"fact": "pin_deleted", "element": "q9",
+                                    "label": "Cart", "answered": True,
+                                    "resolved": True})
+        self.assertIn("Cart", line, line)
+        self.assertNotIn("q9", line, line)
 
 
 class TestPinnedAddSpec(Base):
