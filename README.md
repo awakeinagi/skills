@@ -1,92 +1,68 @@
-# WYSIWYG Grilling
+# Awake Inagi skills
 
-A Claude Code skill + bundled local web app that extends grilling-with-docs:
-during design conversations the agent externalizes its understanding as
-**visual artifacts** (wireframes, flows, domain diagrams) on an editable
-Excalidraw canvas, you edit them directly, and the agent narrates its reading
-of every change — closing the alignment loop faster than prose alone.
+A collection of independent skills for coding agents. Each directory under
+[`skills/`](skills/) is an installable unit with a `SKILL.md` entrypoint that
+describes when to use it and routes to any deeper instructions.
 
-The core cycle is the **Refinement Loop**: the agent revises the canvas and
-asks for feedback → you edit and **Save** → the agent narrates its
-understanding, hypothesizing reasoning and implications → you correct →
-repeat. Full design: [spec-v0.1.md](spec-v0.1.md) (v0 archive:
-[spec.md](spec.md)) · glossary: [CONTEXT.md](CONTEXT.md)
-· decisions: [docs/adr/](docs/adr/).
+## Skills
 
-## Install
+| Skill | What it does | Start here |
+| --- | --- | --- |
+| **silence-is-a-bug** | Finds defects that tests, linters, validators, and monitors fail to report. It uses failing pins, positive controls, mutation-style probes, and independent fix ownership to prove that checks actually speak. | [Skill entrypoint](skills/silence-is-a-bug/SKILL.md) |
+| **unlazy** | Makes substantial autonomous work testable with acceptance ledgers, a depth-tree decomposition, explicit command approval, and independent re-verification. | [Overview](skills/unlazy/README.md) · [Skill entrypoint](skills/unlazy/SKILL.md) |
+| **wysiwyg-grilling** | Runs a collaborative design loop on a local Excalidraw canvas: the agent draws wireframes, flows, and domain diagrams, then interprets the user's edits. | [Overview](skills/wysiwyg-grilling/README.md) · [Skill entrypoint](skills/wysiwyg-grilling/SKILL.md) |
 
-Prerequisite: **uv on PATH** (https://docs.astral.sh/uv/ — it provisions
-Python itself), or any Python ≥ 3.9. No Node, no build step, no network
-after install — the web app ships prebuilt with fonts.
+The skill directories are the source of truth. Their entrypoints contain the
+current activation rules, runtime requirements, and links to focused reference
+material.
 
-**As a plugin** (versioned, auto-updating):
+## Install and discover
 
+Install from the repository with the
+[`skills` CLI](https://github.com/vercel-labs/skills):
+
+```text
+npx skills add awakeinagi/skills
 ```
-/plugin marketplace add <this-repo-url-or-owner/repo>
+
+The CLI discovers the `SKILL.md` entrypoints and lets you choose supported
+agents and skills. Use `-g` for a user-level install or `--all` for every
+detected agent.
+
+For a manual installation, clone this repository and copy or link only the
+skill directories you want into your agent's skill directory:
+
+```text
+Claude Code:  ~/.claude/skills/<skill-name>
+Codex CLI:    ~/.codex/skills/<skill-name>
+```
+
+Claude Code users can also install the WYSIWYG Grilling plugin, which bundles
+its prebuilt canvas application:
+
+```text
+/plugin marketplace add awakeinagi/skills
 /plugin install wysiwyg-grilling
 ```
 
-**Or plain git** (zero-infrastructure fallback):
+After installation, invoke a skill by name where the agent supports explicit
+skill calls, or describe a task that matches its `SKILL.md` description.
 
-```
-git clone <this-repo> ~/.claude/skills/wysiwyg-grilling-repo
-ln -s ~/.claude/skills/wysiwyg-grilling-repo/skills/wysiwyg-grilling ~/.claude/skills/wysiwyg-grilling
-```
+## Contributing
 
-Windows: use `scripts\canvas.ps1` / `scripts\canvas.cmd` (never `.sh`).
+Read [AGENTS.md](AGENTS.md) for collection-wide guidance, then follow the
+documentation owned by the skill you are changing:
 
-## First run
+- [silence-is-a-bug entrypoint](skills/silence-is-a-bug/SKILL.md)
+- [unlazy contributor guide](skills/unlazy/CONTRIBUTING.md)
+- [WYSIWYG Grilling engineering guide](skills/wysiwyg-grilling/AGENTS.md)
 
-Open Claude Code in any project and start a design conversation (or say
-"open the canvas"). The skill launches a local server on `127.0.0.1` (random
-port), opens the browser, creates `project_knowledge/` in your project, and
-the loop teaches itself by doing one round. Everything durable —
-artifacts, save history, the registry, config — lives in
-`project_knowledge/`; commit it.
+Tests and build commands differ by skill. Run the focused checks documented by
+the owner before using the repository-wide pre-commit gate.
 
-## Repo layout
+## Licensing
 
-```
-.claude-plugin/            marketplace + plugin manifests
-skills/wysiwyg-grilling/   the skill: SKILL.md, references/, scripts/
-  scripts/canvas.py        single stdlib-only server + CLI (3.9+)
-  scripts/web/             committed prebuilt frontend (+ fonts, build stamp)
-frontends/wysiwyg-grilling/  web app source (maintainers only)
-tests/                     backend test suite
-docs/adr/                  architecture decision records
-spec-v0.1.md               the current product spec
-spec.md                    the v0 spec (frozen archive)
-```
-
-## Maintainer build (frontend)
-
-Strangers never build; you do, when you touch `frontends/wysiwyg-grilling/src`:
-
-```
-cd frontends/wysiwyg-grilling && npm install && npm run build
-```
-
-That rebuilds `skills/wysiwyg-grilling/scripts/web/`, copies Excalidraw's
-fonts, and writes `build-stamp.json` (a source hash — `canvas.py start`
-warns when the committed bundle is stale). Commit the result.
-
-**A rebuild renames every minified symbol, so it also invalidates every
-citation.** This tree's prose cites the client by symbol and offset to
-justify arithmetic it transcribes, and two hand sweeps have already found
-those citations rotted onto live, unrelated functions. After the build,
-`TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans` in
-`tests/test_mutants.py` goes red at each stale one and names the symbol that
-replaced it; re-derive each by anchoring on a rename-invariant slice of the
-code and reading the name back out, never by keeping the name and moving the
-offset. Part of the same commit as the bundle.
-
-## Tests
-
-```
-python3 tests/test_backend.py        # backend: differ, DAG, durability…
-python3 -c "import ast; ast.parse(open('skills/wysiwyg-grilling/scripts/canvas.py').read(), feature_version=(3,9))"
-```
-
-## Provenance
-
-See [skills/wysiwyg-grilling/NOTICE.md](skills/wysiwyg-grilling/NOTICE.md).
+See the [repository license](LICENSE.md) and any skill-local license or notice,
+including
+[WYSIWYG Grilling's notice](skills/wysiwyg-grilling/NOTICE.md) and
+[unlazy's license](skills/unlazy/LICENSE).

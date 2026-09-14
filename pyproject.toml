@@ -10,7 +10,8 @@ dependencies = []
 
 # ---------------------------------------------------------------------------
 # ruff — lint, docstrings (Google), type-hint presence. No formatter; see
-# AGENTS.md § Formatting for why `ruff format` is deliberately not used.
+# skills/wysiwyg-grilling/AGENTS.md § Formatting explains why `ruff format`
+# is deliberately not used.
 # ---------------------------------------------------------------------------
 [tool.ruff]
 line-length = 88
@@ -219,7 +220,8 @@ exclude = [
 # suppressions, run both over canvas.py, intersect the line numbers.
 #
 # All five describe one situation on this codebase: an Excalidraw element is
-# loose JSON, AGENTS.md § Type hints rules that `dict[str, Any]` is the correct
+# loose JSON, skills/wysiwyg-grilling/AGENTS.md § Type hints rules that
+# `dict[str, Any]` is the correct
 # and honest annotation for one, and a checker reading such a dict infers
 # `str | int | list | None` from whichever keys a literal happened to set, then
 # objects when the next line legitimately writes or reads a wider value. That
@@ -255,7 +257,8 @@ unsupported-operator = "ignore"
 invalid-argument-type = "ignore"
 
 # ---------------------------------------------------------------------------
-# Dev/test dependencies — AGENTS.md constraint 5: stdlib-only binds ONLY the
+# Dev/test dependencies — skills/wysiwyg-grilling/AGENTS.md constraint 5:
+# stdlib-only binds ONLY the
 # skill bundle (skills/wysiwyg-grilling/). Tests, probes and tooling may use
 # these. Nothing here is required to RUN the suites (they are stdlib +
 # unittest by design, with loud skips where a package is missing); the group

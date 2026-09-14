@@ -85,7 +85,8 @@ class LiveDocCase(unittest.TestCase):
 
         Written by concatenation rather than as a literal so this file can
         describe the syntax without the tool's own scan finding a marker
-        in it — the same trap AGENTS.md hit while documenting the feature.
+        in it — the same trap the WYSIWYG AGENTS.md hit while documenting the
+        feature.
 
         Args:
             name: The calculator name.
@@ -541,7 +542,8 @@ class TestTheParserRefusesRatherThanSkips(LiveDocCase):
     def test_an_uppercase_placeholder_is_not_a_marker(self) -> None:
         """Prose can spell the syntax with `NAME` without creating one.
 
-        Names are `[a-z][a-z0-9_]*`, and AGENTS.md leans on that to document
+        Names are `[a-z][a-z0-9_]*`, and the WYSIWYG AGENTS.md leans on that
+        to document
         the feature inside the very file the scan reads. If the grammar ever
         accepts uppercase, that paragraph becomes a marker for a calculator
         that does not exist and the hook fails on the documentation.

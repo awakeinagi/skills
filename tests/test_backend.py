@@ -42,7 +42,7 @@ from tests_helpers import measured  # noqa: E402
 # them: `TestFanAttachPoints` asserts that the auto-fan's output draws no
 # corridor, which is a claim only `shared_corridors` can settle. Both are
 # first-party and stdlib-only, so this stays a plain import — the loud-skip
-# rule in AGENTS.md §5 is about third-party packages.
+# rule in skills/wysiwyg-grilling/AGENTS.md §5 is about third-party packages.
 
 # ONE TEST HERE DEFINES ITS SCAN SURFACE WITH `git ls-files`, and a tree
 # built from tracked files alone cannot answer it. `mutants_mortality.
@@ -24306,7 +24306,8 @@ class TestPhantomPassThrough(Base):
         relations leaving on one vertical. The method name is pinned by
         `test_instrument_mortality.CORPUS_WALKS` and cannot move here.
 
-        SEVEN HERE AND EIGHT IN `AGENTS.md`, and the two do not need
+        SEVEN HERE AND EIGHT IN `skills/wysiwyg-grilling/AGENTS.md`, and the
+        two do not need
         reconciling: this walks the artifact FILES, while the corpus
         census walks what `Store` lints, which is the scene after the
         load-time repair. `argus-r5/daily-run` is the difference —

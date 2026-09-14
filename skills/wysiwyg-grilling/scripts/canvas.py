@@ -17,7 +17,8 @@ Commands:
 Canonical invocation:  uv run canvas.py <cmd>   (bare python3 works too)
 """
 
-# AGENTS.md § Type hints: annotations become strings, so the 3.9 floor can
+# skills/wysiwyg-grilling/AGENTS.md § Type hints: annotations become strings,
+# so the 3.9 floor can
 # still carry `list[str]` and `X | None`. Inert at runtime here — nothing in
 # this file reads `__annotations__` or `typing.get_type_hints` — which is
 # why it could be added mid-file-life (v0.9 Task 52) without a sweep: it
@@ -18009,8 +18010,9 @@ def waive_hint(key):
     ONE FORMATTER FOR EVERY MESSAGE THAT OFFERS A WAIVE, and the reason
     is the defect it closes rather than tidiness (v0.9 whole-branch
     review, I-1). NO COUNT HERE, deliberately, and for this section's
-    own reason (AGENTS.md § Known debt): this sentence said FOURTEEN and
-    was wrong by five before anybody noticed, because nothing in the
+    own reason (skills/wysiwyg-grilling/AGENTS.md § Known debt): this
+    sentence said FOURTEEN and was wrong by five before anybody noticed,
+    because nothing in the
     repo reads it and so nothing ever failed to say so. Measure when you
     need it — `grep -c 'waive_hint[(]' canvas.py`, less one for this
     definition — and `test_no_message_spells_the_envelope_by_hand` holds

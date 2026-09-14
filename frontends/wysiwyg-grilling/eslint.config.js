@@ -1,6 +1,7 @@
 // Flat config (ESLint 9). Run: npm run lint
 //
-// Docstring policy mirrors the Python side (AGENTS.md § Documentation
+// Docstring policy mirrors the Python side
+// (skills/wysiwyg-grilling/AGENTS.md § Documentation
 // standard): every exported symbol and React component carries a TSDoc
 // block. Types live in the signature, never restated in prose — hence
 // `require-param-type` / `require-returns-type` are off.
@@ -74,7 +75,8 @@ export default tseslint.config(
       "jsdoc/no-types": "error",
 
       // ---- typing ------------------------------------------------------
-      // 68 pre-existing `any`s (AGENTS.md § Known debt). Warn now so new
+      // 68 pre-existing `any`s
+      // (skills/wysiwyg-grilling/AGENTS.md § Known debt). Warn now so new
       // ones are visible; raise to "error" once api.ts is typed.
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": [
@@ -95,7 +97,8 @@ export default tseslint.config(
   // gets them as errors. Delete a file from this list once `npm run lint`
   // is clean for it; delete the whole block when the list empties.
   //
-  // Remaining at time of writing (see AGENTS.md § Known debt):
+  // Remaining at time of writing
+  // (see skills/wysiwyg-grilling/AGENTS.md § Known debt):
   //   jsdoc/require-jsdoc      6    jsdoc/require-returns    5
   //   jsdoc/multiline-blocks   6    no-unused-vars           2
   //   no-explicit-any        101    react-hooks/deps        14

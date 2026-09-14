@@ -13,8 +13,9 @@ default suite and so does a line naming a red that is not there.
 
 **Curators own this file, alongside `tests/test_mutants.py`, and own nothing
 else.** It exists so that landing a red does not mean editing
-`SESSION-HANDOVER.md`, which curators must not touch. AGENTS.md's *Curation*
-section is where that rule is written; this paragraph is the copy you meet at
+`SESSION-HANDOVER.md`, which curators must not touch.
+`skills/wysiwyg-grilling/AGENTS.md`'s *Curation* section is where that rule is
+written; this paragraph is the copy you meet at
 the moment you arrive to edit. Both rosters lived in that handover until
 2026-09-01. A roster line at either old address is now itself a guard
 failure: each fact has exactly one home, and a correct copy beside a stale
