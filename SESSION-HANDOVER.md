@@ -1529,4 +1529,4 @@ function → bring it to standard". The web client is a committed Vite build: ed
 `frontends/wysiwyg-grilling/`, `npm run build`, and commit
 `skills/wysiwyg-grilling/scripts/web/` as its **own** commit with `--no-verify`
 (the hooks exclude that tree) and say why in the message. Full standard:
-`AGENTS.md`.
+`skills/wysiwyg-grilling/AGENTS.md`.

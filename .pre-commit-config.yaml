@@ -37,7 +37,7 @@ repos:
   # ------------------------------------------------- python lint + docstrings
   # Covers E/F/W/I/B/SIM/N + D (Google docstrings) + ANN (type hints)
   # + DOC (Args/Returns completeness). Configured in pyproject.toml.
-  # No `ruff format`: see AGENTS.md § Formatting.
+  # No `ruff format`: see skills/wysiwyg-grilling/AGENTS.md § Formatting.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.2
     hooks:
@@ -201,8 +201,9 @@ repos:
   #
   # LOUDLY IS NOT THE SAME AS CLEARLY, which is what v0.9 whole-branch
   # review M-6 measured and what the guard below closes. This comment and
-  # AGENTS.md both promised "a clear message"; what a fresh clone actually
-  # got was `sh: 1: eslint: not found` and exit 127 — a sentence about a
+  # skills/wysiwyg-grilling/AGENTS.md promised "a clear message"; what a
+  # fresh clone actually got was `sh: 1: eslint: not found` and exit 127 —
+  # a sentence about a
   # binary, naming neither the cause nor the one command that fixes it.
   # The guard runs first, on the same file set, so the remedy is the first
   # thing in the output rather than something to infer from the noise.

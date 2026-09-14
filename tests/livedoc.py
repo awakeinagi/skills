@@ -5,7 +5,8 @@ the rot is invisible because a stale sentence reads exactly like a fresh
 one. `frontends/wysiwyg-grilling/tests/e2e/README.md` needed a commit of
 its own (`cb533ab`, "sync the triage README's suite count") to move one
 number by ten, and had drifted by nearly eight hundred again by the time
-this file was written. AGENTS.md called `canvas.py` "~5.4k lines" at 18k
+this file was written. `skills/wysiwyg-grilling/AGENTS.md` called `canvas.py`
+"~5.4k lines" at 18k
 and `tests/test_backend.py` "~120 tests" at 628. Every one of those
 sentences was true when it was typed, and none of them says when that was.
 
@@ -36,7 +37,8 @@ WHAT IS NOT A VALID LIVE VALUE. A derivation must be deterministic on a
 clean checkout: `refresh` is idempotent, and a value that moved on its own
 would make the second run rewrite the file. So wall-clock timings ("~2s"),
 anything that reads the network, and anything that needs a browser stay
-literals. AGENTS.md's suite-runtime figure is deliberately one of these.
+literals. `skills/wysiwyg-grilling/AGENTS.md`'s suite-runtime figure is
+deliberately one of these.
 
 THE BOUNDARY WITH THE CENSUS — read this before adding a calculator that
 counts reds, mutants or catalogue rows, and read it as a line that MOVED
@@ -205,7 +207,8 @@ def _kloc(lines: int) -> str:
     """Render a line count the way this repo's prose already says it.
 
     Rounded to a hundred lines rather than stated exactly, and the rounding
-    is the point: AGENTS.md's table is describing scale, and an exact count
+    is the point: `skills/wysiwyg-grilling/AGENTS.md`'s table is describing
+    scale, and an exact count
     would mark the file dirty on every commit that touches the subject,
     across every agent working in parallel. A tenth of a thousand still
     catches the failure this exists for — being wrong by a factor of three.
@@ -272,7 +275,7 @@ def _discovered_case_count(pattern: str) -> int:
 
 @calculator("canvas_py_lines")
 def canvas_py_lines() -> str:
-    """Size of the single-file backend, as AGENTS.md's table states it.
+    """Size of the backend, as the WYSIWYG engineering guide states it.
 
     Returns:
         `~N.Nk`, the line count of `canvas.py` rounded to a hundred lines.
@@ -283,7 +286,7 @@ def canvas_py_lines() -> str:
 
 @calculator("frontend_src_lines")
 def frontend_src_lines() -> str:
-    """Size of the canvas UI, counting the sources AGENTS.md's row names.
+    """Size of the canvas UI, counting the sources its engineering guide names.
 
     `.ts` and `.tsx` only, because the row it fills says "TypeScript /
     React 18" — `styles.css` is a real seven hundred lines and is honestly
@@ -318,7 +321,8 @@ def test_backend_cases() -> str:
 
     Returns:
         The count, exactly. Unlike the line counts this one is not rounded:
-        it is the number AGENTS.md's table quotes as the size of the backend
+        it is the number the WYSIWYG engineering guide quotes as the size of
+        the backend
         suite, it was five times wrong when this was written, and a reader
         deciding whether a change is covered wants the real figure.
     """
@@ -736,7 +740,8 @@ def _corpus_roots() -> list[Path]:
 def corpus_projects() -> str:
     """How many fixture projects the corpus census is taken across.
 
-    AGENTS.md's row read "Across 5 projects" as a literal beside a live
+    The WYSIWYG engineering guide read "Across 5 projects" as a literal
+    beside a live
     census, which is the half-derived shape this module exists to remove:
     the four numbers after it could not go stale and the number before
     them could, so adding a sixth fixture project would have made one
@@ -819,7 +824,8 @@ def gate_hooks_manual() -> str:
     """How many hooks the gate does NOT run without `--hook-stage manual`.
 
     THE NUMBER THIS EXISTS TO KEEP HONEST is the one in the sentence
-    beside it. AGENTS.md called `pre-commit run --all-files` "Everything,
+    beside it. The WYSIWYG engineering guide called
+    `pre-commit run --all-files` "Everything,
     as CI runs it" — wrong twice, and the half that mattered is this
     half: the guard-mutant sweep and the Playwright suite are manual-only
     and a reader who believed "Everything" had no reason to run either.

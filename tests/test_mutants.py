@@ -2123,8 +2123,8 @@ def drag_as_user(scene: list[dict], node_id: str, dx: float,
                             json.dumps({"url": _AS_USER_URL, "pid": 0}))
         app = canvas.ServerApp(project)
         # `mock.patch.object` rather than assigning `canvas.http_json`,
-        # and the reason is the standing `ty` note in AGENTS.md: ty types
-        # a module-level `def` as that exact function, so ANY rebinding
+        # and the reason is the standing `ty` note in the WYSIWYG AGENTS.md:
+        # ty types a module-level `def` as that exact function, so ANY rebinding
         # is rejected — an identical signature included — and the repo's
         # other monkeypatch sites pay for it with suppressions. A patch
         # object needs none, and restores on the way out even if the
@@ -7591,8 +7591,8 @@ class TestStoreIntegrity(unittest.TestCase):
 # order reversed — because a 45-element artifact cannot show anyone what the
 # mechanism is. Both are RED BY ASSERTION and both stay red until somebody
 # owns the reconciliation; that work is unassigned, filed for the addendum
-# wave, and it is emphatically not the curator's (`AGENTS.md`: the fix and
-# its acceptance test do not come from the same hands).
+# wave, and it is emphatically not the curator's (the WYSIWYG AGENTS.md: the
+# fix and its acceptance test do not come from the same hands).
 # ---------------------------------------------------------------------------
 
 
@@ -31200,7 +31200,8 @@ def handover_hand_authored_red_classes() -> dict[str, int]:
     each edited SESSION-HANDOVER.md under protest — a file curators are
     told not to touch. The ruling was that the constraint does not give
     and the roster moves: curators own `tests/RED-ROSTER.md` alongside
-    `tests/test_mutants.py`, AGENTS.md's curation section says so, and
+    `tests/test_mutants.py`, the WYSIWYG AGENTS.md's curation section says so,
+    and
     concurrent curators add DISTINCT LINES to a roster-only file instead
     of rewording one line of one shared prose document. The catalogue's
     id roster followed on the same day for reasons of its own; see
@@ -44030,8 +44031,8 @@ class TestACitedClientSymbolStillMeansWhatTheProseSaysItMeans(
         instead of asking anybody to go find it. What it does not do is
         pin: no minified name is written down here as an expectation,
         so there is no baseline to re-take, only offsets to re-derive.
-        `README.md`'s build block carries that obligation; this
-        docstring is not the only place it is written down.
+        `skills/wysiwyg-grilling/README.md`'s build block carries that
+        obligation; this docstring is not the only place it is written down.
 
         It is also the proof that the reader WORKS, which is what stops
         the red beside it from being red because the machinery is dead.
